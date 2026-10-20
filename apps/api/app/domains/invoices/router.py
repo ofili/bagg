@@ -41,6 +41,7 @@ from app.domains.invoices.schemas import (
     InvoiceSendResponse,
     LineItemSchema,
     CurrencyMetricsResponse,
+    WHTCreditNoteUpdate,
 )
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
@@ -111,6 +112,9 @@ def map_invoice_to_response(
     if "claims" in inv.__dict__ and inv.claims:
         latest_claim = PaymentClaimResponse.model_validate(inv.claims[0])
 
+    net_payable = inv.net_payable_minor if (inv.net_payable_minor and inv.net_payable_minor > 0) else inv.total_minor
+    balance_due = max(0, net_payable - (inv.amount_paid_minor or 0))
+
     return InvoiceResponse(
         id=inv.id,
         workspace_id=inv.workspace_id,
@@ -128,7 +132,18 @@ def map_invoice_to_response(
         tax_rate_percent=inv.tax_rate_percent,
         tax_minor=inv.tax_minor,
         total_minor=inv.total_minor,
-        amount_paid_minor=inv.amount_paid_minor,
+        wht_rate_percent=inv.wht_rate_percent or 0.0,
+        wht_minor=inv.wht_minor or 0,
+        net_payable_minor=net_payable,
+        wht_credit_note_number=inv.wht_credit_note_number,
+        deposit_percentage=inv.deposit_percentage,
+        deposit_amount_minor=inv.deposit_amount_minor,
+        deposit_due_date=inv.deposit_due_date,
+        amount_paid_minor=inv.amount_paid_minor or 0,
+        balance_due_minor=balance_due,
+        direct_checkout_enabled=inv.direct_checkout_enabled if inv.direct_checkout_enabled is not None else True,
+        direct_payment_reference=inv.direct_payment_reference,
+        paid_at=inv.paid_at,
         payment_profile_id=inv.payment_profile_id,
         notes=inv.notes,
         share_token=inv.share_token,
@@ -236,7 +251,8 @@ async def get_invoice_metrics(
         m = metrics_by_currency[curr]
         m["invoices_count"] += 1
 
-        unpaid_balance = max(0, inv.total_minor - (inv.amount_paid_minor or 0))
+        target_payable = inv.net_payable_minor if (inv.net_payable_minor and inv.net_payable_minor > 0) else inv.total_minor
+        unpaid_balance = max(0, target_payable - (inv.amount_paid_minor or 0))
 
         if inv.status == "draft":
             m["draft_count"] += 1
@@ -346,6 +362,9 @@ async def create_invoice(
         items=raw_items,
         discount_minor=payload.discount_minor,
         tax_percent=payload.tax_rate_percent,
+        wht_percent=payload.wht_rate_percent,
+        deposit_percent=payload.deposit_percentage or 0.0,
+        deposit_amount_minor=payload.deposit_amount_minor,
     )
 
     raw_token, token_hash = generate_share_token()
@@ -364,6 +383,13 @@ async def create_invoice(
         tax_rate_percent=payload.tax_rate_percent,
         tax_minor=totals["tax_minor"],
         total_minor=totals["total_minor"],
+        wht_rate_percent=payload.wht_rate_percent,
+        wht_minor=totals["wht_minor"],
+        net_payable_minor=totals["net_payable_minor"],
+        deposit_percentage=payload.deposit_percentage,
+        deposit_amount_minor=totals["deposit_amount_minor"],
+        deposit_due_date=payload.deposit_due_date,
+        direct_checkout_enabled=payload.direct_checkout_enabled,
         amount_paid_minor=0,
         payment_profile_id=payload.payment_profile_id,
         notes=payload.notes,
@@ -447,14 +473,26 @@ async def update_invoice(
             f"Invoice '{invoice.invoice_number}' is '{invoice.status}' and cannot be directly modified. Sent invoices are immutable. Create a revision."
         )
 
+    recalc = (
+        payload.items is not None
+        or payload.discount_minor is not None
+        or payload.tax_rate_percent is not None
+        or payload.wht_rate_percent is not None
+        or payload.deposit_percentage is not None
+        or payload.deposit_amount_minor is not None
+    )
+
+    discount = payload.discount_minor if payload.discount_minor is not None else invoice.discount_minor
+    tax_rate = payload.tax_rate_percent if payload.tax_rate_percent is not None else invoice.tax_rate_percent
+    wht_rate = payload.wht_rate_percent if payload.wht_rate_percent is not None else (invoice.wht_rate_percent or 0.0)
+    deposit_pct = payload.deposit_percentage if payload.deposit_percentage is not None else invoice.deposit_percentage
+    deposit_amt = payload.deposit_amount_minor if payload.deposit_amount_minor is not None else invoice.deposit_amount_minor
+
     if payload.items is not None:
         del_stmt = select(InvoiceLineItem).where(InvoiceLineItem.invoice_id == invoice.id)
         existing_items = (await db.execute(del_stmt)).scalars().all()
         for item in existing_items:
             await db.delete(item)
-
-        discount = payload.discount_minor if payload.discount_minor is not None else invoice.discount_minor
-        tax_rate = payload.tax_rate_percent if payload.tax_rate_percent is not None else invoice.tax_rate_percent
 
         raw_items = [
             {"quantity": it.quantity, "unit_price_minor": it.unit_price_minor}
@@ -464,6 +502,9 @@ async def update_invoice(
             items=raw_items,
             discount_minor=discount,
             tax_percent=tax_rate,
+            wht_percent=wht_rate,
+            deposit_percent=deposit_pct or 0.0,
+            deposit_amount_minor=deposit_amt,
         )
 
         invoice.subtotal_minor = totals["subtotal_minor"]
@@ -471,6 +512,11 @@ async def update_invoice(
         invoice.tax_rate_percent = tax_rate
         invoice.tax_minor = totals["tax_minor"]
         invoice.total_minor = totals["total_minor"]
+        invoice.wht_rate_percent = wht_rate
+        invoice.wht_minor = totals["wht_minor"]
+        invoice.net_payable_minor = totals["net_payable_minor"]
+        invoice.deposit_percentage = deposit_pct
+        invoice.deposit_amount_minor = totals["deposit_amount_minor"]
 
         for i, it in enumerate(payload.items):
             item_total = it.quantity * it.unit_price_minor
@@ -483,7 +529,33 @@ async def update_invoice(
                 total_minor=item_total,
             )
             db.add(line_item)
+    elif recalc:
+        raw_items = [
+            {"quantity": it.quantity, "unit_price_minor": it.unit_price_minor}
+            for it in (invoice.items or [])
+        ]
+        totals = calculate_invoice_totals(
+            items=raw_items,
+            discount_minor=discount,
+            tax_percent=tax_rate,
+            wht_percent=wht_rate,
+            deposit_percent=deposit_pct or 0.0,
+            deposit_amount_minor=deposit_amt,
+        )
+        invoice.discount_minor = discount
+        invoice.tax_rate_percent = tax_rate
+        invoice.tax_minor = totals["tax_minor"]
+        invoice.total_minor = totals["total_minor"]
+        invoice.wht_rate_percent = wht_rate
+        invoice.wht_minor = totals["wht_minor"]
+        invoice.net_payable_minor = totals["net_payable_minor"]
+        invoice.deposit_percentage = deposit_pct
+        invoice.deposit_amount_minor = totals["deposit_amount_minor"]
 
+    if payload.deposit_due_date is not None:
+        invoice.deposit_due_date = payload.deposit_due_date
+    if payload.direct_checkout_enabled is not None:
+        invoice.direct_checkout_enabled = payload.direct_checkout_enabled
     if payload.client_id:
         invoice.client_id = payload.client_id
     if payload.issue_date:
@@ -657,6 +729,10 @@ async def revise_invoice(
         tax_rate_percent=invoice.tax_rate_percent,
         tax_minor=invoice.tax_minor,
         total_minor=invoice.total_minor,
+        wht_rate_percent=invoice.wht_rate_percent or 0.0,
+        wht_minor=invoice.wht_minor or 0,
+        net_payable_minor=invoice.net_payable_minor or invoice.total_minor,
+        deposit_amount_minor=invoice.deposit_amount_minor,
         items_snapshot=existing_items_snapshot,
         revised_reason=payload.reason,
     )
@@ -674,6 +750,9 @@ async def revise_invoice(
 
     discount = payload.discount_minor if payload.discount_minor is not None else invoice.discount_minor
     tax_rate = payload.tax_rate_percent if payload.tax_rate_percent is not None else invoice.tax_rate_percent
+    wht_rate = payload.wht_rate_percent if payload.wht_rate_percent is not None else (invoice.wht_rate_percent or 0.0)
+    deposit_pct = payload.deposit_percentage if payload.deposit_percentage is not None else invoice.deposit_percentage
+    deposit_amt = payload.deposit_amount_minor if payload.deposit_amount_minor is not None else invoice.deposit_amount_minor
 
     raw_items = [
         {"quantity": it.quantity, "unit_price_minor": it.unit_price_minor}
@@ -683,6 +762,9 @@ async def revise_invoice(
         items=raw_items,
         discount_minor=discount,
         tax_percent=tax_rate,
+        wht_percent=wht_rate,
+        deposit_percent=deposit_pct or 0.0,
+        deposit_amount_minor=deposit_amt,
     )
 
     invoice.subtotal_minor = totals["subtotal_minor"]
@@ -690,6 +772,11 @@ async def revise_invoice(
     invoice.tax_rate_percent = tax_rate
     invoice.tax_minor = totals["tax_minor"]
     invoice.total_minor = totals["total_minor"]
+    invoice.wht_rate_percent = wht_rate
+    invoice.wht_minor = totals["wht_minor"]
+    invoice.net_payable_minor = totals["net_payable_minor"]
+    invoice.deposit_percentage = deposit_pct
+    invoice.deposit_amount_minor = totals["deposit_amount_minor"]
     if payload.notes is not None:
         invoice.notes = payload.notes
 
@@ -919,3 +1006,30 @@ async def reject_payment_claim(
     await db.commit()
     await db.refresh(claim)
     return claim
+
+
+@router.patch("/{invoice_id}/wht", response_model=InvoiceResponse)
+async def update_wht_credit_note(
+    invoice_id: str,
+    payload: WHTCreditNoteUpdate,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Records or updates the official Withholding Tax (WHT) credit note number
+    issued by corporate clients for tax filing (US-INT-03).
+    """
+    stmt = select(Invoice).where(
+        and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace.id)
+    )
+    res = await db.execute(stmt)
+    invoice = res.scalar_one_or_none()
+    if not invoice:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
+
+    invoice.wht_credit_note_number = payload.wht_credit_note_number.strip()
+    await db.commit()
+    await db.refresh(invoice)
+
+    return map_invoice_to_response(invoice, business_name=workspace.business_name)
+

@@ -1,11 +1,22 @@
+import uuid
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc
 from datetime import datetime, timezone, date
 from typing import Optional, List
 
+from app.core.config import settings
 from app.core.database import get_db
-from app.domains.sharing.schemas import PublicInvoiceView, CommentCreate, CommentResponse
+from app.domains.sharing.schemas import (
+    PublicInvoiceView,
+    CommentCreate,
+    CommentResponse,
+    DirectCheckoutRequest,
+    DirectCheckoutResponse,
+    PaymentVerificationRequest,
+    PaymentVerificationResponse,
+)
 from app.domains.sharing.models import InvoiceComment
 from app.domains.invoices.models import Invoice
 from app.domains.invoices.router import map_invoice_to_response
@@ -232,3 +243,162 @@ async def list_comments(
         )
         for c in comments
     ]
+
+
+@router.post("/{token}/checkout", response_model=DirectCheckoutResponse, status_code=status.HTTP_201_CREATED)
+async def initiate_direct_checkout(
+    token: str,
+    payload: DirectCheckoutRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Integrated Direct Payer Checkout (US-INT-01).
+    Client initiates Paystack payment directly from the invoice page.
+    Funds settle to the freelancer's verified merchant subaccount — Bagg never holds funds.
+    Supports partial payments for milestone deposits.
+    """
+    stmt = (
+        select(Invoice, Client, Workspace)
+        .join(Client, Invoice.client_id == Client.id, isouter=True)
+        .join(Workspace, Invoice.workspace_id == Workspace.id)
+        .where(Invoice.share_token == token)
+    )
+    result = await db.execute(stmt)
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    invoice, client, workspace = row
+
+    if not invoice.direct_checkout_enabled:
+        raise HTTPException(status_code=403, detail="Direct checkout is disabled for this invoice")
+
+    if invoice.status == "paid":
+        raise HTTPException(status_code=400, detail="Invoice is already fully paid")
+
+    if invoice.status in ["draft", "cancelled"]:
+        raise HTTPException(status_code=400, detail=f"Cannot pay a {invoice.status} invoice")
+
+    # Determine charge amount
+    net_payable = invoice.net_payable_minor if (invoice.net_payable_minor and invoice.net_payable_minor > 0) else invoice.total_minor
+    balance_due = max(0, net_payable - (invoice.amount_paid_minor or 0))
+
+    if payload.amount_minor and payload.amount_minor > 0:
+        charge_amount = min(payload.amount_minor, balance_due)
+    elif invoice.deposit_amount_minor and (invoice.amount_paid_minor or 0) == 0:
+        # First payment on a milestone invoice — charge deposit
+        charge_amount = invoice.deposit_amount_minor
+    else:
+        charge_amount = balance_due
+
+    if charge_amount <= 0:
+        raise HTTPException(status_code=400, detail="No outstanding balance to pay")
+
+    reference = f"bagg_pay_{uuid.uuid4().hex[:16]}"
+    invoice.direct_payment_reference = reference
+
+    await db.commit()
+
+    # Initialize Paystack transaction
+    callback = payload.callback_url or f"http://localhost:3000/i/{token}?payment=success"
+    paystack_payload = {
+        "email": client.email if client and client.email else f"client@{workspace.slug or 'bagg'}.invoice",
+        "amount": charge_amount,  # Paystack expects kobo/cents
+        "currency": invoice.currency,
+        "reference": reference,
+        "callback_url": callback,
+        "metadata": {
+            "invoice_id": invoice.id,
+            "invoice_number": invoice.invoice_number,
+            "workspace_id": workspace.id,
+            "type": "direct_invoice_payment",
+        },
+    }
+
+    try:
+        async with httpx.AsyncClient() as http:
+            resp = await http.post(
+                "https://api.paystack.co/transaction/initialize",
+                json=paystack_payload,
+                headers={
+                    "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+                    "Content-Type": "application/json",
+                },
+                timeout=15.0,
+            )
+            resp_data = resp.json()
+
+        if not resp_data.get("status"):
+            raise HTTPException(status_code=502, detail="Payment gateway error")
+
+        return DirectCheckoutResponse(
+            checkout_url=resp_data["data"]["authorization_url"],
+            reference=reference,
+            amount_minor=charge_amount,
+            currency=invoice.currency,
+        )
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="Payment gateway unavailable")
+
+
+@router.post("/{token}/verify-payment", response_model=PaymentVerificationResponse)
+async def verify_direct_payment(
+    token: str,
+    payload: PaymentVerificationRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Verifies a Paystack transaction and reconciles the invoice (US-INT-01).
+    Called by frontend after Paystack redirect. Also handled by webhooks for reliability.
+    """
+    stmt = select(Invoice).where(Invoice.share_token == token)
+    result = await db.execute(stmt)
+    invoice = result.scalar_one_or_none()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # Verify with Paystack
+    try:
+        async with httpx.AsyncClient() as http:
+            resp = await http.get(
+                f"https://api.paystack.co/transaction/verify/{payload.reference}",
+                headers={"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"},
+                timeout=15.0,
+            )
+            resp_data = resp.json()
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="Payment gateway unavailable")
+
+    if not resp_data.get("status") or resp_data.get("data", {}).get("status") != "success":
+        return PaymentVerificationResponse(
+            status="failed",
+            message="Payment not confirmed by gateway",
+            invoice_status=invoice.status,
+            amount_paid_minor=invoice.amount_paid_minor or 0,
+            balance_due_minor=max(0, (invoice.net_payable_minor or invoice.total_minor) - (invoice.amount_paid_minor or 0)),
+        )
+
+    paid_amount = resp_data["data"]["amount"]  # in kobo/cents
+    invoice.amount_paid_minor = (invoice.amount_paid_minor or 0) + paid_amount
+    invoice.paid_at = datetime.now(timezone.utc)
+
+    net_payable = invoice.net_payable_minor if (invoice.net_payable_minor and invoice.net_payable_minor > 0) else invoice.total_minor
+    balance_due = max(0, net_payable - invoice.amount_paid_minor)
+
+    if balance_due <= 0:
+        invoice.status = "paid"
+        # Cancel any pending reminders
+        await cancel_invoice_reminders(db, invoice.id)
+    elif invoice.amount_paid_minor > 0:
+        invoice.status = "partially_paid"
+
+    await db.commit()
+    await db.refresh(invoice)
+
+    return PaymentVerificationResponse(
+        status="success",
+        message="Payment verified and reconciled",
+        invoice_status=invoice.status,
+        amount_paid_minor=invoice.amount_paid_minor,
+        balance_due_minor=balance_due,
+    )

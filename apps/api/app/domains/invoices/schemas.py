@@ -23,6 +23,11 @@ class InvoiceCreate(BaseModel):
     items: List[LineItemSchema] = []
     discount_minor: int = Field(default=0, ge=0)
     tax_rate_percent: float = Field(default=0.0, ge=0.0, le=100.0)
+    wht_rate_percent: float = Field(default=0.0, ge=0.0, le=100.0)
+    deposit_percentage: Optional[float] = Field(None, ge=0.0, le=100.0)
+    deposit_amount_minor: Optional[int] = Field(None, ge=0)
+    deposit_due_date: Optional[date] = None
+    direct_checkout_enabled: bool = True
     notes: Optional[str] = None
     payment_profile_id: Optional[str] = None
 
@@ -42,6 +47,11 @@ class InvoiceUpdate(BaseModel):
     items: Optional[List[LineItemSchema]] = None
     discount_minor: Optional[int] = Field(None, ge=0)
     tax_rate_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
+    wht_rate_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
+    deposit_percentage: Optional[float] = Field(None, ge=0.0, le=100.0)
+    deposit_amount_minor: Optional[int] = Field(None, ge=0)
+    deposit_due_date: Optional[date] = None
+    direct_checkout_enabled: Optional[bool] = None
     notes: Optional[str] = None
     payment_profile_id: Optional[str] = None
 
@@ -50,8 +60,15 @@ class InvoiceReviseRequest(BaseModel):
     items: List[LineItemSchema]
     discount_minor: Optional[int] = Field(None, ge=0)
     tax_rate_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
+    wht_rate_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
+    deposit_percentage: Optional[float] = Field(None, ge=0.0, le=100.0)
+    deposit_amount_minor: Optional[int] = Field(None, ge=0)
     notes: Optional[str] = None
     reason: Optional[str] = "Scope or pricing adjustment"
+
+
+class WHTCreditNoteUpdate(BaseModel):
+    wht_credit_note_number: str = Field(..., min_length=1)
 
 
 class InvoiceRevisionResponse(BaseModel):
@@ -65,6 +82,10 @@ class InvoiceRevisionResponse(BaseModel):
     tax_rate_percent: float
     tax_minor: int
     total_minor: int
+    wht_rate_percent: float = 0.0
+    wht_minor: int = 0
+    net_payable_minor: int = 0
+    deposit_amount_minor: Optional[int] = None
     items_snapshot: Any
     revised_reason: Optional[str] = None
     created_at: datetime
@@ -92,7 +113,18 @@ class InvoiceResponse(BaseModel):
     tax_rate_percent: float
     tax_minor: int
     total_minor: int
+    wht_rate_percent: float = 0.0
+    wht_minor: int = 0
+    net_payable_minor: int = 0
+    wht_credit_note_number: Optional[str] = None
+    deposit_percentage: Optional[float] = None
+    deposit_amount_minor: Optional[int] = None
+    deposit_due_date: Optional[date] = None
     amount_paid_minor: int = 0
+    balance_due_minor: int = 0
+    direct_checkout_enabled: bool = True
+    direct_payment_reference: Optional[str] = None
+    paid_at: Optional[datetime] = None
     payment_profile_id: Optional[str] = None
     notes: Optional[str] = None
     share_token: Optional[str] = None

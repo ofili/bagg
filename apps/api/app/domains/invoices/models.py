@@ -5,6 +5,7 @@ from sqlalchemy import (
     Integer,
     BigInteger,
     Float,
+    Boolean,
     Date,
     DateTime,
     ForeignKey,
@@ -42,8 +43,25 @@ class Invoice(Base):
     discount_minor = Column(BigInteger, nullable=False, default=0)
     tax_rate_percent = Column(Float, nullable=False, default=0.0)
     tax_minor = Column(BigInteger, nullable=False, default=0)
-    total_minor = Column(BigInteger, nullable=False, default=0)
+    total_minor = Column(BigInteger, nullable=False, default=0)  # Gross Total
+
+    # Withholding Tax (WHT) Tracking (US-INT-03)
+    wht_rate_percent = Column(Float, nullable=False, default=0.0)
+    wht_minor = Column(BigInteger, nullable=False, default=0)
+    net_payable_minor = Column(BigInteger, nullable=False, default=0)
+    wht_credit_note_number = Column(String, nullable=True)
+
+    # Milestone Payments & Upfront Deposits (US-INT-02)
+    deposit_percentage = Column(Float, nullable=True)
+    deposit_amount_minor = Column(BigInteger, nullable=True)
+    deposit_due_date = Column(Date, nullable=True)
+
     amount_paid_minor = Column(BigInteger, nullable=False, default=0)
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Direct Payer Checkout (US-INT-01)
+    direct_checkout_enabled = Column(Boolean, nullable=False, default=True)
+    direct_payment_reference = Column(String, nullable=True)
 
     payment_profile_id = Column(String, ForeignKey("payment_profiles.id", ondelete="SET NULL"), nullable=True)
     notes = Column(Text, nullable=True)
@@ -137,6 +155,10 @@ class InvoiceRevision(Base):
     tax_rate_percent = Column(Float, nullable=False)
     tax_minor = Column(BigInteger, nullable=False)
     total_minor = Column(BigInteger, nullable=False)
+    wht_rate_percent = Column(Float, nullable=False, default=0.0)
+    wht_minor = Column(BigInteger, nullable=False, default=0)
+    net_payable_minor = Column(BigInteger, nullable=False, default=0)
+    deposit_amount_minor = Column(BigInteger, nullable=True)
     items_snapshot = Column(JSON, nullable=False)
     revised_reason = Column(String, nullable=True)
 

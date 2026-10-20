@@ -39,10 +39,14 @@ def calculate_tax_minor(taxable_amount_minor: int, tax_percent: float) -> int:
 def calculate_invoice_totals(
     items: List[Dict[str, Any]],
     discount_minor: int = 0,
-    tax_percent: float = 0.0
-) -> Dict[str, int]:
+    tax_percent: float = 0.0,
+    wht_percent: float = 0.0,
+    deposit_percent: float = 0.0,
+    deposit_amount_minor: int | None = None,
+) -> Dict[str, Any]:
     """
-    Calculates subtotal, discounted subtotal, tax, and final total in minor units.
+    Calculates subtotal, discounted subtotal, tax, gross total,
+    withholding tax (WHT), net payable, and milestone deposit in minor units.
     Each item must have: quantity (int), unit_price_minor (int).
     """
     subtotal_minor = 0
@@ -53,13 +57,27 @@ def calculate_invoice_totals(
 
     discounted_subtotal_minor = max(0, subtotal_minor - discount_minor)
     tax_minor = calculate_tax_minor(discounted_subtotal_minor, tax_percent)
-    total_minor = discounted_subtotal_minor + tax_minor
+    total_minor = discounted_subtotal_minor + tax_minor  # Gross Total
+
+    # Withholding tax (WHT) is calculated on discounted taxable subtotal (US-INT-03)
+    wht_minor = calculate_tax_minor(discounted_subtotal_minor, wht_percent)
+    net_payable_minor = max(0, total_minor - wht_minor)
+
+    # Deposit calculation (US-INT-02)
+    resolved_deposit_minor = None
+    if deposit_amount_minor is not None and deposit_amount_minor > 0:
+        resolved_deposit_minor = min(deposit_amount_minor, net_payable_minor)
+    elif deposit_percent is not None and deposit_percent > 0:
+        resolved_deposit_minor = calculate_tax_minor(net_payable_minor, deposit_percent)
 
     return {
         "subtotal_minor": subtotal_minor,
         "discounted_subtotal_minor": discounted_subtotal_minor,
         "tax_minor": tax_minor,
         "total_minor": total_minor,
+        "wht_minor": wht_minor,
+        "net_payable_minor": net_payable_minor,
+        "deposit_amount_minor": resolved_deposit_minor,
     }
 
 
