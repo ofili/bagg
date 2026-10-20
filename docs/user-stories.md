@@ -497,7 +497,42 @@
 
 ---
 
-## 14. Summary Matrix & Implementation Status
+## Lifecycle 14: Downstream Receipts & Settlement Certificates
+
+### US-RCP-01: Automated Stamped Payment Receipts
+* **Role:** Freelancer & System
+* **Story:** When an invoice is paid (either via payment claim confirmation, direct online checkout, or manual payment recording), I want the system to automatically issue an immutable, sequentially numbered Payment Receipt (`REC-XXXX`) with a digital "PAID & VERIFIED" stamp so that my books and client records are audit-ready.
+* **Acceptance Criteria:**
+  - Workspace has a dedicated `receipt_prefix` (default `REC-`) and sequential receipt counter.
+  - Automatically created when a payment claim is confirmed or when offline payment is recorded.
+  - Captures `receipt_number`, `invoice_id`, `client_id`, `amount_paid_minor`, `currency`, `payment_method`, `reference`, `payment_date`, `payer_name`, `balance_remaining_minor`, and digital verification stamp.
+  - Manual payment recording endpoint `POST /invoices/{invoice_id}/receipts` allows recording offline transfers, updating invoice paid amount and status (`partially_paid` or `paid`).
+* **Priority:** P1 (Fast Follow)
+
+### US-RCP-02: Public Client Receipt Portal & Downloadable PDF Receipt
+* **Role:** Client (Payer) & Freelancer
+* **Story:** As a client who paid an invoice, I want to access an official receipt link (`/r/{token}`) and download a clean printable PDF/HTML receipt so that I can submit it for corporate expense reimbursement and tax records.
+* **Acceptance Criteria:**
+  - Zero-account public receipt view at `/r/{token}`.
+  - Displays business branding, invoice reference, payment date, method, amount paid, remaining balance, and verified digital stamp.
+  - 1-click WhatsApp share link for freelancer ("Hi {client_name}, here is your official receipt {receipt_number}...").
+  - Downloadable/printable HTML/PDF endpoint `GET /receipts/{id}/pdf`.
+* **Priority:** P1 (Fast Follow)
+
+### US-RCP-03: Client Account Settlement Statement (Statement of Account)
+* **Role:** Freelancer & Enterprise Client
+* **Story:** For repeat clients with multiple invoices and milestone receipts, I want to generate a formal Statement of Account detailing all invoices billed, payments credited, and outstanding ledger balance across a date range so that reconciliation is transparent.
+* **Acceptance Criteria:**
+  - Endpoint `GET /clients/{id}/statement`:
+    - Chronological ledger covering opening balance, debits (invoices), credits (receipts), and running balance.
+    - Summary figures: total billed, total paid, closing balance in minor units.
+    - Filterable by `date_from`, `date_to`, and `currency`.
+    - Printable statement view in frontend.
+* **Priority:** P1 (Fast Follow)
+
+---
+
+## 15. Summary Matrix & Implementation Status
 
 | Lifecycle Phase | Stories | MVP (P0) | Fast Follow (P1) | Status |
 | :--- | :--- | :---: | :---: | :---: |
@@ -513,6 +548,8 @@
 | **10. Subscription & Billing** | Free metering, Paystack/MoR checkout, webhooks, dunning/grace period, cancellations, credits | ✅ 6 stories | — | **Completed & Pushed** (`6ff3fb6`) |
 | **11. Phase 1 Rails & Taxes** | Direct payment links, milestone deposits, withholding tax (WHT) | — | ✅ 3 stories | **Completed & Pushed** (`dd63e5f`) |
 | **12. Security & Rights** | Full CSV/ZIP export, abuse reporting, NDPA account deletion | ✅ 3 stories | — | **Completed & Pushed** (`6f01bb2`) |
-| **13. Quotes & Conversion** | Expiration dates, quote acceptance portal, 1-click invoice conversion | — | ✅ 3 stories | **Completed & Pushed** |
-| **Total** | **37 E2E Stories** | **31 P0 Stories** | **6 P1 Stories** | **100% Shipped to `dev`** |
+| **13. Quotes & Conversion** | Expiration dates, quote acceptance portal, 1-click invoice conversion | — | ✅ 3 stories | **Completed & Pushed** (`bdd3011`) |
+| **14. Receipts & Settlement** | Automated stamped receipts, public /r/{token} portal, account statements | — | ✅ 3 stories | **Completed & Pushed** |
+| **Total** | **40 E2E Stories** | **31 P0 Stories** | **9 P1 Stories** | **100% Shipped to `dev`** |
+
 

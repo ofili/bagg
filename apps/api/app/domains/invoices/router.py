@@ -924,7 +924,8 @@ async def confirm_payment_claim(
     """
     Freelancer confirms payment claim (US-CLM-02).
     Updates amount_paid_minor, transitions invoice to 'paid' (or 'partially_paid'),
-    marks claim as confirmed, and records confirmed_at timestamp.
+    marks claim as confirmed, records confirmed_at timestamp,
+    and auto-issues an immutable stamped receipt (US-RCP-01).
     """
     stmt = select(Invoice).where(
         and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace.id)
@@ -947,14 +948,19 @@ async def confirm_payment_claim(
         if (payload and payload.amount_paid_minor is not None)
         else claim.amount_minor
     )
-    invoice.amount_paid_minor = (invoice.amount_paid_minor or 0) + confirmed_amount
 
-    if invoice.amount_paid_minor >= invoice.total_minor:
-        invoice.status = "paid"
-        # Auto-stop guarantee (US-REM-01)
-        await cancel_invoice_reminders(invoice.id, db)
-    else:
-        invoice.status = "partially_paid"
+    # Auto-issue stamped receipt (US-RCP-01)
+    from app.domains.receipts.service import create_receipt
+    await create_receipt(
+        db=db,
+        workspace=workspace,
+        invoice=invoice,
+        amount_paid_minor=confirmed_amount,
+        payment_method="bank_transfer",
+        reference=claim.reference,
+        payment_date=claim.payment_date,
+        payment_claim_id=claim.id,
+    )
 
     claim.status = "confirmed"
     claim.confirmed_at = datetime.now(timezone.utc)
