@@ -10,6 +10,7 @@ import app.domains.auth.models  # noqa: F401
 import app.domains.workspaces.models  # noqa: F401
 import app.domains.payments.models  # noqa: F401
 import app.domains.clients.models  # noqa: F401
+import app.domains.invoices.models  # noqa: F401
 
 config = context.config
 

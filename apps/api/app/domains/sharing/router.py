@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from datetime import datetime, timezone
@@ -6,7 +6,9 @@ from typing import Optional
 
 from app.core.database import get_db
 from app.domains.sharing.schemas import PublicInvoiceView, CommentCreate, CommentResponse
-from app.domains.invoices.router import DEMO_INVOICES
+from app.domains.invoices.models import Invoice
+from app.domains.invoices.router import map_invoice_to_response
+from app.domains.clients.models import Client
 from app.domains.payments.models import PaymentProfile
 from app.domains.payments.schemas import PaymentProfileResponse
 
@@ -20,21 +22,32 @@ async def get_public_invoice(
 ):
     """
     Public endpoint for client view via share token.
-    No client account or login required.
+    No client account or login required (US-CLV-01).
     """
-    invoice = next((inv for inv in DEMO_INVOICES if inv.share_token == token), None)
-    if not invoice:
-        invoice = DEMO_INVOICES[0]
+    stmt = (
+        select(Invoice, Client.name.label("client_name"))
+        .join(Client, Invoice.client_id == Client.id, isouter=True)
+        .where(Invoice.share_token == token)
+    )
+    res = await db.execute(stmt)
+    row = res.first()
 
-    # Query default payment profile for this invoice's currency
-    stmt = select(PaymentProfile).where(
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found or invalid link")
+
+    invoice, client_name = row
+    invoice_resp = map_invoice_to_response(invoice, client_name)
+
+    # Query default payment profile for this invoice's currency and workspace
+    stmt_prof = select(PaymentProfile).where(
         and_(
+            PaymentProfile.workspace_id == invoice.workspace_id,
             PaymentProfile.currency == invoice.currency,
             PaymentProfile.is_default.is_(True)
         )
     ).limit(1)
-    res = await db.execute(stmt)
-    db_profile = res.scalars().first()
+    res_prof = await db.execute(stmt_prof)
+    db_profile = res_prof.scalars().first()
 
     profile_resp = None
     if db_profile:
@@ -54,7 +67,7 @@ async def get_public_invoice(
         )
 
     return PublicInvoiceView(
-        invoice=invoice,
+        invoice=invoice_resp,
         payment_profile=profile_resp,
         comments=[]
     )
