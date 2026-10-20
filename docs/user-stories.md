@@ -459,20 +459,20 @@
 
 ---
 
-## 13. Summary Matrix & Implementation Priority
+## 13. Summary Matrix & Implementation Status
 
-| Lifecycle Phase | Stories | MVP (P0) | Fast Follow (P1) |
-| :--- | :--- | :---: | :---: |
-| **1. Onboarding & Profile** | Magic link login, branding, logo upload | ✅ 2 stories | — |
-| **2. Payment Profiles** | Multi-currency bank & digital rail setup, missing profile guard | ✅ 2 stories | — |
-| **3. Client Directory** | Clients with preferred currencies, phone-only WhatsApp support, balance stats | ✅ 2 stories | — |
-| **4. Invoice Drafting** | Sequential numbering, minor-unit integer math, autosave preview | ✅ 3 stories | — |
-| **5. Delivery & Versioning** | Share link, WhatsApp 1-click, email worker, PDF cache, revision banner | ✅ 5 stories | — |
-| **6. Client Portal** | Instant mobile load, 1-tap bank copy, line comments, viral footer | ✅ 4 stories | — |
-| **7. "I've Paid" Loop** | Client proof submission modal, freelancer confirm/reject/receipt | ✅ 2 stories | — |
-| **8. Automated Chasing** | Scheduled polite emails, 1-tap WhatsApp nudge, Postgres SKIP LOCKED worker | ✅ 3 stories | — |
-| **9. Financial Dashboard** | Segregated multi-currency cards, full 8-state machine filtering | ✅ 2 stories | — |
-| **10. Subscription & Billing** | Free metering, Paystack/MoR checkout, webhooks, dunning/grace period, cancellations, credits | ✅ 6 stories | — |
-| **11. Phase 1 Rails & Taxes** | Direct payment links, milestone deposits, withholding tax (WHT) | — | 🚀 3 stories |
-| **12. Security & Rights** | Full CSV/PDF export, abuse reporting, NDPA account deletion | ✅ 3 stories | — |
-| **Total** | **34 E2E Stories** | **31 P0 Stories** | **3 P1 Stories** |
+| Lifecycle Phase | Stories | MVP (P0) | Fast Follow (P1) | Status |
+| :--- | :--- | :---: | :---: | :---: |
+| **1. Onboarding & Profile** | Magic link login, branding, logo upload | ✅ 2 stories | — | **Completed & Pushed** (`5639a45`) |
+| **2. Payment Profiles** | Multi-currency bank & digital rail setup, missing profile guard | ✅ 2 stories | — | **Completed & Pushed** (`5639a45`) |
+| **3. Client Directory** | Clients with preferred currencies, phone-only WhatsApp support, balance stats | ✅ 2 stories | — | **Completed & Pushed** (`6045edf`) |
+| **4. Invoice Drafting** | Sequential numbering, minor-unit integer math, autosave preview | ✅ 3 stories | — | **Completed & Pushed** (`50b3388`) |
+| **5. Delivery & Versioning** | Share link, WhatsApp 1-click, email worker, PDF cache, revision banner | ✅ 5 stories | — | **Completed & Pushed** (`35da767`) |
+| **6. Client Portal** | Instant mobile load, 1-tap bank copy, line comments, viral footer | ✅ 4 stories | — | **Completed & Pushed** (`cc20d9a`) |
+| **7. "I've Paid" Loop** | Client proof submission modal, freelancer confirm/reject/receipt | ✅ 2 stories | — | **Completed & Pushed** (`ac8a1f2`) |
+| **8. Automated Chasing** | Scheduled polite emails, 1-tap WhatsApp nudge, Postgres SKIP LOCKED worker | ✅ 3 stories | — | **Completed & Pushed** (`aba38b2`) |
+| **9. Financial Dashboard** | Segregated multi-currency cards, full 8-state machine filtering | ✅ 2 stories | — | **Completed & Pushed** (`5c44236`) |
+| **10. Subscription & Billing** | Free metering, Paystack/MoR checkout, webhooks, dunning/grace period, cancellations, credits | ✅ 6 stories | — | **Completed & Pushed** (`6ff3fb6`) |
+| **11. Phase 1 Rails & Taxes** | Direct payment links, milestone deposits, withholding tax (WHT) | — | ✅ 3 stories | **Completed & Pushed** (`dd63e5f`) |
+| **12. Security & Rights** | Full CSV/ZIP export, abuse reporting, NDPA account deletion | ✅ 3 stories | — | **Completed & Pushed** (`6f01bb2`) |
+| **Total** | **34 E2E Stories** | **31 P0 Stories** | **3 P1 Stories** | **100% Shipped to `dev`** |
