@@ -52,8 +52,9 @@ class Invoice(Base):
     share_token = Column(String, unique=True, index=True, nullable=True)
     share_token_hash = Column(String, unique=True, index=True, nullable=True)
 
-    # Delivery & Tracking (US-DEL-03, US-DEL-04)
+    # Delivery & Tracking (US-DEL-03, US-DEL-04, US-CLV-01)
     sent_at = Column(DateTime(timezone=True), nullable=True)
+    viewed_at = Column(DateTime(timezone=True), nullable=True)
     email_delivery_status = Column(String, nullable=True)  # queued, delivered, bounced, opened
     pdf_url = Column(String, nullable=True)
 
@@ -79,6 +80,13 @@ class Invoice(Base):
         back_populates="invoice",
         cascade="all, delete-orphan",
         order_by="InvoiceRevision.version",
+        lazy="selectin",
+    )
+    comments = relationship(
+        "InvoiceComment",
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        order_by="InvoiceComment.created_at",
         lazy="selectin",
     )
 

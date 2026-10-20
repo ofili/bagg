@@ -23,6 +23,7 @@ class Workspace(Base):
     default_currency = Column(String, nullable=False, default="NGN")
     tax_id = Column(String, nullable=True)
     address = Column(String, nullable=True)
+    tier = Column(String, nullable=False, default="free")
     invoice_prefix = Column(String, nullable=False, default="INV-")
     next_invoice_number = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
