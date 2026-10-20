@@ -21,7 +21,9 @@ import {
   Landmark,
   User,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  AlertCircle,
+  X,
 } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -79,6 +81,15 @@ interface PublicInvoiceData {
     tax_rate_percent: number;
     tax_minor: number;
     total_minor: number;
+    wht_rate_percent?: number;
+    wht_minor?: number;
+    net_payable_minor?: number;
+    wht_credit_note_number?: string;
+    deposit_percentage?: number;
+    deposit_amount_minor?: number;
+    deposit_due_date?: string;
+    balance_due_minor?: number;
+    direct_checkout_enabled?: boolean;
     amount_paid_minor: number;
     notes?: string;
     version: number;
@@ -105,6 +116,9 @@ export default function PublicClientInvoiceView() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
+  // Direct checkout state (US-INT-01)
+  const [checkingOut, setCheckingOut] = useState(false);
+
   // Claim modal state (US-CLM-01)
   const [isPaidModalOpen, setIsPaidModalOpen] = useState(false);
   const [hasClaimed, setHasClaimed] = useState(false);
@@ -114,6 +128,15 @@ export default function PublicClientInvoiceView() {
   const [claimProofUrl, setClaimProofUrl] = useState('');
   const [submittingClaim, setSubmittingClaim] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+
+  // Abuse report modal state (US-SEC-02)
+  const [showAbuseModal, setShowAbuseModal] = useState(false);
+  const [abuseReason, setAbuseReason] = useState('');
+  const [abuseEmail, setAbuseEmail] = useState('');
+  const [abuseName, setAbuseName] = useState('');
+  const [submittingAbuse, setSubmittingAbuse] = useState(false);
+  const [abuseSuccess, setAbuseSuccess] = useState(false);
+  const [abuseError, setAbuseError] = useState<string | null>(null);
 
   // Comment state (US-CLV-03)
   const [authorName, setAuthorName] = useState('');
@@ -129,8 +152,13 @@ export default function PublicClientInvoiceView() {
       })
       .then((json: PublicInvoiceData) => {
         setData(json);
-        const remaining = (json.invoice.total_minor - (json.invoice.amount_paid_minor || 0)) / 100;
-        setClaimAmount(remaining > 0 ? remaining.toString() : (json.invoice.total_minor / 100).toString());
+        const netTotal = json.invoice.net_payable_minor || json.invoice.total_minor;
+        let defaultMinor = netTotal - (json.invoice.amount_paid_minor || 0);
+        if (json.invoice.deposit_amount_minor && (json.invoice.amount_paid_minor || 0) < json.invoice.deposit_amount_minor) {
+          defaultMinor = json.invoice.deposit_amount_minor - (json.invoice.amount_paid_minor || 0);
+        }
+        const remaining = defaultMinor / 100;
+        setClaimAmount(remaining > 0 ? remaining.toString() : (netTotal / 100).toString());
       })
       .catch((err) => {
         setError(err.message || 'Could not load invoice');
@@ -138,6 +166,64 @@ export default function PublicClientInvoiceView() {
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  const handleDirectCheckout = async () => {
+    try {
+      setCheckingOut(true);
+      const res = await fetch(`${API_BASE}/share/${token}/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Could not initialize payment checkout');
+      }
+      const chk = await res.json();
+      if (chk.checkout_url) {
+        window.location.href = chk.checkout_url;
+      }
+    } catch (err: any) {
+      alert(err.message || 'Checkout failed');
+    } finally {
+      setCheckingOut(false);
+    }
+  };
+
+  const handleReportAbuse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (abuseReason.trim().length < 10) {
+      setAbuseError('Please provide a reason with at least 10 characters.');
+      return;
+    }
+    try {
+      setSubmittingAbuse(true);
+      setAbuseError(null);
+      const res = await fetch(`${API_BASE}/share/${token}/report-abuse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: abuseReason.trim(),
+          reporter_email: abuseEmail.trim() || undefined,
+          reporter_name: abuseName.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to submit report');
+      }
+      setAbuseSuccess(true);
+      setTimeout(() => {
+        setShowAbuseModal(false);
+        setAbuseSuccess(false);
+        setAbuseReason('');
+      }, 3000);
+    } catch (err: any) {
+      setAbuseError(err.message || 'Error submitting report');
+    } finally {
+      setSubmittingAbuse(false);
+    }
   };
 
   useEffect(() => {
@@ -368,7 +454,7 @@ export default function PublicClientInvoiceView() {
               </tbody>
             </table>
 
-            {/* Calculations Breakdown */}
+            {/* Calculations Breakdown (US-INV-02, US-INT-02, US-INT-03) */}
             <div className="mt-4 pt-4 border-t space-y-2 text-xs text-neutral-600 max-w-xs ml-auto">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
@@ -386,10 +472,53 @@ export default function PublicClientInvoiceView() {
                   <span className="font-medium text-neutral-900">{formatMoney(invoice.tax_minor, invoice.currency)}</span>
                 </div>
               )}
+              {(invoice.wht_minor || 0) > 0 && (
+                <>
+                  <div className="flex justify-between font-semibold text-neutral-800 pt-1 border-t">
+                    <span>Gross Total:</span>
+                    <span>{formatMoney(invoice.total_minor, invoice.currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-amber-700">
+                    <span>Less WHT ({invoice.wht_rate_percent}%):</span>
+                    <span>-{formatMoney(invoice.wht_minor || 0, invoice.currency)}</span>
+                  </div>
+                  {invoice.wht_credit_note_number && (
+                    <div className="text-[10px] text-neutral-400 italic text-right">
+                      Credit Note: {invoice.wht_credit_note_number}
+                    </div>
+                  )}
+                </>
+              )}
               <div className="flex justify-between text-base font-black text-neutral-900 pt-2 border-t">
-                <span>Total Due:</span>
-                <span className="text-emerald-700 font-mono font-bold">{formatMoney(invoice.total_minor, invoice.currency)}</span>
+                <span>{(invoice.wht_minor || 0) > 0 ? 'Net Payable:' : 'Total Due:'}</span>
+                <span className="text-emerald-700 font-mono font-bold">
+                  {formatMoney(invoice.net_payable_minor || invoice.total_minor, invoice.currency)}
+                </span>
               </div>
+
+              {/* Milestone Deposit Callout (US-INT-02) */}
+              {(invoice.deposit_amount_minor || 0) > 0 && (
+                <div className="mt-2 p-2.5 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900 space-y-1">
+                  <div className="flex justify-between font-bold text-xs">
+                    <span>Deposit Due Today:</span>
+                    <span>{formatMoney(invoice.deposit_amount_minor || 0, invoice.currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-emerald-700">
+                    <span>Remaining Balance:</span>
+                    <span>
+                      {formatMoney(
+                        Math.max(0, (invoice.net_payable_minor || invoice.total_minor) - (invoice.deposit_amount_minor || 0)),
+                        invoice.currency
+                      )}
+                    </span>
+                  </div>
+                  {invoice.deposit_due_date && (
+                    <div className="text-[10px] text-emerald-600">
+                      Deposit Due: {invoice.deposit_due_date}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -510,9 +639,30 @@ export default function PublicClientInvoiceView() {
             )}
           </div>
 
-          {/* Action Button: I've Paid */}
+          {/* Payment Actions (US-INT-01, US-CLM-01) */}
           {!isPaid && (
-            <div className="text-center pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              {invoice.direct_checkout_enabled && (
+                <button
+                  type="button"
+                  disabled={checkingOut}
+                  onClick={handleDirectCheckout}
+                  className="w-full sm:w-auto px-7 py-3 bg-neutral-900 hover:bg-neutral-800 text-white font-bold rounded-xl shadow-md transition inline-flex items-center justify-center gap-2"
+                >
+                  {checkingOut ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading Checkout...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4 text-emerald-400" />
+                      Pay with Card / Transfer
+                    </>
+                  )}
+                </button>
+              )}
+
               {isClaimed ? (
                 <div className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-50 text-blue-800 rounded-xl font-semibold text-xs border border-blue-200">
                   <CheckCircle2 className="w-4 h-4 text-blue-600" />
@@ -521,13 +671,13 @@ export default function PublicClientInvoiceView() {
               ) : (
                 <button
                   onClick={() => setIsPaidModalOpen(true)}
-                  className="w-full sm:w-auto px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition"
+                  className="w-full sm:w-auto px-7 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition"
                 >
                   {isRejected
                     ? 'Resubmit Payment Proof'
                     : isPartiallyPaid
                     ? 'I’ve Paid Remaining Balance'
-                    : 'I’ve Paid This Invoice'}
+                    : 'I’ve Paid via Bank Transfer'}
                 </button>
               )}
             </div>
@@ -593,7 +743,7 @@ export default function PublicClientInvoiceView() {
 
         {/* Viral Acquisition Footer (US-CLV-04) */}
         {show_viral_footer && (
-          <div className="pt-4 pb-8 text-center">
+          <div className="pt-4 pb-2 text-center">
             <a
               href={viral_footer_link || 'https://bagg.africa?utm_source=invoice_footer&utm_medium=referral'}
               target="_blank"
@@ -606,6 +756,17 @@ export default function PublicClientInvoiceView() {
             </a>
           </div>
         )}
+
+        {/* Abuse Reporting Link (US-SEC-02) */}
+        <div className="pt-1 pb-8 text-center">
+          <button
+            type="button"
+            onClick={() => setShowAbuseModal(true)}
+            className="text-[11px] text-neutral-400 hover:text-red-600 underline transition"
+          >
+            Report this invoice as suspicious or fraudulent
+          </button>
+        </div>
 
         {/* Claim Modal (US-CLM-01) */}
         {isPaidModalOpen && (
@@ -703,6 +864,107 @@ export default function PublicClientInvoiceView() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Abuse Report Modal (US-SEC-02) */}
+        {showAbuseModal && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div className="flex items-center gap-2 text-red-600">
+                  <AlertCircle className="w-5 h-5" />
+                  <h3 className="font-bold text-base text-neutral-900">Report Suspicious Invoice</h3>
+                </div>
+                <button
+                  onClick={() => setShowAbuseModal(false)}
+                  className="text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {abuseSuccess ? (
+                <div className="p-4 bg-emerald-50 text-emerald-800 text-xs rounded-xl flex items-center gap-2 border border-emerald-200">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Thank you. Your report has been submitted. Our security team will inspect this invoice promptly.</span>
+                </div>
+              ) : (
+                <form onSubmit={handleReportAbuse} className="space-y-3.5 text-xs">
+                  <p className="text-neutral-500">
+                    If this invoice appears to be impersonation, phishing, or an unauthorized charge, report it below. We take platform integrity seriously.
+                  </p>
+
+                  {abuseError && (
+                    <div className="p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
+                      {abuseError}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block font-medium text-neutral-700 mb-1">
+                      Reason for Report *
+                    </label>
+                    <textarea
+                      required
+                      minLength={10}
+                      rows={3}
+                      placeholder="Describe why you believe this invoice is suspicious or fraudulent..."
+                      value={abuseReason}
+                      onChange={(e) => setAbuseReason(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 text-neutral-800"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-medium text-neutral-700 mb-1">Your Email (Optional)</label>
+                      <input
+                        type="email"
+                        placeholder="you@company.com"
+                        value={abuseEmail}
+                        onChange={(e) => setAbuseEmail(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-neutral-500 text-neutral-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-medium text-neutral-700 mb-1">Your Name (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="Jane Doe"
+                        value={abuseName}
+                        onChange={(e) => setAbuseName(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-neutral-500 text-neutral-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-3 border-t">
+                    <button
+                      type="button"
+                      onClick={() => setShowAbuseModal(false)}
+                      className="px-3.5 py-2 border rounded-lg text-neutral-600 hover:bg-neutral-50 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingAbuse}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                      {submittingAbuse ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit Report'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         )}

@@ -29,6 +29,8 @@ from app.domains.payments.schemas import (
     PaymentClaimCreate,
 )
 from app.domains.reminders.service import cancel_invoice_reminders
+from app.domains.compliance.models import AbuseReport
+from app.domains.compliance.schemas import AbuseReportCreate, AbuseReportResponse
 
 router = APIRouter(prefix="/share", tags=["Sharing"])
 
@@ -401,4 +403,53 @@ async def verify_direct_payment(
         invoice_status=invoice.status,
         amount_paid_minor=invoice.amount_paid_minor,
         balance_due_minor=balance_due,
+    )
+
+
+@router.post("/{token}/report-abuse", response_model=AbuseReportResponse, status_code=status.HTTP_201_CREATED)
+async def report_abuse(
+    token: str,
+    payload: AbuseReportCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Public abuse reporting endpoint (US-SEC-02).
+    Any invoice recipient can report a suspicious or fraudulent invoice.
+    - Flags the workspace for admin review.
+    - Restricts outbound automated emails pending inspection.
+    """
+    stmt = (
+        select(Invoice, Workspace)
+        .join(Workspace, Invoice.workspace_id == Workspace.id)
+        .where(Invoice.share_token == token)
+    )
+    result = await db.execute(stmt)
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    invoice, workspace = row
+
+    report = AbuseReport(
+        invoice_id=invoice.id,
+        workspace_id=workspace.id,
+        reporter_email=payload.reporter_email,
+        reporter_name=payload.reporter_name,
+        reason=payload.reason,
+        share_token=token,
+        status="pending",
+        workspace_restricted=True,
+    )
+    db.add(report)
+    await db.commit()
+    await db.refresh(report)
+
+    return AbuseReportResponse(
+        id=report.id,
+        invoice_id=report.invoice_id,
+        workspace_id=report.workspace_id,
+        reporter_email=report.reporter_email,
+        reason=report.reason,
+        status=report.status,
+        created_at=report.created_at,
     )

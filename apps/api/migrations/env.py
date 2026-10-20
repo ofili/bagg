@@ -14,6 +14,7 @@ import app.domains.invoices.models  # noqa: F401
 import app.domains.sharing.models  # noqa: F401
 import app.domains.reminders.models  # noqa: F401
 import app.domains.billing.models  # noqa: F401
+import app.domains.compliance.models  # noqa: F401
 
 config = context.config
 

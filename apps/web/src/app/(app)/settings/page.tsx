@@ -21,6 +21,10 @@ import {
   Coins,
   RefreshCw,
   ExternalLink,
+  Download,
+  FileSpreadsheet,
+  FileArchive,
+  AlertTriangle,
 } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -196,6 +200,42 @@ export default function SettingsPage() {
       setErrorMessage(err.message || 'Failed to cancel subscription');
     } finally {
       setBillingActionLoading(false);
+    }
+  };
+
+  // Data Rights & Account Deletion (Lifecycle 12)
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePhrase, setDeletePhrase] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (deletePhrase !== 'DELETE MY ACCOUNT') {
+      alert("Please type 'DELETE MY ACCOUNT' exactly to confirm.");
+      return;
+    }
+    try {
+      setDeletingAccount(true);
+      const res = await fetch(`${API_BASE}/compliance/delete-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          confirmation_phrase: deletePhrase,
+          reason: deleteReason || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to delete account');
+      }
+      alert('Your account and all associated data have been permanently deleted in compliance with NDPA 2023.');
+      window.location.href = '/login';
+    } catch (err: any) {
+      alert(err.message || 'Deletion failed');
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -950,6 +990,142 @@ export default function SettingsPage() {
           <div className="p-3 bg-neutral-50 border rounded-lg text-xs font-medium">7 days after due</div>
         </div>
       </div>
+
+      {/* One-Click Data Export & Portability (US-SEC-01) */}
+      <div className="bg-white rounded-xl border p-6 space-y-4 shadow-sm">
+        <div className="flex items-center gap-2 border-b pb-3">
+          <Download className="w-5 h-5 text-emerald-600" />
+          <div>
+            <h2 className="font-bold text-base text-neutral-900">Data Rights & Portability</h2>
+            <p className="text-xs text-neutral-500">
+              Export all your client records, invoices, line items, and payment claims in standard formats.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3 pt-1">
+          <a
+            href={`${API_BASE}/compliance/export/csv`}
+            download
+            className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold rounded-lg transition"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+            Export Complete CSV
+          </a>
+          <a
+            href={`${API_BASE}/compliance/export/zip`}
+            download
+            className="inline-flex items-center gap-2 px-4 py-2 border hover:bg-neutral-50 text-neutral-800 text-xs font-semibold rounded-lg transition"
+          >
+            <FileArchive className="w-4 h-4 text-blue-500" />
+            Export Archive (ZIP)
+          </a>
+        </div>
+        <p className="text-[11px] text-neutral-400">
+          Exports are generated on-demand and download immediately without requiring support intervention.
+        </p>
+      </div>
+
+      {/* Danger Zone: Account Erasure (US-SEC-03) */}
+      <div className="bg-white rounded-xl border border-red-200 p-6 space-y-4 shadow-sm">
+        <div className="flex items-center gap-2 border-b border-red-100 pb-3">
+          <AlertTriangle className="w-5 h-5 text-red-600" />
+          <div>
+            <h2 className="font-bold text-base text-red-900">Danger Zone — Right to Erasure</h2>
+            <p className="text-xs text-red-600/80">
+              Permanently delete your account, workspace, clients, and invoice links (NDPA 2023 compliance).
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-neutral-600 max-w-lg">
+            This action is irreversible. All published invoice links will immediately return 404, payment profiles and subscriptions will be deleted, and all personal data erased.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition shrink-0"
+          >
+            Delete Account & All Data
+          </button>
+        </div>
+      </div>
+
+      {/* Delete Account Modal (US-SEC-03) */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-red-200">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="w-5 h-5" />
+                <h3 className="font-bold text-base text-neutral-900">Confirm Account Deletion</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletePhrase('');
+                  setDeleteReason('');
+                }}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-neutral-600">
+              Under NDPA 2023 regulations, all your data will be permanently wiped immediately. Active invoice share links will cease to function.
+            </p>
+
+            <form onSubmit={handleDeleteAccount} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-medium text-neutral-700 mb-1">
+                  Reason for leaving (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Switched platforms, business closed"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 text-neutral-800"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-neutral-700 mb-1">
+                  To confirm, type <strong className="text-red-600 font-mono">DELETE MY ACCOUNT</strong> below:
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="DELETE MY ACCOUNT"
+                  value={deletePhrase}
+                  onChange={(e) => setDeletePhrase(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 font-mono text-neutral-900 font-bold"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-3.5 py-2 border rounded-lg text-neutral-600 hover:bg-neutral-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deletingAccount || deletePhrase !== 'DELETE MY ACCOUNT'}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  {deletingAccount ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  Permanently Delete Everything
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
