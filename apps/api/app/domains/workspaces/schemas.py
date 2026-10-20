@@ -11,6 +11,7 @@ class WorkspaceBase(BaseModel):
     address: Optional[str] = None
     logo_url: Optional[str] = None
     invoice_prefix: str = "INV-"
+    quote_prefix: str = "QOT-"
 
 class WorkspaceCreate(WorkspaceBase):
     pass
@@ -25,7 +26,10 @@ class WorkspaceUpdate(BaseModel):
     address: Optional[str] = None
     logo_url: Optional[str] = None
     invoice_prefix: Optional[str] = None
+    quote_prefix: Optional[str] = None
 
 class WorkspaceResponse(WorkspaceBase):
     id: str
     owner_id: str
+    next_invoice_number: int = 1
+    next_quote_number: int = 1

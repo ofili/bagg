@@ -12,6 +12,7 @@ from app.domains.reminders.router import router as reminders_router
 from app.domains.billing.router import router as billing_router
 from app.domains.webhooks.router import router as webhooks_router
 from app.domains.compliance.router import router as compliance_router
+from app.domains.quotes.router import router as quotes_router
 
 app = FastAPI(
     title="Bagg API",
@@ -40,6 +41,7 @@ app.include_router(auth_router)
 app.include_router(workspaces_router)
 app.include_router(clients_router)
 app.include_router(invoices_router)
+app.include_router(quotes_router)
 app.include_router(payments_router)
 app.include_router(sharing_router)
 app.include_router(reminders_router)

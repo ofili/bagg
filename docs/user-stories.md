@@ -459,7 +459,45 @@
 
 ---
 
-## 13. Summary Matrix & Implementation Status
+## Lifecycle 13: Upstream Quotes, Estimates & 1-Click Conversion
+
+### US-QOT-01: Quote Drafting, Expiration Dates & Minor Math
+* **Role:** Freelancer
+* **Story:** As a freelancer pitching a new project, I want to draft a formal quote/estimate with an expiration date (e.g. 7, 14, or 30 days due to currency volatility) so that prospective clients can review pricing before committing.
+* **Acceptance Criteria:**
+  - Workspace has a dedicated `quote_prefix` (default `QOT-`) and sequential quote counter.
+  - Minor-unit integer financial arithmetic identical to invoices: items, discounts, VAT, WHT rate, and milestone deposit settings.
+  - `expires_at` date: quotes clearly show when the pricing offer lapses.
+  - Status state machine: `draft`, `sent`, `viewed`, `accepted`, `declined`, `expired`, `converted`.
+  - Freeform scope notes, deliverable descriptions, and terms.
+* **Priority:** P1 (Fast Follow)
+
+### US-QOT-02: Public Quote Portal & Client Online Acceptance
+* **Role:** Prospective Client (Payer)
+* **Story:** As a client reviewing a freelancer's quote, I want to view the professional quote on a private web link (`/q/{token}`) without registering, and click "Accept Quote" or "Decline" with feedback so that project kickoff is fast and clear.
+* **Acceptance Criteria:**
+  - Zero-account public view at `/q/{token}`.
+  - Viewing a `sent` quote automatically marks it as `viewed` with `viewed_at` timestamp.
+  - "Accept Quote" button prompts client for full name and confirmation.
+  - Status updates to `accepted` and captures `accepted_at` and `accepted_by_name`.
+  - "Decline Quote" button allows client to provide optional decline feedback.
+* **Priority:** P1 (Fast Follow)
+
+### US-QOT-03: 1-Click Convert Accepted Quote to Invoice
+* **Role:** Freelancer & System
+* **Story:** As a freelancer whose quote has been accepted, I want to convert it into an invoice with 1 click so that I don't have to re-enter line items, rates, taxes, and client details.
+* **Acceptance Criteria:**
+  - Endpoint `POST /quotes/{id}/convert`:
+    - Allocates the next sequential invoice number (`INV-XXXX`).
+    - Clones all line items, subtotal, discount, VAT, WHT, and milestone deposit settings.
+    - Associates the created `invoice_id` with the quote (`quote.invoice_id = new_invoice.id`, `quote.status = 'converted'`).
+    - Returns the newly created draft or sent invoice.
+    - Returns `HTTP 400` if the quote is already converted.
+* **Priority:** P1 (Fast Follow)
+
+---
+
+## 14. Summary Matrix & Implementation Status
 
 | Lifecycle Phase | Stories | MVP (P0) | Fast Follow (P1) | Status |
 | :--- | :--- | :---: | :---: | :---: |
@@ -475,4 +513,6 @@
 | **10. Subscription & Billing** | Free metering, Paystack/MoR checkout, webhooks, dunning/grace period, cancellations, credits | ✅ 6 stories | — | **Completed & Pushed** (`6ff3fb6`) |
 | **11. Phase 1 Rails & Taxes** | Direct payment links, milestone deposits, withholding tax (WHT) | — | ✅ 3 stories | **Completed & Pushed** (`dd63e5f`) |
 | **12. Security & Rights** | Full CSV/ZIP export, abuse reporting, NDPA account deletion | ✅ 3 stories | — | **Completed & Pushed** (`6f01bb2`) |
-| **Total** | **34 E2E Stories** | **31 P0 Stories** | **3 P1 Stories** | **100% Shipped to `dev`** |
+| **13. Quotes & Conversion** | Expiration dates, quote acceptance portal, 1-click invoice conversion | — | ✅ 3 stories | **Completed & Pushed** |
+| **Total** | **37 E2E Stories** | **31 P0 Stories** | **6 P1 Stories** | **100% Shipped to `dev`** |
+

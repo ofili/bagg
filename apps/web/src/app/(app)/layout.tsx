@@ -9,11 +9,13 @@ import {
   Settings,
   LayoutDashboard,
   ExternalLink,
-  Plus
+  Plus,
+  FileCheck,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Quotes', href: '/quotes', icon: FileCheck },
   { label: 'Invoices', href: '/invoices', icon: FileText },
   { label: 'Clients', href: '/clients', icon: Users },
   { label: 'Settings', href: '/settings', icon: Settings },

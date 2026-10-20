@@ -26,6 +26,8 @@ class Workspace(Base):
     tier = Column(String, nullable=False, default="free")
     invoice_prefix = Column(String, nullable=False, default="INV-")
     next_invoice_number = Column(Integer, nullable=False, default=1)
+    quote_prefix = Column(String, nullable=False, default="QOT-")
+    next_quote_number = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
