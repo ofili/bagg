@@ -114,3 +114,20 @@ class InvoiceSendResponse(BaseModel):
     recipient_email: Optional[str] = None
     share_url: str
     message: str
+
+
+class CurrencyMetricsResponse(BaseModel):
+    currency: str
+    outstanding_minor: int = 0
+    overdue_minor: int = 0
+    paid_this_month_minor: int = 0
+    invoices_count: int = 0
+    draft_count: int = 0
+    sent_count: int = 0
+    viewed_count: int = 0
+    claimed_count: int = 0
+    partially_paid_count: int = 0
+    paid_count: int = 0
+    overdue_count: int = 0
+    cancelled_count: int = 0
+

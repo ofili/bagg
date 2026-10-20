@@ -53,6 +53,7 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [currencyFilter, setCurrencyFilter] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Claim Review State (US-CLM-02)
@@ -69,10 +70,12 @@ export default function InvoicesPage() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const url = statusFilter
-        ? `${API_BASE}/invoices?status=${statusFilter}`
-        : `${API_BASE}/invoices`;
-      const res = await fetch(url, { credentials: 'include' });
+      const params = new URLSearchParams();
+      if (statusFilter) params.set('status', statusFilter);
+      if (currencyFilter) params.set('currency', currencyFilter);
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
+
+      const res = await fetch(`${API_BASE}/invoices${queryStr}`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setInvoices(data);
@@ -86,7 +89,7 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     fetchInvoices();
-  }, [statusFilter]);
+  }, [statusFilter, currencyFilter]);
 
   const handleOpenReview = async (inv: Invoice) => {
     setReviewingInvoice(inv);
@@ -266,48 +269,100 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b pb-2 text-xs font-semibold text-neutral-600">
-        <button
-          onClick={() => setStatusFilter('')}
-          className={`px-3 py-1.5 rounded-lg transition ${
-            statusFilter === '' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100'
-          }`}
-        >
-          All Invoices
-        </button>
-        <button
-          onClick={() => setStatusFilter('draft')}
-          className={`px-3 py-1.5 rounded-lg transition ${
-            statusFilter === 'draft' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100'
-          }`}
-        >
-          Drafts
-        </button>
-        <button
-          onClick={() => setStatusFilter('sent')}
-          className={`px-3 py-1.5 rounded-lg transition ${
-            statusFilter === 'sent' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100'
-          }`}
-        >
-          Sent / Unpaid
-        </button>
-        <button
-          onClick={() => setStatusFilter('payment_claimed')}
-          className={`px-3 py-1.5 rounded-lg transition ${
-            statusFilter === 'payment_claimed' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100'
-          }`}
-        >
-          Payment Claimed
-        </button>
-        <button
-          onClick={() => setStatusFilter('paid')}
-          className={`px-3 py-1.5 rounded-lg transition ${
-            statusFilter === 'paid' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100'
-          }`}
-        >
-          Paid
-        </button>
+      {/* Filter Tabs & Currency Selector (US-DSH-02) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-2 text-xs font-semibold text-neutral-600">
+        <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          <button
+            onClick={() => setStatusFilter('')}
+            className={`px-2.5 py-1.5 rounded-lg transition ${
+              statusFilter === '' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100 text-neutral-600'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setStatusFilter('draft')}
+            className={`px-2.5 py-1.5 rounded-lg transition ${
+              statusFilter === 'draft' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100 text-neutral-600'
+            }`}
+          >
+            Drafts
+          </button>
+          <button
+            onClick={() => setStatusFilter('sent')}
+            className={`px-2.5 py-1.5 rounded-lg transition ${
+              statusFilter === 'sent' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100 text-neutral-600'
+            }`}
+          >
+            Sent
+          </button>
+          <button
+            onClick={() => setStatusFilter('viewed')}
+            className={`px-2.5 py-1.5 rounded-lg transition ${
+              statusFilter === 'viewed' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100 text-neutral-600'
+            }`}
+          >
+            Viewed
+          </button>
+          <button
+            onClick={() => setStatusFilter('payment_claimed')}
+            className={`px-2.5 py-1.5 rounded-lg transition ${
+              statusFilter === 'payment_claimed' ? 'bg-amber-600 text-white' : 'hover:bg-neutral-100 text-neutral-600'
+            }`}
+          >
+            Claimed
+          </button>
+          <button
+            onClick={() => setStatusFilter('partially_paid')}
+            className={`px-2.5 py-1.5 rounded-lg transition ${
+              statusFilter === 'partially_paid' ? 'bg-blue-600 text-white' : 'hover:bg-neutral-100 text-neutral-600'
+            }`}
+          >
+            Partial
+          </button>
+          <button
+            onClick={() => setStatusFilter('paid')}
+            className={`px-2.5 py-1.5 rounded-lg transition ${
+              statusFilter === 'paid' ? 'bg-emerald-600 text-white' : 'hover:bg-neutral-100 text-neutral-600'
+            }`}
+          >
+            Paid
+          </button>
+          <button
+            onClick={() => setStatusFilter('overdue')}
+            className={`px-2.5 py-1.5 rounded-lg transition ${
+              statusFilter === 'overdue' ? 'bg-red-600 text-white' : 'hover:bg-neutral-100 text-neutral-600'
+            }`}
+          >
+            Overdue
+          </button>
+          <button
+            onClick={() => setStatusFilter('void')}
+            className={`px-2.5 py-1.5 rounded-lg transition ${
+              statusFilter === 'void' ? 'bg-neutral-800 text-white' : 'hover:bg-neutral-100 text-neutral-600'
+            }`}
+          >
+            Void
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <label className="text-[11px] text-neutral-400 font-normal">Currency:</label>
+          <select
+            value={currencyFilter}
+            onChange={(e) => setCurrencyFilter(e.target.value)}
+            className="px-2.5 py-1.5 text-xs font-medium border rounded-lg bg-white text-neutral-800 focus:ring-1 focus:ring-emerald-500 shadow-sm"
+          >
+            <option value="">All Currencies</option>
+            <option value="NGN">NGN (₦)</option>
+            <option value="USD">USD ($)</option>
+            <option value="GBP">GBP (£)</option>
+            <option value="EUR">EUR (€)</option>
+            <option value="GHS">GHS (GH₵)</option>
+            <option value="KES">KES (KSh)</option>
+            <option value="ZAR">ZAR (R)</option>
+          </select>
+        </div>
       </div>
 
       {loading ? (

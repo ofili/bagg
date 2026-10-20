@@ -36,6 +36,7 @@ from app.domains.invoices.schemas import (
     InvoiceRevisionResponse,
     InvoiceSendResponse,
     LineItemSchema,
+    CurrencyMetricsResponse,
 )
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
@@ -142,17 +143,30 @@ def map_invoice_to_response(
 @router.get("", response_model=List[InvoiceResponse])
 async def list_invoices(
     client_id: Optional[str] = Query(None, description="Filter by client ID"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (draft, sent, paid, etc.)"),
+    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (draft, sent, viewed, payment_claimed, partially_paid, paid, overdue, void/cancelled)"),
     currency: Optional[str] = Query(None, description="Filter by currency"),
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    """Lists all invoices for the workspace with client details and financial totals."""
+    """
+    Lists all invoices for the workspace with client details and financial totals (US-INV-01, US-DSH-02).
+    Supports complete 8-state machine filtering: draft, sent, viewed, payment_claimed, partially_paid, paid, overdue, void.
+    """
     conditions = [Invoice.workspace_id == workspace.id]
     if client_id:
         conditions.append(Invoice.client_id == client_id)
+
     if status_filter:
-        conditions.append(Invoice.status == status_filter)
+        s = status_filter.lower().strip()
+        if s == "overdue":
+            today = date.today()
+            conditions.append(Invoice.due_date < today)
+            conditions.append(Invoice.status.in_(["sent", "viewed"]))
+        elif s == "void":
+            conditions.append(Invoice.status == "cancelled")
+        else:
+            conditions.append(Invoice.status == s)
+
     if currency:
         conditions.append(Invoice.currency == currency.upper().strip())
 
@@ -175,6 +189,121 @@ async def list_invoices(
         )
         for inv, c_name, c_phone in rows
     ]
+
+
+@router.get("/metrics", response_model=List[CurrencyMetricsResponse])
+async def get_invoice_metrics(
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Currency-Segregated Metrics (US-DSH-01).
+    Calculates outstanding, overdue, and paid-this-month figures grouped strictly by currency.
+    Totals across different currencies are NEVER summed together.
+    """
+    stmt = select(Invoice).where(Invoice.workspace_id == workspace.id)
+    res = await db.execute(stmt)
+    invoices = res.scalars().all()
+
+    today = date.today()
+    first_of_month = date(today.year, today.month, 1)
+
+    metrics_by_currency = {}
+
+    for inv in invoices:
+        curr = inv.currency
+        if curr not in metrics_by_currency:
+            metrics_by_currency[curr] = {
+                "currency": curr,
+                "outstanding_minor": 0,
+                "overdue_minor": 0,
+                "paid_this_month_minor": 0,
+                "invoices_count": 0,
+                "draft_count": 0,
+                "sent_count": 0,
+                "viewed_count": 0,
+                "claimed_count": 0,
+                "partially_paid_count": 0,
+                "paid_count": 0,
+                "overdue_count": 0,
+                "cancelled_count": 0,
+            }
+
+        m = metrics_by_currency[curr]
+        m["invoices_count"] += 1
+
+        unpaid_balance = max(0, inv.total_minor - (inv.amount_paid_minor or 0))
+
+        if inv.status == "draft":
+            m["draft_count"] += 1
+        elif inv.status == "sent":
+            m["sent_count"] += 1
+        elif inv.status == "viewed":
+            m["viewed_count"] += 1
+        elif inv.status == "payment_claimed":
+            m["claimed_count"] += 1
+        elif inv.status == "partially_paid":
+            m["partially_paid_count"] += 1
+        elif inv.status == "paid":
+            m["paid_count"] += 1
+        elif inv.status == "cancelled":
+            m["cancelled_count"] += 1
+
+        # Outstanding: Invoices delivered / in progress but not fully paid
+        if inv.status in ["sent", "viewed", "payment_claimed", "partially_paid"]:
+            m["outstanding_minor"] += unpaid_balance
+
+        # Overdue: Sent or viewed invoices past due date
+        if inv.status in ["sent", "viewed"] and inv.due_date < today:
+            m["overdue_minor"] += unpaid_balance
+            m["overdue_count"] += 1
+
+        # Paid this Month: amount_paid_minor on paid / partially_paid invoices updated this month
+        if (inv.amount_paid_minor or 0) > 0 and inv.status in ["partially_paid", "paid"]:
+            inv_date = inv.updated_at.date() if inv.updated_at else inv.issue_date
+            if inv_date >= first_of_month:
+                m["paid_this_month_minor"] += inv.amount_paid_minor
+
+    # Include currencies configured in Payment Profiles even if no invoices yet
+    profile_stmt = select(PaymentProfile.currency).where(PaymentProfile.workspace_id == workspace.id).distinct()
+    prof_currencies = (await db.execute(profile_stmt)).scalars().all()
+    for pc in prof_currencies:
+        if pc not in metrics_by_currency:
+            metrics_by_currency[pc] = {
+                "currency": pc,
+                "outstanding_minor": 0,
+                "overdue_minor": 0,
+                "paid_this_month_minor": 0,
+                "invoices_count": 0,
+                "draft_count": 0,
+                "sent_count": 0,
+                "viewed_count": 0,
+                "claimed_count": 0,
+                "partially_paid_count": 0,
+                "paid_count": 0,
+                "overdue_count": 0,
+                "cancelled_count": 0,
+            }
+
+    # If still empty, return NGN as default
+    if not metrics_by_currency:
+        metrics_by_currency["NGN"] = {
+            "currency": "NGN",
+            "outstanding_minor": 0,
+            "overdue_minor": 0,
+            "paid_this_month_minor": 0,
+            "invoices_count": 0,
+            "draft_count": 0,
+            "sent_count": 0,
+            "viewed_count": 0,
+            "claimed_count": 0,
+            "partially_paid_count": 0,
+            "paid_count": 0,
+            "overdue_count": 0,
+            "cancelled_count": 0,
+        }
+
+    return [CurrencyMetricsResponse(**data) for data in metrics_by_currency.values()]
 
 
 @router.post("", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
