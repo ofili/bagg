@@ -185,6 +185,28 @@ export default function InvoicesPage() {
     }
   };
 
+  const isInvoiceOverdue = (inv: Invoice) => {
+    if (['paid', 'payment_claimed', 'draft', 'cancelled'].includes(inv.status)) return false;
+    const due = new Date(inv.due_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return due < today;
+  };
+
+  const handleWhatsAppNudge = async (inv: Invoice) => {
+    try {
+      const res = await fetch(`${API_BASE}/reminders/invoices/${inv.id}/nudge/whatsapp`, {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        window.open(data.whatsapp_url, '_blank');
+      }
+    } catch {
+      // Fallback
+    }
+  };
+
   const handleCopyLink = (token: string, id: string) => {
     const url = `${window.location.origin}/i/${token}`;
     navigator.clipboard.writeText(url);
@@ -231,6 +253,18 @@ export default function InvoicesPage() {
           <Plus className="w-4 h-4" /> Create Invoice
         </Link>
       </div>
+
+      {/* Overdue Alert Banner (US-REM-02) */}
+      {invoices.filter(isInvoiceOverdue).length > 0 && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-amber-900 text-xs">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              You have <strong>{invoices.filter(isInvoiceOverdue).length} overdue invoice(s)</strong>. Send a 1-tap polite nudge on WhatsApp to get paid faster.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 border-b pb-2 text-xs font-semibold text-neutral-600">
@@ -333,6 +367,16 @@ export default function InvoicesPage() {
                       {getStatusBadge(inv.status)}
                     </td>
                     <td className="py-3.5 px-4 text-right space-x-1.5">
+                      {isInvoiceOverdue(inv) && (
+                        <button
+                          onClick={() => handleWhatsAppNudge(inv)}
+                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-md text-[11px] font-bold shadow-sm inline-flex items-center gap-1 transition mr-1"
+                          title="Send 1-tap WhatsApp nudge to client"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 text-emerald-600" /> Nudge
+                        </button>
+                      )}
+
                       {inv.status === 'payment_claimed' && (
                         <button
                           onClick={() => handleOpenReview(inv)}

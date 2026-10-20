@@ -17,6 +17,7 @@ from app.domains.payments.schemas import (
     PaymentClaimResponse,
     PaymentClaimCreate,
 )
+from app.domains.reminders.service import cancel_invoice_reminders
 
 router = APIRouter(prefix="/share", tags=["Sharing"])
 
@@ -159,6 +160,7 @@ async def submit_payment_claim(
     db.add(claim)
 
     invoice.status = "payment_claimed"
+    await cancel_invoice_reminders(invoice.id, db)
     await db.commit()
     await db.refresh(claim)
 

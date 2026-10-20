@@ -96,6 +96,13 @@ class Invoice(Base):
         order_by="PaymentClaim.created_at.desc()",
         lazy="selectin",
     )
+    reminders = relationship(
+        "ReminderJob",
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        order_by="ReminderJob.due_at",
+        lazy="selectin",
+    )
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "invoice_number", name="uq_workspace_invoice_number"),

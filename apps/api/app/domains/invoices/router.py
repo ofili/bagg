@@ -23,6 +23,10 @@ from app.domains.payments.schemas import (
     PaymentClaimConfirmRequest,
     PaymentClaimRejectRequest,
 )
+from app.domains.reminders.service import (
+    schedule_invoice_reminders,
+    cancel_invoice_reminders,
+)
 from app.domains.invoices.models import Invoice, InvoiceLineItem, InvoiceRevision
 from app.domains.invoices.schemas import (
     InvoiceCreate,
@@ -418,6 +422,9 @@ async def send_invoice(
     await db.commit()
     await db.refresh(invoice)
 
+    # Schedule polite automated payment reminders cadence (US-REM-01)
+    await schedule_invoice_reminders(invoice, db)
+
     resp_invoice = map_invoice_to_response(
         invoice,
         client_name=client.name,
@@ -719,6 +726,8 @@ async def confirm_payment_claim(
 
     if invoice.amount_paid_minor >= invoice.total_minor:
         invoice.status = "paid"
+        # Auto-stop guarantee (US-REM-01)
+        await cancel_invoice_reminders(invoice.id, db)
     else:
         invoice.status = "partially_paid"
 
