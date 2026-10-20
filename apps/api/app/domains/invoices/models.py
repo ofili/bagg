@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Text,
+    JSON,
     UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
@@ -47,12 +48,18 @@ class Invoice(Base):
     payment_profile_id = Column(String, ForeignKey("payment_profiles.id", ondelete="SET NULL"), nullable=True)
     notes = Column(Text, nullable=True)
 
-    # Share token for public client access
+    # Share token for public client access (US-DEL-01)
     share_token = Column(String, unique=True, index=True, nullable=True)
     share_token_hash = Column(String, unique=True, index=True, nullable=True)
 
-    # Version tracking for immutable revisions
+    # Delivery & Tracking (US-DEL-03, US-DEL-04)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+    email_delivery_status = Column(String, nullable=True)  # queued, delivered, bounced, opened
+    pdf_url = Column(String, nullable=True)
+
+    # Version tracking for immutable revisions (US-DEL-05)
     version = Column(Integer, nullable=False, default=1)
+    last_revised_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -65,6 +72,13 @@ class Invoice(Base):
         back_populates="invoice",
         cascade="all, delete-orphan",
         order_by="InvoiceLineItem.position",
+        lazy="selectin",
+    )
+    revisions = relationship(
+        "InvoiceRevision",
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        order_by="InvoiceRevision.version",
         lazy="selectin",
     )
 
@@ -88,3 +102,22 @@ class InvoiceLineItem(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     invoice = relationship("Invoice", back_populates="items")
+
+
+class InvoiceRevision(Base):
+    __tablename__ = "invoice_revisions"
+
+    id = Column(String, primary_key=True, default=lambda: generate_uuid("rev_"))
+    invoice_id = Column(String, ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    subtotal_minor = Column(BigInteger, nullable=False)
+    discount_minor = Column(BigInteger, nullable=False)
+    tax_rate_percent = Column(Float, nullable=False)
+    tax_minor = Column(BigInteger, nullable=False)
+    total_minor = Column(BigInteger, nullable=False)
+    items_snapshot = Column(JSON, nullable=False)
+    revised_reason = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    invoice = relationship("Invoice", back_populates="revisions")

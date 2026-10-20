@@ -21,3 +21,6 @@ class PublicInvoiceView(BaseModel):
     invoice: InvoiceResponse
     payment_profile: Optional[PaymentProfileResponse] = None
     comments: List[CommentResponse] = []
+    is_revised: bool = False
+    revision_banner: Optional[str] = None
+    revisions_count: int = 0

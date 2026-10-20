@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { formatMoney } from '@/lib/money';
 import {
   Copy,
@@ -11,40 +12,92 @@ import {
   MessageSquare,
   Send,
   Upload,
-  ShieldCheck
+  ShieldCheck,
+  Info,
+  Download,
+  Loader2,
+  ExternalLink,
+  Smartphone,
+  Landmark
 } from 'lucide-react';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+interface LineItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price_minor: number;
+  total_minor: number;
+}
+
+interface PaymentProfile {
+  id: string;
+  currency: string;
+  bank_name?: string | null;
+  account_name?: string | null;
+  account_number?: string | null;
+  routing_number?: string | null;
+  payment_link?: string | null;
+  mobile_money_number?: string | null;
+  instructions?: string | null;
+}
+
+interface PublicInvoiceData {
+  invoice: {
+    id: string;
+    invoice_number: string;
+    client_name?: string;
+    currency: string;
+    issue_date: string;
+    due_date: string;
+    items: LineItem[];
+    subtotal_minor: number;
+    discount_minor: number;
+    tax_rate_percent: number;
+    tax_minor: number;
+    total_minor: number;
+    notes?: string;
+    version: number;
+    share_token: string;
+  };
+  payment_profile?: PaymentProfile | null;
+  is_revised: boolean;
+  revision_banner?: string | null;
+}
+
 export default function PublicClientInvoiceView() {
+  const params = useParams();
+  const token = params?.token as string;
+
+  const [data, setData] = useState<PublicInvoiceData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isPaidModalOpen, setIsPaidModalOpen] = useState(false);
   const [hasClaimed, setHasClaimed] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState<Array<{ author: string; text: string }>>([]);
 
-  // Mock invoice matching PRD specs
-  const invoice = {
-    invoice_number: 'INV-0001',
-    business_name: 'Studio Bagg Creative Ltd',
-    issue_date: 'Oct 15, 2026',
-    due_date: 'Oct 29, 2026',
-    currency: 'NGN' as const,
-    items: [
-      { id: '1', description: 'Brand Identity & Visual System', quantity: 1, unit_price_minor: 25000000, total_minor: 25000000 },
-      { id: '2', description: 'Social Media Templates (5 custom layouts)', quantity: 5, unit_price_minor: 3000000, total_minor: 15000000 },
-    ],
-    subtotal_minor: 40000000,
-    discount_minor: 2000000,
-    tax_percent: 7.5,
-    tax_minor: 2850000,
-    total_minor: 40850000,
-    notes: 'Thank you for your business! Please use your invoice number as the payment reference.',
-    payment_profile: {
-      bank_name: 'Guaranty Trust Bank (GTBank)',
-      account_name: 'Studio Bagg Creative Ltd',
-      account_number: '0123456789',
-      instructions: 'Please transfer to the account above and click "I\'ve Paid" below with your reference.',
-    },
-  };
+  useEffect(() => {
+    if (!token) return;
+
+    fetch(`${API_BASE}/share/${token}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Invoice link not found or expired');
+        return res.json();
+      })
+      .then((json: PublicInvoiceData) => {
+        setData(json);
+      })
+      .catch((err) => {
+        setError(err.message || 'Could not load invoice');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [token]);
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -65,9 +118,39 @@ export default function PublicClientInvoiceView() {
     setCommentText('');
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-neutral-100 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-neutral-100 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl border shadow-sm text-center space-y-3 max-w-sm">
+          <Info className="w-10 h-10 text-neutral-400 mx-auto" />
+          <h2 className="font-bold text-lg text-neutral-900">Invoice Unavailable</h2>
+          <p className="text-xs text-neutral-500">{error || 'This link may have been revoked or expired.'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { invoice, payment_profile, is_revised, revision_banner } = data;
+
   return (
     <div className="min-h-screen bg-neutral-100 py-6 sm:py-12 px-3 sm:px-6">
       <div className="max-w-3xl mx-auto space-y-6">
+        {/* Revision Banner (US-DEL-05) */}
+        {is_revised && revision_banner && (
+          <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2.5 text-blue-900 text-xs font-medium">
+            <Info className="w-4 h-4 text-blue-600 shrink-0" />
+            <span>{revision_banner}</span>
+          </div>
+        )}
+
         {/* Status Notification if Payment Claimed */}
         {hasClaimed && (
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-emerald-900 text-sm">
@@ -84,11 +167,24 @@ export default function PublicClientInvoiceView() {
           <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b pb-6">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Invoice From</span>
-              <h1 className="text-xl font-bold text-neutral-900 mt-1">{invoice.business_name}</h1>
+              <h1 className="text-xl font-bold text-neutral-900 mt-1">Studio Bagg Creative Ltd</h1>
+              {invoice.client_name && (
+                <div className="text-xs text-neutral-500 mt-0.5">Billed to: <strong>{invoice.client_name}</strong></div>
+              )}
             </div>
             <div className="sm:text-right">
               <div className="text-2xl font-black text-neutral-900">{invoice.invoice_number}</div>
               <div className="text-xs text-neutral-500 mt-1">Due {invoice.due_date}</div>
+              <div className="mt-2">
+                <a
+                  href={`${API_BASE}/invoices/${invoice.id}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-600 hover:text-neutral-900 border px-2.5 py-1 rounded-md bg-neutral-50 hover:bg-neutral-100 transition"
+                >
+                  <Download className="w-3 h-3" /> Download Receipt
+                </a>
+              </div>
             </div>
           </div>
 
@@ -103,7 +199,7 @@ export default function PublicClientInvoiceView() {
                   <th className="py-2 text-right">Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-100">
+              <tbody className="divide-y divide-neutral-100 text-xs">
                 {invoice.items.map((item) => (
                   <tr key={item.id}>
                     <td className="py-3 font-medium text-neutral-800">{item.description}</td>
@@ -116,7 +212,7 @@ export default function PublicClientInvoiceView() {
             </table>
 
             {/* Calculations Breakdown */}
-            <div className="mt-4 pt-4 border-t space-y-2 text-sm text-neutral-600 max-w-xs ml-auto">
+            <div className="mt-4 pt-4 border-t space-y-2 text-xs text-neutral-600 max-w-xs ml-auto">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
                 <span className="font-medium text-neutral-900">{formatMoney(invoice.subtotal_minor, invoice.currency)}</span>
@@ -127,10 +223,12 @@ export default function PublicClientInvoiceView() {
                   <span>-{formatMoney(invoice.discount_minor, invoice.currency)}</span>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span>VAT ({invoice.tax_percent}%):</span>
-                <span className="font-medium text-neutral-900">{formatMoney(invoice.tax_minor, invoice.currency)}</span>
-              </div>
+              {invoice.tax_minor > 0 && (
+                <div className="flex justify-between">
+                  <span>VAT ({invoice.tax_rate_percent}%):</span>
+                  <span className="font-medium text-neutral-900">{formatMoney(invoice.tax_minor, invoice.currency)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-base font-black text-neutral-900 pt-2 border-t">
                 <span>Total Due:</span>
                 <span className="text-emerald-700">{formatMoney(invoice.total_minor, invoice.currency)}</span>
@@ -138,170 +236,141 @@ export default function PublicClientInvoiceView() {
             </div>
           </div>
 
-          {/* Payment Instructions Box */}
-          <div className="bg-neutral-50 border rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-neutral-900">
-              <Building2 className="w-4 h-4 text-emerald-600" />
-              <span>How to Pay in {invoice.currency}</span>
+          {/* Payment Instructions (US-CLV-02, US-PAY-01) */}
+          <div className="bg-neutral-50 rounded-xl p-5 border space-y-3">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-emerald-600" />
+              <h3 className="font-bold text-sm text-neutral-900">How to Pay ({invoice.currency})</h3>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3 bg-white border rounded-lg">
-                <span className="text-neutral-500 block mb-0.5">Bank Name</span>
-                <span className="font-semibold text-neutral-800">{invoice.payment_profile.bank_name}</span>
+            {payment_profile ? (
+              <div className="space-y-3 text-xs">
+                {payment_profile.bank_name && (
+                  <div className="space-y-1.5 bg-white p-3.5 rounded-lg border">
+                    <div className="flex justify-between">
+                      <span className="text-neutral-500">Bank Name</span>
+                      <span className="font-semibold text-neutral-800">{payment_profile.bank_name}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-neutral-500">Account Number</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-sm text-neutral-900">{payment_profile.account_number}</span>
+                        <button
+                          onClick={() => handleCopy(payment_profile.account_number || '', 'acc')}
+                          className="text-neutral-400 hover:text-neutral-700 p-1"
+                        >
+                          {copiedKey === 'acc' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                    {payment_profile.account_name && (
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Account Name</span>
+                        <span className="font-medium text-neutral-800">{payment_profile.account_name}</span>
+                      </div>
+                    )}
+                    {payment_profile.routing_number && (
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Routing / Sort Code</span>
+                        <span className="font-mono text-neutral-800">{payment_profile.routing_number}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {payment_profile.payment_link && (
+                  <div className="bg-white p-3.5 rounded-lg border flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold text-neutral-800 block">Digital Payment Link</span>
+                      <span className="text-neutral-500 text-[11px]">Pay directly via Wise, Stripe, or Card</span>
+                    </div>
+                    <a
+                      href={payment_profile.payment_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition"
+                    >
+                      Pay Online <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                )}
+
+                {payment_profile.mobile_money_number && (
+                  <div className="bg-white p-3.5 rounded-lg border flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold text-neutral-800 block">Mobile Money</span>
+                      <span className="font-mono text-neutral-700">{payment_profile.mobile_money_number}</span>
+                    </div>
+                  </div>
+                )}
+
+                {payment_profile.instructions && (
+                  <p className="text-neutral-500 italic text-[11px]">
+                    Instructions: {payment_profile.instructions}
+                  </p>
+                )}
               </div>
+            ) : (
+              <p className="text-xs text-neutral-500 italic">
+                Please contact the freelancer directly for payment details.
+              </p>
+            )}
 
-              <div className="p-3 bg-white border rounded-lg flex items-center justify-between">
-                <div>
-                  <span className="text-neutral-500 block mb-0.5">Account Number</span>
-                  <span className="font-bold text-neutral-900 tracking-wide">{invoice.payment_profile.account_number}</span>
-                </div>
-                <button
-                  onClick={() => handleCopy(invoice.payment_profile.account_number, 'acc')}
-                  className="p-1.5 hover:bg-neutral-100 rounded text-neutral-600 transition"
-                  title="Copy Account Number"
-                >
-                  {copiedKey === 'acc' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                </button>
+            {invoice.notes && (
+              <div className="pt-2 border-t text-[11px] text-neutral-500">
+                <strong>Note:</strong> {invoice.notes}
               </div>
+            )}
+          </div>
 
-              <div className="p-3 bg-white border rounded-lg sm:col-span-2 flex items-center justify-between">
-                <div>
-                  <span className="text-neutral-500 block mb-0.5">Account Name</span>
-                  <span className="font-semibold text-neutral-800">{invoice.payment_profile.account_name}</span>
-                </div>
-                <button
-                  onClick={() => handleCopy(invoice.payment_profile.account_name, 'name')}
-                  className="p-1.5 hover:bg-neutral-100 rounded text-neutral-600 transition"
-                  title="Copy Account Name"
-                >
-                  {copiedKey === 'name' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <p className="text-xs text-neutral-500 italic">
-              {invoice.payment_profile.instructions}
-            </p>
-
-            {/* "I've Paid" Action Button */}
-            {!hasClaimed ? (
+          {/* Action Button: I've Paid */}
+          {!hasClaimed && (
+            <div className="text-center pt-2">
               <button
                 onClick={() => setIsPaidModalOpen(true)}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition shadow-sm flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition"
               >
-                <CheckCircle2 className="w-4 h-4" /> I Have Paid This Invoice
-              </button>
-            ) : (
-              <div className="text-center py-2 text-xs font-semibold text-emerald-700 bg-emerald-100/50 rounded-lg">
-                ✓ Payment claim recorded. Freelancer will issue your official receipt.
-              </div>
-            )}
-          </div>
-
-          {/* Line-item / Invoice Questions */}
-          <div className="pt-4 border-t space-y-4">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
-              <MessageSquare className="w-3.5 h-3.5" /> Have a question about this invoice?
-            </div>
-
-            {comments.length > 0 && (
-              <div className="space-y-2">
-                {comments.map((c, i) => (
-                  <div key={i} className="text-xs p-3 bg-neutral-50 border rounded-lg">
-                    <span className="font-semibold text-neutral-800">{c.author}: </span>
-                    <span className="text-neutral-600">{c.text}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <form onSubmit={handleAddComment} className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Ask about a line item or payment detail..."
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                className="flex-1 text-xs px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-              <button
-                type="submit"
-                className="px-3 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-lg hover:bg-neutral-800 transition"
-              >
-                <Send className="w-3.5 h-3.5" />
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Bagg Viral Acquisition Footer */}
-        <div className="text-center text-xs text-neutral-400">
-          Powered by{' '}
-          <a href="/" target="_blank" className="font-bold text-neutral-700 hover:underline">
-            bagg.
-          </a>{' '}
-          — Invoicing and get-paid workspace for African creators.
-        </div>
-      </div>
-
-      {/* "I've Paid" Submission Modal */}
-      {isPaidModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-bold text-base text-neutral-900">Confirm Your Payment</h3>
-              <button onClick={() => setIsPaidModalOpen(false)} className="text-neutral-400 hover:text-neutral-600">
-                ✕
+                I&apos;ve Paid This Invoice
               </button>
             </div>
-            <form onSubmit={handleClaimPayment} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-medium text-neutral-700 mb-1">Amount Transferred</label>
-                <input
-                  type="text"
-                  readOnly
-                  value={formatMoney(invoice.total_minor, invoice.currency)}
-                  className="w-full px-3 py-2 border rounded-lg bg-neutral-50 font-bold"
-                />
-              </div>
+          )}
+        </div>
 
-              <div>
-                <label className="block font-medium text-neutral-700 mb-1">Payment Reference / Transaction ID</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Bank session ID or transfer remark"
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-neutral-700 mb-1">Attach Proof of Payment (Optional)</label>
-                <div className="border border-dashed rounded-lg p-4 text-center text-neutral-500 hover:bg-neutral-50 cursor-pointer">
-                  <Upload className="w-5 h-5 mx-auto mb-1 text-neutral-400" />
-                  <span>Click to attach screenshot or PDF receipt</span>
+        {/* Claim Modal */}
+        {isPaidModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border">
+              <h3 className="font-bold text-base text-neutral-900">Notify Freelancer of Payment</h3>
+              <form onSubmit={handleClaimPayment} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-medium text-neutral-600 mb-1">Transfer Reference / Note</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Bank session ID or transfer description"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-neutral-800"
+                  />
                 </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsPaidModalOpen(false)}
-                  className="w-1/2 py-2.5 border rounded-lg font-semibold text-neutral-600 hover:bg-neutral-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition"
-                >
-                  Submit Proof
-                </button>
-              </div>
-            </form>
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <button
+                    type="button"
+                    onClick={() => setIsPaidModalOpen(false)}
+                    className="px-3 py-1.5 border rounded-lg text-neutral-600 hover:bg-neutral-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700"
+                  >
+                    Confirm Payment Sent
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

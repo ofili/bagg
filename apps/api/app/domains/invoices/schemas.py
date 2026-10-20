@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import List, Optional
+from typing import List, Optional, Any
 from datetime import date, datetime
 from app.core.money import validate_currency
 
@@ -46,6 +46,30 @@ class InvoiceUpdate(BaseModel):
     payment_profile_id: Optional[str] = None
 
 
+class InvoiceReviseRequest(BaseModel):
+    items: List[LineItemSchema]
+    discount_minor: Optional[int] = Field(None, ge=0)
+    tax_rate_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
+    notes: Optional[str] = None
+    reason: Optional[str] = "Scope or pricing adjustment"
+
+
+class InvoiceRevisionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    invoice_id: str
+    version: int
+    subtotal_minor: int
+    discount_minor: int
+    tax_rate_percent: float
+    tax_minor: int
+    total_minor: int
+    items_snapshot: Any
+    revised_reason: Optional[str] = None
+    created_at: datetime
+
+
 class InvoiceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -69,6 +93,20 @@ class InvoiceResponse(BaseModel):
     payment_profile_id: Optional[str] = None
     notes: Optional[str] = None
     share_token: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    email_delivery_status: Optional[str] = None
+    pdf_url: Optional[str] = None
     version: int = 1
+    last_revised_at: Optional[datetime] = None
+    whatsapp_share_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+class InvoiceSendResponse(BaseModel):
+    invoice: InvoiceResponse
+    whatsapp_url: str
+    email_sent: bool
+    recipient_email: Optional[str] = None
+    share_url: str
+    message: str

@@ -66,10 +66,19 @@ async def get_public_invoice(
             created_at=db_profile.created_at,
         )
 
+    is_revised = invoice.version > 1
+    banner = None
+    if is_revised:
+        date_str = invoice.last_revised_at.strftime("%B %d, %Y") if invoice.last_revised_at else "recently"
+        banner = f"This invoice was revised on {date_str} (Revision {invoice.version}). You are viewing the latest active version."
+
     return PublicInvoiceView(
         invoice=invoice_resp,
         payment_profile=profile_resp,
-        comments=[]
+        comments=[],
+        is_revised=is_revised,
+        revision_banner=banner,
+        revisions_count=max(0, invoice.version - 1),
     )
 
 
