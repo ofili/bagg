@@ -11,6 +11,35 @@ from app.domains.auth.router import get_current_user_and_workspace
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 
 
+async def resolve_active_workspace(
+    auth_data = Depends(get_current_user_and_workspace),
+    db: AsyncSession = Depends(get_db)
+) -> Workspace:
+    """Dependency to retrieve the authenticated user's active workspace with fallback for dev."""
+    if auth_data:
+        _, workspace = auth_data
+        return workspace
+
+    stmt = select(Workspace).limit(1)
+    res = await db.execute(stmt)
+    ws = res.scalars().first()
+    if ws:
+        return ws
+
+    ws = Workspace(
+        id="ws_demo_01",
+        owner_id="usr_demo_01",
+        name="Studio Bagg",
+        business_name="Studio Bagg Creative Ltd",
+        country="NG",
+        default_currency="NGN"
+    )
+    db.add(ws)
+    await db.commit()
+    await db.refresh(ws)
+    return ws
+
+
 @router.get("/current", response_model=WorkspaceResponse)
 async def get_current_workspace(
     auth_data = Depends(get_current_user_and_workspace),

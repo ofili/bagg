@@ -8,7 +8,7 @@ from app.core.database import get_db
 from app.core.errors import NotFoundException, BadRequestException
 from app.domains.payments.models import PaymentProfile
 from app.domains.workspaces.models import Workspace
-from app.domains.auth.router import get_current_user_and_workspace
+from app.domains.workspaces.router import resolve_active_workspace
 from app.domains.payments.schemas import (
     PaymentProfileResponse,
     PaymentProfileCreate,
@@ -19,32 +19,6 @@ from app.domains.payments.schemas import (
 )
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
-
-
-async def resolve_active_workspace(
-    auth_data = Depends(get_current_user_and_workspace),
-    db: AsyncSession = Depends(get_db)
-) -> Workspace:
-    if auth_data:
-        _, workspace = auth_data
-        return workspace
-
-    # Fallback to first existing workspace or create one for testing
-    stmt = select(Workspace).limit(1)
-    res = await db.execute(stmt)
-    ws = res.scalars().first()
-    if ws:
-        return ws
-
-    ws = Workspace(
-        name="Studio Bagg",
-        business_name="Studio Bagg Creative Ltd",
-        owner_id="usr_demo",
-    )
-    db.add(ws)
-    await db.commit()
-    await db.refresh(ws)
-    return ws
 
 
 @router.get("/profiles", response_model=List[PaymentProfileResponse])
