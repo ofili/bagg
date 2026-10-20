@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: str = "bagg-uploads"
     S3_REGION: str = "us-east-1"
 
+    # Payment Processors
+    PAYSTACK_SECRET_KEY: Optional[str] = None
+    PAYSTACK_PUBLIC_KEY: Optional[str] = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

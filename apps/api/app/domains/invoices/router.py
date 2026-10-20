@@ -27,6 +27,10 @@ from app.domains.reminders.service import (
     schedule_invoice_reminders,
     cancel_invoice_reminders,
 )
+from app.domains.billing.service import (
+    check_delivery_quota,
+    consume_delivery_send,
+)
 from app.domains.invoices.models import Invoice, InvoiceLineItem, InvoiceRevision
 from app.domains.invoices.schemas import (
     InvoiceCreate,
@@ -537,6 +541,9 @@ async def send_invoice(
     share_url = f"http://localhost:3000/i/{invoice.share_token}"
 
     if recipient_email:
+        # Enforce Free Tier Metering & Delivery Quota (US-SUB-01)
+        await check_delivery_quota(workspace, db)
+
         email_sender = EmailSender()
         await email_sender.send_invoice_email(
             to_email=recipient_email,
@@ -545,6 +552,8 @@ async def send_invoice(
         )
         invoice.email_delivery_status = "delivered"
         email_sent = True
+        # Consume delivery quota or deduct from credit ledger (US-SUB-06)
+        await consume_delivery_send(workspace, db)
     else:
         invoice.email_delivery_status = "no_email"
 

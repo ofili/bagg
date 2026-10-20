@@ -14,7 +14,13 @@ import {
   Globe,
   Landmark,
   X,
-  AlertCircle
+  AlertCircle,
+  Zap,
+  Sparkles,
+  ShieldCheck,
+  Coins,
+  RefreshCw,
+  ExternalLink,
 } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -32,6 +38,27 @@ interface PaymentProfile {
   instructions?: string | null;
   is_default: boolean;
   created_at: string;
+}
+
+interface SubscriptionData {
+  id?: string;
+  workspace_id?: string;
+  tier: string;
+  status: string;
+  paystack_subscription_code?: string | null;
+  current_period_end?: string | null;
+  cancel_at_period_end: boolean;
+  grace_period_until?: string | null;
+  is_active: boolean;
+  suppresses_watermark: boolean;
+}
+
+interface CreditsData {
+  workspace_id: string;
+  balance: number;
+  free_sends_used_this_month: number;
+  free_sends_limit: number;
+  can_send_invoice: boolean;
 }
 
 const SUPPORTED_CURRENCIES = [
@@ -75,6 +102,103 @@ export default function SettingsPage() {
   const [instructions, setInstructions] = useState('');
   const [isDefault, setIsDefault] = useState(true);
 
+  // Subscription & Credits state (US-SUB-01 - US-SUB-06)
+  const [subData, setSubData] = useState<SubscriptionData | null>(null);
+  const [creditsData, setCreditsData] = useState<CreditsData | null>(null);
+  const [loadingBilling, setLoadingBilling] = useState(true);
+  const [billingActionLoading, setBillingActionLoading] = useState(false);
+  const [billingSuccessMsg, setBillingSuccessMsg] = useState<string | null>(null);
+
+  const fetchBilling = async () => {
+    try {
+      setLoadingBilling(true);
+      const [subRes, credRes] = await Promise.all([
+        fetch(`${API_BASE}/billing/subscription`, { credentials: 'include' }),
+        fetch(`${API_BASE}/billing/credits`, { credentials: 'include' }),
+      ]);
+      if (subRes.ok) {
+        setSubData(await subRes.json());
+      }
+      if (credRes.ok) {
+        setCreditsData(await credRes.json());
+      }
+    } catch {
+      // Dev/offline fallback
+    } finally {
+      setLoadingBilling(false);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    try {
+      setBillingActionLoading(true);
+      setErrorMessage(null);
+      const res = await fetch(`${API_BASE}/billing/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          plan_code: 'creator_pro_monthly',
+          callback_url: window.location.href,
+        }),
+      });
+      if (!res.ok) throw new Error('Could not initialize checkout');
+      const data = await res.json();
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Checkout failed');
+    } finally {
+      setBillingActionLoading(false);
+    }
+  };
+
+  const handleBuyCredits = async () => {
+    try {
+      setBillingActionLoading(true);
+      setErrorMessage(null);
+      const res = await fetch(`${API_BASE}/billing/credits/buy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ pack_size: 200 }),
+      });
+      if (!res.ok) throw new Error('Could not purchase credits');
+      const updated = await res.json();
+      setCreditsData(updated);
+      setBillingSuccessMsg('Pack of 200 credits purchased successfully! (₦2,000)');
+      setTimeout(() => setBillingSuccessMsg(null), 4000);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Purchase failed');
+    } finally {
+      setBillingActionLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!confirm('Are you sure you want to cancel auto-renewal? You will keep Creator Pro benefits until your period ends.')) {
+      return;
+    }
+    try {
+      setBillingActionLoading(true);
+      setErrorMessage(null);
+      const res = await fetch(`${API_BASE}/billing/subscription/cancel`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Cancellation failed');
+      const data = await res.json();
+      setBillingSuccessMsg(data.message || 'Auto-renewal canceled');
+      setTimeout(() => setBillingSuccessMsg(null), 4000);
+      await fetchBilling();
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to cancel subscription');
+    } finally {
+      setBillingActionLoading(false);
+    }
+  };
+
   // Load workspace details & payment profiles
   const fetchProfiles = async () => {
     try {
@@ -108,6 +232,7 @@ export default function SettingsPage() {
       .catch(() => {});
 
     fetchProfiles();
+    fetchBilling();
   }, []);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -237,6 +362,13 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {billingSuccessMsg && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
+          <Check className="w-4 h-4 text-emerald-600" />
+          <span>{billingSuccessMsg}</span>
+        </div>
+      )}
+
       {errorMessage && (
         <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center justify-between">
           <span>{errorMessage}</span>
@@ -331,6 +463,177 @@ export default function SettingsPage() {
           Note: Updating your business profile will apply to new and draft invoices. Invoices already sent preserve their historical snapshot.
         </div>
       </form>
+
+      {/* Subscription & Invoicing Quota (US-SUB-01 - US-SUB-06) */}
+      <div className="bg-white rounded-xl border p-6 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between border-b pb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-emerald-600" />
+            <div>
+              <h2 className="font-bold text-base text-neutral-900">Subscription & Invoicing Quota</h2>
+              <p className="text-xs text-neutral-500">
+                Track your active tier, free monthly invoice sends, and prepaid credit balance.
+              </p>
+            </div>
+          </div>
+          {subData && (
+            <span
+              className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
+                subData.is_active && subData.tier !== 'free'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-neutral-100 text-neutral-700 border-neutral-200'
+              }`}
+            >
+              {subData.tier === 'creator_pro'
+                ? 'Creator Pro Plan'
+                : subData.tier === 'professional'
+                ? 'Professional Plan'
+                : 'Free Starter Plan'}
+            </span>
+          )}
+        </div>
+
+        {loadingBilling ? (
+          <div className="py-6 flex justify-center text-neutral-400 text-xs">
+            <Loader2 className="w-5 h-5 animate-spin" />
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Plan Card */}
+            <div className="border rounded-xl p-4 bg-neutral-50/50 flex flex-col justify-between space-y-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Active Plan
+                  </span>
+                  {subData?.is_active && subData?.tier !== 'free' ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      {subData.status === 'in_grace_period' ? 'In Grace Period' : 'Active'}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-neutral-500 font-medium">Free Meter</span>
+                  )}
+                </div>
+
+                {subData?.is_active && subData?.tier !== 'free' ? (
+                  <div>
+                    <h3 className="text-lg font-bold text-neutral-900">Creator Pro</h3>
+                    <p className="text-xs text-neutral-600 mt-1">
+                      Unlimited monthly invoice sends, polite chasing, and watermark-free PDF exports.
+                    </p>
+                    {subData.current_period_end && (
+                      <p className="text-[11px] text-neutral-500 mt-2">
+                        {subData.cancel_at_period_end
+                          ? `Access active until ${new Date(subData.current_period_end).toLocaleDateString()} (Auto-renewal canceled)`
+                          : `Renews on ${new Date(subData.current_period_end).toLocaleDateString()} via Paystack`}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="text-lg font-bold text-neutral-900">Free Starter</h3>
+                    <p className="text-xs text-neutral-600 mt-1">
+                      Includes 3 free invoice deliveries per calendar month.
+                    </p>
+
+                    {creditsData && (
+                      <div className="mt-3 space-y-1.5">
+                        <div className="flex justify-between text-xs font-medium text-neutral-700">
+                          <span>Monthly Free Sends</span>
+                          <span>{creditsData.free_sends_used_this_month} / {creditsData.free_sends_limit} used</span>
+                        </div>
+                        <div className="w-full h-2 bg-neutral-200 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${
+                              creditsData.free_sends_used_this_month >= creditsData.free_sends_limit
+                                ? 'bg-amber-500'
+                                : 'bg-emerald-500'
+                            }`}
+                            style={{
+                              width: `${Math.min(100, (creditsData.free_sends_used_this_month / creditsData.free_sends_limit) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 border-t flex flex-wrap gap-2 items-center">
+                {subData?.is_active && subData?.tier !== 'free' ? (
+                  !subData.cancel_at_period_end && (
+                    <button
+                      type="button"
+                      disabled={billingActionLoading}
+                      onClick={handleCancelSubscription}
+                      className="text-xs text-red-600 hover:text-red-700 font-medium transition"
+                    >
+                      {billingActionLoading ? 'Processing...' : 'Cancel Auto-Renewal'}
+                    </button>
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    disabled={billingActionLoading}
+                    onClick={handleUpgrade}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50"
+                  >
+                    {billingActionLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Zap className="w-3.5 h-3.5" />
+                    )}
+                    Upgrade to Creator Pro (₦12,000 / mo)
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Credit Ledger Card (US-SUB-03) */}
+            <div className="border rounded-xl p-4 bg-neutral-50/50 flex flex-col justify-between space-y-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Prepaid Delivery Credits
+                  </span>
+                  <Coins className="w-4 h-4 text-amber-500" />
+                </div>
+
+                <div>
+                  <div className="text-2xl font-bold text-neutral-900">
+                    {creditsData?.balance ?? 0}
+                    <span className="text-xs font-normal text-neutral-500 ml-1.5">credits</span>
+                  </div>
+                  <p className="text-xs text-neutral-600 mt-1">
+                    Prepaid credits fund invoice sends whenever your monthly free quota is exhausted.
+                  </p>
+                  <p className="text-[11px] text-neutral-400 mt-1">
+                    1 credit = 1 delivery send. Credits never expire and stay attached to your workspace.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t">
+                <button
+                  type="button"
+                  disabled={billingActionLoading}
+                  onClick={handleBuyCredits}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50"
+                >
+                  {billingActionLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Coins className="w-3.5 h-3.5 text-amber-400" />
+                  )}
+                  Buy 200 Credits (₦2,000)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Multi-Currency Payment Profiles (US-PAY-01, US-PAY-02) */}
       <div className="bg-white rounded-xl border p-6 space-y-4 shadow-sm">

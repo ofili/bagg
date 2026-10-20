@@ -118,8 +118,8 @@ async def get_public_invoice(
         date_str = invoice.last_revised_at.strftime("%B %d, %Y") if invoice.last_revised_at else "recently"
         banner = f"This invoice was revised on {date_str} (Revision {invoice.version}). You are viewing the latest active version."
 
-    # Viral footer (US-CLV-04)
-    show_footer = (workspace.tier != "pro")
+    # Viral footer (US-CLV-04 / US-SUB-05)
+    show_footer = (workspace.tier not in ["pro", "creator_pro", "professional"])
 
     return PublicInvoiceView(
         invoice=invoice_resp,
