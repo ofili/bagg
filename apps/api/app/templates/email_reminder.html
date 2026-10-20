@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h2>Payment Reminder: Invoice {{ invoice_number }}</h2>
+  <p>Dear {{ client_name }},</p>
+  <p>This is a friendly reminder that invoice <strong>{{ invoice_number }}</strong> for <strong>{{ formatted_total }}</strong> is due on <strong>{{ due_date }}</strong>.</p>
+  <p><a href="{{ share_url }}" style="background-color: #10B981; color: white; padding: 10px 18px; text-decoration: none; border-radius: 6px;">View & Pay Invoice</a></p>
+  <p>Thank you!</p>
+</body>
+</html>

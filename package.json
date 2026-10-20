@@ -1,0 +1,26 @@
+{
+  "name": "bagg-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Invoicing and get-paid workspace for African freelancers and creators",
+  "packageManager": "pnpm@11.3.0",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:web": "pnpm --filter @bagg/web dev",
+    "dev:api": "cd apps/api && uv run uvicorn app.main:app --reload --port 8000",
+    "dev:worker": "cd apps/api && uv run python -m app.jobs.worker",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:api": "cd apps/api && uv run pytest",
+    "test:e2e": "pnpm --filter @bagg/e2e test",
+    "codegen": "pnpm --filter @bagg/api-client generate",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.5.2",
+    "turbo": "^2.4.4"
+  }
+}

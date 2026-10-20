@@ -1,0 +1,53 @@
+{
+  "test_cases": [
+    {
+      "description": "Standard invoice calculation in NGN",
+      "currency": "NGN",
+      "items": [
+        { "description": "Brand Identity Design", "quantity": 1, "unit_price_minor": 25000000 },
+        { "description": "Social Media Templates (5)", "quantity": 5, "unit_price_minor": 3000000 }
+      ],
+      "discount_minor": 2000000,
+      "tax_percent": 7.5,
+      "expected": {
+        "subtotal_minor": 40000000,
+        "discounted_subtotal_minor": 38000000,
+        "tax_minor": 2850000,
+        "total_minor": 40850000,
+        "formatted_total": "₦408,500.00"
+      }
+    },
+    {
+      "description": "USD Invoice with minor decimal rounding verification",
+      "currency": "USD",
+      "items": [
+        { "description": "Frontend Engineering (hrs)", "quantity": 15, "unit_price_minor": 7500 }
+      ],
+      "discount_minor": 0,
+      "tax_percent": 0.0,
+      "expected": {
+        "subtotal_minor": 112500,
+        "discounted_subtotal_minor": 112500,
+        "tax_minor": 0,
+        "total_minor": 112500,
+        "formatted_total": "$1,125.00"
+      }
+    },
+    {
+      "description": "KES invoice with rounding check",
+      "currency": "KES",
+      "items": [
+        { "description": "Consulting session", "quantity": 3, "unit_price_minor": 1500000 }
+      ],
+      "discount_minor": 500000,
+      "tax_percent": 16.0,
+      "expected": {
+        "subtotal_minor": 4500000,
+        "discounted_subtotal_minor": 4000000,
+        "tax_minor": 640000,
+        "total_minor": 4640000,
+        "formatted_total": "KSh46,400.00"
+      }
+    }
+  ]
+}

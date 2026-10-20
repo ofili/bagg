@@ -1,0 +1,18 @@
+{
+  "name": "@bagg/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "generate": "openapi-typescript http://localhost:8000/openapi.json -o ./src/schema.d.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@bagg/config": "workspace:*",
+    "openapi-typescript": "^7.6.1",
+    "typescript": "^5.8.2"
+  }
+}

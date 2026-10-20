@@ -1,0 +1,67 @@
+{
+  "currencies": [
+    {
+      "code": "NGN",
+      "name": "Nigerian Naira",
+      "symbol": "₦",
+      "decimals": 2,
+      "minor_unit_factor": 100,
+      "locale": "en-NG",
+      "flag": "🇳🇬"
+    },
+    {
+      "code": "USD",
+      "name": "US Dollar",
+      "symbol": "$",
+      "decimals": 2,
+      "minor_unit_factor": 100,
+      "locale": "en-US",
+      "flag": "🇺🇸"
+    },
+    {
+      "code": "GBP",
+      "name": "British Pound",
+      "symbol": "£",
+      "decimals": 2,
+      "minor_unit_factor": 100,
+      "locale": "en-GB",
+      "flag": "🇬🇧"
+    },
+    {
+      "code": "EUR",
+      "name": "Euro",
+      "symbol": "€",
+      "decimals": 2,
+      "minor_unit_factor": 100,
+      "locale": "de-DE",
+      "flag": "🇪🇺"
+    },
+    {
+      "code": "GHS",
+      "name": "Ghanaian Cedi",
+      "symbol": "GH₵",
+      "decimals": 2,
+      "minor_unit_factor": 100,
+      "locale": "en-GH",
+      "flag": "🇬🇭"
+    },
+    {
+      "code": "KES",
+      "name": "Kenyan Shilling",
+      "symbol": "KSh",
+      "decimals": 2,
+      "minor_unit_factor": 100,
+      "locale": "en-KE",
+      "flag": "🇰🇪"
+    },
+    {
+      "code": "ZAR",
+      "name": "South African Rand",
+      "symbol": "R",
+      "decimals": 2,
+      "minor_unit_factor": 100,
+      "locale": "en-ZA",
+      "flag": "🇿🇦"
+    }
+  ]
+}

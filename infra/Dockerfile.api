@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies (including Cairo/Pango for PDF rendering if needed)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv for fast package installation
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+COPY apps/api/pyproject.toml ./
+RUN uv pip install --system -r pyproject.toml
+
+COPY apps/api/app ./app
+COPY fixtures /fixtures
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
