@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 from app.domains.invoices.schemas import InvoiceResponse
-from app.domains.payments.schemas import PaymentProfileResponse
+from app.domains.payments.schemas import PaymentProfileResponse, PaymentClaimResponse
 
 
 class CommentCreate(BaseModel):
@@ -33,3 +33,4 @@ class PublicInvoiceView(BaseModel):
     show_viral_footer: bool = True
     viral_footer_text: Optional[str] = "Powered by bagg. — Invoicing & get-paid workspace for African creators"
     viral_footer_link: Optional[str] = "https://bagg.africa?utm_source=invoice_footer&utm_medium=referral"
+    latest_claim: Optional[PaymentClaimResponse] = None

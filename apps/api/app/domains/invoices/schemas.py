@@ -70,6 +70,9 @@ class InvoiceRevisionResponse(BaseModel):
     created_at: datetime
 
 
+from app.domains.payments.schemas import PaymentClaimResponse
+
+
 class InvoiceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -99,6 +102,7 @@ class InvoiceResponse(BaseModel):
     version: int = 1
     last_revised_at: Optional[datetime] = None
     whatsapp_share_url: Optional[str] = None
+    latest_claim: Optional[PaymentClaimResponse] = None
     created_at: datetime
     updated_at: datetime
 

@@ -53,12 +53,24 @@ interface Comment {
   created_at: string;
 }
 
+interface PaymentClaim {
+  id: string;
+  amount_minor: number;
+  payment_date: string;
+  reference?: string | null;
+  proof_file_url?: string | null;
+  status: string;
+  rejection_reason?: string | null;
+  confirmed_at?: string | null;
+}
+
 interface PublicInvoiceData {
   invoice: {
     id: string;
     invoice_number: string;
     client_name?: string;
     currency: string;
+    status: string;
     issue_date: string;
     due_date: string;
     items: LineItem[];
@@ -67,6 +79,7 @@ interface PublicInvoiceData {
     tax_rate_percent: number;
     tax_minor: number;
     total_minor: number;
+    amount_paid_minor: number;
     notes?: string;
     version: number;
     share_token: string;
@@ -78,6 +91,7 @@ interface PublicInvoiceData {
   show_viral_footer: boolean;
   viral_footer_text?: string;
   viral_footer_link?: string;
+  latest_claim?: PaymentClaim | null;
 }
 
 export default function PublicClientInvoiceView() {
@@ -91,9 +105,15 @@ export default function PublicClientInvoiceView() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // Claim modal state
+  // Claim modal state (US-CLM-01)
   const [isPaidModalOpen, setIsPaidModalOpen] = useState(false);
   const [hasClaimed, setHasClaimed] = useState(false);
+  const [claimAmount, setClaimAmount] = useState('');
+  const [claimDate, setClaimDate] = useState(new Date().toISOString().split('T')[0]);
+  const [claimReference, setClaimReference] = useState('');
+  const [claimProofUrl, setClaimProofUrl] = useState('');
+  const [submittingClaim, setSubmittingClaim] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
   // Comment state (US-CLV-03)
   const [authorName, setAuthorName] = useState('');
@@ -109,6 +129,8 @@ export default function PublicClientInvoiceView() {
       })
       .then((json: PublicInvoiceData) => {
         setData(json);
+        const remaining = (json.invoice.total_minor - (json.invoice.amount_paid_minor || 0)) / 100;
+        setClaimAmount(remaining > 0 ? remaining.toString() : (json.invoice.total_minor / 100).toString());
       })
       .catch((err) => {
         setError(err.message || 'Could not load invoice');
@@ -157,10 +179,48 @@ export default function PublicClientInvoiceView() {
     }
   };
 
-  const handleClaimPayment = (e: React.FormEvent) => {
+  const handleClaimPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    setHasClaimed(true);
-    setIsPaidModalOpen(false);
+    if (!token) return;
+
+    setSubmittingClaim(true);
+    setClaimError(null);
+
+    const amountNum = parseFloat(claimAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setClaimError('Please enter a valid payment amount.');
+      setSubmittingClaim(false);
+      return;
+    }
+
+    const amountMinor = Math.round(amountNum * 100);
+
+    try {
+      const res = await fetch(`${API_BASE}/share/${token}/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount_minor: amountMinor,
+          payment_date: claimDate || undefined,
+          reference: claimReference.trim() || undefined,
+          proof_file_url: claimProofUrl.trim() || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to submit payment claim.');
+      }
+
+      setHasClaimed(true);
+      setIsPaidModalOpen(false);
+      setToastMsg('Payment claim submitted to freelancer!');
+      fetchInvoiceData();
+    } catch (err: any) {
+      setClaimError(err.message || 'Error submitting claim.');
+    } finally {
+      setSubmittingClaim(false);
+    }
   };
 
   if (loading) {
@@ -183,7 +243,11 @@ export default function PublicClientInvoiceView() {
     );
   }
 
-  const { invoice, payment_profile, comments, is_revised, revision_banner, show_viral_footer, viral_footer_link, viral_footer_text } = data;
+  const { invoice, payment_profile, comments, is_revised, revision_banner, show_viral_footer, viral_footer_link, latest_claim } = data;
+  const isPaid = invoice.status === 'paid';
+  const isClaimed = invoice.status === 'payment_claimed' || latest_claim?.status === 'pending' || hasClaimed;
+  const isRejected = latest_claim?.status === 'rejected' && !isClaimed && !isPaid;
+  const isPartiallyPaid = invoice.status === 'partially_paid' || (invoice.amount_paid_minor > 0 && !isPaid);
 
   return (
     <div className="min-h-screen bg-neutral-100 py-6 sm:py-12 px-3 sm:px-6">
@@ -204,12 +268,52 @@ export default function PublicClientInvoiceView() {
           </div>
         )}
 
-        {/* Status Notification if Payment Claimed */}
-        {hasClaimed && (
+        {/* Paid in Full Banner */}
+        {isPaid && (
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-emerald-900 text-sm">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
             <div>
-              <span className="font-bold">Payment Claim Received!</span> We have notified the freelancer to verify your payment.
+              <div className="font-bold">Payment Verified & Settled in Full</div>
+              <div className="text-xs text-emerald-700">This invoice has been marked as paid. An official receipt has been issued.</div>
+            </div>
+          </div>
+        )}
+
+        {/* Status Notification if Payment Claimed (US-CLM-01) */}
+        {isClaimed && !isPaid && (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-900 text-sm">
+            <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
+            <div>
+              <span className="font-bold">Payment Claim Received!</span> We have notified the freelancer to verify your transfer.
+            </div>
+          </div>
+        )}
+
+        {/* Rejection Notification if Claim was Rejected (US-CLM-02) */}
+        {isRejected && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-amber-900 text-sm">
+            <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold">Payment Claim Needs Attention</div>
+              <div className="text-xs text-amber-800 mt-0.5">
+                {latest_claim?.rejection_reason || 'The freelancer could not verify the payment transfer.'}
+              </div>
+              <div className="text-[11px] text-amber-700 mt-1">
+                Please re-check your transfer session ID or submit an updated receipt below.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Partially Paid Notification */}
+        {isPartiallyPaid && !isPaid && (
+          <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl flex items-center justify-between text-xs text-neutral-800">
+            <div>
+              <span className="font-semibold text-neutral-900">Partially Paid: </span>
+              {formatMoney(invoice.amount_paid_minor, invoice.currency)} received of {formatMoney(invoice.total_minor, invoice.currency)}.
+            </div>
+            <div className="font-bold text-emerald-700">
+              Remaining: {formatMoney(invoice.total_minor - invoice.amount_paid_minor, invoice.currency)}
             </div>
           </div>
         )}
@@ -407,14 +511,25 @@ export default function PublicClientInvoiceView() {
           </div>
 
           {/* Action Button: I've Paid */}
-          {!hasClaimed && (
+          {!isPaid && (
             <div className="text-center pt-2">
-              <button
-                onClick={() => setIsPaidModalOpen(true)}
-                className="w-full sm:w-auto px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition"
-              >
-                I&apos;ve Paid This Invoice
-              </button>
+              {isClaimed ? (
+                <div className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-50 text-blue-800 rounded-xl font-semibold text-xs border border-blue-200">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                  <span>Claim Pending Verification by Freelancer</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsPaidModalOpen(true)}
+                  className="w-full sm:w-auto px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition"
+                >
+                  {isRejected
+                    ? 'Resubmit Payment Proof'
+                    : isPartiallyPaid
+                    ? 'I’ve Paid Remaining Balance'
+                    : 'I’ve Paid This Invoice'}
+                </button>
+              )}
             </div>
           )}
 
@@ -492,34 +607,99 @@ export default function PublicClientInvoiceView() {
           </div>
         )}
 
-        {/* Claim Modal */}
+        {/* Claim Modal (US-CLM-01) */}
         {isPaidModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border">
-              <h3 className="font-bold text-base text-neutral-900">Notify Freelancer of Payment</h3>
-              <form onSubmit={handleClaimPayment} className="space-y-3 text-xs">
+              <div>
+                <h3 className="font-bold text-base text-neutral-900">Notify Freelancer of Payment</h3>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Let {data.invoice.client_name ? 'the freelancer' : 'them'} know funds have been sent so they can verify and issue your receipt.
+                </p>
+              </div>
+
+              {claimError && (
+                <div className="p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
+                  {claimError}
+                </div>
+              )}
+
+              <form onSubmit={handleClaimPayment} className="space-y-3.5 text-xs">
                 <div>
-                  <label className="block font-medium text-neutral-600 mb-1">Transfer Reference / Note</label>
+                  <label className="block font-medium text-neutral-700 mb-1">
+                    Amount Paid ({data.invoice.currency})
+                  </label>
                   <input
-                    type="text"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
                     required
-                    placeholder="e.g. Bank session ID or transfer description"
+                    value={claimAmount}
+                    onChange={(e) => setClaimAmount(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 font-mono text-neutral-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-neutral-700 mb-1">Date Transferred</label>
+                  <input
+                    type="date"
+                    required
+                    value={claimDate}
+                    onChange={(e) => setClaimDate(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-neutral-800"
                   />
                 </div>
-                <div className="flex justify-end gap-2 pt-2 border-t">
+
+                <div>
+                  <label className="block font-medium text-neutral-700 mb-1">
+                    Transaction Reference / Session ID / Narration
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 000013241020084534 or bank session ref"
+                    value={claimReference}
+                    onChange={(e) => setClaimReference(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-neutral-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-neutral-700 mb-1">
+                    Proof URL or Screenshot Link (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://... or link to receipt screenshot"
+                    value={claimProofUrl}
+                    onChange={(e) => setClaimProofUrl(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-neutral-800"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t">
                   <button
                     type="button"
+                    disabled={submittingClaim}
                     onClick={() => setIsPaidModalOpen(false)}
-                    className="px-3 py-1.5 border rounded-lg text-neutral-600 hover:bg-neutral-50"
+                    className="px-3.5 py-2 border rounded-lg text-neutral-600 hover:bg-neutral-50 transition"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700"
+                    disabled={submittingClaim}
+                    className="px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 inline-flex items-center gap-1.5"
                   >
-                    Confirm Payment Sent
+                    {submittingClaim ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Confirm Payment Sent'
+                    )}
                   </button>
                 </div>
               </form>

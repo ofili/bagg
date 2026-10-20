@@ -17,7 +17,12 @@ from app.integrations.email import EmailSender
 from app.domains.workspaces.models import Workspace
 from app.domains.workspaces.router import resolve_active_workspace
 from app.domains.clients.models import Client
-from app.domains.payments.models import PaymentProfile
+from app.domains.payments.models import PaymentProfile, PaymentClaim
+from app.domains.payments.schemas import (
+    PaymentClaimResponse,
+    PaymentClaimConfirmRequest,
+    PaymentClaimRejectRequest,
+)
 from app.domains.invoices.models import Invoice, InvoiceLineItem, InvoiceRevision
 from app.domains.invoices.schemas import (
     InvoiceCreate,
@@ -93,6 +98,10 @@ def map_invoice_to_response(
         else None
     )
 
+    latest_claim = None
+    if "claims" in inv.__dict__ and inv.claims:
+        latest_claim = PaymentClaimResponse.model_validate(inv.claims[0])
+
     return InvoiceResponse(
         id=inv.id,
         workspace_id=inv.workspace_id,
@@ -120,6 +129,7 @@ def map_invoice_to_response(
         version=inv.version,
         last_revised_at=inv.last_revised_at,
         whatsapp_share_url=wa_url,
+        latest_claim=latest_claim,
         created_at=inv.created_at,
         updated_at=inv.updated_at,
     )
@@ -644,3 +654,121 @@ async def delete_invoice(
     await db.delete(invoice)
     await db.commit()
     return None
+
+
+@router.get("/{invoice_id}/claims", response_model=List[PaymentClaimResponse])
+async def list_invoice_claims(
+    invoice_id: str,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lists all payment claims submitted for this invoice (US-CLM-01/02)."""
+    stmt = select(Invoice).where(
+        and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace.id)
+    )
+    res = await db.execute(stmt)
+    invoice = res.scalar_one_or_none()
+    if not invoice:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
+
+    claim_stmt = (
+        select(PaymentClaim)
+        .where(PaymentClaim.invoice_id == invoice.id)
+        .order_by(PaymentClaim.created_at.desc())
+    )
+    claim_res = await db.execute(claim_stmt)
+    claims = claim_res.scalars().all()
+    return claims
+
+
+@router.post("/{invoice_id}/claims/{claim_id}/confirm", response_model=PaymentClaimResponse)
+async def confirm_payment_claim(
+    invoice_id: str,
+    claim_id: str,
+    payload: Optional[PaymentClaimConfirmRequest] = None,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Freelancer confirms payment claim (US-CLM-02).
+    Updates amount_paid_minor, transitions invoice to 'paid' (or 'partially_paid'),
+    marks claim as confirmed, and records confirmed_at timestamp.
+    """
+    stmt = select(Invoice).where(
+        and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace.id)
+    )
+    res = await db.execute(stmt)
+    invoice = res.scalar_one_or_none()
+    if not invoice:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
+
+    claim_stmt = select(PaymentClaim).where(
+        and_(PaymentClaim.id == claim_id, PaymentClaim.invoice_id == invoice.id)
+    )
+    claim_res = await db.execute(claim_stmt)
+    claim = claim_res.scalar_one_or_none()
+    if not claim:
+        raise NotFoundException(f"Payment claim '{claim_id}' not found")
+
+    confirmed_amount = (
+        payload.amount_paid_minor
+        if (payload and payload.amount_paid_minor is not None)
+        else claim.amount_minor
+    )
+    invoice.amount_paid_minor = (invoice.amount_paid_minor or 0) + confirmed_amount
+
+    if invoice.amount_paid_minor >= invoice.total_minor:
+        invoice.status = "paid"
+    else:
+        invoice.status = "partially_paid"
+
+    claim.status = "confirmed"
+    claim.confirmed_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    await db.refresh(claim)
+    return claim
+
+
+@router.post("/{invoice_id}/claims/{claim_id}/reject", response_model=PaymentClaimResponse)
+async def reject_payment_claim(
+    invoice_id: str,
+    claim_id: str,
+    payload: PaymentClaimRejectRequest,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Freelancer rejects payment claim with explanation (US-CLM-02).
+    Claim marked as rejected; invoice reverts to previous status (viewed, sent, or partially_paid).
+    """
+    stmt = select(Invoice).where(
+        and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace.id)
+    )
+    res = await db.execute(stmt)
+    invoice = res.scalar_one_or_none()
+    if not invoice:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
+
+    claim_stmt = select(PaymentClaim).where(
+        and_(PaymentClaim.id == claim_id, PaymentClaim.invoice_id == invoice.id)
+    )
+    claim_res = await db.execute(claim_stmt)
+    claim = claim_res.scalar_one_or_none()
+    if not claim:
+        raise NotFoundException(f"Payment claim '{claim_id}' not found")
+
+    claim.status = "rejected"
+    claim.rejection_reason = payload.rejection_reason
+
+    # Revert invoice status
+    if (invoice.amount_paid_minor or 0) > 0:
+        invoice.status = "partially_paid"
+    elif invoice.viewed_at:
+        invoice.status = "viewed"
+    else:
+        invoice.status = "sent"
+
+    await db.commit()
+    await db.refresh(claim)
+    return claim

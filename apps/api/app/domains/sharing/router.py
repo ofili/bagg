@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Optional, List
 
 from app.core.database import get_db
@@ -11,8 +11,12 @@ from app.domains.invoices.models import Invoice
 from app.domains.invoices.router import map_invoice_to_response
 from app.domains.clients.models import Client
 from app.domains.workspaces.models import Workspace
-from app.domains.payments.models import PaymentProfile
-from app.domains.payments.schemas import PaymentProfileResponse
+from app.domains.payments.models import PaymentProfile, PaymentClaim
+from app.domains.payments.schemas import (
+    PaymentProfileResponse,
+    PaymentClaimResponse,
+    PaymentClaimCreate,
+)
 
 router = APIRouter(prefix="/share", tags=["Sharing"])
 
@@ -27,6 +31,7 @@ async def get_public_invoice(
     - Automatically marks 'sent' invoices as 'viewed' with timestamp.
     - Resolves multi-currency payout instructions.
     - Conditionally shows viral acquisition footer on free tier.
+    - Returns latest payment claim if present (US-CLM-01).
     """
     stmt = (
         select(Invoice, Client.name.label("client_name"), Workspace)
@@ -100,6 +105,12 @@ async def get_public_invoice(
         for c in comments
     ]
 
+    # Query latest claim (US-CLM-01)
+    claim_stmt = select(PaymentClaim).where(PaymentClaim.invoice_id == invoice.id).order_by(PaymentClaim.created_at.desc()).limit(1)
+    claim_res = await db.execute(claim_stmt)
+    latest_claim = claim_res.scalars().first()
+    latest_claim_resp = PaymentClaimResponse.model_validate(latest_claim) if latest_claim else None
+
     is_revised = invoice.version > 1
     banner = None
     if is_revised:
@@ -117,7 +128,41 @@ async def get_public_invoice(
         revision_banner=banner,
         revisions_count=max(0, invoice.version - 1),
         show_viral_footer=show_footer,
+        latest_claim=latest_claim_resp,
     )
+
+
+@router.post("/{token}/claim", response_model=PaymentClaimResponse, status_code=status.HTTP_201_CREATED)
+async def submit_payment_claim(
+    token: str,
+    payload: PaymentClaimCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Client submits an 'I Have Paid' claim with reference and optional proof (US-CLM-01).
+    Transitions invoice status to 'payment_claimed'.
+    """
+    stmt = select(Invoice).where(Invoice.share_token == token)
+    res = await db.execute(stmt)
+    invoice = res.scalar_one_or_none()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    claim = PaymentClaim(
+        invoice_id=invoice.id,
+        amount_minor=payload.amount_minor,
+        payment_date=payload.payment_date or date.today(),
+        reference=payload.reference,
+        proof_file_url=payload.proof_file_url,
+        status="pending",
+    )
+    db.add(claim)
+
+    invoice.status = "payment_claimed"
+    await db.commit()
+    await db.refresh(claim)
+
+    return PaymentClaimResponse.model_validate(claim)
 
 
 @router.post("/{token}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)

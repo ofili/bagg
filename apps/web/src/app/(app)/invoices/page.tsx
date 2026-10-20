@@ -20,6 +20,19 @@ import {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+interface PaymentClaim {
+  id: string;
+  invoice_id: string;
+  amount_minor: number;
+  payment_date: string;
+  reference?: string | null;
+  proof_file_url?: string | null;
+  status: string;
+  rejection_reason?: string | null;
+  confirmed_at?: string | null;
+  created_at: string;
+}
+
 interface Invoice {
   id: string;
   invoice_number: string;
@@ -27,10 +40,12 @@ interface Invoice {
   client_name?: string | null;
   currency: string;
   total_minor: number;
+  amount_paid_minor: number;
   issue_date: string;
   due_date: string;
-  status: 'draft' | 'sent' | 'viewed' | 'payment_claimed' | 'paid' | 'cancelled';
+  status: 'draft' | 'sent' | 'viewed' | 'payment_claimed' | 'partially_paid' | 'paid' | 'cancelled';
   share_token?: string | null;
+  latest_claim?: PaymentClaim | null;
   created_at: string;
 }
 
@@ -39,6 +54,17 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Claim Review State (US-CLM-02)
+  const [reviewingInvoice, setReviewingInvoice] = useState<Invoice | null>(null);
+  const [claimsList, setClaimsList] = useState<PaymentClaim[]>([]);
+  const [loadingClaims, setLoadingClaims] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [partialAmount, setPartialAmount] = useState('');
+  const [showPartialInput, setShowPartialInput] = useState(false);
+  const [processingAction, setProcessingAction] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchInvoices = async () => {
     try {
@@ -62,6 +88,103 @@ export default function InvoicesPage() {
     fetchInvoices();
   }, [statusFilter]);
 
+  const handleOpenReview = async (inv: Invoice) => {
+    setReviewingInvoice(inv);
+    setShowRejectInput(false);
+    setShowPartialInput(false);
+    setRejectReason('');
+    setPartialAmount('');
+    setActionError(null);
+    setLoadingClaims(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/invoices/${inv.id}/claims`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setClaimsList(data);
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setLoadingClaims(false);
+    }
+  };
+
+  const handleConfirmFull = async (claimId: string) => {
+    if (!reviewingInvoice) return;
+    setProcessingAction(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`${API_BASE}/invoices/${reviewingInvoice.id}/claims/${claimId}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error('Failed to confirm claim');
+      setReviewingInvoice(null);
+      fetchInvoices();
+    } catch (err: any) {
+      setActionError(err.message || 'Error confirming payment');
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  const handleConfirmPartial = async (claimId: string) => {
+    if (!reviewingInvoice) return;
+    const amountVal = parseFloat(partialAmount);
+    if (isNaN(amountVal) || amountVal <= 0) {
+      setActionError('Please enter a valid partial amount.');
+      return;
+    }
+    const minorVal = Math.round(amountVal * 100);
+
+    setProcessingAction(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`${API_BASE}/invoices/${reviewingInvoice.id}/claims/${claimId}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ amount_paid_minor: minorVal }),
+      });
+      if (!res.ok) throw new Error('Failed to confirm partial payment');
+      setReviewingInvoice(null);
+      fetchInvoices();
+    } catch (err: any) {
+      setActionError(err.message || 'Error confirming partial payment');
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  const handleRejectClaim = async (claimId: string) => {
+    if (!reviewingInvoice) return;
+    if (!rejectReason.trim()) {
+      setActionError('Please provide an explanation for rejecting this payment claim.');
+      return;
+    }
+
+    setProcessingAction(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`${API_BASE}/invoices/${reviewingInvoice.id}/claims/${claimId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ rejection_reason: rejectReason.trim() }),
+      });
+      if (!res.ok) throw new Error('Failed to reject claim');
+      setReviewingInvoice(null);
+      fetchInvoices();
+    } catch (err: any) {
+      setActionError(err.message || 'Error rejecting payment claim');
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
   const handleCopyLink = (token: string, id: string) => {
     const url = `${window.location.origin}/i/${token}`;
     navigator.clipboard.writeText(url);
@@ -73,10 +196,16 @@ export default function InvoicesPage() {
     switch (status) {
       case 'paid':
         return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Paid</span>;
+      case 'partially_paid':
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">Partial</span>;
       case 'payment_claimed':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Claimed</span>;
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 animate-pulse">
+            Claimed
+          </span>
+        );
       case 'viewed':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">Viewed</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">Viewed</span>;
       case 'sent':
         return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">Sent</span>;
       case 'cancelled':
@@ -204,6 +333,15 @@ export default function InvoicesPage() {
                       {getStatusBadge(inv.status)}
                     </td>
                     <td className="py-3.5 px-4 text-right space-x-1.5">
+                      {inv.status === 'payment_claimed' && (
+                        <button
+                          onClick={() => handleOpenReview(inv)}
+                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-md text-[11px] font-bold shadow-sm inline-flex items-center gap-1 transition mr-1"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Review Claim
+                        </button>
+                      )}
+
                       {inv.share_token && (
                         <>
                           <button
@@ -248,6 +386,203 @@ export default function InvoicesPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Claim Review Modal (US-CLM-02) */}
+      {reviewingInvoice && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border">
+            <div className="flex justify-between items-start border-b pb-3">
+              <div>
+                <h3 className="font-bold text-base text-neutral-900">
+                  Review Payment Claim ({reviewingInvoice.invoice_number})
+                </h3>
+                <p className="text-xs text-neutral-500">
+                  Client: <strong>{reviewingInvoice.client_name || 'Client'}</strong> &bull; Total: {formatMoney(reviewingInvoice.total_minor, reviewingInvoice.currency)}
+                </p>
+              </div>
+              <button
+                onClick={() => setReviewingInvoice(null)}
+                className="text-neutral-400 hover:text-neutral-700 text-sm font-bold p-1"
+              >
+                &times;
+              </button>
+            </div>
+
+            {actionError && (
+              <div className="p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
+                {actionError}
+              </div>
+            )}
+
+            {loadingClaims ? (
+              <div className="py-8 flex justify-center text-neutral-400">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : claimsList.length === 0 ? (
+              <p className="text-xs text-neutral-500 py-4 text-center">No payment claims on record.</p>
+            ) : (
+              <div className="space-y-4">
+                {claimsList.map((claim) => (
+                  <div key={claim.id} className="p-4 bg-neutral-50 rounded-xl border space-y-3 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-neutral-900 text-sm">
+                        {formatMoney(claim.amount_minor, reviewingInvoice.currency)}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        claim.status === 'confirmed'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : claim.status === 'rejected'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {claim.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-neutral-600">
+                      <div>
+                        <span className="text-neutral-400 block text-[10px]">Payment Date</span>
+                        <span>{claim.payment_date}</span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-400 block text-[10px]">Reference / Session ID</span>
+                        <span className="font-mono font-medium text-neutral-800">{claim.reference || 'None'}</span>
+                      </div>
+                    </div>
+
+                    {claim.proof_file_url && (
+                      <div className="pt-1">
+                        <span className="text-neutral-400 block text-[10px] mb-1">Proof Attachment</span>
+                        <a
+                          href={claim.proof_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-700 underline text-xs font-semibold inline-flex items-center gap-1"
+                        >
+                          View Receipt Document
+                        </a>
+                      </div>
+                    )}
+
+                    {claim.rejection_reason && (
+                      <div className="p-2 bg-red-50 text-red-700 rounded text-[11px]">
+                        <strong>Rejection Reason:</strong> {claim.rejection_reason}
+                      </div>
+                    )}
+
+                    {/* Actions if pending */}
+                    {claim.status === 'pending' && (
+                      <div className="pt-2 border-t space-y-2">
+                        {!showRejectInput && !showPartialInput && (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              disabled={processingAction}
+                              onClick={() => handleConfirmFull(claim.id)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs shadow-sm transition disabled:opacity-50"
+                            >
+                              Confirm Full ({formatMoney(claim.amount_minor, reviewingInvoice.currency)})
+                            </button>
+                            <button
+                              disabled={processingAction}
+                              onClick={() => setShowPartialInput(true)}
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition disabled:opacity-50"
+                            >
+                              Confirm Partial
+                            </button>
+                            <button
+                              disabled={processingAction}
+                              onClick={() => setShowRejectInput(true)}
+                              className="px-3 py-1.5 border border-red-200 text-red-700 hover:bg-red-50 rounded-lg font-semibold text-xs transition disabled:opacity-50"
+                            >
+                              Reject Claim
+                            </button>
+                          </div>
+                        )}
+
+                        {showPartialInput && (
+                          <div className="p-3 bg-white rounded-lg border space-y-2">
+                            <label className="block text-[11px] font-medium text-neutral-700">
+                              Actual Amount Received ({reviewingInvoice.currency}):
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              placeholder="e.g. 50000"
+                              value={partialAmount}
+                              onChange={(e) => setPartialAmount(e.target.value)}
+                              className="w-full px-2.5 py-1.5 border rounded-lg font-mono text-xs text-neutral-900"
+                            />
+                            <div className="flex justify-end gap-1.5 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => setShowPartialInput(false)}
+                                className="px-2.5 py-1 text-xs border rounded-md text-neutral-600 hover:bg-neutral-50"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                disabled={processingAction}
+                                onClick={() => handleConfirmPartial(claim.id)}
+                                className="px-3 py-1 text-xs bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition"
+                              >
+                                Confirm Partial
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {showRejectInput && (
+                          <div className="p-3 bg-white rounded-lg border space-y-2">
+                            <label className="block text-[11px] font-medium text-neutral-700">
+                              Reason for Rejection:
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Funds not yet cleared into bank account"
+                              value={rejectReason}
+                              onChange={(e) => setRejectReason(e.target.value)}
+                              className="w-full px-2.5 py-1.5 border rounded-lg text-xs text-neutral-900"
+                            />
+                            <div className="flex justify-end gap-1.5 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => setShowRejectInput(false)}
+                                className="px-2.5 py-1 text-xs border rounded-md text-neutral-600 hover:bg-neutral-50"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                disabled={processingAction}
+                                onClick={() => handleRejectClaim(claim.id)}
+                                className="px-3 py-1 text-xs bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition"
+                              >
+                                Reject Claim
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setReviewingInvoice(null)}
+                className="px-4 py-2 border rounded-lg text-xs font-semibold text-neutral-600 hover:bg-neutral-50 transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Index
+from datetime import datetime, date, timezone
+from sqlalchemy import Column, String, Boolean, DateTime, Date, BigInteger, ForeignKey, Index, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -41,3 +41,21 @@ class PaymentProfile(Base):
     __table_args__ = (
         Index("ix_payment_profiles_workspace_currency", "workspace_id", "currency"),
     )
+
+
+class PaymentClaim(Base):
+    __tablename__ = "payment_claims"
+
+    id = Column(String, primary_key=True, default=lambda: generate_uuid("claim_"))
+    invoice_id = Column(String, ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
+    amount_minor = Column(BigInteger, nullable=False)
+    payment_date = Column(Date, nullable=False, default=date.today)
+    reference = Column(String, nullable=True)
+    proof_file_url = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="pending", index=True)  # pending, confirmed, rejected
+    rejection_reason = Column(Text, nullable=True)
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    invoice = relationship("Invoice", back_populates="claims")

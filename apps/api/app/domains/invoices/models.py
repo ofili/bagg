@@ -89,6 +89,13 @@ class Invoice(Base):
         order_by="InvoiceComment.created_at",
         lazy="selectin",
     )
+    claims = relationship(
+        "PaymentClaim",
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        order_by="PaymentClaim.created_at.desc()",
+        lazy="selectin",
+    )
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "invoice_number", name="uq_workspace_invoice_number"),
