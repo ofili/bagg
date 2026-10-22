@@ -9,6 +9,7 @@ import pytest
 from datetime import date, timedelta
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.helpers import create_sent_invoice
 
 
 @pytest.mark.asyncio
@@ -43,27 +44,26 @@ async def test_receipts_full_lifecycle():
         assert cl_res.status_code == 201
         client_id = cl_res.json()["id"]
 
-        # --- 4. Create & Send Invoice 1 (for manual receipt) ---
-        inv1 = await client.post("/invoices", json={
-            "client_id": client_id,
-            "currency": "NGN",
-            "due_date": str(date.today() + timedelta(days=30)),
-            "items": [
-                {"description": "Brand Strategy Workshop", "quantity": 1, "unit_price_minor": 500_000_00},
-            ],
-            "tax_rate_percent": 7.5,
-        })
-        assert inv1.status_code == 201
-        inv1_data = inv1.json()
+        # --- 4. Create, Finalize & Send Invoice 1 (for manual receipt) ---
+        inv1_data = await create_sent_invoice(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "due_date": str(date.today() + timedelta(days=30)),
+                "items": [
+                    {"description": "Brand Strategy Workshop", "quantity": 1, "unit_price_minor": 500_000_00},
+                ],
+                "tax_rate_percent": 7.5,
+            },
+        )
         inv1_id = inv1_data["id"]
         inv1_total = inv1_data["total_minor"]  # 500k + 7.5% tax = 537,500
-
-        send1 = await client.post(f"/invoices/{inv1_id}/send")
-        assert send1.status_code == 200
 
         # --- 5. US-RCP-01: Manual Payment Recording & Auto Receipt ---
         rcp1_res = await client.post(f"/receipts/invoice/{inv1_id}", json={
             "amount_paid_minor": 250_000_00,
+            "confirm_received": True,
             "payment_method": "bank_transfer",
             "reference": "TRF/2026/10/ABUJA001",
             "payer_name": "Abuja Holdings Finance Dept",
@@ -101,6 +101,7 @@ async def test_receipts_full_lifecycle():
         remaining = inv1_total - 250_000_00
         rcp2_res = await client.post(f"/receipts/invoice/{inv1_id}", json={
             "amount_paid_minor": remaining,
+            "confirm_received": True,
             "payment_method": "card",
             "reference": "CARD/2026/10/STRIPE002",
         })
@@ -154,21 +155,19 @@ async def test_receipts_full_lifecycle():
 
         # --- 11. US-RCP-01: Auto-Receipt on Payment Claim Confirmation ---
         # Create a second invoice and use the claim → confirm → auto-receipt path
-        inv2 = await client.post("/invoices", json={
-            "client_id": client_id,
-            "currency": "NGN",
-            "due_date": str(date.today() + timedelta(days=14)),
-            "items": [
-                {"description": "Social Media Campaign Q4", "quantity": 1, "unit_price_minor": 200_000_00},
-            ],
-        })
-        assert inv2.status_code == 201
-        inv2_data = inv2.json()
+        inv2_data = await create_sent_invoice(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "due_date": str(date.today() + timedelta(days=14)),
+                "items": [
+                    {"description": "Social Media Campaign Q4", "quantity": 1, "unit_price_minor": 200_000_00},
+                ],
+            },
+        )
         inv2_id = inv2_data["id"]
-
-        send2 = await client.post(f"/invoices/{inv2_id}/send")
-        assert send2.status_code == 200
-        inv2_token = send2.json()["invoice"]["share_token"]
+        inv2_token = inv2_data["share_token"]
 
         # Client submits "I've Paid" claim via public portal
         async with AsyncClient(transport=transport, base_url="http://test") as anon_client:
@@ -221,38 +220,44 @@ async def test_client_settlement_statement():
         })
         client_id = cl_res.json()["id"]
 
-        # --- Create Invoice 1, send it, record partial payment ---
-        inv1 = await client.post("/invoices", json={
-            "client_id": client_id,
-            "currency": "NGN",
-            "due_date": str(date.today() + timedelta(days=30)),
-            "items": [
-                {"description": "Consulting Sprint 1", "quantity": 1, "unit_price_minor": 300_000_00},
-            ],
-        })
-        inv1_id = inv1.json()["id"]
-        await client.post(f"/invoices/{inv1_id}/send")
+        # --- Create Invoice 1, finalize & send it, record partial payment ---
+        inv1_data = await create_sent_invoice(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "due_date": str(date.today() + timedelta(days=30)),
+                "items": [
+                    {"description": "Consulting Sprint 1", "quantity": 1, "unit_price_minor": 300_000_00},
+                ],
+            },
+        )
+        inv1_id = inv1_data["id"]
 
         await client.post(f"/receipts/invoice/{inv1_id}", json={
             "amount_paid_minor": 150_000_00,
+            "confirm_received": True,
             "payment_method": "bank_transfer",
             "reference": "TRF/1",
         })
 
-        # --- Create Invoice 2, send it, pay in full ---
-        inv2 = await client.post("/invoices", json={
-            "client_id": client_id,
-            "currency": "NGN",
-            "due_date": str(date.today() + timedelta(days=14)),
-            "items": [
-                {"description": "Consulting Sprint 2", "quantity": 1, "unit_price_minor": 200_000_00},
-            ],
-        })
-        inv2_id = inv2.json()["id"]
-        await client.post(f"/invoices/{inv2_id}/send")
+        # --- Create Invoice 2, finalize & send it, pay in full ---
+        inv2_data = await create_sent_invoice(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "due_date": str(date.today() + timedelta(days=14)),
+                "items": [
+                    {"description": "Consulting Sprint 2", "quantity": 1, "unit_price_minor": 200_000_00},
+                ],
+            },
+        )
+        inv2_id = inv2_data["id"]
 
         await client.post(f"/receipts/invoice/{inv2_id}", json={
             "amount_paid_minor": 200_000_00,
+            "confirm_received": True,
             "payment_method": "mobile_money",
             "reference": "MOMO/2",
         })

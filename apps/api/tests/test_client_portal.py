@@ -2,6 +2,7 @@ import uuid
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.helpers import create_sent_invoice
 
 
 @pytest.mark.asyncio
@@ -40,10 +41,10 @@ async def test_client_portal_lifecycle():
         )
         client_id = c_res.json()["id"]
 
-        # Create Invoice
-        inv_res = await client.post(
-            "/invoices",
-            json={
+        # Create, Finalize and Send Invoice (US-INV-04, US-DEL-01)
+        inv = await create_sent_invoice(
+            client,
+            {
                 "client_id": client_id,
                 "currency": "NGN",
                 "items": [
@@ -51,16 +52,13 @@ async def test_client_portal_lifecycle():
                 ],
                 "discount_minor": 0,
                 "tax_rate_percent": 0.0,
-            }
+            },
         )
-        inv = inv_res.json()
         inv_id = inv["id"]
         token = inv["share_token"]
 
-        # Send Invoice -> Status becomes 'sent'
-        send_res = await client.post(f"/invoices/{inv_id}/send")
-        assert send_res.status_code == 200
-        assert send_res.json()["invoice"]["status"] == "sent"
+        # Invoice is now 'sent'
+        assert inv["status"] == "sent"
 
         # Now, create an UNAUTHENTICATED client simulating the payer (US-CLV-01)
         async with AsyncClient(transport=transport, base_url="http://test") as payer_client:

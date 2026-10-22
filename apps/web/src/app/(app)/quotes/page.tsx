@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { formatMoney } from '@/lib/money';
+import { StatusPill } from '@/components/status';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ChipStrip } from '@/components/mobile/ChipStrip';
 import {
   Plus,
   Share2,
@@ -48,6 +50,7 @@ interface Quote {
   client_name?: string | null;
   currency: string;
   status: string;
+  effective_status?: string | null;
   is_expired: boolean;
   issue_date: string;
   expires_at: string;
@@ -68,6 +71,8 @@ interface Quote {
   declined_at?: string | null;
   decline_reason?: string | null;
   invoice_id?: string | null;
+  invoice_number?: string | null;
+  invoice_status?: string | null;
   created_at: string;
 }
 
@@ -79,17 +84,14 @@ export default function QuotesPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Conversion state
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [convertSuccess, setConvertSuccess] = useState<string | null>(null);
   const [convertError, setConvertError] = useState<string | null>(null);
 
-  // New Quote Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  // Form State
   const [selectedClientId, setSelectedClientId] = useState('');
   const [currency, setCurrency] = useState('NGN');
   const [validityDays, setValidityDays] = useState(14);
@@ -244,7 +246,6 @@ export default function QuotesPage() {
       }
 
       setShowCreateModal(false);
-      // Reset form
       setItems([{ description: '', quantity: 1, unitPriceMajor: 0 }]);
       setDiscountMajor(0);
       setNotes('');
@@ -256,7 +257,6 @@ export default function QuotesPage() {
     }
   };
 
-  // Calculations for preview in modal
   const modalSubtotalMajor = items.reduce((acc, it) => acc + (it.quantity || 1) * (it.unitPriceMajor || 0), 0);
   const modalDiscountedMajor = Math.max(0, modalSubtotalMajor - discountMajor);
   const modalTaxMajor = modalDiscountedMajor * (taxPercent / 100);
@@ -265,8 +265,7 @@ export default function QuotesPage() {
   const modalNetMajor = Math.max(0, modalTotalMajor - modalWhtMajor);
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-neutral-900 tracking-tight">Quotes & Estimates</h1>
@@ -282,7 +281,6 @@ export default function QuotesPage() {
         </button>
       </div>
 
-      {/* Conversion Banner Feedback */}
       {convertSuccess && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -302,33 +300,21 @@ export default function QuotesPage() {
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold">
-        {[
-          { label: 'All Quotes', value: '' },
-          { label: 'Draft', value: 'draft' },
-          { label: 'Sent', value: 'sent' },
-          { label: 'Viewed', value: 'viewed' },
-          { label: 'Accepted', value: 'accepted' },
-          { label: 'Declined', value: 'declined' },
-          { label: 'Converted', value: 'converted' },
-          { label: 'Expired', value: 'expired' },
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setStatusFilter(tab.value)}
-            className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${
-              statusFilter === tab.value
-                ? 'bg-neutral-900 text-white'
-                : 'bg-white text-neutral-600 hover:bg-neutral-200 border'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <ChipStrip
+        chips={[
+          { value: '', label: 'All', count: quotes.length },
+          { value: 'draft', label: 'Draft', count: quotes.filter((q) => q.status === 'draft').length },
+          { value: 'sent', label: 'Sent', count: quotes.filter((q) => q.status === 'sent').length },
+          { value: 'viewed', label: 'Viewed', count: quotes.filter((q) => q.status === 'viewed').length },
+          { value: 'accepted', label: 'Accepted', count: quotes.filter((q) => q.status === 'accepted').length },
+          { value: 'declined', label: 'Declined', count: quotes.filter((q) => q.status === 'declined').length },
+          { value: 'converted', label: 'Converted', count: quotes.filter((q) => q.status === 'converted').length },
+          { value: 'expired', label: 'Expired', count: quotes.filter((q) => q.is_expired).length },
+        ]}
+        value={statusFilter}
+        onChange={setStatusFilter}
+      />
 
-      {/* Quotes Table */}
       <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-neutral-400 text-sm flex flex-col items-center justify-center">
@@ -352,155 +338,124 @@ export default function QuotesPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b bg-neutral-50/70 text-xs text-neutral-500 uppercase tracking-wider">
-                  <th className="py-3 px-4 font-semibold">Quote #</th>
-                  <th className="py-3 px-4 font-semibold">Client</th>
-                  <th className="py-3 px-4 font-semibold">Validity / Expiry</th>
-                  <th className="py-3 px-4 font-semibold text-right">Net Total</th>
-                  <th className="py-3 px-4 font-semibold text-center">Status</th>
-                  <th className="py-3 px-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y text-neutral-800">
-                {quotes.map((q) => {
-                  const isAccepted = q.status === 'accepted';
-                  const isConverted = q.status === 'converted';
-                  const isExpired = q.is_expired || q.status === 'expired';
+          <div className="space-y-3 p-4 sm:p-6 lg:p-8">
+            {quotes.map((q) => {
+              const effectiveStatus = q.effective_status || q.status;
+              const isAccepted = q.status === 'accepted';
+              const isConverted = q.status === 'converted';
+              const isExpired = q.is_expired || effectiveStatus === 'expired';
 
-                  return (
-                    <tr key={q.id} className="hover:bg-neutral-50/50 transition">
-                      <td className="py-3.5 px-4 font-bold text-neutral-900">{q.quote_number}</td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-medium text-neutral-900">{q.client_name || 'Unnamed Client'}</div>
-                        <div className="text-xs text-neutral-400">Issued {new Date(q.issue_date).toLocaleDateString()}</div>
-                      </td>
-                      <td className="py-3.5 px-4 text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <Clock className={`w-3.5 h-3.5 ${isExpired ? 'text-rose-500' : 'text-neutral-400'}`} />
-                          <span className={isExpired ? 'text-rose-600 font-semibold' : 'text-neutral-600'}>
-                            {new Date(q.expires_at).toLocaleDateString()}
-                          </span>
-                        </div>
+              return (
+                <div
+                  key={q.id}
+                  className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-neutral-300"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-2 mb-1">
+                        <span className="text-xs font-bold text-neutral-900">{q.quote_number}</span>
                         {isExpired && !isAccepted && !isConverted && (
-                          <span className="text-[10px] text-rose-500 font-medium">Expired</span>
+                          <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">
+                            Expired
+                          </span>
                         )}
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-semibold text-neutral-900">
-                        {formatMoney(q.net_payable_minor, q.currency)}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                            isConverted
-                              ? 'bg-purple-100 text-purple-700'
-                              : isAccepted
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : q.status === 'declined'
-                              ? 'bg-rose-100 text-rose-700'
-                              : isExpired
-                              ? 'bg-amber-100 text-amber-800'
-                              : q.status === 'viewed'
-                              ? 'bg-blue-100 text-blue-800'
-                              : q.status === 'sent'
-                              ? 'bg-sky-100 text-sky-800'
-                              : 'bg-neutral-100 text-neutral-600'
-                          }`}
-                        >
-                          {q.status}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-neutral-500 mb-2">
+                        <span>{q.client_name || 'Unnamed Client'}</span>
+                        <span className="mx-0.5">•</span>
+                        <span>Issued {new Date(q.issue_date).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-neutral-500 mb-2">
+                        <Clock className={`w-3 h-3 ${isExpired ? 'text-rose-500' : 'text-neutral-400'}`} />
+                        <span className={isExpired ? 'text-rose-600 font-semibold' : 'text-neutral-600'}>
+                          Valid until {new Date(q.expires_at).toLocaleDateString()}
                         </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {/* Send button for draft */}
-                          {q.status === 'draft' && (
-                            <button
-                              onClick={() => handleSend(q.id)}
-                              className="px-2.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold rounded-lg flex items-center gap-1 transition"
-                            >
-                              <Send className="w-3 h-3" /> Send
-                            </button>
+                      </div>
+                      <StatusPill status={effectiveStatus} className="mt-2 inline-block" />
+                    </div>
+                    <div className="text-right">
+                      <div className="text-base font-black tracking-tight text-neutral-900">
+                        {formatMoney(q.net_payable_minor, q.currency)}
+                      </div>
+                      <div className="text-xs text-neutral-500">Net Payable</div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {q.status === 'draft' && (
+                        <button
+                          onClick={() => handleSend(q.id)}
+                          className="p-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg transition"
+                          title="Send quote"
+                        >
+                          <Send className="w-3 h-3" />
+                        </button>
+                      )}
+                      {q.share_token && (
+                        <>
+                          <button
+                            onClick={() => handleCopy(q.id, q.share_token!)}
+                            title="Copy Public Quote Link"
+                            className="p-1.5 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition"
+                          >
+                            {copiedId === q.id ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                          <Link
+                            href={`/q/${q.share_token}`}
+                            target="_blank"
+                            title="Preview Client View"
+                            className="p-1.5 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        </>
+                      )}
+                      {q.whatsapp_share_url && (
+                        <a
+                          href={q.whatsapp_share_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Share on WhatsApp"
+                          className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                        </a>
+                      )}
+                      {isAccepted && !isConverted && (
+                        <button
+                          onClick={() => handleConvert(q)}
+                          disabled={convertingId === q.id}
+                          className="p-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg transition flex items-center gap-1"
+                          title="Convert to Invoice"
+                        >
+                          {convertingId === q.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3 h-3" />
                           )}
-
-                          {/* Share portal link */}
-                          {q.share_token && (
-                            <>
-                              <button
-                                onClick={() => handleCopy(q.id, q.share_token!)}
-                                title="Copy Public Quote Link"
-                                className="p-1.5 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition"
-                              >
-                                {copiedId === q.id ? (
-                                  <Check className="w-4 h-4 text-emerald-600" />
-                                ) : (
-                                  <Copy className="w-4 h-4" />
-                                )}
-                              </button>
-
-                              <Link
-                                href={`/q/${q.share_token}`}
-                                target="_blank"
-                                title="Preview Client View"
-                                className="p-1.5 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </Link>
-                            </>
-                          )}
-
-                          {/* WhatsApp Link */}
-                          {q.whatsapp_share_url && (
-                            <a
-                              href={q.whatsapp_share_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="Share on WhatsApp"
-                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                            </a>
-                          )}
-
-                          {/* 1-Click Convert to Invoice (US-QOT-03) */}
-                          {isAccepted && !isConverted && (
-                            <button
-                              onClick={() => handleConvert(q)}
-                              disabled={convertingId === q.id}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 transition"
-                            >
-                              {convertingId === q.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Sparkles className="w-3.5 h-3.5" />
-                              )}
-                              Convert to Invoice
-                            </button>
-                          )}
-
-                          {/* Converted indicator */}
-                          {isConverted && (
-                            <Link
-                              href="/invoices"
-                              className="text-xs text-purple-700 font-semibold hover:underline flex items-center gap-1"
-                            >
-                              <span>View Invoice</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </Link>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </button>
+                      )}
+                      {isConverted && (
+                        <Link
+                          href={q.invoice_id ? `/invoices/${q.invoice_id}` : '/invoices'}
+                          className="p-1.5 text-purple-700 hover:bg-purple-50 rounded-lg transition flex items-center gap-1"
+                          title="View Invoice"
+                        >
+                          <span>{q.invoice_number || 'View Invoice'}</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Create Quote Modal Drawer */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl text-neutral-900 max-h-[90vh] overflow-y-auto">
@@ -517,9 +472,7 @@ export default function QuotesPage() {
                 ✕
               </button>
             </div>
-
             <form onSubmit={handleCreateQuote} className="space-y-5 pt-4">
-              {/* Client & Currency */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold text-neutral-700 mb-1">Client *</label>
@@ -531,13 +484,10 @@ export default function QuotesPage() {
                   >
                     <option value="">Select a client...</option>
                     {clients.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
+                      <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-xs font-semibold text-neutral-700 mb-1">Currency</label>
                   <select
@@ -546,15 +496,11 @@ export default function QuotesPage() {
                     className="w-full bg-neutral-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     {['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'KES', 'ZAR'].map((cur) => (
-                      <option key={cur} value={cur}>
-                        {cur}
-                      </option>
+                      <option key={cur} value={cur}>{cur}</option>
                     ))}
                   </select>
                 </div>
               </div>
-
-              {/* Validity Days */}
               <div>
                 <label className="block text-xs font-semibold text-neutral-700 mb-1">
                   Validity Duration (Days until Offer Expires)
@@ -568,196 +514,144 @@ export default function QuotesPage() {
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
                         validityDays === days
                           ? 'bg-neutral-900 text-white border-neutral-900'
-                          : 'bg-neutral-50 text-neutral-700 hover:bg-neutral-100'
+                          : 'bg-white text-neutral-600 hover:bg-neutral-100 border-neutral-200'
                       }`}
                     >
-                      {days} Days
+                      {days}d
                     </button>
                   ))}
-                  <input
-                    type="number"
-                    min={1}
-                    max={365}
-                    value={validityDays}
-                    onChange={(e) => setValidityDays(Number(e.target.value))}
-                    className="w-24 bg-neutral-50 border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-                    placeholder="Custom"
-                  />
                 </div>
               </div>
-
-              {/* Line Items */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-neutral-500">Line Items</label>
-                  <button
-                    type="button"
-                    onClick={handleAddItem}
-                    className="text-xs text-emerald-600 font-semibold hover:underline flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" /> Add Item
-                  </button>
-                </div>
-
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-neutral-700 mb-1">Line Items</label>
                 <div className="space-y-2">
-                  {items.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
+                  {items.map((it, idx) => (
+                    <div key={idx} className="grid grid-cols-4 gap-2 items-center">
                       <input
                         type="text"
-                        placeholder="Description (e.g. Logo Design, Sprint 1)"
-                        value={item.description}
+                        placeholder="Description"
+                        value={it.description}
                         onChange={(e) => {
-                          const copy = [...items];
-                          copy[idx].description = e.target.value;
-                          setItems(copy);
+                          const next = [...items];
+                          next[idx].description = e.target.value;
+                          setItems(next);
                         }}
-                        className="flex-1 bg-neutral-50 border rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        required
+                        className="px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-emerald-500"
                       />
                       <input
                         type="number"
-                        min={1}
                         placeholder="Qty"
-                        value={item.quantity}
+                        value={it.quantity}
                         onChange={(e) => {
-                          const copy = [...items];
-                          copy[idx].quantity = Math.max(1, Number(e.target.value));
-                          setItems(copy);
+                          const next = [...items];
+                          next[idx].quantity = Number(e.target.value) || 1;
+                          setItems(next);
                         }}
-                        className="w-16 bg-neutral-50 border rounded-lg px-2 py-2 text-xs text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                        className="px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-emerald-500"
                       />
                       <input
                         type="number"
-                        min={0}
-                        step="any"
-                        placeholder="Price"
-                        value={item.unitPriceMajor || ''}
+                        placeholder="Unit Price"
+                        value={it.unitPriceMajor}
                         onChange={(e) => {
-                          const copy = [...items];
-                          copy[idx].unitPriceMajor = Number(e.target.value);
-                          setItems(copy);
+                          const next = [...items];
+                          next[idx].unitPriceMajor = Number(e.target.value) || 0;
+                          setItems(next);
                         }}
-                        className="w-28 bg-neutral-50 border rounded-lg px-2 py-2 text-xs text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                        className="px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-emerald-500"
                       />
                       {items.length > 1 && (
                         <button
                           type="button"
                           onClick={() => handleRemoveItem(idx)}
-                          className="p-1.5 text-neutral-400 hover:text-rose-600 rounded"
+                          className="px-2 py-1.5 text-neutral-500 hover:text-neutral-700"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3 h-3" />
                         </button>
                       )}
                     </div>
                   ))}
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-800"
+                  >
+                    <Plus className="w-3 h-3" /> Add Item
+                  </button>
                 </div>
               </div>
-
-              {/* Adjustments: Discount, VAT, WHT, Deposit */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                 <div>
-                  <label className="block text-[11px] font-semibold text-neutral-600 mb-1">Discount ({currency})</label>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">Discount</label>
                   <input
                     type="number"
-                    min={0}
-                    value={discountMajor || ''}
-                    onChange={(e) => setDiscountMajor(Number(e.target.value))}
-                    className="w-full bg-neutral-50 border rounded-lg px-2.5 py-1.5 text-xs text-right font-mono"
                     placeholder="0"
+                    value={discountMajor}
+                    onChange={(e) => setDiscountMajor(Number(e.target.value) || 0)}
+                    className="w-full bg-neutral-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-emerald-500"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-[11px] font-semibold text-neutral-600 mb-1">VAT (%)</label>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">Tax %</label>
                   <input
                     type="number"
-                    min={0}
-                    max={100}
-                    step="0.1"
+                    placeholder="7.5"
                     value={taxPercent}
-                    onChange={(e) => setTaxPercent(Number(e.target.value))}
-                    className="w-full bg-neutral-50 border rounded-lg px-2.5 py-1.5 text-xs text-right font-mono"
+                    onChange={(e) => setTaxPercent(Number(e.target.value) || 0)}
+                    className="w-full bg-neutral-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-emerald-500"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-[11px] font-semibold text-neutral-600 mb-1">WHT (%)</label>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">WHT %</label>
                   <input
                     type="number"
-                    min={0}
-                    max={100}
-                    step="0.5"
+                    placeholder="0"
                     value={whtPercent}
-                    onChange={(e) => setWhtPercent(Number(e.target.value))}
-                    className="w-full bg-neutral-50 border rounded-lg px-2.5 py-1.5 text-xs text-right font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-neutral-600 mb-1">Deposit (%)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={depositPercent}
-                    onChange={(e) => setDepositPercent(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full bg-neutral-50 border rounded-lg px-2.5 py-1.5 text-xs text-right font-mono"
-                    placeholder="e.g. 50"
+                    onChange={(e) => setWhtPercent(Number(e.target.value) || 0)}
+                    className="w-full bg-neutral-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-emerald-500"
                   />
                 </div>
               </div>
-
-              {/* Notes */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">Scope Notes & Terms</label>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1">Deposit %</label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={depositPercent === '' ? '' : depositPercent}
+                  onChange={(e) => setDepositPercent(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full bg-neutral-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1">Notes</label>
                 <textarea
                   rows={2}
-                  placeholder="Payment upon milestone completion, deliverables included, etc."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full bg-neutral-50 border rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full bg-neutral-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-emerald-500"
                 />
               </div>
 
-              {/* Summary Calculations */}
-              <div className="p-3 bg-neutral-50 rounded-xl border space-y-1 text-xs">
-                <div className="flex justify-between text-neutral-600">
-                  <span>Gross Total</span>
-                  <span className="font-mono font-medium">{formatMoney(Math.round(modalTotalMajor * 100), currency)}</span>
-                </div>
-                {whtPercent > 0 && (
-                  <div className="flex justify-between text-amber-600">
-                    <span>WHT ({whtPercent}%)</span>
-                    <span className="font-mono">-{formatMoney(Math.round(modalWhtMajor * 100), currency)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-bold text-neutral-900 border-t pt-1">
-                  <span>Net Payable</span>
-                  <span className="font-mono text-emerald-600">{formatMoney(Math.round(modalNetMajor * 100), currency)}</span>
-                </div>
-              </div>
-
               {createError && (
-                <div className="text-xs text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-200">
+                <div className="p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
                   {createError}
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2.5 pt-2 border-t">
+              <div className="flex justify-end gap-2 pt-4 border-t">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-neutral-600 hover:text-neutral-900 transition"
+                  className="px-3.5 py-2 border rounded-lg text-neutral-600 hover:bg-neutral-50 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creating}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 transition"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-lg transition"
                 >
-                  {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                  Create Quote
+                  {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create Quote'}
                 </button>
               </div>
             </form>

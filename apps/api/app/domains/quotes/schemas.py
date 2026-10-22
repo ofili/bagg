@@ -59,6 +59,8 @@ class QuoteResponse(BaseModel):
     client_email: Optional[str] = None
     quote_number: str
     sequence_number: int
+    version: int = 1
+    last_revised_at: Optional[datetime] = None
     currency: str
     status: str
     is_expired: bool = False
@@ -86,6 +88,9 @@ class QuoteResponse(BaseModel):
     declined_at: Optional[datetime] = None
     decline_reason: Optional[str] = None
     invoice_id: Optional[str] = None
+    invoice_number: Optional[str] = None
+    invoice_status: Optional[str] = None
+    effective_status: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -95,6 +100,8 @@ class PublicQuoteView(BaseModel):
 
     id: str
     quote_number: str
+    version: int = 1
+    last_revised_at: Optional[datetime] = None
     currency: str
     status: str
     is_expired: bool = False
@@ -121,11 +128,31 @@ class PublicQuoteView(BaseModel):
     accepted_by_name: Optional[str] = None
     declined_at: Optional[datetime] = None
     decline_reason: Optional[str] = None
+    invoice_id: Optional[str] = None
+    invoice_number: Optional[str] = None
+    invoice_status: Optional[str] = None
+    effective_status: Optional[str] = None
     show_badge: bool = True
 
 
 class QuoteAcceptRequest(BaseModel):
     accepted_by_name: str = Field(..., min_length=2, max_length=100, description="Full name of person accepting the quote")
+    version: Optional[int] = Field(default=None, description="Quote version being accepted (pinned to avoid accepting a stale revision)")
+
+
+class QuoteReviseRequest(BaseModel):
+    client_id: Optional[str] = None
+    currency: Optional[str] = None
+    issue_date: Optional[date] = None
+    expires_at: Optional[date] = None
+    items: Optional[List[QuoteLineItemCreate]] = None
+    discount_minor: Optional[int] = Field(default=None, ge=0)
+    tax_rate_percent: Optional[float] = Field(default=None, ge=0.0, le=100.0)
+    wht_rate_percent: Optional[float] = Field(default=None, ge=0.0, le=100.0)
+    deposit_percentage: Optional[float] = Field(default=None, ge=0.0, le=100.0)
+    deposit_amount_minor: Optional[int] = Field(default=None, ge=0)
+    notes: Optional[str] = None
+    reason: Optional[str] = Field(default="Scope or pricing adjustment", max_length=500)
 
 
 class QuoteDeclineRequest(BaseModel):
@@ -135,6 +162,7 @@ class QuoteDeclineRequest(BaseModel):
 class QuoteSendResponse(BaseModel):
     id: str
     quote_number: str
+    version: int = 1
     status: str
     share_token: str
     share_url: str

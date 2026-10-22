@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # Payment Processors
     PAYSTACK_SECRET_KEY: Optional[str] = None
     PAYSTACK_PUBLIC_KEY: Optional[str] = None
+    PAYSTACK_INVOICE_WEBHOOK_SECRET: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

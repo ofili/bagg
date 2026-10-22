@@ -30,13 +30,22 @@ class Invoice(Base):
     id = Column(String, primary_key=True, default=lambda: generate_uuid("inv_"))
     workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     client_id = Column(String, ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False, index=True)
-    invoice_number = Column(String, nullable=False)
-    sequence_number = Column(Integer, nullable=False)
+    invoice_number = Column(String, nullable=True)
+    sequence_number = Column(Integer, nullable=True)
+    quote_id = Column(
+        String,
+        ForeignKey("quotes.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        unique=True,
+    )  # Parent quote (nullable: standalone invoices are allowed)
     currency = Column(String, nullable=False, index=True)  # NGN, USD, GBP, EUR, GHS, KES, ZAR
-    status = Column(String, nullable=False, default="draft", index=True)  # draft, sent, viewed, payment_claimed, paid, cancelled
+    status = Column(
+        String, nullable=False, default="draft", index=True
+    )  # draft, issued, sent, viewed, payment_claimed, partially_paid, paid, cancelled
 
-    issue_date = Column(Date, nullable=False, default=date.today)
-    due_date = Column(Date, nullable=False)
+    issue_date = Column(Date, nullable=True, default=date.today)
+    due_date = Column(Date, nullable=True)
 
     # Financial arithmetic strictly in minor integer units (US-INV-02)
     subtotal_minor = Column(BigInteger, nullable=False, default=0)
@@ -62,6 +71,10 @@ class Invoice(Base):
     # Direct Payer Checkout (US-INT-01)
     direct_checkout_enabled = Column(Boolean, nullable=False, default=True)
     direct_payment_reference = Column(String, nullable=True)
+
+    # Online payment is only confirmed by a verified gateway webhook.
+    payment_processing_at = Column(DateTime(timezone=True), nullable=True)
+    payment_processing_reference = Column(String, nullable=True, index=True)
 
     payment_profile_id = Column(String, ForeignKey("payment_profiles.id", ondelete="SET NULL"), nullable=True)
     notes = Column(Text, nullable=True)
@@ -112,6 +125,12 @@ class Invoice(Base):
         back_populates="invoice",
         cascade="all, delete-orphan",
         order_by="PaymentClaim.created_at.desc()",
+        lazy="selectin",
+    )
+    receipts = relationship(
+        "Receipt",
+        back_populates="invoice",
+        order_by="Receipt.created_at.desc()",
         lazy="selectin",
     )
     reminders = relationship(

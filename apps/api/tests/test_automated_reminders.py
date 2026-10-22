@@ -6,6 +6,7 @@ from sqlalchemy import select, update
 from app.main import app
 from app.core.database import AsyncSessionLocal
 from app.domains.reminders.models import ReminderJob
+from tests.helpers import create_sent_invoice
 
 
 @pytest.mark.asyncio
@@ -32,11 +33,11 @@ async def test_automated_reminders_lifecycle():
         )
         client_id = c_res.json()["id"]
 
-        # 1. Create and Send Invoice (due in 5 days)
+        # 1. Create, Finalize and Send Invoice (due in 5 days) (US-INV-04, US-DEL-01)
         due_date = date.today() + timedelta(days=5)
-        inv_res = await client.post(
-            "/invoices",
-            json={
+        inv = await create_sent_invoice(
+            client,
+            {
                 "client_id": client_id,
                 "currency": "NGN",
                 "due_date": due_date.isoformat(),
@@ -45,15 +46,10 @@ async def test_automated_reminders_lifecycle():
                 ],
             },
         )
-        inv = inv_res.json()
         inv_id = inv["id"]
         token = inv["share_token"]
 
-        # Send Invoice -> automatically schedules 4 reminder jobs (US-REM-01)
-        send_res = await client.post(f"/invoices/{inv_id}/send")
-        assert send_res.status_code == 200
-
-        # Verify reminder jobs scheduled
+        # Verify reminder jobs scheduled (US-REM-01)
         reminders_res = await client.get(f"/reminders/invoices/{inv_id}")
         assert reminders_res.status_code == 200
         jobs = reminders_res.json()

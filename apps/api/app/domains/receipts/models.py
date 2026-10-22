@@ -47,6 +47,12 @@ class Receipt(Base):
     payer_name = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
 
+    # Explicit confirmation provenance: who or what proved the funds arrived.
+    confirmation_source = Column(String, nullable=False, default="legacy")
+    confirmed_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    provider = Column(String, nullable=True)  # paystack, flutterwave, bank, cash
+    provider_reference = Column(String, nullable=True, index=True)
+
     # Verification Stamp (US-RCP-01)
     is_verified = Column(Boolean, nullable=False, default=True)
     verified_at = Column(DateTime(timezone=True), nullable=True)
@@ -61,11 +67,16 @@ class Receipt(Base):
 
     workspace = relationship("Workspace")
     client = relationship("Client", lazy="selectin")
-    invoice = relationship("Invoice", lazy="selectin")
+    invoice = relationship("Invoice", back_populates="receipts", lazy="selectin")
     claim = relationship("PaymentClaim", lazy="selectin")
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "receipt_number", name="uq_workspace_receipt_number"),
+        UniqueConstraint(
+            "workspace_id",
+            "provider_reference",
+            name="uq_workspace_receipt_provider_reference",
+        ),
         Index("ix_receipts_workspace_client", "workspace_id", "client_id"),
         Index("ix_receipts_invoice", "invoice_id"),
     )

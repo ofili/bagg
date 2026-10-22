@@ -2,7 +2,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc
+from sqlalchemy import select, and_, desc, func
 from typing import List, Optional
 from datetime import timedelta, date, datetime, timezone
 from urllib.parse import quote
@@ -16,7 +16,9 @@ from app.core.security import generate_share_token
 from app.integrations.email import EmailSender
 from app.domains.workspaces.models import Workspace
 from app.domains.workspaces.router import resolve_active_workspace
+from app.domains.auth.router import get_current_user_and_workspace
 from app.domains.clients.models import Client
+from app.domains.quotes.models import Quote
 from app.domains.payments.models import PaymentProfile, PaymentClaim
 from app.domains.payments.schemas import (
     PaymentClaimResponse,
@@ -32,6 +34,15 @@ from app.domains.billing.service import (
     consume_delivery_send,
 )
 from app.domains.invoices.models import Invoice, InvoiceLineItem, InvoiceRevision
+from app.domains.lifecycle.service import (
+    effective_invoice_status,
+    invoice_days_overdue,
+    invoice_is_overdue,
+    invoice_payment_state,
+    list_status_events,
+    record_status_event,
+    user_facing_invoice_status,
+)
 from app.domains.invoices.schemas import (
     InvoiceCreate,
     InvoiceUpdate,
@@ -42,6 +53,7 @@ from app.domains.invoices.schemas import (
     LineItemSchema,
     CurrencyMetricsResponse,
     WHTCreditNoteUpdate,
+    DocumentStatusEventResponse,
 )
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
@@ -112,6 +124,12 @@ def map_invoice_to_response(
     if "claims" in inv.__dict__ and inv.claims:
         latest_claim = PaymentClaimResponse.model_validate(inv.claims[0])
 
+    latest_receipt = None
+    if "receipts" in inv.__dict__ and inv.receipts:
+        from app.domains.invoices.schemas import InvoiceReceiptSummary
+
+        latest_receipt = InvoiceReceiptSummary.model_validate(inv.receipts[0])
+
     net_payable = inv.net_payable_minor if (inv.net_payable_minor and inv.net_payable_minor > 0) else inv.total_minor
     balance_due = max(0, net_payable - (inv.amount_paid_minor or 0))
 
@@ -122,6 +140,7 @@ def map_invoice_to_response(
         client_name=c_name,
         invoice_number=inv.invoice_number,
         sequence_number=inv.sequence_number,
+        quote_id=inv.quote_id,
         currency=inv.currency,
         status=inv.status,
         issue_date=inv.issue_date,
@@ -139,10 +158,17 @@ def map_invoice_to_response(
         deposit_percentage=inv.deposit_percentage,
         deposit_amount_minor=inv.deposit_amount_minor,
         deposit_due_date=inv.deposit_due_date,
-        amount_paid_minor=inv.amount_paid_minor or 0,
-        balance_due_minor=balance_due,
-        direct_checkout_enabled=inv.direct_checkout_enabled if inv.direct_checkout_enabled is not None else True,
-        direct_payment_reference=inv.direct_payment_reference,
+    amount_paid_minor=inv.amount_paid_minor or 0,
+    remaining_minor=max(0, net_payable - (inv.amount_paid_minor or 0)),
+    balance_due_minor=balance_due,
+    direct_checkout_enabled=inv.direct_checkout_enabled if inv.direct_checkout_enabled is not None else True,
+    direct_payment_reference=inv.direct_payment_reference,
+    payment_processing_at=inv.payment_processing_at,
+    payment_state=invoice_payment_state(inv),
+    effective_status=effective_invoice_status(inv),
+    user_facing_status=user_facing_invoice_status(inv),
+    is_overdue=invoice_is_overdue(inv),
+    days_overdue=invoice_days_overdue(inv),
         paid_at=inv.paid_at,
         payment_profile_id=inv.payment_profile_id,
         notes=inv.notes,
@@ -154,6 +180,7 @@ def map_invoice_to_response(
         last_revised_at=inv.last_revised_at,
         whatsapp_share_url=wa_url,
         latest_claim=latest_claim,
+        latest_receipt=latest_receipt,
         created_at=inv.created_at,
         updated_at=inv.updated_at,
     )
@@ -179,8 +206,14 @@ async def list_invoices(
         s = status_filter.lower().strip()
         if s == "overdue":
             today = date.today()
+            payable = func.coalesce(func.nullif(Invoice.net_payable_minor, 0), Invoice.total_minor)
             conditions.append(Invoice.due_date < today)
-            conditions.append(Invoice.status.in_(["sent", "viewed"]))
+            conditions.append(
+                Invoice.status.in_(
+                    ["sent", "viewed", "payment_claimed", "partially_paid"]
+                )
+            )
+            conditions.append(payable > func.coalesce(Invoice.amount_paid_minor, 0))
         elif s == "void":
             conditions.append(Invoice.status == "cancelled")
         else:
@@ -573,6 +606,121 @@ async def update_invoice(
     return map_invoice_to_response(invoice, business_name=workspace.business_name)
 
 
+@router.post("/{invoice_id}/finalize", response_model=InvoiceResponse)
+async def finalize_invoice(
+    invoice_id: str,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Finalize a draft invoice (US-INV-04).
+    Locks the invoice into 'issued' state: share link exists but nothing is
+    delivered yet and no reminders are scheduled. Call /send to deliver.
+    Issue date, due date and invoice number are assigned here (no numbering gaps).
+    """
+    stmt = select(Invoice).where(
+        and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace.id)
+    )
+    res = await db.execute(stmt)
+    invoice = res.scalar_one_or_none()
+    if not invoice:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
+
+    if invoice.status != "draft":
+        raise BadRequestException(
+            f"Invoice '{invoice.invoice_number or invoice_id}' is '{invoice.status}' and cannot be finalized."
+        )
+
+    # Validation before locking
+    client_stmt = select(Client).where(
+        and_(Client.id == invoice.client_id, Client.workspace_id == workspace.id)
+    )
+    client_res = await db.execute(client_stmt)
+    client = client_res.scalar_one_or_none()
+    if not client:
+        raise NotFoundException(f"Client '{invoice.client_id}' not found in this workspace")
+
+    item_stmt = select(InvoiceLineItem).where(InvoiceLineItem.invoice_id == invoice.id)
+    items = (await db.execute(item_stmt)).scalars().all()
+    if not items:
+        raise BadRequestException(
+            f"Invoice '{invoice.invoice_number or invoice_id}' must have at least one line item."
+        )
+    total_minor = sum(it.total_minor for it in items)
+    if total_minor <= 0:
+        raise BadRequestException(
+            f"Invoice '{invoice.invoice_number or invoice_id}' total must be greater than zero."
+        )
+
+    # Assign dates + number at finalize (no numbering gaps).
+    # Dates are only filled in when absent so standalone drafts keep their
+    # caller-provided due_date (e.g. for overdue testing).
+    issue_date = invoice.issue_date or date.today()
+    if not invoice.due_date:
+        terms_days = client.default_payment_terms_days or 14
+        invoice.due_date = issue_date + timedelta(days=terms_days)
+    invoice.issue_date = issue_date
+
+    seq = workspace.next_invoice_number
+    invoice_number = f"{workspace.invoice_prefix}{seq:04d}"
+    workspace.next_invoice_number = seq + 1
+
+    old_status = invoice.status
+    invoice.status = "issued"
+    invoice.issue_date = issue_date
+    invoice.invoice_number = invoice_number
+    invoice.sequence_number = seq
+    if not invoice.share_token:
+        raw_token, token_hash = generate_share_token()
+        invoice.share_token = raw_token
+        invoice.share_token_hash = token_hash
+
+    record_status_event(
+        db=db,
+        workspace_id=workspace.id,
+        document_type="invoice",
+        document_id=invoice.id,
+        from_status=old_status,
+        to_status=invoice.status,
+        actor_type="issuer",
+        actor_id=workspace.owner_id,
+        source="issuer_finalize",
+    )
+
+    # Mark the parent quote converted once its invoice is finalized
+    if invoice.quote_id:
+        quote_stmt = select(Quote).where(
+            and_(Quote.id == invoice.quote_id, Quote.workspace_id == workspace.id)
+        )
+        quote_res = await db.execute(quote_stmt)
+        quote_obj = quote_res.scalar_one_or_none()
+        if quote_obj and quote_obj.status == "accepted":
+            quote_obj.status = "converted"
+            record_status_event(
+                db=db,
+                workspace_id=workspace.id,
+                document_type="quote",
+                document_id=quote_obj.id,
+                from_status="accepted",
+                to_status="converted",
+                actor_type="issuer",
+                actor_id=workspace.owner_id,
+                source="issuer_convert",
+                metadata={"invoice_id": invoice.id, "invoice_number": invoice.invoice_number},
+            )
+
+    await db.commit()
+    await db.refresh(invoice)
+
+    return map_invoice_to_response(
+        invoice,
+        client_name=client.name,
+        client_phone=client.phone,
+        business_name=workspace.business_name,
+        base_url=settings.WEB_BASE_URL,
+    )
+
+
 @router.post("/{invoice_id}/send", response_model=InvoiceSendResponse)
 async def send_invoice(
     invoice_id: str,
@@ -597,6 +745,12 @@ async def send_invoice(
 
     invoice, client = row
 
+    if invoice.status == "draft":
+        raise BadRequestException(
+            f"Invoice '{invoice.invoice_number or invoice_id}' is a draft and cannot be sent. "
+            "Finalize it first with POST /invoices/{id}/finalize."
+        )
+
     # Ensure share token exists
     if not invoice.share_token:
         raw_token, token_hash = generate_share_token()
@@ -604,8 +758,20 @@ async def send_invoice(
         invoice.share_token_hash = token_hash
 
     # Transition to sent
+    old_status = invoice.status
     invoice.status = "sent"
     invoice.sent_at = datetime.now(timezone.utc)
+    record_status_event(
+        db=db,
+        workspace_id=workspace.id,
+        document_type="invoice",
+        document_id=invoice.id,
+        from_status=old_status,
+        to_status="sent",
+        actor_type="issuer",
+        actor_id=workspace.owner_id,
+        source="issuer_send",
+    )
 
     # Disptach email if client email present
     email_sent = False
@@ -888,6 +1054,22 @@ async def delete_invoice(
     return None
 
 
+@router.get("/{invoice_id}/status-events", response_model=List[DocumentStatusEventResponse])
+async def list_invoice_status_events(
+    invoice_id: str,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    """Chronological audit trail for invoice status transitions."""
+    stmt = select(Invoice).where(
+        and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace.id)
+    )
+    invoice = (await db.execute(stmt)).scalar_one_or_none()
+    if not invoice:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
+
+    return await list_status_events(db, workspace.id, "invoice", invoice_id)
+
 @router.get("/{invoice_id}/claims", response_model=List[PaymentClaimResponse])
 async def list_invoice_claims(
     invoice_id: str,
@@ -919,6 +1101,7 @@ async def confirm_payment_claim(
     claim_id: str,
     payload: Optional[PaymentClaimConfirmRequest] = None,
     workspace: Workspace = Depends(resolve_active_workspace),
+    auth_data=Depends(get_current_user_and_workspace),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -942,6 +1125,10 @@ async def confirm_payment_claim(
     claim = claim_res.scalar_one_or_none()
     if not claim:
         raise NotFoundException(f"Payment claim '{claim_id}' not found")
+    if claim.status != "pending":
+        raise BadRequestException(
+            f"Payment claim '{claim_id}' is already '{claim.status}'"
+        )
 
     confirmed_amount = (
         payload.amount_paid_minor
@@ -949,9 +1136,10 @@ async def confirm_payment_claim(
         else claim.amount_minor
     )
 
-    # Auto-issue stamped receipt (US-RCP-01)
-    from app.domains.receipts.service import create_receipt
-    await create_receipt(
+    # Auto-issue stamped receipt (US-RCP-01) through the confirmation gate.
+    from app.domains.receipts.service import confirm_payment
+
+    await confirm_payment(
         db=db,
         workspace=workspace,
         invoice=invoice,
@@ -960,6 +1148,9 @@ async def confirm_payment_claim(
         reference=claim.reference,
         payment_date=claim.payment_date,
         payment_claim_id=claim.id,
+        confirmation_source="issuer_claim_review",
+        confirmed_by_user_id=auth_data[0].id if auth_data else workspace.owner_id,
+        provider="bank",
     )
 
     claim.status = "confirmed"
@@ -1002,12 +1193,25 @@ async def reject_payment_claim(
     claim.rejection_reason = payload.rejection_reason
 
     # Revert invoice status
+    old_status = invoice.status
     if (invoice.amount_paid_minor or 0) > 0:
         invoice.status = "partially_paid"
     elif invoice.viewed_at:
         invoice.status = "viewed"
     else:
         invoice.status = "sent"
+    record_status_event(
+        db=db,
+        workspace_id=workspace.id,
+        document_type="invoice",
+        document_id=invoice.id,
+        from_status=old_status,
+        to_status=invoice.status,
+        actor_type="issuer",
+        actor_id=workspace.owner_id,
+        source="issuer_claim_rejected",
+        metadata={"claim_id": claim.id, "reason": payload.rejection_reason},
+    )
 
     await db.commit()
     await db.refresh(claim)

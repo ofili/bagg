@@ -10,6 +10,10 @@ class ReceiptCreate(BaseModel):
     reference: Optional[str] = None
     payer_name: Optional[str] = None
     notes: Optional[str] = None
+    confirm_received: bool = Field(
+        default=False,
+        description="Issuer explicitly confirms the funds have been received",
+    )
 
 
 class ReceiptResponse(BaseModel):
@@ -35,6 +39,10 @@ class ReceiptResponse(BaseModel):
     is_verified: bool
     verified_at: Optional[datetime] = None
     verification_code: str
+    confirmation_source: str = "legacy"
+    confirmed_by_user_id: Optional[str] = None
+    provider: Optional[str] = None
+    provider_reference: Optional[str] = None
     share_token: Optional[str] = None
     share_url: Optional[str] = None
     whatsapp_share_url: Optional[str] = None
@@ -58,6 +66,8 @@ class PublicReceiptView(BaseModel):
     is_verified: bool
     verified_at: Optional[datetime] = None
     verification_code: str
+    confirmation_source: str = "legacy"
+    provider: Optional[str] = None
     notes: Optional[str] = None
     business_name: str
     business_logo_url: Optional[str] = None

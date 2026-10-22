@@ -11,6 +11,7 @@ from app.domains.sharing.router import router as sharing_router
 from app.domains.reminders.router import router as reminders_router
 from app.domains.billing.router import router as billing_router
 from app.domains.webhooks.router import router as webhooks_router
+from app.domains.webhooks.invoice_payments import router as invoice_payment_webhooks_router
 from app.domains.compliance.router import router as compliance_router
 from app.domains.quotes.router import router as quotes_router
 from app.domains.receipts.router import router as receipts_router
@@ -48,6 +49,7 @@ app.include_router(sharing_router)
 app.include_router(reminders_router)
 app.include_router(billing_router)
 app.include_router(webhooks_router)
+app.include_router(invoice_payment_webhooks_router)
 app.include_router(compliance_router)
 app.include_router(receipts_router)
 

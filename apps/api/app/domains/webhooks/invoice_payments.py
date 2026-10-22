@@ -1,0 +1,167 @@
+import hashlib
+import hmac
+import logging
+from datetime import date
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.core.database import get_db
+from app.domains.billing.models import WebhookEvent
+from app.domains.invoices.models import Invoice
+from app.domains.receipts.models import Receipt
+from app.domains.receipts.service import confirm_payment
+from app.domains.workspaces.models import Workspace
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
+
+
+def _webhook_secret() -> Optional[str]:
+    return settings.PAYSTACK_INVOICE_WEBHOOK_SECRET or settings.PAYSTACK_SECRET_KEY
+
+
+@router.post("/paystack/invoice-payments", status_code=status.HTTP_200_OK)
+async def paystack_invoice_payment_webhook(
+    request: Request,
+    x_paystack_signature: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Confirms client invoice payments received through Paystack.
+
+    This endpoint is intentionally separate from the Bagg subscription webhook.
+    Only a valid HMAC-signed charge.success event may move an invoice into
+    partially_paid or paid.
+    """
+    secret = _webhook_secret()
+    if not secret:
+        raise HTTPException(
+            status_code=503,
+            detail="Invoice payment webhook secret is not configured",
+        )
+
+    raw_body = await request.body()
+    if not x_paystack_signature:
+        raise HTTPException(status_code=400, detail="Missing webhook signature")
+
+    expected = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha512).hexdigest()
+    if not hmac.compare_digest(expected, x_paystack_signature):
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+
+    payload = await request.json()
+    event_type = payload.get("event")
+    data = payload.get("data") or {}
+    metadata = data.get("metadata") or {}
+    reference = data.get("reference")
+
+    if event_type != "charge.success" or metadata.get("type") != "direct_invoice_payment":
+        return {"status": "ignored"}
+
+    invoice_id = metadata.get("invoice_id")
+    workspace_id = metadata.get("workspace_id")
+    if not invoice_id or not workspace_id:
+        raise HTTPException(status_code=400, detail="Missing invoice metadata")
+
+    idempotency_key = f"paystack:invoice-payment:{reference}"
+    existing_event = (
+        await db.execute(
+            select(WebhookEvent).where(WebhookEvent.idempotency_key == idempotency_key)
+        )
+    ).scalar_one_or_none()
+    if existing_event and existing_event.processed:
+        return {"status": "already_processed"}
+
+    event = existing_event
+    if not event:
+        event = WebhookEvent(
+            processor="paystack",
+            event_type=event_type,
+            idempotency_key=idempotency_key,
+            payload=payload,
+            processed=False,
+        )
+        db.add(event)
+        await db.commit()
+        await db.refresh(event)
+
+    try:
+        invoice_stmt = select(Invoice).where(
+            and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace_id)
+        )
+        invoice = (await db.execute(invoice_stmt)).scalar_one_or_none()
+        if not invoice:
+            raise ValueError(f"Invoice '{invoice_id}' not found for webhook {reference}")
+
+        workspace = (
+            await db.execute(select(Workspace).where(Workspace.id == workspace_id))
+        ).scalar_one()
+
+        if reference not in {
+            invoice.direct_payment_reference,
+            invoice.payment_processing_reference,
+        }:
+            raise ValueError(
+                f"Reference '{reference}' does not match an open checkout for invoice '{invoice_id}'"
+            )
+
+        if data.get("currency") and data["currency"] != invoice.currency:
+            raise ValueError(
+                f"Webhook currency {data['currency']} does not match invoice currency {invoice.currency}"
+            )
+
+        amount_minor = int(data.get("amount") or 0)
+        existing_receipt = (
+            await db.execute(
+                select(Receipt).where(
+                    and_(
+                        Receipt.workspace_id == workspace_id,
+                        Receipt.provider_reference == reference,
+                    )
+                )
+            )
+        ).scalars().first()
+
+        if not existing_receipt:
+            channel = (data.get("channel") or "card").lower()
+            payment_method = "mobile_money" if channel in {"mobile_money", "ussd"} else "card"
+            customer = data.get("customer") or {}
+            payer_name = " ".join(
+                part for part in [customer.get("first_name"), customer.get("last_name")] if part
+            ) or customer.get("email")
+
+            await confirm_payment(
+                db=db,
+                workspace=workspace,
+                invoice=invoice,
+                amount_paid_minor=amount_minor,
+                payment_method=payment_method,
+                reference=reference,
+                payer_name=payer_name,
+                payment_date=date.today(),
+                confirmation_source="webhook_paystack",
+                provider="paystack",
+                provider_reference=reference,
+            )
+
+        event.processed = True
+        event.error_message = None
+        await db.commit()
+        logger.info("Confirmed Paystack invoice payment %s for invoice %s", reference, invoice_id)
+        return {"status": "success"}
+    except Exception as exc:
+        await db.rollback()
+        event = (
+            await db.execute(
+                select(WebhookEvent).where(WebhookEvent.idempotency_key == idempotency_key)
+            )
+        ).scalar_one_or_none()
+        if event:
+            event.error_message = str(exc)
+            await db.commit()
+        logger.error("Failed to process invoice payment webhook %s: %s", reference, exc)
+        raise HTTPException(status_code=400, detail=str(exc))

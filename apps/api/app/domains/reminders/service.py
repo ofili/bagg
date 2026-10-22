@@ -63,7 +63,11 @@ async def schedule_invoice_reminders(invoice: Invoice, db: AsyncSession) -> List
     return jobs
 
 
-async def cancel_invoice_reminders(invoice_id: str, db: AsyncSession) -> int:
+async def cancel_invoice_reminders(
+    invoice_id: str,
+    db: AsyncSession,
+    commit: bool = True,
+) -> int:
     """
     Auto-Stop Guarantee (US-REM-01):
     Permanently cancels all pending or claimed reminders when an invoice is claimed, paid, or voided.
@@ -79,7 +83,8 @@ async def cancel_invoice_reminders(invoice_id: str, db: AsyncSession) -> int:
         .values(status="cancelled", updated_at=func.now())
     )
     res = await db.execute(stmt)
-    await db.commit()
+    if commit:
+        await db.commit()
     return res.rowcount
 
 

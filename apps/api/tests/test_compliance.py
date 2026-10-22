@@ -9,6 +9,7 @@ import pytest
 from datetime import date, timedelta
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.helpers import create_sent_invoice
 
 
 @pytest.mark.asyncio
@@ -42,21 +43,19 @@ async def test_data_rights_compliance_and_security_lifecycle():
         assert cl.status_code == 201
         client_id = cl.json()["id"]
 
-        # --- Setup: Create & Send Invoice ---
-        inv = await client.post("/invoices", json={
-            "client_id": client_id,
-            "currency": "NGN",
-            "due_date": str(date.today() + timedelta(days=30)),
-            "items": [
-                {"description": "Compliance Audit Report", "quantity": 1, "unit_price_minor": 10_000_000},
-            ],
-            "tax_rate_percent": 7.5,
-        })
-        assert inv.status_code == 201
-        inv_data = inv.json()
-
-        send_res = await client.post(f"/invoices/{inv_data['id']}/send")
-        assert send_res.status_code == 200
+        # --- Setup: Create, Finalize & Send Invoice ---
+        inv_data = await create_sent_invoice(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "due_date": str(date.today() + timedelta(days=30)),
+                "items": [
+                    {"description": "Compliance Audit Report", "quantity": 1, "unit_price_minor": 10_000_000},
+                ],
+                "tax_rate_percent": 7.5,
+            },
+        )
 
         # ===================================================================
         # US-SEC-01: One-Click Data Export — CSV

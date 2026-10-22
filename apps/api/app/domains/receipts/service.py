@@ -1,17 +1,24 @@
 from datetime import datetime, date, timezone
 from typing import Optional
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
+from app.core.errors import BadRequestException
 from app.core.money import format_money
 from app.core.security import generate_share_token
 from app.domains.workspaces.models import Workspace
 from app.domains.invoices.models import Invoice
 from app.domains.receipts.models import Receipt
 from app.domains.reminders.service import cancel_invoice_reminders
+from app.domains.lifecycle.service import (
+    invoice_balance_minor,
+    invoice_target_payable,
+    record_status_event,
+)
 
 
-async def create_receipt(
+async def confirm_payment(
     db: AsyncSession,
     workspace: Workspace,
     invoice: Invoice,
@@ -22,34 +29,68 @@ async def create_receipt(
     payment_date: Optional[date] = None,
     payment_claim_id: Optional[str] = None,
     notes: Optional[str] = None,
+    confirmation_source: str = "issuer_manual",
+    confirmed_by_user_id: Optional[str] = None,
+    provider: Optional[str] = None,
+    provider_reference: Optional[str] = None,
 ) -> Receipt:
     """
-    Creates an immutable, sequentially numbered Payment Receipt (US-RCP-01).
-    Updates invoice paid amount, updates status to 'paid' or 'partially_paid',
-    and cancels automated reminders if fully settled.
+    Single authoritative writer for confirmed payments.
+
+    Every payment path (issuer claim review, manual receipt, verified gateway
+    webhook) must pass through here. Nothing else may move an invoice into
+    partially_paid or paid.
     """
+    if amount_paid_minor <= 0:
+        raise BadRequestException("Confirmed payment amount must be greater than zero")
+
+    if invoice.status == "cancelled":
+        raise BadRequestException(
+            f"Invoice '{invoice.invoice_number}' is cancelled and cannot receive payment"
+        )
+
+    if provider_reference:
+        existing_stmt = select(Receipt).where(
+            and_(
+                Receipt.workspace_id == workspace.id,
+                Receipt.provider_reference == provider_reference,
+            )
+        )
+        existing = (await db.execute(existing_stmt)).scalars().first()
+        if existing:
+            if existing.invoice_id != invoice.id:
+                raise BadRequestException(
+                    f"Provider reference '{provider_reference}' is already linked to another invoice"
+                )
+            return existing
+
+    balance_before = invoice_balance_minor(invoice)
+    if balance_before <= 0:
+        raise BadRequestException(f"Invoice '{invoice.invoice_number}' is already fully paid")
+
+    if amount_paid_minor > balance_before:
+        raise BadRequestException(
+            f"Confirmed amount {format_money(amount_paid_minor, invoice.currency)} exceeds "
+            f"the outstanding balance {format_money(balance_before, invoice.currency)}"
+        )
+
+    old_status = invoice.status
     seq = workspace.next_receipt_number
     receipt_number = f"{workspace.receipt_prefix}{seq:04d}"
     workspace.next_receipt_number = seq + 1
 
-    # Update invoice paid tracking
     invoice.amount_paid_minor = (invoice.amount_paid_minor or 0) + amount_paid_minor
-
-    target_payable = (
-        invoice.net_payable_minor
-        if (invoice.net_payable_minor and invoice.net_payable_minor > 0)
-        else invoice.total_minor
-    )
-    balance_remaining_minor = max(0, target_payable - invoice.amount_paid_minor)
-
+    balance_remaining_minor = invoice_balance_minor(invoice)
     now = datetime.now(timezone.utc)
 
-    if invoice.amount_paid_minor >= target_payable:
+    if invoice.amount_paid_minor >= invoice_target_payable(invoice):
         invoice.status = "paid"
         invoice.paid_at = now
-        await cancel_invoice_reminders(invoice.id, db)
     else:
         invoice.status = "partially_paid"
+
+    invoice.payment_processing_at = None
+    invoice.payment_processing_reference = None
 
     raw_token, token_hash = generate_share_token()
 
@@ -70,8 +111,69 @@ async def create_receipt(
         notes=notes,
         is_verified=True,
         verified_at=now,
+        confirmation_source=confirmation_source,
+        confirmed_by_user_id=confirmed_by_user_id,
+        provider=provider,
+        provider_reference=provider_reference,
         share_token=raw_token,
         share_token_hash=token_hash,
     )
     db.add(receipt)
+
+    record_status_event(
+        db=db,
+        workspace_id=workspace.id,
+        document_type="invoice",
+        document_id=invoice.id,
+        from_status=old_status,
+        to_status=invoice.status,
+        actor_type="issuer" if confirmation_source.startswith("issuer") else "webhook",
+        actor_id=confirmed_by_user_id,
+        source=confirmation_source,
+        metadata={
+            "receipt_number": receipt_number,
+            "amount_paid_minor": amount_paid_minor,
+            "payment_method": payment_method,
+            "reference": reference,
+        },
+    )
+
+    if invoice.status == "paid":
+        await cancel_invoice_reminders(invoice.id, db, commit=False)
+
     return receipt
+
+
+async def create_receipt(
+    db: AsyncSession,
+    workspace: Workspace,
+    invoice: Invoice,
+    amount_paid_minor: int,
+    payment_method: str = "bank_transfer",
+    reference: Optional[str] = None,
+    payer_name: Optional[str] = None,
+    payment_date: Optional[date] = None,
+    payment_claim_id: Optional[str] = None,
+    notes: Optional[str] = None,
+    confirmation_source: str = "issuer_manual",
+    confirmed_by_user_id: Optional[str] = None,
+    provider: Optional[str] = None,
+    provider_reference: Optional[str] = None,
+) -> Receipt:
+    """Backward-compatible wrapper around the confirmation gate."""
+    return await confirm_payment(
+        db=db,
+        workspace=workspace,
+        invoice=invoice,
+        amount_paid_minor=amount_paid_minor,
+        payment_method=payment_method,
+        reference=reference,
+        payer_name=payer_name,
+        payment_date=payment_date,
+        payment_claim_id=payment_claim_id,
+        notes=notes,
+        confirmation_source=confirmation_source,
+        confirmed_by_user_id=confirmed_by_user_id,
+        provider=provider,
+        provider_reference=provider_reference,
+    )

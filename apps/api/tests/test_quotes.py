@@ -9,6 +9,7 @@ import pytest
 from datetime import date, timedelta
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.helpers import create_sent_quote
 
 
 @pytest.mark.asyncio
@@ -96,7 +97,9 @@ async def test_quotes_full_lifecycle():
         assert patched["wht_minor"] == 40_000_00
         assert patched["net_payable_minor"] == 820_000_00
 
-        # --- 6. Send Quote 1 (US-QOT-01 / US-QOT-02) ---
+        # --- 6. Finalize then Send Quote 1 (US-QOT-01 / US-QOT-02) ---
+        fin_res = await client.post(f"/quotes/{q1['id']}/finalize")
+        assert fin_res.status_code == 200
         send_res = await client.post(f"/quotes/{q1['id']}/send")
         assert send_res.status_code == 200
         send_data = send_res.json()
@@ -154,7 +157,8 @@ async def test_quotes_full_lifecycle():
         assert conv_res.status_code == 200
         created_invoice = conv_res.json()
 
-        assert created_invoice["invoice_number"].startswith("INV-")
+        # Convert prepares a DRAFT invoice (dates + number assigned at finalize)
+        assert created_invoice["status"] == "draft"
         assert created_invoice["client_id"] == client_id
         assert created_invoice["subtotal_minor"] == 800_000_00
         assert created_invoice["tax_minor"] == 60_000_00
@@ -162,17 +166,28 @@ async def test_quotes_full_lifecycle():
         assert created_invoice["wht_minor"] == 40_000_00
         assert created_invoice["net_payable_minor"] == 820_000_00
         assert len(created_invoice["items"]) == 2
-        assert created_invoice["status"] == "draft"
+        # Source-of-truth link: invoice references the parent quote
+        assert created_invoice["quote_id"] == q1["id"]
 
-        # --- 13. Verify Quote is marked as converted and linked ---
+        # Quote stays 'accepted'; 'converted' is set when its invoice is finalized
+        q1_check = await client.get(f"/quotes/{q1['id']}")
+        assert q1_check.json()["status"] == "accepted"
+
+        # Idempotent: converting again returns the same draft invoice
+        conv_again = await client.post(f"/quotes/{q1['id']}/convert")
+        assert conv_again.status_code == 200
+        assert conv_again.json()["id"] == created_invoice["id"]
+
+        # --- 13. Finalize the converted invoice -> number assigned, quote marked converted ---
+        fin_inv = await client.post(f"/invoices/{created_invoice['id']}/finalize")
+        assert fin_inv.status_code == 200
+        fin_inv_data = fin_inv.json()
+        assert fin_inv_data["invoice_number"].startswith("INV-")
+        assert fin_inv_data["status"] == "issued"
+
         q1_final = await client.get(f"/quotes/{q1['id']}")
         assert q1_final.json()["status"] == "converted"
         assert q1_final.json()["invoice_id"] == created_invoice["id"]
-
-        # --- 14. Cannot convert a quote twice ---
-        conv_again = await client.post(f"/quotes/{q1['id']}/convert")
-        assert conv_again.status_code == 400
-        assert "already been converted" in conv_again.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -197,6 +212,8 @@ async def test_quote_decline_and_expiration():
             "items": [{"description": "Billboard Campaign", "quantity": 1, "unit_price_minor": 2_000_000_00}],
         })
         q_data = q_res.json()
+        fin_res = await client.post(f"/quotes/{q_data['id']}/finalize")
+        assert fin_res.status_code == 200
         send_res = await client.post(f"/quotes/{q_data['id']}/send")
         token = send_res.json()["share_token"]
 
@@ -242,3 +259,209 @@ async def test_quote_decline_and_expiration():
             })
             assert accept_exp.status_code == 400
             assert "expired" in accept_exp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_invoice_send_requires_finalize():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        test_email = f"invguard-{uuid.uuid4().hex[:6]}@studio.ng"
+        req_res = await client.post("/auth/magic-link", json={"email": test_email})
+        code = req_res.json()["dev_code"]
+        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
+        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+
+        cl_res = await client.post("/clients", json={"name": "Guard Client Ltd", "preferred_currency": "NGN"})
+        client_id = cl_res.json()["id"]
+
+        inv_res = await client.post("/invoices", json={
+            "client_id": client_id,
+            "currency": "NGN",
+            "due_date": str(date.today() + timedelta(days=14)),
+            "items": [{"description": "Service", "quantity": 1, "unit_price_minor": 100_000_00}],
+        })
+        assert inv_res.status_code == 201
+        inv = inv_res.json()
+
+        # Sending a draft invoice must be rejected
+        send_draft = await client.post(f"/invoices/{inv['id']}/send")
+        assert send_draft.status_code == 400
+
+        # Finalize -> issued (not delivered yet)
+        fin_res = await client.post(f"/invoices/{inv['id']}/finalize")
+        assert fin_res.status_code == 200
+        assert fin_res.json()["status"] == "issued"
+        assert fin_res.json()["share_token"] is not None
+
+        # Send -> sent
+        send_res = await client.post(f"/invoices/{inv['id']}/send")
+        assert send_res.status_code == 200
+        assert send_res.json()["invoice"]["status"] == "sent"
+
+
+@pytest.mark.asyncio
+async def test_quote_send_requires_finalize():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        test_email = f"qguard-{uuid.uuid4().hex[:6]}@studio.ng"
+        req_res = await client.post("/auth/magic-link", json={"email": test_email})
+        code = req_res.json()["dev_code"]
+        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
+        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+
+        cl_res = await client.post("/clients", json={"name": "QGuard Client Ltd", "preferred_currency": "NGN"})
+        client_id = cl_res.json()["id"]
+
+        q_res = await client.post("/quotes", json={
+            "client_id": client_id,
+            "currency": "NGN",
+            "items": [{"description": "Service", "quantity": 1, "unit_price_minor": 100_000_00}],
+        })
+        assert q_res.status_code == 201
+        q = q_res.json()
+
+        # Sending a draft quote must be rejected
+        send_draft = await client.post(f"/quotes/{q['id']}/send")
+        assert send_draft.status_code == 400
+
+        # Finalize -> issued
+        fin_res = await client.post(f"/quotes/{q['id']}/finalize")
+        assert fin_res.status_code == 200
+        assert fin_res.json()["status"] == "issued"
+
+        # Send -> sent
+        send_res = await client.post(f"/quotes/{q['id']}/send")
+        assert send_res.status_code == 200
+        assert send_res.json()["status"] == "sent"
+
+
+@pytest.mark.asyncio
+async def test_accept_version_mismatch_rejected():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        test_email = f"ver-{uuid.uuid4().hex[:6]}@studio.ng"
+        req_res = await client.post("/auth/magic-link", json={"email": test_email})
+        code = req_res.json()["dev_code"]
+        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
+        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+
+        cl_res = await client.post("/clients", json={"name": "Version Client Ltd", "preferred_currency": "NGN"})
+        client_id = cl_res.json()["id"]
+
+        q = await create_sent_quote(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "items": [{"description": "Service", "quantity": 1, "unit_price_minor": 100_000_00}],
+            },
+        )
+        token = q["share_token"]
+
+        async with AsyncClient(transport=transport, base_url="http://test") as anon_client:
+            # Accepting a stale version is rejected
+            bad = await anon_client.post(f"/quotes/share/{token}/accept", json={
+                "accepted_by_name": "Ada Lovelace",
+                "version": 999,
+            })
+            assert bad.status_code == 400
+            assert "version" in bad.json()["detail"].lower()
+
+            # Accepting the current version succeeds
+            good = await anon_client.post(f"/quotes/share/{token}/accept", json={
+                "accepted_by_name": "Ada Lovelace",
+                "version": q["version"],
+            })
+            assert good.status_code == 200
+            assert good.json()["status"] == "accepted"
+
+
+@pytest.mark.asyncio
+async def test_accept_idempotent_one_invoice():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        test_email = f"idem-{uuid.uuid4().hex[:6]}@studio.ng"
+        req_res = await client.post("/auth/magic-link", json={"email": test_email})
+        code = req_res.json()["dev_code"]
+        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
+        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+
+        cl_res = await client.post("/clients", json={"name": "Idem Client Ltd", "preferred_currency": "NGN"})
+        client_id = cl_res.json()["id"]
+
+        q = await create_sent_quote(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "items": [{"description": "Service", "quantity": 1, "unit_price_minor": 100_000_00}],
+            },
+        )
+        token = q["share_token"]
+
+        async with AsyncClient(transport=transport, base_url="http://test") as anon_client:
+            r1 = await anon_client.post(f"/quotes/share/{token}/accept", json={
+                "accepted_by_name": "Idem User", "version": q["version"],
+            })
+            assert r1.status_code == 200
+            invoice_id = r1.json()["invoice_id"]
+
+            # Double-accept returns the same invoice (idempotent)
+            r2 = await anon_client.post(f"/quotes/share/{token}/accept", json={
+                "accepted_by_name": "Idem User", "version": q["version"],
+            })
+            assert r2.status_code == 200
+            assert r2.json()["invoice_id"] == invoice_id
+
+            # Quote still has a single linked invoice
+            q_check = await client.get(f"/quotes/{q['id']}")
+            assert q_check.json()["invoice_id"] == invoice_id
+
+
+@pytest.mark.asyncio
+async def test_quote_revise_bumps_version():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        test_email = f"rev-{uuid.uuid4().hex[:6]}@studio.ng"
+        req_res = await client.post("/auth/magic-link", json={"email": test_email})
+        code = req_res.json()["dev_code"]
+        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
+        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+
+        cl_res = await client.post("/clients", json={"name": "Revise Client Ltd", "preferred_currency": "NGN"})
+        client_id = cl_res.json()["id"]
+
+        q = await create_sent_quote(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "items": [{"description": "Service v1", "quantity": 1, "unit_price_minor": 100_000_00}],
+            },
+        )
+        assert q["version"] == 1
+
+        # Revising an issued/sent/viewed quote bumps the version
+        rev_res = await client.post(f"/quotes/{q['id']}/revise", json={
+            "notes": "Revised scope",
+            "items": [{"description": "Service v2", "quantity": 1, "unit_price_minor": 150_000_00}],
+            "reason": "Scope increased",
+        })
+        assert rev_res.status_code == 200
+        assert rev_res.json()["version"] == 2
+        assert rev_res.json()["notes"] == "Revised scope"
+
+        # Accept the quote with the current version, then both revise and direct patch must be rejected (locked)
+        q_current = await client.get(f"/quotes/{q['id']}")
+        current_version = q_current.json()["version"]
+        async with AsyncClient(transport=transport, base_url="http://test") as anon_client:
+            acc = await anon_client.post(f"/quotes/share/{q['share_token']}/accept", json={
+                "accepted_by_name": "Revise User", "version": current_version,
+            })
+            assert acc.status_code == 200
+
+        rev_locked = await client.post(f"/quotes/{q['id']}/revise", json={"notes": "after accept"})
+        assert rev_locked.status_code == 400
+
+        patch_locked = await client.patch(f"/quotes/{q['id']}", json={"notes": "after accept"})
+        assert patch_locked.status_code == 400

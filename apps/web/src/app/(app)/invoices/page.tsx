@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { formatMoney } from '@/lib/money';
 import Link from 'next/link';
+import { AmountBand, StatusPill, type ReceiptInfo } from '@/components/status';
 import {
   Share2,
   Copy,
@@ -15,8 +16,13 @@ import {
   FileText,
   Clock,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  X,
 } from 'lucide-react';
+import { InvoiceCard } from '@/components/mobile/InvoiceCard';
+import { ChipStrip } from '@/components/mobile/ChipStrip';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { MoneyInput } from '@/components/mobile/MoneyInput';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -43,11 +49,29 @@ interface Invoice {
   amount_paid_minor: number;
   issue_date: string;
   due_date: string;
-  status: 'draft' | 'sent' | 'viewed' | 'payment_claimed' | 'partially_paid' | 'paid' | 'cancelled';
+  status: 'draft' | 'issued' | 'sent' | 'viewed' | 'payment_claimed' | 'partially_paid' | 'paid' | 'cancelled';
+  effective_status?: string | null;
+  is_overdue?: boolean;
+  days_overdue?: number;
+  payment_state?: string;
   share_token?: string | null;
   latest_claim?: PaymentClaim | null;
+  latest_receipt?: ReceiptInfo | null;
   created_at: string;
 }
+
+const FILTER_CHIPS = [
+  { value: '', label: 'All' },
+  { value: 'draft', label: 'Drafts' },
+  { value: 'issued', label: 'Issued' },
+  { value: 'sent', label: 'Sent' },
+  { value: 'viewed', label: 'Viewed' },
+  { value: 'payment_claimed', label: 'Claimed' },
+  { value: 'partially_paid', label: 'Partial' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'cancelled', label: 'Cancelled' },
+] as const;
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -182,14 +206,15 @@ export default function InvoicesPage() {
       setReviewingInvoice(null);
       fetchInvoices();
     } catch (err: any) {
-      setActionError(err.message || 'Error rejecting payment claim');
+      setActionError(err.message || 'Error rejecting claim');
     } finally {
       setProcessingAction(false);
     }
   };
 
   const isInvoiceOverdue = (inv: Invoice) => {
-    if (['paid', 'payment_claimed', 'draft', 'cancelled'].includes(inv.status)) return false;
+    if (typeof inv.is_overdue === 'boolean') return inv.is_overdue;
+    if (['paid', 'draft', 'cancelled'].includes(inv.status)) return false;
     const due = new Date(inv.due_date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -217,33 +242,15 @@ export default function InvoicesPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const getStatusBadge = (status: Invoice['status']) => {
-    switch (status) {
-      case 'paid':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Paid</span>;
-      case 'partially_paid':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">Partial</span>;
-      case 'payment_claimed':
-        return (
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 animate-pulse">
-            Claimed
-          </span>
-        );
-      case 'viewed':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">Viewed</span>;
-      case 'sent':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">Sent</span>;
-      case 'cancelled':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800">Cancelled</span>;
-      default:
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-600">Draft</span>;
-    }
-  };
+  const filteredInvoices = invoices.filter((inv) => {
+    if (currencyFilter && inv.currency !== currencyFilter) return false;
+    return true;
+  });
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-4 p-4 sm:p-6 lg:p-8 max-w-none w-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-neutral-900">Invoices</h1>
           <p className="text-sm text-neutral-500">
             Create, track, and manage client invoices with automated numbering and minor-unit math.
@@ -251,126 +258,68 @@ export default function InvoicesPage() {
         </div>
         <Link
           href="/invoices/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-lg transition shadow-sm"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-lg transition shadow-sm"
         >
           <Plus className="w-4 h-4" /> Create Invoice
         </Link>
       </div>
 
-      {/* Overdue Alert Banner (US-REM-02) */}
-      {invoices.filter(isInvoiceOverdue).length > 0 && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-amber-900 text-xs">
+      {/* Overdue Alert Banner */}
+      {filteredInvoices.filter(isInvoiceOverdue).length > 0 && (
+        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-amber-900 text-xs">
           <div className="flex items-center gap-2.5">
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>
-              You have <strong>{invoices.filter(isInvoiceOverdue).length} overdue invoice(s)</strong>. Send a 1-tap polite nudge on WhatsApp to get paid faster.
+            <span className="flex-1 min-w-0 truncate">
+              You have <strong>{filteredInvoices.filter(isInvoiceOverdue).length} overdue invoice(s)</strong>.
+              Send a 1-tap polite nudge on WhatsApp to get paid faster.
             </span>
           </div>
+          <button
+            onClick={() => setCurrencyFilter('')}
+            className="ml-2 text-[11px] font-bold text-emerald-600 hover:underline"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
-      {/* Filter Tabs & Currency Selector (US-DSH-02) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-2 text-xs font-semibold text-neutral-600">
-        <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          <button
-            onClick={() => setStatusFilter('')}
-            className={`px-2.5 py-1.5 rounded-lg transition ${
-              statusFilter === '' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100 text-neutral-600'
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setStatusFilter('draft')}
-            className={`px-2.5 py-1.5 rounded-lg transition ${
-              statusFilter === 'draft' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100 text-neutral-600'
-            }`}
-          >
-            Drafts
-          </button>
-          <button
-            onClick={() => setStatusFilter('sent')}
-            className={`px-2.5 py-1.5 rounded-lg transition ${
-              statusFilter === 'sent' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100 text-neutral-600'
-            }`}
-          >
-            Sent
-          </button>
-          <button
-            onClick={() => setStatusFilter('viewed')}
-            className={`px-2.5 py-1.5 rounded-lg transition ${
-              statusFilter === 'viewed' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100 text-neutral-600'
-            }`}
-          >
-            Viewed
-          </button>
-          <button
-            onClick={() => setStatusFilter('payment_claimed')}
-            className={`px-2.5 py-1.5 rounded-lg transition ${
-              statusFilter === 'payment_claimed' ? 'bg-amber-600 text-white' : 'hover:bg-neutral-100 text-neutral-600'
-            }`}
-          >
-            Claimed
-          </button>
-          <button
-            onClick={() => setStatusFilter('partially_paid')}
-            className={`px-2.5 py-1.5 rounded-lg transition ${
-              statusFilter === 'partially_paid' ? 'bg-blue-600 text-white' : 'hover:bg-neutral-100 text-neutral-600'
-            }`}
-          >
-            Partial
-          </button>
-          <button
-            onClick={() => setStatusFilter('paid')}
-            className={`px-2.5 py-1.5 rounded-lg transition ${
-              statusFilter === 'paid' ? 'bg-emerald-600 text-white' : 'hover:bg-neutral-100 text-neutral-600'
-            }`}
-          >
-            Paid
-          </button>
-          <button
-            onClick={() => setStatusFilter('overdue')}
-            className={`px-2.5 py-1.5 rounded-lg transition ${
-              statusFilter === 'overdue' ? 'bg-red-600 text-white' : 'hover:bg-neutral-100 text-neutral-600'
-            }`}
-          >
-            Overdue
-          </button>
-          <button
-            onClick={() => setStatusFilter('void')}
-            className={`px-2.5 py-1.5 rounded-lg transition ${
-              statusFilter === 'void' ? 'bg-neutral-800 text-white' : 'hover:bg-neutral-100 text-neutral-600'
-            }`}
-          >
-            Void
-          </button>
-        </div>
+      {/* Filter Chip Strip */}
+      <ChipStrip
+        chips={FILTER_CHIPS.map((c) => ({
+          ...c,
+          count: filteredInvoices.filter((inv) => {
+            if (c.value === 'overdue') return isInvoiceOverdue(inv);
+            return inv.status === c.value;
+          }).length,
+        }))}
+        value={statusFilter}
+        onChange={setStatusFilter}
+      />
 
-        <div className="flex items-center gap-2 shrink-0">
-          <label className="text-[11px] text-neutral-400 font-normal">Currency:</label>
-          <select
-            value={currencyFilter}
-            onChange={(e) => setCurrencyFilter(e.target.value)}
-            className="px-2.5 py-1.5 text-xs font-medium border rounded-lg bg-white text-neutral-800 focus:ring-1 focus:ring-emerald-500 shadow-sm"
-          >
-            <option value="">All Currencies</option>
-            <option value="NGN">NGN (₦)</option>
-            <option value="USD">USD ($)</option>
-            <option value="GBP">GBP (£)</option>
-            <option value="EUR">EUR (€)</option>
-            <option value="GHS">GHS (GH₵)</option>
-            <option value="KES">KES (KSh)</option>
-            <option value="ZAR">ZAR (R)</option>
-          </select>
-        </div>
+      <div className="flex items-center gap-2 mt-2 sm:mt-0">
+        <label className="text-[11px] text-neutral-400 font-normal">Currency:</label>
+        <select
+          value={currencyFilter}
+          onChange={(e) => setCurrencyFilter(e.target.value)}
+          className="min-h-[40px] px-3 py-1.5 text-xs font-medium border rounded-lg bg-white text-neutral-800 focus:ring-1 focus:ring-emerald-500 shadow-sm"
+        >
+          <option value="">All Currencies</option>
+          <option value="NGN">NGN (₦)</option>
+          <option value="USD">USD ($)</option>
+          <option value="GBP">GBP (£)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="GHS">GHS (GH₵)</option>
+          <option value="KES">KES (KSh)</option>
+          <option value="ZAR">ZAR (R)</option>
+        </select>
       </div>
 
       {loading ? (
         <div className="py-16 flex justify-center text-neutral-400">
           <Loader2 className="w-6 h-6 animate-spin" />
         </div>
-      ) : invoices.length === 0 ? (
-        <div className="p-12 text-center border-2 border-dashed rounded-2xl bg-white space-y-3">
+      ) : filteredInvoices.length === 0 ? (
+        <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-white space-y-3">
           <FileText className="w-10 h-10 text-neutral-300 mx-auto" />
           <h3 className="font-semibold text-neutral-800 text-base">No invoices found</h3>
           <p className="text-xs text-neutral-500 max-w-sm mx-auto">
@@ -380,120 +329,45 @@ export default function InvoicesPage() {
           </p>
           <Link
             href="/invoices/new"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition"
+            className="w-full inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition"
           >
             <Plus className="w-3.5 h-3.5" /> Create New Invoice
           </Link>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-neutral-50 border-b text-neutral-500 font-medium text-xs">
-                <tr>
-                  <th className="py-3 px-4">Number</th>
-                  <th className="py-3 px-4">Client</th>
-                  <th className="py-3 px-4">Issue Date</th>
-                  <th className="py-3 px-4">Due Date</th>
-                  <th className="py-3 px-4">Amount</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100 text-xs">
-                {invoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-neutral-50 transition">
-                    <td className="py-3.5 px-4 font-bold text-neutral-900">
-                      {inv.invoice_number}
-                    </td>
-                    <td className="py-3.5 px-4 font-medium text-neutral-800">
-                      {inv.client_name || 'Client'}
-                    </td>
-                    <td className="py-3.5 px-4 text-neutral-500">
-                      {inv.issue_date}
-                    </td>
-                    <td className="py-3.5 px-4 text-neutral-500">
-                      {inv.due_date}
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-neutral-900">
-                      {formatMoney(inv.total_minor, inv.currency)}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {getStatusBadge(inv.status)}
-                    </td>
-                    <td className="py-3.5 px-4 text-right space-x-1.5">
-                      {isInvoiceOverdue(inv) && (
-                        <button
-                          onClick={() => handleWhatsAppNudge(inv)}
-                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-md text-[11px] font-bold shadow-sm inline-flex items-center gap-1 transition mr-1"
-                          title="Send 1-tap WhatsApp nudge to client"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5 text-emerald-600" /> Nudge
-                        </button>
-                      )}
-
-                      {inv.status === 'payment_claimed' && (
-                        <button
-                          onClick={() => handleOpenReview(inv)}
-                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-md text-[11px] font-bold shadow-sm inline-flex items-center gap-1 transition mr-1"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Review Claim
-                        </button>
-                      )}
-
-                      {inv.share_token && (
-                        <>
-                          <button
-                            onClick={() => handleCopyLink(inv.share_token!, inv.id)}
-                            title="Copy Share Link"
-                            className="p-1.5 rounded-md hover:bg-neutral-100 text-neutral-600 transition inline-flex items-center"
-                          >
-                            {copiedId === inv.id ? (
-                              <Check className="w-4 h-4 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
-                          </button>
-
-                          <a
-                            href={`https://wa.me/?text=${encodeURIComponent(
-                              `Hi, here is your invoice ${inv.invoice_number} for ${formatMoney(
-                                inv.total_minor,
-                                inv.currency
-                              )}: ${typeof window !== 'undefined' ? window.location.origin : ''}/i/${inv.share_token}`
-                            )}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Share to WhatsApp"
-                            className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-600 transition inline-flex items-center"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                          </a>
-
-                          <Link
-                            href={`/i/${inv.share_token}`}
-                            target="_blank"
-                            title="View Public Client Receipt"
-                            className="p-1.5 rounded-md hover:bg-neutral-100 text-neutral-600 transition inline-flex items-center"
-                          >
-                            <Share2 className="w-4 h-4" />
-                          </Link>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="space-y-3">
+          {filteredInvoices.map((inv) => (
+            <InvoiceCard
+              key={inv.id}
+              id={inv.id}
+              invoiceNumber={inv.invoice_number}
+              clientName={inv.client_name}
+              currency={inv.currency}
+              totalMinor={inv.total_minor}
+              amountPaidMinor={inv.amount_paid_minor}
+              status={inv.status}
+              effectiveStatus={inv.effective_status}
+              isOverdue={isInvoiceOverdue(inv)}
+              daysOverdue={inv.days_overdue || 0}
+              paymentState={inv.payment_state}
+              shareToken={inv.share_token}
+              latestReceipt={inv.latest_receipt}
+              dueDate={inv.due_date}
+            />
+          ))}
         </div>
       )}
 
-      {/* Claim Review Modal (US-CLM-02) */}
+      {/* Claim Review Bottom Sheet */}
       {reviewingInvoice && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border">
-            <div className="flex justify-between items-start border-b pb-3">
+        <Sheet>
+          <SheetTrigger asChild>
+            <button className="hidden" />
+          </SheetTrigger>
+          <SheetContent
+            className="rounded-2xl border border-neutral-200 bg-white shadow-xl max-h-[90dvh]"
+          >
+            <div className="flex justify-between items-start border-b border-neutral-100 px-4 py-3">
               <div>
                 <h3 className="font-bold text-base text-neutral-900">
                   Review Payment Claim ({reviewingInvoice.invoice_number})
@@ -504,186 +378,172 @@ export default function InvoicesPage() {
               </div>
               <button
                 onClick={() => setReviewingInvoice(null)}
-                className="text-neutral-400 hover:text-neutral-700 text-sm font-bold p-1"
+                className="text-neutral-400 hover:text-neutral-700 p-1"
               >
-                &times;
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {actionError && (
-              <div className="p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
+              <div className="px-4 py-2 p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
                 {actionError}
               </div>
             )}
 
-            {loadingClaims ? (
-              <div className="py-8 flex justify-center text-neutral-400">
-                <Loader2 className="w-6 h-6 animate-spin" />
-              </div>
-            ) : claimsList.length === 0 ? (
-              <p className="text-xs text-neutral-500 py-4 text-center">No payment claims on record.</p>
-            ) : (
-              <div className="space-y-4">
-                {claimsList.map((claim) => (
-                  <div key={claim.id} className="p-4 bg-neutral-50 rounded-xl border space-y-3 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-neutral-900 text-sm">
-                        {formatMoney(claim.amount_minor, reviewingInvoice.currency)}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                        claim.status === 'confirmed'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : claim.status === 'rejected'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {claim.status}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-neutral-600">
-                      <div>
-                        <span className="text-neutral-400 block text-[10px]">Payment Date</span>
-                        <span>{claim.payment_date}</span>
+            <div className="p-4">
+              {loadingClaims ? (
+                <div className="py-6 flex justify-center text-neutral-400">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                </div>
+              ) : claimsList.length === 0 ? (
+                <p className="text-xs text-neutral-500 py-4 text-center">No payment claims on record.</p>
+              ) : (
+                <div className="space-y-3">
+                  {claimsList.map((claim) => (
+                    <div
+                      key={claim.id}
+                      className="p-3 bg-neutral-50 rounded-xl border space-y-3"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-neutral-900 text-sm">
+                          {formatMoney(claim.amount_minor, reviewingInvoice.currency)}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          claim.status === 'confirmed'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : claim.status === 'rejected'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {claim.status}
+                        </span>
                       </div>
-                      <div>
-                        <span className="text-neutral-400 block text-[10px]">Reference / Session ID</span>
-                        <span className="font-mono font-medium text-neutral-800">{claim.reference || 'None'}</span>
-                      </div>
-                    </div>
 
-                    {claim.proof_file_url && (
-                      <div className="pt-1">
-                        <span className="text-neutral-400 block text-[10px] mb-1">Proof Attachment</span>
-                        <a
-                          href={claim.proof_file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-emerald-700 underline text-xs font-semibold inline-flex items-center gap-1"
+                      <div className="grid grid-cols-2 gap-2 text-neutral-600 text-[11px]">
+                        <div>
+                          <span className="text-neutral-400 block">Payment Date</span>
+                          <span>{claim.payment_date}</span>
+                        </div>
+                        <div>
+                          <span className="text-neutral-400 block">Reference / Session ID</span>
+                          <span className="font-mono font-medium text-neutral-800">
+                            {claim.reference || 'None'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-3 border-t">
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmFull(claim.id)}
+                          disabled={processingAction}
+                          className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg disabled:opacity-50 transition flex items-center justify-center gap-1.5"
                         >
-                          View Receipt Document
-                        </a>
+                          {processingAction ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-3 h-3" />
+                          )}
+                          Confirm Funds Received
+                        </button>
                       </div>
-                    )}
 
-                    {claim.rejection_reason && (
-                      <div className="p-2 bg-red-50 text-red-700 rounded text-[11px]">
-                        <strong>Rejection Reason:</strong> {claim.rejection_reason}
-                      </div>
-                    )}
+                      {claim.status === 'pending' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowPartialInput(false);
+                              setShowRejectInput(true);
+                              setRejectReason('');
+                            }}
+                            className="text-[11px] text-amber-600 hover:text-amber-800 font-medium py-1"
+                          >
+                            Confirm Partial Amount
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowPartialInput(false);
+                              setShowRejectInput(false);
+                              setRejectReason('');
+                              setActionError(null);
+                            }}
+                            className="text-[11px] text-neutral-500 hover:text-neutral-700 font-medium py-1"
+                          >
+                            Dismiss
+                          </button>
+                        </>
+                      )}
 
-                    {/* Actions if pending */}
-                    {claim.status === 'pending' && (
-                      <div className="pt-2 border-t space-y-2">
-                        {!showRejectInput && !showPartialInput && (
-                          <div className="flex flex-wrap gap-2">
+                      {showPartialInput && (
+                        <div className="mt-3 space-y-2">
+                          <MoneyInput
+                            id="partial-amount"
+                            label="Partial amount to confirm"
+                            value={partialAmount}
+                            onChange={setPartialAmount}
+                            currencySymbol={reviewingInvoice.currency === 'NGN' ? '₦' : ''}
+                            placeholder="0.00"
+                          />
+                          <div className="flex gap-2">
                             <button
+                              type="button"
+                              onClick={() => handleConfirmPartial(claim.id)}
                               disabled={processingAction}
-                              onClick={() => handleConfirmFull(claim.id)}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs shadow-sm transition disabled:opacity-50"
-                            >
-                              Confirm Full ({formatMoney(claim.amount_minor, reviewingInvoice.currency)})
-                            </button>
-                            <button
-                              disabled={processingAction}
-                              onClick={() => setShowPartialInput(true)}
-                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition disabled:opacity-50"
+                              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg disabled:opacity-50 transition"
                             >
                               Confirm Partial
                             </button>
                             <button
+                              type="button"
+                              onClick={() => setShowPartialInput(false)}
+                              className="flex-1 py-2 border border-neutral-200 rounded-lg text-neutral-600 hover:bg-neutral-50 transition"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {showRejectInput && (
+                        <div className="mt-3 space-y-2">
+                          <label className="block text-[11px] font-medium text-neutral-700">
+                            Rejection Reason
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            placeholder="Explain why the claim is being rejected..."
+                            className="min-h-[60px] w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-emerald-500 text-neutral-800"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleRejectClaim(claim.id)}
                               disabled={processingAction}
-                              onClick={() => setShowRejectInput(true)}
-                              className="px-3 py-1.5 border border-red-200 text-red-700 hover:bg-red-50 rounded-lg font-semibold text-xs transition disabled:opacity-50"
+                              className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg disabled:opacity-50 transition"
                             >
                               Reject Claim
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowRejectInput(false)}
+                              className="flex-1 py-2 border border-neutral-200 rounded-lg text-neutral-600 hover:bg-neutral-50 transition"
+                            >
+                              Cancel
+                            </button>
                           </div>
-                        )}
-
-                        {showPartialInput && (
-                          <div className="p-3 bg-white rounded-lg border space-y-2">
-                            <label className="block text-[11px] font-medium text-neutral-700">
-                              Actual Amount Received ({reviewingInvoice.currency}):
-                            </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0.01"
-                              placeholder="e.g. 50000"
-                              value={partialAmount}
-                              onChange={(e) => setPartialAmount(e.target.value)}
-                              className="w-full px-2.5 py-1.5 border rounded-lg font-mono text-xs text-neutral-900"
-                            />
-                            <div className="flex justify-end gap-1.5 pt-1">
-                              <button
-                                type="button"
-                                onClick={() => setShowPartialInput(false)}
-                                className="px-2.5 py-1 text-xs border rounded-md text-neutral-600 hover:bg-neutral-50"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                type="button"
-                                disabled={processingAction}
-                                onClick={() => handleConfirmPartial(claim.id)}
-                                className="px-3 py-1 text-xs bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition"
-                              >
-                                Confirm Partial
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {showRejectInput && (
-                          <div className="p-3 bg-white rounded-lg border space-y-2">
-                            <label className="block text-[11px] font-medium text-neutral-700">
-                              Reason for Rejection:
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. Funds not yet cleared into bank account"
-                              value={rejectReason}
-                              onChange={(e) => setRejectReason(e.target.value)}
-                              className="w-full px-2.5 py-1.5 border rounded-lg text-xs text-neutral-900"
-                            />
-                            <div className="flex justify-end gap-1.5 pt-1">
-                              <button
-                                type="button"
-                                onClick={() => setShowRejectInput(false)}
-                                className="px-2.5 py-1 text-xs border rounded-md text-neutral-600 hover:bg-neutral-50"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                type="button"
-                                disabled={processingAction}
-                                onClick={() => handleRejectClaim(claim.id)}
-                                className="px-3 py-1 text-xs bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition"
-                              >
-                                Reject Claim
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex justify-end pt-2 border-t">
-              <button
-                type="button"
-                onClick={() => setReviewingInvoice(null)}
-                className="px-4 py-2 border rounded-lg text-xs font-semibold text-neutral-600 hover:bg-neutral-50 transition"
-              >
-                Close
-              </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   );

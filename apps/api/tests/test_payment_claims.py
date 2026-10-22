@@ -57,7 +57,9 @@ async def test_payment_claim_and_verification_lifecycle():
         inv_id = inv["id"]
         token = inv["share_token"]
 
-        # Send Invoice
+        # Finalize then Send Invoice (US-INV-04, US-DEL-01)
+        fin_res = await client.post(f"/invoices/{inv_id}/finalize")
+        assert fin_res.status_code == 200
         send_res = await client.post(f"/invoices/{inv_id}/send")
         assert send_res.status_code == 200
         assert send_res.json()["invoice"]["status"] == "sent"

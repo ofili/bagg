@@ -49,7 +49,9 @@ async def test_delivery_and_immutability_lifecycle():
         assert inv["status"] == "draft"
         assert inv["version"] == 1
 
-        # 1. Send Invoice (US-DEL-01, US-DEL-02, US-DEL-03)
+        # 1. Finalize then Send Invoice (US-INV-04, US-DEL-01, US-DEL-02, US-DEL-03)
+        fin_res = await client.post(f"/invoices/{inv_id}/finalize")
+        assert fin_res.status_code == 200
         send_res = await client.post(f"/invoices/{inv_id}/send")
         assert send_res.status_code == 200
         send_data = send_res.json()

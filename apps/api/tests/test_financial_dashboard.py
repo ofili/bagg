@@ -3,6 +3,7 @@ from datetime import date, timedelta
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.helpers import create_sent_invoice
 
 
 @pytest.mark.asyncio
@@ -42,32 +43,26 @@ async def test_financial_dashboard_and_metrics_lifecycle():
         )
 
         # 2. NGN Sent (Future Due: 250,000 NGN) -> Outstanding
-        inv_ngn_sent = (
-            await client.post(
-                "/invoices",
-                json={
-                    "client_id": client_id,
-                    "currency": "NGN",
-                    "due_date": (today + timedelta(days=7)).isoformat(),
-                    "items": [{"description": "Web Dev Phase 1", "quantity": 1, "unit_price_minor": 25000000}],
-                },
-            )
-        ).json()
-        await client.post(f"/invoices/{inv_ngn_sent['id']}/send")
+        inv_ngn_sent = await create_sent_invoice(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "due_date": (today + timedelta(days=7)).isoformat(),
+                "items": [{"description": "Web Dev Phase 1", "quantity": 1, "unit_price_minor": 25000000}],
+            },
+        )
 
         # 3. NGN Overdue (Past Due: 150,000 NGN) -> Overdue & Outstanding
-        inv_ngn_overdue = (
-            await client.post(
-                "/invoices",
-                json={
-                    "client_id": client_id,
-                    "currency": "NGN",
-                    "due_date": (today - timedelta(days=3)).isoformat(),
-                    "items": [{"description": "Old Graphic Assets", "quantity": 1, "unit_price_minor": 15000000}],
-                },
-            )
-        ).json()
-        await client.post(f"/invoices/{inv_ngn_overdue['id']}/send")
+        inv_ngn_overdue = await create_sent_invoice(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "due_date": (today - timedelta(days=3)).isoformat(),
+                "items": [{"description": "Old Graphic Assets", "quantity": 1, "unit_price_minor": 15000000}],
+            },
+        )
 
         # 4. NGN Paid (300,000 NGN) -> Paid this month
         inv_ngn_paid = (
@@ -89,18 +84,15 @@ async def test_financial_dashboard_and_metrics_lifecycle():
         await client.post(f"/invoices/{inv_ngn_paid['id']}/claims/{claim_id}/confirm")
 
         # 5. USD Sent ($1,200 = 120,000 cents) -> Outstanding
-        inv_usd_sent = (
-            await client.post(
-                "/invoices",
-                json={
-                    "client_id": client_id,
-                    "currency": "USD",
-                    "due_date": (today + timedelta(days=14)).isoformat(),
-                    "items": [{"description": "US Consulting", "quantity": 1, "unit_price_minor": 120000}],
-                },
-            )
-        ).json()
-        await client.post(f"/invoices/{inv_usd_sent['id']}/send")
+        inv_usd_sent = await create_sent_invoice(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "USD",
+                "due_date": (today + timedelta(days=14)).isoformat(),
+                "items": [{"description": "US Consulting", "quantity": 1, "unit_price_minor": 120000}],
+            },
+        )
 
         # 6. USD Paid ($500 = 50,000 cents) -> Paid this month
         inv_usd_paid = (

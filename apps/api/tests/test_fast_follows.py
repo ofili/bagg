@@ -26,6 +26,7 @@ import pytest
 from datetime import date, timedelta
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.helpers import create_sent_invoice
 
 
 @pytest.mark.asyncio
@@ -72,20 +73,21 @@ async def test_fast_follows_direct_checkout_milestones_and_wht():
         # ===================================================================
         # US-INT-03: Withholding Tax (WHT) Tracking
         # ===================================================================
-        wht_inv = await client.post("/invoices", json={
-            "client_id": corp_id,
-            "currency": "NGN",
-            "due_date": str(date.today() + timedelta(days=30)),
-            "items": [
-                {"description": "Brand Strategy Retainer (Q4)", "quantity": 2, "unit_price_minor": 15_000_000},
-                {"description": "Creative Asset Package", "quantity": 1, "unit_price_minor": 10_000_000},
-            ],
-            "tax_rate_percent": 7.5,
-            "wht_rate_percent": 5.0,
-            "direct_checkout_enabled": True,
-        })
-        assert wht_inv.status_code == 201
-        wht = wht_inv.json()
+        wht = await create_sent_invoice(
+            client,
+            {
+                "client_id": corp_id,
+                "currency": "NGN",
+                "due_date": str(date.today() + timedelta(days=30)),
+                "items": [
+                    {"description": "Brand Strategy Retainer (Q4)", "quantity": 2, "unit_price_minor": 15_000_000},
+                    {"description": "Creative Asset Package", "quantity": 1, "unit_price_minor": 10_000_000},
+                ],
+                "tax_rate_percent": 7.5,
+                "wht_rate_percent": 5.0,
+                "direct_checkout_enabled": True,
+            },
+        )
 
         # Verify arithmetic
         assert wht["subtotal_minor"] == 40_000_000
@@ -97,10 +99,6 @@ async def test_fast_follows_direct_checkout_milestones_and_wht():
         assert wht["balance_due_minor"] == 41_000_000
         assert wht["direct_checkout_enabled"] is True
 
-        # Send invoice
-        send_res = await client.post(f"/invoices/{wht['id']}/send")
-        assert send_res.status_code == 200
-
         # Log the WHT credit note number from the corporate client
         wht_patch = await client.patch(f"/invoices/{wht['id']}/wht", json={
             "wht_credit_note_number": "WHT/ZC/2026/Q4/00187",
@@ -111,18 +109,19 @@ async def test_fast_follows_direct_checkout_milestones_and_wht():
         # ===================================================================
         # US-INT-02: Milestone Payments & Upfront Deposits
         # ===================================================================
-        milestone_inv = await client.post("/invoices", json={
-            "client_id": proj_id,
-            "currency": "NGN",
-            "due_date": str(date.today() + timedelta(days=14)),
-            "items": [
-                {"description": "Full Website Redesign Project", "quantity": 1, "unit_price_minor": 50_000_000},
-            ],
-            "deposit_percentage": 50.0,
-            "deposit_due_date": str(date.today() + timedelta(days=3)),
-        })
-        assert milestone_inv.status_code == 201
-        ms = milestone_inv.json()
+        ms = await create_sent_invoice(
+            client,
+            {
+                "client_id": proj_id,
+                "currency": "NGN",
+                "due_date": str(date.today() + timedelta(days=14)),
+                "items": [
+                    {"description": "Full Website Redesign Project", "quantity": 1, "unit_price_minor": 50_000_000},
+                ],
+                "deposit_percentage": 50.0,
+                "deposit_due_date": str(date.today() + timedelta(days=3)),
+            },
+        )
 
         # Verify milestone arithmetic
         assert ms["subtotal_minor"] == 50_000_000
@@ -132,10 +131,6 @@ async def test_fast_follows_direct_checkout_milestones_and_wht():
         assert ms["deposit_amount_minor"] == 25_000_000  # 50% of 50M
         assert ms["deposit_due_date"] == str(date.today() + timedelta(days=3))
         assert ms["balance_due_minor"] == 50_000_000  # Full balance initially
-
-        # Send the milestone invoice
-        send_ms = await client.post(f"/invoices/{ms['id']}/send")
-        assert send_ms.status_code == 200
 
         # ===================================================================
         # US-INT-01: Direct Payer Checkout – Client Portal

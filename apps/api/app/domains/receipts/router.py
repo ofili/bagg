@@ -14,6 +14,7 @@ from app.core.errors import NotFoundException, BadRequestException
 from app.core.money import format_money
 from app.domains.workspaces.models import Workspace
 from app.domains.workspaces.router import resolve_active_workspace
+from app.domains.auth.router import get_current_user_and_workspace
 from app.domains.clients.models import Client
 from app.domains.invoices.models import Invoice
 from app.domains.receipts.models import Receipt
@@ -99,6 +100,10 @@ def map_receipt_to_response(
         is_verified=rcp.is_verified,
         verified_at=rcp.verified_at,
         verification_code=rcp.verification_code,
+        confirmation_source=rcp.confirmation_source,
+        confirmed_by_user_id=rcp.confirmed_by_user_id,
+        provider=rcp.provider,
+        provider_reference=rcp.provider_reference,
         share_token=rcp.share_token,
         share_url=share_url,
         whatsapp_share_url=wa_url,
@@ -150,11 +155,18 @@ async def record_payment_receipt(
     invoice_id: str,
     payload: ReceiptCreate,
     workspace: Workspace = Depends(resolve_active_workspace),
+    auth_data=Depends(get_current_user_and_workspace),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Manually records an offline payment for an invoice and issues an official stamped receipt (US-RCP-01).
+    The issuer must explicitly confirm that the funds were received.
     """
+    if not payload.confirm_received:
+        raise BadRequestException(
+            "Explicit confirmation is required before a payment can be recorded"
+        )
+
     stmt = (
         select(Invoice, Client)
         .join(Client, Invoice.client_id == Client.id)
@@ -177,6 +189,9 @@ async def record_payment_receipt(
         payer_name=payload.payer_name or client.name,
         payment_date=payload.payment_date,
         notes=payload.notes,
+        confirmation_source="issuer_manual",
+        confirmed_by_user_id=auth_data[0].id if auth_data else workspace.owner_id,
+        provider="manual",
     )
     await db.commit()
     await db.refresh(receipt)
@@ -351,6 +366,8 @@ async def get_public_receipt(
         is_verified=rcp.is_verified,
         verified_at=rcp.verified_at,
         verification_code=rcp.verification_code,
+        confirmation_source=rcp.confirmation_source,
+        provider=rcp.provider,
         notes=rcp.notes,
         business_name=workspace.business_name,
         business_logo_url=workspace.logo_url,

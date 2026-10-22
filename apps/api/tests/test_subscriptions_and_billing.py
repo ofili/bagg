@@ -3,6 +3,7 @@ from datetime import date, timedelta
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.helpers import create_sent_invoice
 
 
 @pytest.mark.asyncio
@@ -48,6 +49,9 @@ async def test_subscriptions_and_monetization_lifecycle():
                     },
                 )
             ).json()
+            # Finalize each draft before sending (US-INV-04)
+            fin = await client.post(f"/invoices/{inv['id']}/finalize")
+            assert fin.status_code == 200
             inv_ids.append(inv["id"])
 
         # Send 1st (Free 1/3)

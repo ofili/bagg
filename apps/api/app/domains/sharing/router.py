@@ -29,6 +29,10 @@ from app.domains.payments.schemas import (
     PaymentClaimCreate,
 )
 from app.domains.reminders.service import cancel_invoice_reminders
+from app.domains.lifecycle.service import (
+    invoice_balance_minor,
+    record_status_event,
+)
 from app.domains.compliance.models import AbuseReport
 from app.domains.compliance.schemas import AbuseReportCreate, AbuseReportResponse
 
@@ -65,6 +69,16 @@ async def get_public_invoice(
     if invoice.status == "sent":
         invoice.status = "viewed"
         invoice.viewed_at = datetime.now(timezone.utc)
+        record_status_event(
+            db=db,
+            workspace_id=invoice.workspace_id,
+            document_type="invoice",
+            document_id=invoice.id,
+            from_status="sent",
+            to_status="viewed",
+            actor_type="client",
+            source="client_view",
+        )
         await db.commit()
         await db.refresh(invoice)
 
@@ -162,6 +176,12 @@ async def submit_payment_claim(
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
 
+    if invoice.status in {"cancelled", "paid"}:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot submit a payment claim for a {invoice.status} invoice",
+        )
+
     claim = PaymentClaim(
         invoice_id=invoice.id,
         amount_minor=payload.amount_minor,
@@ -172,8 +192,20 @@ async def submit_payment_claim(
     )
     db.add(claim)
 
+    old_status = invoice.status
     invoice.status = "payment_claimed"
-    await cancel_invoice_reminders(invoice.id, db)
+    record_status_event(
+        db=db,
+        workspace_id=invoice.workspace_id,
+        document_type="invoice",
+        document_id=invoice.id,
+        from_status=old_status,
+        to_status="payment_claimed",
+        actor_type="client",
+        source="client_payment_claim",
+        metadata={"amount_minor": payload.amount_minor, "reference": payload.reference},
+    )
+    await cancel_invoice_reminders(invoice.id, db, commit=False)
     await db.commit()
     await db.refresh(claim)
 
@@ -298,13 +330,15 @@ async def initiate_direct_checkout(
 
     reference = f"bagg_pay_{uuid.uuid4().hex[:16]}"
     invoice.direct_payment_reference = reference
+    invoice.payment_processing_at = datetime.now(timezone.utc)
+    invoice.payment_processing_reference = reference
 
     await db.commit()
 
     # Initialize Paystack transaction
     callback = payload.callback_url or f"http://localhost:3000/i/{token}?payment=success"
     paystack_payload = {
-        "email": client.email if client and client.email else f"client@{workspace.slug or 'bagg'}.invoice",
+        "email": client.email if client and client.email else "client@invoice.bagg",
         "amount": charge_amount,  # Paystack expects kobo/cents
         "currency": invoice.currency,
         "reference": reference,
@@ -377,32 +411,36 @@ async def verify_direct_payment(
             message="Payment not confirmed by gateway",
             invoice_status=invoice.status,
             amount_paid_minor=invoice.amount_paid_minor or 0,
-            balance_due_minor=max(0, (invoice.net_payable_minor or invoice.total_minor) - (invoice.amount_paid_minor or 0)),
+            balance_due_minor=invoice_balance_minor(invoice),
         )
 
-    paid_amount = resp_data["data"]["amount"]  # in kobo/cents
-    invoice.amount_paid_minor = (invoice.amount_paid_minor or 0) + paid_amount
-    invoice.paid_at = datetime.now(timezone.utc)
+    metadata = resp_data.get("data", {}).get("metadata") or {}
+    if metadata.get("invoice_id") and metadata["invoice_id"] != invoice.id:
+        raise HTTPException(status_code=400, detail="Payment reference does not belong to this invoice")
 
-    net_payable = invoice.net_payable_minor if (invoice.net_payable_minor and invoice.net_payable_minor > 0) else invoice.total_minor
-    balance_due = max(0, net_payable - invoice.amount_paid_minor)
+    if invoice.status == "paid":
+        return PaymentVerificationResponse(
+            status="success",
+            message="Payment already confirmed",
+            invoice_status=invoice.status,
+            amount_paid_minor=invoice.amount_paid_minor or 0,
+            balance_due_minor=0,
+        )
 
-    if balance_due <= 0:
-        invoice.status = "paid"
-        # Cancel any pending reminders
-        await cancel_invoice_reminders(db, invoice.id)
-    elif invoice.amount_paid_minor > 0:
-        invoice.status = "partially_paid"
-
+    # The browser redirect is not proof of settlement. Mark the attempt as
+    # processing and wait for the signed gateway webhook to confirm funds.
+    invoice.payment_processing_at = datetime.now(timezone.utc)
+    invoice.payment_processing_reference = payload.reference
+    invoice.direct_payment_reference = payload.reference
     await db.commit()
     await db.refresh(invoice)
 
     return PaymentVerificationResponse(
-        status="success",
-        message="Payment verified and reconciled",
+        status="processing",
+        message="Payment received by gateway; awaiting webhook confirmation",
         invoice_status=invoice.status,
-        amount_paid_minor=invoice.amount_paid_minor,
-        balance_due_minor=balance_due,
+        amount_paid_minor=invoice.amount_paid_minor or 0,
+        balance_due_minor=invoice_balance_minor(invoice),
     )
 
 

@@ -17,6 +17,7 @@ import app.domains.billing.models  # noqa: F401
 import app.domains.compliance.models  # noqa: F401
 import app.domains.quotes.models  # noqa: F401
 import app.domains.receipts.models  # noqa: F401
+import app.domains.lifecycle.models  # noqa: F401
 
 config = context.config
 

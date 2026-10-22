@@ -94,6 +94,38 @@ class InvoiceRevisionResponse(BaseModel):
 from app.domains.payments.schemas import PaymentClaimResponse
 
 
+class InvoiceReceiptSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    receipt_number: str
+    amount_paid_minor: int
+    balance_remaining_minor: int
+    payment_date: date
+    payment_method: str
+    reference: Optional[str] = None
+    confirmation_source: str = "legacy"
+    provider: Optional[str] = None
+    verification_code: str
+    share_token: Optional[str] = None
+    created_at: datetime
+
+
+class DocumentStatusEventResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    document_type: str
+    document_id: str
+    from_status: Optional[str] = None
+    to_status: str
+    actor_type: str
+    actor_id: Optional[str] = None
+    source: str
+    event_metadata: Optional[Any] = None
+    created_at: datetime
+
+
 class InvoiceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -101,12 +133,13 @@ class InvoiceResponse(BaseModel):
     workspace_id: str
     client_id: str
     client_name: Optional[str] = None
-    invoice_number: str
-    sequence_number: int
+    invoice_number: Optional[str] = None
+    sequence_number: Optional[int] = None
+    quote_id: Optional[str] = None
     currency: str
     status: str
     issue_date: date
-    due_date: date
+    due_date: Optional[date] = None
     items: List[LineItemSchema] = []
     subtotal_minor: int
     discount_minor: int
@@ -121,9 +154,16 @@ class InvoiceResponse(BaseModel):
     deposit_amount_minor: Optional[int] = None
     deposit_due_date: Optional[date] = None
     amount_paid_minor: int = 0
+    remaining_minor: int = 0
     balance_due_minor: int = 0
     direct_checkout_enabled: bool = True
     direct_payment_reference: Optional[str] = None
+    payment_processing_at: Optional[datetime] = None
+    payment_state: str = "none"
+    effective_status: Optional[str] = None
+    user_facing_status: Optional[str] = None
+    is_overdue: bool = False
+    days_overdue: int = 0
     paid_at: Optional[datetime] = None
     payment_profile_id: Optional[str] = None
     notes: Optional[str] = None
@@ -135,6 +175,7 @@ class InvoiceResponse(BaseModel):
     last_revised_at: Optional[datetime] = None
     whatsapp_share_url: Optional[str] = None
     latest_claim: Optional[PaymentClaimResponse] = None
+    latest_receipt: Optional[InvoiceReceiptSummary] = None
     created_at: datetime
     updated_at: datetime
 
