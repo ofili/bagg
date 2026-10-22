@@ -48,6 +48,27 @@
         "total_minor": 4640000,
         "formatted_total": "KSh46,400.00"
       }
+    },
+    {
+      "description": "NGN invoice with withholding tax and milestone deposit",
+      "currency": "NGN",
+      "items": [
+        { "description": "Product design retainer", "quantity": 1, "unit_price_minor": 10000000 }
+      ],
+      "discount_minor": 1000000,
+      "tax_percent": 7.5,
+      "wht_percent": 5.0,
+      "deposit_percent": 50.0,
+      "expected": {
+        "subtotal_minor": 10000000,
+        "discounted_subtotal_minor": 9000000,
+        "tax_minor": 675000,
+        "total_minor": 9675000,
+        "wht_minor": 450000,
+        "net_payable_minor": 9225000,
+        "deposit_amount_minor": 4612500,
+        "formatted_total": "₦96,750.00"
+      }
     }
   ]
 }

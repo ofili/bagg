@@ -1,6 +1,4 @@
-import hmac
-import hashlib
-from fastapi import APIRouter, Request, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Request, Depends, status, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
@@ -13,6 +11,11 @@ from app.domains.billing.service import (
     activate_subscription,
     add_credits,
     handle_failed_payment,
+)
+from app.domains.webhooks.security import (
+    paystack_event_reference,
+    paystack_idempotency_key,
+    verify_paystack_signature,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,24 +35,22 @@ async def paystack_webhook(
     and activates paid subscriptions or provisions credit ledger entries.
     """
     raw_body = await request.body()
-
-    # Verify signature if secret key configured and signature header present
-    if settings.PAYSTACK_SECRET_KEY and x_paystack_signature:
-        expected_sig = hmac.new(
-            settings.PAYSTACK_SECRET_KEY.encode("utf-8"),
-            raw_body,
-            hashlib.sha512,
-        ).hexdigest()
-        if not hmac.compare_digest(expected_sig, x_paystack_signature):
-            raise HTTPException(status_code=400, detail="Invalid webhook signature")
+    verify_paystack_signature(
+        raw_body=raw_body,
+        signature=x_paystack_signature,
+        secret=settings.PAYSTACK_SECRET_KEY,
+    )
 
     payload = await request.json()
     event_type = payload.get("event")
     data = payload.get("data", {})
-
-    # Extract idempotency key
-    event_ref = data.get("reference") or str(data.get("id")) or payload.get("id") or str(hash(raw_body))
-    idempotency_key = f"paystack:{event_type}:{event_ref}"
+    event_ref = paystack_event_reference(data, payload, raw_body)
+    idempotency_key = paystack_idempotency_key(
+        event_type=event_type,
+        data=data,
+        payload=payload,
+        raw_body=raw_body,
+    )
 
     # Idempotency check
     stmt = select(WebhookEvent).where(WebhookEvent.idempotency_key == idempotency_key)

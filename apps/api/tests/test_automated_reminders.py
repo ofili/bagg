@@ -64,7 +64,7 @@ async def test_automated_reminders_lifecycle():
         # 2. Test SKIP LOCKED worker claiming (US-REM-03)
         # Force one job to be due in the past
         target_job_id = jobs[0]["id"]
-        past_due = datetime.now(timezone.utc) - timedelta(hours=2)
+        past_due = datetime.now(timezone.utc) - timedelta(days=1)
 
         async with AsyncSessionLocal() as session:
             await session.execute(

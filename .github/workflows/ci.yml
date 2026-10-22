@@ -2,14 +2,33 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   backend-test:
     name: Backend Lint & Pytest
     runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: ci-only-secret-key-not-used-in-production
+      DATABASE_URL: postgresql+asyncpg://bagg:baggpassword@localhost:5433/bagg_dev
+      SYNC_DATABASE_URL: postgresql+psycopg2://bagg:baggpassword@localhost:5433/bagg_dev
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bagg
+          POSTGRES_PASSWORD: baggpassword
+          POSTGRES_DB: bagg_dev
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U bagg -d bagg_dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +44,11 @@ jobs:
         run: |
           cd apps/api
           uv sync --extra dev
+
+      - name: Run migrations
+        run: |
+          cd apps/api
+          uv run alembic upgrade head
 
       - name: Run Pytest
         run: |

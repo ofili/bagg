@@ -2,12 +2,28 @@ import uuid
 from datetime import date, timedelta
 import pytest
 from httpx import AsyncClient, ASGITransport
+from app.core.config import settings
 from app.main import app
-from tests.helpers import create_sent_invoice
+from tests.helpers import sign_paystack
+
+WEBHOOK_SECRET = "sk_test_subscription_webhook_secret"
+
+
+async def post_signed_webhook(client: AsyncClient, payload: dict):
+    body, signature = sign_paystack(payload, WEBHOOK_SECRET)
+    return await client.post(
+        "/webhooks/paystack",
+        content=body,
+        headers={
+            "content-type": "application/json",
+            "x-paystack-signature": signature,
+        },
+    )
 
 
 @pytest.mark.asyncio
-async def test_subscriptions_and_monetization_lifecycle():
+async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
+    monkeypatch.setattr(settings, "PAYSTACK_SECRET_KEY", WEBHOOK_SECRET)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Step 0: Auth & Workspace Setup
@@ -77,10 +93,29 @@ async def test_subscriptions_and_monetization_lifecycle():
         assert pack_req.status_code == 200
         pack_ref = pack_req.json()["reference"]
 
-        # Simulate Paystack Webhook for Credit Pack purchase
-        wh_pack_res = await client.post(
+        unsigned_pack = await client.post(
             "/webhooks/paystack",
             json={
+                "event": "charge.success",
+                "data": {
+                    "reference": pack_ref,
+                    "amount": 200000,
+                    "currency": "NGN",
+                    "metadata": {
+                        "workspace_id": workspace_id,
+                        "type": "credit_pack",
+                        "credits": 200,
+                    },
+                },
+            },
+        )
+        assert unsigned_pack.status_code == 400
+        assert (await client.get("/billing/credits")).json()["balance"] == 0
+
+        # Simulate Paystack Webhook for Credit Pack purchase
+        wh_pack_res = await post_signed_webhook(
+            client,
+            {
                 "event": "charge.success",
                 "data": {
                     "reference": pack_ref,
@@ -118,9 +153,9 @@ async def test_subscriptions_and_monetization_lifecycle():
         sub_ref = checkout_res.json()["reference"]
 
         # Simulate Paystack Webhook for Creator Pro subscription activation
-        wh_sub_res = await client.post(
-            "/webhooks/paystack",
-            json={
+        wh_sub_res = await post_signed_webhook(
+            client,
+            {
                 "event": "charge.success",
                 "data": {
                     "reference": sub_ref,
@@ -150,9 +185,9 @@ async def test_subscriptions_and_monetization_lifecycle():
         assert public_view.json()["show_viral_footer"] is False
 
         # 4. US-SUB-04: Failed Renewal, Dunning & Grace Period
-        wh_fail_res = await client.post(
-            "/webhooks/paystack",
-            json={
+        wh_fail_res = await post_signed_webhook(
+            client,
+            {
                 "event": "invoice.payment_failed",
                 "data": {
                     "reference": f"fail_{uuid.uuid4().hex[:6]}",

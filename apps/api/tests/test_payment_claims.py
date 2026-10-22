@@ -2,155 +2,230 @@ import uuid
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.helpers import create_sent_invoice
+
+
+async def setup_claimable_invoice(amount_minor: int = 50_000_00):
+    transport = ASGITransport(app=app)
+    client = AsyncClient(transport=transport, base_url="http://test")
+    email = f"claims-{uuid.uuid4().hex[:8]}@studio.ng"
+    req = await client.post("/auth/magic-link", json={"email": email})
+    verify = await client.post(
+        "/auth/verify", json={"email": email, "code": req.json()["dev_code"]}
+    )
+    client.cookies.set("bagg_session", verify.cookies["bagg_session"])
+    created_client = await client.post(
+        "/clients", json={"name": "Claims Test Ltd", "preferred_currency": "NGN"}
+    )
+    invoice = await create_sent_invoice(
+        client,
+        {
+            "client_id": created_client.json()["id"],
+            "currency": "NGN",
+            "due_date": "2026-12-31",
+            "items": [
+                {
+                    "description": "Claim test",
+                    "quantity": 1,
+                    "unit_price_minor": amount_minor,
+                }
+            ],
+        },
+    )
+    return client, invoice
 
 
 @pytest.mark.asyncio
-async def test_payment_claim_and_verification_lifecycle():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Step 0: Freelancer Auth & Setup
-        test_email = f"creator-{uuid.uuid4().hex[:6]}@claims.design"
-        req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        assert req_res.status_code == 200
-        code = req_res.json()["dev_code"]
-        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
-        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
-
-        # Setup NGN Payment Profile
-        await client.post(
-            "/payments/profiles",
+async def test_claim_submission_marks_invoice_payment_claimed():
+    client, invoice = await setup_claimable_invoice()
+    try:
+        response = await client.post(
+            f"/share/{invoice['share_token']}/claim",
             json={
-                "currency": "NGN",
-                "bank_name": "Access Bank",
-                "account_name": "Design Collective",
-                "account_number": "0123456789",
-                "is_default": True,
+                "amount_minor": invoice["total_minor"],
+                "reference": "NIP/CLAIM/001",
+                "proof_file_url": "https://storage.bagg.africa/proof.png",
             },
         )
 
-        # Setup Client
-        c_res = await client.post(
-            "/clients",
+        assert response.status_code == 201
+        assert response.json()["status"] == "pending"
+        assert response.json()["reference"] == "NIP/CLAIM/001"
+
+        current = await client.get(f"/invoices/{invoice['id']}")
+        assert current.json()["status"] == "payment_claimed"
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_claim_amount_must_be_positive_and_within_balance():
+    client, invoice = await setup_claimable_invoice()
+    try:
+        zero = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={"amount_minor": 0, "reference": "NIP/ZERO"},
+        )
+        negative = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={"amount_minor": -100, "reference": "NIP/NEGATIVE"},
+        )
+        over_balance = await client.post(
+            f"/share/{invoice['share_token']}/claim",
             json={
-                "name": "Kano Media House",
-                "email": "finance@kanomedia.ng",
-                "phone": "+234 802 111 2222",
-                "preferred_currency": "NGN",
+                "amount_minor": invoice["total_minor"] + 1,
+                "reference": "NIP/OVER",
             },
         )
-        client_id = c_res.json()["id"]
 
-        # Create Invoice for 500,000 NGN (50,000,000 kobo)
-        inv_res = await client.post(
-            "/invoices",
-            json={
-                "client_id": client_id,
-                "currency": "NGN",
-                "items": [
-                    {"description": "Branding & Guidelines", "quantity": 1, "unit_price_minor": 50000000},
-                ],
-                "discount_minor": 0,
-                "tax_rate_percent": 0.0,
-            },
+        assert zero.status_code == 400
+        assert negative.status_code == 400
+        assert over_balance.status_code == 400
+        assert "exceeds" in over_balance.json()["detail"].lower()
+
+        current = await client.get(f"/invoices/{invoice['id']}")
+        assert current.json()["status"] == "sent"
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_rejecting_a_non_pending_claim_is_rejected():
+    client, invoice = await setup_claimable_invoice()
+    try:
+        claim = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={"amount_minor": invoice["total_minor"], "reference": "NIP/REJECT"},
         )
-        inv = inv_res.json()
-        inv_id = inv["id"]
-        token = inv["share_token"]
+        claim_id = claim.json()["id"]
 
-        # Finalize then Send Invoice (US-INV-04, US-DEL-01)
-        fin_res = await client.post(f"/invoices/{inv_id}/finalize")
-        assert fin_res.status_code == 200
-        send_res = await client.post(f"/invoices/{inv_id}/send")
-        assert send_res.status_code == 200
-        assert send_res.json()["invoice"]["status"] == "sent"
-
-        # Client opens public link -> transitions to 'viewed'
-        portal_res = await client.get(f"/share/{token}")
-        assert portal_res.status_code == 200
-        assert portal_res.json()["invoice"]["status"] == "viewed"
-
-        # 1. Client Submits First Claim (US-CLM-01)
-        claim1_res = await client.post(
-            f"/share/{token}/claim",
-            json={
-                "amount_minor": 50000000,
-                "reference": "NIP/GTB/202610200001",
-                "proof_file_url": "https://storage.bagg.africa/receipts/rec_001.png",
-            },
+        first = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/reject",
+            json={"rejection_reason": "Funds not received"},
         )
-        assert claim1_res.status_code == 201
-        claim1 = claim1_res.json()
-        assert claim1["status"] == "pending"
-        assert claim1["reference"] == "NIP/GTB/202610200001"
-        claim1_id = claim1["id"]
+        assert first.status_code == 200
 
-        # Verify invoice is now 'payment_claimed'
-        inv_check = await client.get(f"/invoices/{inv_id}")
-        assert inv_check.json()["status"] == "payment_claimed"
-
-        # 2. Freelancer Rejects Claim 1 (US-CLM-02 - e.g. funds didn't clear)
-        reject_res = await client.post(
-            f"/invoices/{inv_id}/claims/{claim1_id}/reject",
-            json={"rejection_reason": "Funds have not cleared into Access Bank yet"},
+        second = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/reject",
+            json={"rejection_reason": "Duplicate attempt"},
         )
-        assert reject_res.status_code == 200
-        rejected_claim = reject_res.json()
-        assert rejected_claim["status"] == "rejected"
-        assert rejected_claim["rejection_reason"] == "Funds have not cleared into Access Bank yet"
+        assert second.status_code == 400
+        assert "already" in second.json()["detail"].lower()
+    finally:
+        await client.aclose()
 
-        # Verify invoice reverted to 'viewed'
-        inv_check_2 = await client.get(f"/invoices/{inv_id}")
-        assert inv_check_2.json()["status"] == "viewed"
 
-        # 3. Client Submits Second Claim (Partial Payment: 200,000 NGN)
-        claim2_res = await client.post(
-            f"/share/{token}/claim",
-            json={
-                "amount_minor": 20000000,
-                "reference": "NIP/GTB/PARTIAL_200K",
-            },
+@pytest.mark.asyncio
+async def test_confirming_an_already_confirmed_claim_is_rejected():
+    client, invoice = await setup_claimable_invoice()
+    try:
+        claim = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={"amount_minor": 10_000_00, "reference": "NIP/PARTIAL"},
         )
-        assert claim2_res.status_code == 201
-        claim2_id = claim2_res.json()["id"]
+        claim_id = claim.json()["id"]
 
-        # Freelancer Confirms Partial Claim
-        confirm_partial_res = await client.post(
-            f"/invoices/{inv_id}/claims/{claim2_id}/confirm",
-            json={"amount_paid_minor": 20000000},
+        first = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/confirm",
+            json={"amount_paid_minor": 10_000_00},
         )
-        assert confirm_partial_res.status_code == 200
-        assert confirm_partial_res.json()["status"] == "confirmed"
+        assert first.status_code == 200
 
-        # Verify invoice is now 'partially_paid' with amount_paid_minor = 20,000,000
-        inv_partial = await client.get(f"/invoices/{inv_id}")
-        assert inv_partial.json()["status"] == "partially_paid"
-        assert inv_partial.json()["amount_paid_minor"] == 20000000
-
-        # 4. Client Submits Third Claim for remaining 300,000 NGN
-        claim3_res = await client.post(
-            f"/share/{token}/claim",
-            json={
-                "amount_minor": 30000000,
-                "reference": "NIP/GTB/FINAL_300K",
-            },
+        duplicate = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/confirm",
+            json={"amount_paid_minor": 10_000_00},
         )
-        assert claim3_res.status_code == 201
-        claim3_id = claim3_res.json()["id"]
+        assert duplicate.status_code == 400
+        assert "already" in duplicate.json()["detail"].lower()
 
-        # Freelancer Confirms Full Final Payment
-        confirm_final_res = await client.post(
-            f"/invoices/{inv_id}/claims/{claim3_id}/confirm"
+        receipts = await client.get(f"/receipts?invoice_id={invoice['id']}")
+        assert len(receipts.json()) == 1
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_confirm_amount_cannot_exceed_outstanding_balance():
+    client, invoice = await setup_claimable_invoice()
+    try:
+        claim = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={"amount_minor": 1_000_00, "reference": "NIP/OVERCONFIRM"},
         )
-        assert confirm_final_res.status_code == 200
-        assert confirm_final_res.json()["status"] == "confirmed"
+        claim_id = claim.json()["id"]
 
-        # Verify invoice is fully 'paid'
-        inv_paid = await client.get(f"/invoices/{inv_id}")
-        assert inv_paid.json()["status"] == "paid"
-        assert inv_paid.json()["amount_paid_minor"] == 50000000
+        response = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/confirm",
+            json={"amount_paid_minor": invoice["total_minor"] + 1},
+        )
 
-        # Freelancer list claims history
-        claims_list_res = await client.get(f"/invoices/{inv_id}/claims")
-        assert claims_list_res.status_code == 200
-        all_claims = claims_list_res.json()
-        assert len(all_claims) == 3
+        assert response.status_code == 400
+        assert "exceed" in response.json()["detail"].lower()
+
+        current = await client.get(f"/invoices/{invoice['id']}")
+        assert current.json()["status"] == "payment_claimed"
+        assert current.json()["amount_paid_minor"] == 0
+
+        claim_state = await client.get(f"/invoices/{invoice['id']}/claims")
+        assert claim_state.json()[0]["status"] == "pending"
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_partial_then_final_claim_payments():
+    client, invoice = await setup_claimable_invoice()
+    try:
+        partial_amount = invoice["total_minor"] // 2
+        partial = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={"amount_minor": partial_amount, "reference": "NIP/HALF"},
+        )
+        partial_confirm = await client.post(
+            f"/invoices/{invoice['id']}/claims/{partial.json()['id']}/confirm"
+        )
+        assert partial_confirm.status_code == 200
+
+        partly_paid = await client.get(f"/invoices/{invoice['id']}")
+        assert partly_paid.json()["status"] == "partially_paid"
+        assert partly_paid.json()["amount_paid_minor"] == partial_amount
+
+        remaining = invoice["total_minor"] - partial_amount
+        final = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={"amount_minor": remaining, "reference": "NIP/FINAL"},
+        )
+        final_confirm = await client.post(
+            f"/invoices/{invoice['id']}/claims/{final.json()['id']}/confirm"
+        )
+        assert final_confirm.status_code == 200
+
+        paid = await client.get(f"/invoices/{invoice['id']}")
+        assert paid.json()["status"] == "paid"
+        assert paid.json()["amount_paid_minor"] == invoice["total_minor"]
+
+        receipts = await client.get(f"/receipts?invoice_id={invoice['id']}")
+        assert len(receipts.json()) == 2
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_claim_cannot_be_submitted_for_paid_invoice():
+    client, invoice = await setup_claimable_invoice()
+    try:
+        claim = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={"amount_minor": invoice["total_minor"], "reference": "NIP/FULL"},
+        )
+        await client.post(f"/invoices/{invoice['id']}/claims/{claim.json()['id']}/confirm")
+
+        response = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={"amount_minor": 1, "reference": "NIP/AFTERPAID"},
+        )
+
+        assert response.status_code == 400
+        assert "paid" in response.json()["detail"].lower()
+    finally:
+        await client.aclose()

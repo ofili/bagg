@@ -88,6 +88,38 @@ async def post_webhook(
 
 
 @pytest.mark.asyncio
+async def test_invoice_payment_webhook_requires_configured_secret(monkeypatch):
+    monkeypatch.setattr(settings, "PAYSTACK_INVOICE_WEBHOOK_SECRET", None)
+    monkeypatch.setattr(settings, "PAYSTACK_SECRET_KEY", None)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/webhooks/paystack/invoice-payments",
+            json={"event": "charge.success", "data": {}},
+        )
+
+    assert response.status_code == 503
+    assert "not configured" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_invoice_payment_webhook_rejects_invalid_signature(monkeypatch):
+    monkeypatch.setattr(settings, "PAYSTACK_INVOICE_WEBHOOK_SECRET", WEBHOOK_SECRET)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await post_webhook(
+            client,
+            {"event": "charge.success", "data": {"reference": "forged"}},
+            "0" * 128,
+        )
+
+    assert response.status_code == 400
+    assert "invalid" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
 async def test_invoice_payment_webhook_confirms_once(monkeypatch):
     monkeypatch.setattr(settings, "PAYSTACK_INVOICE_WEBHOOK_SECRET", WEBHOOK_SECRET)
     monkeypatch.setattr(

@@ -3,9 +3,19 @@
 Helpers encapsulate create -> finalize -> send so callers don't have to repeat
 the three-step flow after draft-send was blocked.
 """
+import hashlib
+import hmac
+import json
 from typing import Any, Dict
 
 from httpx import AsyncClient
+
+
+def sign_paystack(payload: Dict[str, Any], secret: str) -> tuple[bytes, str]:
+    """Serializes a webhook payload and returns its exact body and HMAC-SHA512 signature."""
+    body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    signature = hmac.new(secret.encode("utf-8"), body, hashlib.sha512).hexdigest()
+    return body, signature
 
 
 async def create_sent_invoice(client: AsyncClient, payload: Dict[str, Any]) -> Dict[str, Any]:

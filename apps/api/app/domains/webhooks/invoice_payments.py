@@ -1,5 +1,3 @@
-import hashlib
-import hmac
 import logging
 from datetime import date
 from typing import Optional
@@ -14,6 +12,7 @@ from app.domains.billing.models import WebhookEvent
 from app.domains.invoices.models import Invoice
 from app.domains.receipts.models import Receipt
 from app.domains.receipts.service import confirm_payment
+from app.domains.webhooks.security import verify_paystack_signature
 from app.domains.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
@@ -38,20 +37,12 @@ async def paystack_invoice_payment_webhook(
     Only a valid HMAC-signed charge.success event may move an invoice into
     partially_paid or paid.
     """
-    secret = _webhook_secret()
-    if not secret:
-        raise HTTPException(
-            status_code=503,
-            detail="Invoice payment webhook secret is not configured",
-        )
-
     raw_body = await request.body()
-    if not x_paystack_signature:
-        raise HTTPException(status_code=400, detail="Missing webhook signature")
-
-    expected = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha512).hexdigest()
-    if not hmac.compare_digest(expected, x_paystack_signature):
-        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+    verify_paystack_signature(
+        raw_body=raw_body,
+        signature=x_paystack_signature,
+        secret=_webhook_secret(),
+    )
 
     payload = await request.json()
     event_type = payload.get("event")

@@ -19,7 +19,7 @@ from app.domains.sharing.schemas import (
 )
 from app.domains.sharing.models import InvoiceComment
 from app.domains.invoices.models import Invoice
-from app.domains.invoices.router import map_invoice_to_response
+from app.domains.invoices.presenter import map_invoice_to_response
 from app.domains.clients.models import Client
 from app.domains.workspaces.models import Workspace
 from app.domains.payments.models import PaymentProfile, PaymentClaim
@@ -180,6 +180,19 @@ async def submit_payment_claim(
         raise HTTPException(
             status_code=400,
             detail=f"Cannot submit a payment claim for a {invoice.status} invoice",
+        )
+
+    if payload.amount_minor <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment claim amount must be greater than zero",
+        )
+
+    outstanding_balance = invoice_balance_minor(invoice)
+    if payload.amount_minor > outstanding_balance:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment claim amount exceeds the outstanding invoice balance",
         )
 
     claim = PaymentClaim(
