@@ -1,9 +1,20 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import { Bricolage_Grotesque } from 'next/font/google';
 
-export const viewport = {
-  deviceWidth: 'width=device-width, initial-scale=1.0',
+// One family for everything. latin-ext carries the naira sign (U+20A6);
+// confirm the four currency glyphs render in this font, not a fallback (DESIGN.md 4.4).
+const bricolage = Bricolage_Grotesque({
+  subsets: ['latin', 'latin-ext'],
+  display: 'swap',
+  variable: '--font-bricolage',
+});
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#FF7A1A',
 };
 
 export const metadata: Metadata = {
@@ -25,7 +36,6 @@ export const metadata: Metadata = {
   other: {
     'apple-mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-status-bar-style': 'default',
-    'theme-color': '#10b981',
     'format-detection': 'telephone=no',
   },
 };
@@ -36,8 +46,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="scroll-smooth">
-      <body className="min-h-dvh bg-neutral-50 text-neutral-900 antialiased selection:bg-emerald-200">
+    <html lang="en" className={`${bricolage.variable} scroll-smooth`}>
+      <body className="min-h-dvh bg-cream font-sans text-text antialiased selection:bg-sun">
         {children}
       </body>
     </html>

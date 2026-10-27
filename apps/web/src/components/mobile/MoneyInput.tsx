@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { cn } from '@/lib/utils';
 
 interface MoneyInputProps {
@@ -8,12 +9,26 @@ interface MoneyInputProps {
   value?: string;
   onChange?: (value: string) => void;
   placeholder?: string;
+  /** ISO code such as NGN. Shows the matching symbol (₦ $ £ €) in front of the amount. */
+  currency?: string;
+  /** Explicit symbol; wins over `currency`. */
   currencySymbol?: string;
+  hint?: string;
   error?: string;
   required?: boolean;
   disabled?: boolean;
   autoComplete?: string;
 }
+
+const SYMBOLS: Record<string, string> = {
+  NGN: '₦',
+  USD: '$',
+  GBP: '£',
+  EUR: '€',
+  GHS: 'GH₵',
+  KES: 'KSh',
+  ZAR: 'R',
+};
 
 export function MoneyInput({
   id,
@@ -21,30 +36,45 @@ export function MoneyInput({
   value,
   onChange,
   placeholder = '0.00',
-  currencySymbol = '',
+  currency,
+  currencySymbol,
+  hint,
   error,
   required = false,
   disabled = false,
   autoComplete = 'off',
 }: MoneyInputProps) {
+  const autoId = useId();
+  const inputId = id ?? autoId;
+  const noteId = `${inputId}-note`;
+  const symbol = currencySymbol ?? (currency ? SYMBOLS[currency] ?? currency : '');
+  const note = error ?? hint;
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {label && (
-        <label
-          htmlFor={id}
-          className="text-xs font-semibold text-neutral-600 uppercase tracking-wider"
-        >
+        <label htmlFor={inputId} className="block text-body font-medium text-text">
           {label}
         </label>
       )}
-      <div className="relative">
-        {currencySymbol && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-neutral-400">
-            {currencySymbol}
+      <div
+        className={cn(
+          'flex min-h-11 items-stretch overflow-hidden rounded-input border-brut-thin bg-surface',
+          'focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-mango',
+          error ? 'border-danger' : 'border-ink',
+          disabled && 'opacity-50',
+        )}
+      >
+        {symbol && (
+          <span
+            aria-hidden
+            className="flex items-center border-r border-ink bg-surface-tint px-3 text-body font-extrabold"
+          >
+            {symbol}
           </span>
         )}
         <input
-          id={id}
+          id={inputId}
           type="text"
           inputMode="decimal"
           autoComplete={autoComplete}
@@ -53,15 +83,19 @@ export function MoneyInput({
           placeholder={placeholder}
           required={required}
           disabled={disabled}
-          className={cn(
-            'w-full min-h-[48px] pl-8 pr-3 py-2 text-sm font-mono text-neutral-900 bg-white border border-neutral-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-colors',
-            error && 'border-red-500 focus:ring-red-500 focus:border-red-500',
-            disabled && 'bg-neutral-100 text-neutral-400 cursor-not-allowed',
-          )}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={note ? noteId : undefined}
+          className="tabular min-w-0 flex-1 bg-transparent px-3 text-body-l text-text outline-none placeholder:text-text-muted"
         />
       </div>
-      {error && (
-        <p className="text-xs text-red-600">{error}</p>
+      {note && (
+        <p
+          id={noteId}
+          role={error ? 'alert' : undefined}
+          className={cn('text-caption', error ? 'text-danger dark:text-[#FFB3A8]' : 'text-text-muted')}
+        >
+          {note}
+        </p>
       )}
     </div>
   );

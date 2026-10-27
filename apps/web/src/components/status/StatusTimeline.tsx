@@ -27,30 +27,26 @@ const SOURCE_LABELS: Record<string, string> = {
 export function StatusTimeline({ events }: { events: StatusEvent[] }) {
   if (!events.length) {
     return (
-      <p className="text-xs text-neutral-500">
+      <p className="text-body text-text-soft">
         No status history yet. It will appear as this document moves through your workflow.
       </p>
     );
   }
 
   return (
-    <ol className="space-y-3">
+    <ol className="space-y-1">
       {events.map((event, index) => (
         <li key={event.id} className="relative flex gap-3">
           <div className="flex flex-col items-center">
-            <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-50" />
-            {index < events.length - 1 ? (
-              <span className="mt-1 h-full w-px flex-1 bg-neutral-200" />
-            ) : null}
+            <span aria-hidden className="mt-2 h-2.5 w-2.5 rounded-full bg-ink" />
+            {index < events.length - 1 && <span aria-hidden className="mt-1 w-px flex-1 bg-line" />}
           </div>
-          <div className="pb-1">
+          <div className="min-w-0 pb-4">
             <div className="flex flex-wrap items-center gap-2">
               <StatusPill status={event.to_status} />
-              <span className="text-[11px] text-neutral-400">
-                {new Date(event.created_at).toLocaleString()}
-              </span>
+              <span className="text-caption text-text-muted">{formatWhen(event.created_at)}</span>
             </div>
-            <p className="mt-1 text-xs text-neutral-600">
+            <p className="mt-1 text-body text-text-soft">
               {SOURCE_LABELS[event.source] || event.source.replaceAll('_', ' ')}
             </p>
           </div>
@@ -58,4 +54,10 @@ export function StatusTimeline({ events }: { events: StatusEvent[] }) {
       ))}
     </ol>
   );
+}
+
+function formatWhen(value: string) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }

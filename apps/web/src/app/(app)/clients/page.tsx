@@ -1,24 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Users,
-  Plus,
-  Mail,
-  Phone,
-  MessageCircle,
-  Trash2,
-  Edit2,
-  X,
-  Loader2,
-  Check,
-  Clock,
   AlertCircle,
+  Check,
+  Edit2,
+  Loader2,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Plus,
   Search,
+  Trash2,
+  Users,
 } from 'lucide-react';
-import { formatMoney } from '@/lib/money';
-import Link from 'next/link';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { BagCharacter } from '@/components/brand';
+import { Money } from '@/components/money/Money';
+import { Button, buttonStyles } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetFooter } from '@/components/ui/sheet';
+import { cn } from '@/lib/cn';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -41,20 +42,22 @@ interface Client {
   created_at: string;
 }
 
-const SUPPORTED_CURRENCIES = [
-  { code: 'NGN', symbol: '₦' },
-  { code: 'USD', symbol: '$' },
-  { code: 'GBP', symbol: '£' },
-  { code: 'EUR', symbol: '€' },
-  { code: 'GHS', symbol: 'GH₵' },
-  { code: 'KES', symbol: 'KSh' },
-  { code: 'ZAR', symbol: 'R' },
-] as const;
+const SUPPORTED_CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'KES', 'ZAR'];
+
+const inputClass =
+  'min-h-12 w-full rounded-input border border-line bg-surface px-3 py-2 text-body text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-cocoa focus:ring-2 focus:ring-cocoa/20';
+
+const labelClass = 'mb-1 block text-label font-bold text-ink-soft';
+
+function errorText(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [showSheet, setShowSheet] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -75,17 +78,16 @@ export default function ClientsPage() {
   const fetchClients = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const params = new URLSearchParams();
       if (searchQuery.trim()) params.append('q', searchQuery.trim());
 
       const url = `${API_BASE}/clients${params.toString() ? `?${params.toString()}` : ''}`;
       const res = await fetch(url, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setClients(data);
-      }
-    } catch {
-      // Fallback
+      if (!res.ok) throw new Error('we could not load your clients. Try again.');
+      setClients(await res.json());
+    } catch (err) {
+      setLoadError(errorText(err, 'we could not load your clients. Try again.'));
     } finally {
       setLoading(false);
     }
@@ -109,8 +111,6 @@ export default function ClientsPage() {
     setErrorMessage(null);
     setShowSheet(true);
   };
-
-  const closeSheet = () => setShowSheet(false);
 
   const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,414 +143,431 @@ export default function ClientsPage() {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || 'Failed to save client');
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'we could not save this client. Check the details and try again.');
       }
 
-      closeSheet();
+      setShowSheet(false);
       setSuccessMessage(
-        editingClient
-          ? `Client "${name}" updated successfully`
-          : `Client "${name}" created successfully`
+        editingClient ? `${name.trim()} updated.` : `${name.trim()} added to your clients.`,
       );
-      setTimeout(() => setSuccessMessage(null), 3000);
+      window.setTimeout(() => setSuccessMessage(null), 3500);
       await fetchClients();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Error saving client');
+    } catch (err) {
+      setErrorMessage(errorText(err, 'we could not save this client. Check the details and try again.'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteClient = async (client: Client) => {
-    if (!window.confirm(`Are you sure you want to delete client "${client.name}"?`)) {
-      return;
-    }
+    const confirmed = window.confirm(
+      `delete ${client.name}? Their invoices stay in your workspace. This cannot be undone.`,
+    );
+    if (!confirmed) return;
 
+    setLoadError(null);
     try {
       const res = await fetch(`${API_BASE}/clients/${client.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
 
-      if (res.ok) {
-        setSuccessMessage(`Client "${client.name}" deleted.`);
-        setTimeout(() => setSuccessMessage(null), 3000);
-        await fetchClients();
-      } else {
-        const err = await res.json();
-        setErrorMessage(err.detail || 'Could not delete client');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'we could not delete this client. try again.');
       }
-    } catch {
-      setErrorMessage('Could not delete client');
+
+      setSuccessMessage(`${client.name} deleted.`);
+      window.setTimeout(() => setSuccessMessage(null), 3500);
+      await fetchClients();
+    } catch (err) {
+      setLoadError(errorText(err, 'we could not delete this client. try again.'));
     }
   };
 
-  const filteredClients = clients.filter((c) => {
-    const q = searchQuery.toLowerCase();
+  const filteredClients = clients.filter((client) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
     return (
-      c.name.toLowerCase().includes(q) ||
-      (c.email ?? '').toLowerCase().includes(q) ||
-      (c.phone ?? '').includes(q)
+      client.name.toLowerCase().includes(query) ||
+      (client.email ?? '').toLowerCase().includes(query) ||
+      (client.phone ?? '').includes(query)
     );
   });
 
   return (
-    <>
-      <div className="space-y-4 p-4 sm:p-6 lg:p-8 max-w-none w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-neutral-900">Clients</h1>
-            <p className="text-sm text-neutral-500">
-              Client directory, preferred invoicing currencies, and default terms (US-CLI-01, US-CLI-02).
-            </p>
-          </div>
-          <button
-            onClick={() => openSheet()}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-lg transition shadow-sm"
-          >
-            <Plus className="w-4 h-4" /> Add Client
-          </button>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-title-l text-ink">clients</h1>
+          <p className="mt-1 text-body text-ink-soft">the people you invoice, in one place.</p>
         </div>
-
-        {successMessage && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-600" />
-            <span>{successMessage}</span>
-          </div>
-        )}
-
-        {errorMessage && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center justify-between">
-            <span>{errorMessage}</span>
-            <button onClick={() => setErrorMessage(null)} className="hover:underline">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        <div className="relative flex-1 w-full max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-neutral-400" />
-          <input
-            type="text"
-            placeholder="Search by client name, email, or phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 min-h-[44px] border rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-
-        {loading ? (
-          <div className="py-16 flex justify-center text-neutral-400">
-            <Loader2 className="w-6 h-6 animate-spin" />
-          </div>
-        ) : filteredClients.length === 0 ? (
-          <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-white space-y-3">
-            <Users className="w-10 h-10 text-neutral-300 mx-auto" />
-            <h3 className="font-semibold text-neutral-800 text-base">No clients found</h3>
-            <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-              Save client details with their preferred currency and payment terms so invoices can be drafted in under 60 seconds.
-            </p>
-            <button
-              onClick={() => openSheet()}
-              className="w-full inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add First Client
-            </button>
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredClients.map((client) => {
-              const cleanPhone = client.phone ? client.phone.replace(/[^0-9+]/g, '') : null;
-              return (
-                <div
-                  key={client.id}
-                  className="p-4 bg-white rounded-xl border shadow-sm space-y-3 hover:border-neutral-300 transition"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-base text-neutral-900">{client.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-neutral-100 rounded text-neutral-700">
-                          {client.preferred_currency}
-                        </span>
-                        <span className="text-[11px] text-neutral-500 flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> Net-{client.default_payment_terms_days} days
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => openSheet(client)}
-                        title="Edit client"
-                        className="p-1.5 text-neutral-400 hover:text-neutral-700 rounded hover:bg-neutral-100 transition"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClient(client)}
-                        title="Delete client"
-                        className="p-1.5 text-neutral-400 hover:text-red-600 rounded hover:bg-neutral-100 transition"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs text-neutral-600">
-                    {client.email ? (
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-3.5 h-3.5 text-neutral-400" />
-                        <span className="truncate">{client.email}</span>
-                      </div>
-                    ) : (
-                      <div className="text-[11px] text-amber-700 font-medium">
-                        Phone-only / WhatsApp client (no email)
-                      </div>
-                    )}
-
-                    {client.phone && (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 truncate">
-                          <Phone className="w-3.5 h-3.5 text-neutral-400" />
-                          <span className="truncate">{client.phone}</span>
-                        </div>
-                        {cleanPhone && (
-                          <a
-                            href={`https://wa.me/${cleanPhone.replace('+', '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
-                          </a>
-                        )}
-                      </div>
-                    )}
-
-                    {client.address && (
-                      <div className="text-[11px] text-neutral-500 truncate">
-                        📍 {client.address}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-3 border-t grid grid-cols-3 gap-2 text-xs">
-                    <div>
-                      <span className="text-neutral-400 block text-[10px] uppercase font-semibold">
-                        Invoiced
-                      </span>
-                      <span className="font-semibold text-neutral-800">
-                        {formatMoney(client.total_invoiced_minor, client.preferred_currency)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-neutral-400 block text-[10px] uppercase font-semibold">
-                        Paid
-                      </span>
-                      <span className="font-semibold text-emerald-700">
-                        {formatMoney(client.total_paid_minor, client.preferred_currency)}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-neutral-400 block text-[10px] uppercase font-semibold">
-                        Outstanding
-                      </span>
-                      <span className="font-bold text-neutral-900">
-                        {formatMoney(client.total_outstanding_minor, client.preferred_currency)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <Button onClick={() => openSheet()} className="w-fit">
+          <Plus className="h-4 w-4" aria-hidden="true" /> Add client
+        </Button>
       </div>
 
-      {/* Add / Edit Client Bottom Sheet */}
-      {showSheet && (
-        <Sheet>
-          <SheetTrigger asChild>
-            <button className="hidden" />
-          </SheetTrigger>
-          <SheetContent className="rounded-2xl border border-neutral-200 bg-white shadow-xl max-h-[90dvh] p-6">
-            <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3 mb-4">
-              <h3 className="font-bold text-base text-neutral-900">
-                {editingClient ? 'Edit Client Record' : 'Add New Client'}
-              </h3>
-              <button
-                onClick={closeSheet}
-                className="text-neutral-400 hover:text-neutral-700 p-1"
+      {successMessage && (
+        <div role="status" className="flex items-center gap-2 rounded-input bg-pill-paid/20 px-3 py-2 text-body text-paid-text">
+          <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
+          {successMessage}
+        </div>
+      )}
+
+      {loadError && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {loadError}
+          </span>
+          <button type="button" onClick={fetchClients} className="font-bold hover:underline">
+            Try again
+          </button>
+        </div>
+      )}
+
+      <div className="relative w-full max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
+        <input
+          type="search"
+          aria-label="Search clients"
+          placeholder="Name, email or phone"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className={cn(inputClass, 'pl-9')}
+        />
+      </div>
+
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading clients">
+          {[0, 1, 2].map((item) => (
+            <div key={item} className="h-52 animate-pulse rounded-card bg-tint" />
+          ))}
+        </div>
+      ) : filteredClients.length === 0 ? (
+        <div className="rounded-card border border-line-subtle bg-surface px-6 py-12 text-center">
+          <BagCharacter size={80} className="mx-auto" />
+          <h2 className="mt-4 text-heading text-ink">
+            {searchQuery ? 'no clients match that search' : 'no clients yet'}
+          </h2>
+          <p className="mx-auto mt-1 max-w-sm text-body text-ink-soft">
+            {searchQuery
+              ? 'Try a name, email or phone number.'
+              : 'Save a client once, then draft their next invoice in under a minute.'}
+          </p>
+          {!searchQuery && (
+            <Button onClick={() => openSheet()} className="mt-5">
+              <Plus className="h-4 w-4" aria-hidden="true" /> Add your first client
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {filteredClients.map((client) => {
+            const cleanPhone = client.phone ? client.phone.replace(/[^0-9+]/g, '') : null;
+            return (
+              <article
+                key={client.id}
+                className="flex flex-col rounded-card border border-line-subtle bg-surface p-4"
               >
-                <X className="w-4 h-4" />
-              </button>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-peach-chip text-body font-extrabold text-ink">
+                      {client.name.trim().charAt(0).toUpperCase() || <Users className="h-4 w-4" />}
+                    </span>
+                    <div className="min-w-0">
+                      <h2 className="truncate text-heading text-ink">{client.name}</h2>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-caption text-ink-muted">
+                        <span className="rounded-full bg-tint px-2 py-0.5 font-extrabold text-ink-soft">
+                          {client.preferred_currency}
+                        </span>
+                        <span>net {client.default_payment_terms_days} days</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center">
+                    <button
+                      type="button"
+                      onClick={() => openSheet(client)}
+                      aria-label={`Edit ${client.name}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-tint hover:text-ink"
+                    >
+                      <Edit2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteClient(client)}
+                      aria-label={`Delete ${client.name}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-pill-late/40 hover:text-late-text"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 min-h-14 space-y-1.5 text-body text-ink-soft">
+                  {client.email ? (
+                    <a href={`mailto:${client.email}`} className="flex items-center gap-2 hover:text-ink">
+                      <Mail className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+                      <span className="truncate">{client.email}</span>
+                    </a>
+                  ) : (
+                    <p className="text-caption font-bold text-ink-muted">WhatsApp only</p>
+                  )}
+                  {client.phone && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Phone className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+                        <span className="truncate">{client.phone}</span>
+                      </span>
+                      {cleanPhone && (
+                        <a
+                          href={`https://wa.me/${cleanPhone.replace('+', '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex shrink-0 items-center gap-1 text-caption font-bold text-link hover:underline"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /> WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  {client.address && (
+                    <p className="flex items-start gap-2 text-caption text-ink-muted">
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span className="truncate">{client.address}</span>
+                    </p>
+                  )}
+                </div>
+
+                <dl className="mt-auto grid grid-cols-3 gap-2 border-t border-line-subtle pt-3">
+                  <div>
+                    <dt className="text-caption text-ink-muted">invoiced</dt>
+                    <dd className="mt-0.5 text-caption font-extrabold text-ink">
+                      <Money
+                        amountMinor={client.total_invoiced_minor}
+                        currency={client.preferred_currency}
+                        context="list"
+                        hideCurrencyCode
+                      />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-caption text-ink-muted">paid</dt>
+                    <dd className="mt-0.5 text-caption font-extrabold text-paid-text">
+                      <Money
+                        amountMinor={client.total_paid_minor}
+                        currency={client.preferred_currency}
+                        context="list"
+                        hideCurrencyCode
+                      />
+                    </dd>
+                  </div>
+                  <div className="text-right">
+                    <dt className="text-caption text-ink-muted">outstanding</dt>
+                    <dd className="mt-0.5 text-caption font-extrabold text-ink">
+                      <Money
+                        amountMinor={client.total_outstanding_minor}
+                        currency={client.preferred_currency}
+                        context="list"
+                        hideCurrencyCode
+                      />
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <Sheet open={showSheet} onOpenChange={setShowSheet}>
+        <SheetContent className="max-h-[92dvh] overflow-y-auto rounded-t-sheet border border-line-subtle bg-surface p-5 pb-0 sm:inset-0 sm:m-auto sm:h-fit sm:w-[calc(100vw-2rem)] sm:max-w-lg sm:rounded-sheet">
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-title text-ink">{editingClient ? 'edit client' : 'new client'}</h2>
+              <p className="mt-1 text-body text-ink-soft">
+                These details fill the next invoice, so you type them once.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSheet(false)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-tint hover:text-ink"
+              aria-label="Close"
+            >
+              <span aria-hidden="true" className="text-title leading-none">
+                ×
+              </span>
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveClient} className="space-y-4">
+            <div>
+              <label htmlFor="client-name" className={labelClass}>
+                client or company name
+              </label>
+              <input
+                id="client-name"
+                type="text"
+                required
+                placeholder="e.g. Kofi Mensah"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={inputClass}
+              />
             </div>
 
-            <form onSubmit={handleSaveClient} className="space-y-4 text-sm">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1">
-                  Client / Company Name *
+                <label htmlFor="client-email" className={labelClass}>
+                  email <span className="font-normal text-ink-muted">(optional)</span>
                 </label>
                 <input
-                  type="text"
-                  required
-                  placeholder="e.g. Acme Global Inc. or Kofi Mensah"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="min-h-[44px] w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-neutral-800"
+                  id="client-email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="billing@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={inputClass}
                 />
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1">
-                    Email Address (Optional)
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="billing@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="min-h-[44px] w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-neutral-800"
-                  />
-                  <p className="text-[10px] text-neutral-400 mt-0.5">
-                    Leave blank for WhatsApp-only
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1">
-                    Phone / WhatsApp Number
-                  </label>
-                  <input
-                    type="tel"
-                    inputMode="tel"
-                    placeholder="+234 803 123 4567"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="min-h-[44px] w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-neutral-800"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1">
-                    Invoicing Currency *
-                  </label>
-                  <select
-                    value={preferredCurrency}
-                    onChange={(e) => setPreferredCurrency(e.target.value)}
-                    className="min-h-[44px] w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 bg-white text-neutral-800"
-                  >
-                    {SUPPORTED_CURRENCIES.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.code} {c.symbol}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1">
-                    Default Payment Terms (Days)
-                  </label>
-                  <select
-                    value={paymentTerms}
-                    onChange={(e) => setPaymentTerms(Number(e.target.value))}
-                    className="min-h-[44px] w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 bg-white text-neutral-800"
-                  >
-                    <option value={0}>Due on Receipt</option>
-                    <option value={7}>Net 7 days</option>
-                    <option value={14}>Net 14 days (Default)</option>
-                    <option value={30}>Net 30 days</option>
-                    <option value={60}>Net 60 days</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1">
-                    Tax ID / TIN (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. VAT-987654"
-                    value={taxId}
-                    onChange={(e) => setTaxId(e.target.value)}
-                    className="min-h-[44px] w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-neutral-800"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1">
-                    Country
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. NG, US, GH, KE"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    className="min-h-[44px] w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-neutral-800"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1">
-                  Billing Address (Optional)
+                <label htmlFor="client-phone" className={labelClass}>
+                  phone or WhatsApp
                 </label>
                 <input
-                  type="text"
-                  placeholder="Street, City, State/Province"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="min-h-[44px] w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-neutral-800"
+                  id="client-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="+234 803 123 4567"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className={inputClass}
                 />
               </div>
+            </div>
+            <p className="text-caption text-ink-muted">
+              Leave email blank if this client only uses WhatsApp.
+            </p>
 
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1">
-                  Private Notes (Optional)
+                <label htmlFor="client-currency" className={labelClass}>
+                  invoicing currency
                 </label>
-                <textarea
-                  rows={3}
-                  placeholder="Internal notes about this client..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="min-h-[80px] w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm text-neutral-800"
+                <select
+                  id="client-currency"
+                  value={preferredCurrency}
+                  onChange={(e) => setPreferredCurrency(e.target.value)}
+                  className={inputClass}
+                >
+                  {SUPPORTED_CURRENCIES.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="client-terms" className={labelClass}>
+                  payment terms
+                </label>
+                <select
+                  id="client-terms"
+                  value={paymentTerms}
+                  onChange={(e) => setPaymentTerms(Number(e.target.value))}
+                  className={inputClass}
+                >
+                  <option value={0}>Due on receipt</option>
+                  <option value={7}>Net 7 days</option>
+                  <option value={14}>Net 14 days</option>
+                  <option value={30}>Net 30 days</option>
+                  <option value={60}>Net 60 days</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="client-tax" className={labelClass}>
+                  tax ID or TIN <span className="font-normal text-ink-muted">(optional)</span>
+                </label>
+                <input
+                  id="client-tax"
+                  type="text"
+                  placeholder="e.g. VAT-987654"
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                  className={inputClass}
                 />
               </div>
-
-              {errorMessage && (
-                <div className="p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200 mb-3">
-                  {errorMessage}
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-3 border-t">
-                <button
-                  type="button"
-                  onClick={closeSheet}
-                  className="px-3.5 py-2 border rounded-lg text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-lg transition"
-                >
-                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  {editingClient ? 'Save Changes' : 'Create Client'}
-                </button>
+              <div>
+                <label htmlFor="client-country" className={labelClass}>
+                  country
+                </label>
+                <input
+                  id="client-country"
+                  type="text"
+                  autoComplete="country"
+                  placeholder="e.g. NG"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className={inputClass}
+                />
               </div>
-            </form>
-          </SheetContent>
-        </Sheet>
-      )}
-    </>
+            </div>
+
+            <div>
+              <label htmlFor="client-address" className={labelClass}>
+                billing address <span className="font-normal text-ink-muted">(optional)</span>
+              </label>
+              <input
+                id="client-address"
+                type="text"
+                autoComplete="street-address"
+                placeholder="Street, city, state"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="client-notes" className={labelClass}>
+                private notes <span className="font-normal text-ink-muted">(optional)</span>
+              </label>
+              <textarea
+                id="client-notes"
+                rows={3}
+                placeholder="Anything you want to remember about this client"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className={cn(inputClass, 'min-h-20 resize-y')}
+              />
+            </div>
+
+            {errorMessage && (
+              <div role="alert" className="rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text">
+                {errorMessage}
+              </div>
+            )}
+
+            <SheetFooter>
+              <Button type="button" variant="outline" onClick={() => setShowSheet(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                {editingClient ? 'Save changes' : 'Create client'}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+    </div>
   );
 }

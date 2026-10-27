@@ -33,6 +33,7 @@ QUOTE_STATUSES = {
     "issued",
     "sent",
     "viewed",
+    "review_requested",
     "accepted",
     "declined",
     "converted",
@@ -40,9 +41,10 @@ QUOTE_STATUSES = {
 
 QUOTE_TRANSITIONS = {
     "draft": {"issued", "cancelled"},
-    "issued": {"sent", "cancelled"},
-    "sent": {"viewed", "cancelled"},
-    "viewed": {"accepted", "declined"},
+    "issued": {"sent", "review_requested", "cancelled"},
+    "sent": {"viewed", "review_requested", "cancelled"},
+    "viewed": {"review_requested", "accepted", "declined"},
+    "review_requested": {"issued", "declined", "cancelled"},
     "accepted": {"converted"},
     "declined": set(),
     "converted": set(),

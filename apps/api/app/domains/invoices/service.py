@@ -5,6 +5,7 @@ from typing import Optional
 from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals
 from app.core.security import generate_share_token
@@ -163,6 +164,7 @@ async def get_currency_metrics(
             "paid_this_month_minor": 0,
             "invoices_count": 0,
             "draft_count": 0,
+            "issued_count": 0,
             "sent_count": 0,
             "viewed_count": 0,
             "claimed_count": 0,
@@ -186,6 +188,7 @@ async def get_currency_metrics(
 
         status_count_key = {
             "draft": "draft_count",
+            "issued": "issued_count",
             "sent": "sent_count",
             "viewed": "viewed_count",
             "payment_claimed": "claimed_count",
@@ -513,7 +516,11 @@ async def finalize_invoice(
 
 
 async def send_invoice(
-    db: AsyncSession, workspace: Workspace, invoice_id: str
+    db: AsyncSession,
+    workspace: Workspace,
+    invoice_id: str,
+    *,
+    send_email: bool = True,
 ) -> SendInvoiceOutcome:
     row = (
         await db.execute(
@@ -533,40 +540,49 @@ async def send_invoice(
             f"Invoice '{invoice.invoice_number or invoice_id}' is a draft and cannot be sent. "
             "Finalize it first with POST /invoices/{id}/finalize."
         )
+    if invoice.status not in {"issued", "sent", "viewed"}:
+        raise BadRequestException(
+            f"Invoice '{invoice.invoice_number or invoice_id}' is '{invoice.status}' and cannot be sent."
+        )
 
     _ensure_share_token(invoice)
-
-    old_status = invoice.status
-    invoice.status = "sent"
-    invoice.sent_at = datetime.now(timezone.utc)
-    record_status_event(
-        db=db,
-        workspace_id=workspace.id,
-        document_type="invoice",
-        document_id=invoice.id,
-        from_status=old_status,
-        to_status="sent",
-        actor_type="issuer",
-        actor_id=workspace.owner_id,
-        source="issuer_send",
-    )
+    share_url = f"{settings.WEB_BASE_URL}/i/{invoice.share_token}"
 
     recipient_email = client.email
-    share_url = f"http://localhost:3000/i/{invoice.share_token}"
     email_sent = False
+    if send_email:
+        if recipient_email:
+            await check_delivery_quota(workspace, db)
+            email_sent = await EmailSender().send_invoice_email(
+                to_email=recipient_email,
+                invoice_number=invoice.invoice_number,
+                share_url=share_url,
+            )
+            if email_sent:
+                invoice.email_delivery_status = "delivered"
+                await consume_delivery_send(workspace, db)
+            else:
+                invoice.email_delivery_status = "failed"
+        else:
+            invoice.email_delivery_status = "no_email"
 
-    if recipient_email:
-        await check_delivery_quota(workspace, db)
-        await EmailSender().send_invoice_email(
-            to_email=recipient_email,
-            invoice_number=invoice.invoice_number,
-            share_url=share_url,
+    old_status = invoice.status
+    if invoice.status in {"issued", "sent"}:
+        invoice.status = "sent"
+    invoice.sent_at = datetime.now(timezone.utc)
+
+    if old_status != invoice.status:
+        record_status_event(
+            db=db,
+            workspace_id=workspace.id,
+            document_type="invoice",
+            document_id=invoice.id,
+            from_status=old_status,
+            to_status=invoice.status,
+            actor_type="issuer",
+            actor_id=workspace.owner_id,
+            source="issuer_send",
         )
-        invoice.email_delivery_status = "delivered"
-        email_sent = True
-        await consume_delivery_send(workspace, db)
-    else:
-        invoice.email_delivery_status = "no_email"
 
     await db.commit()
     await db.refresh(invoice)

@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { CheckCircle2, ExternalLink, ReceiptText, ShieldCheck } from 'lucide-react';
-import { formatMoney } from '@/lib/money';
+import { Money } from '@/components/money/Money';
+import { formatDate } from '@/lib/date';
+import { cn } from '@/lib/utils';
 import { StatusPill } from './StatusPill';
 
 export interface ReceiptInfo {
@@ -33,14 +35,15 @@ export function ConfirmationProvenance({
   const label = copy[source || 'legacy'] || 'Confirmed payment';
 
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] text-neutral-500">
-      <ShieldCheck className="h-3 w-3 text-emerald-600" />
+    <span className="inline-flex items-center gap-1.5 text-caption text-text-soft">
+      <ShieldCheck aria-hidden className="h-3.5 w-3.5 shrink-0" />
       {label}
-      {provider ? ` - ${provider}` : ''}
+      {provider ? ` · ${provider}` : ''}
     </span>
   );
 }
 
+/** The one place a "paid" stamp is allowed: a receipt. */
 export function ReceiptStub({
   receipt,
   currency,
@@ -55,55 +58,44 @@ export function ReceiptStub({
   const detailHref = href || (receipt.share_token ? `/r/${receipt.share_token}` : undefined);
 
   return (
-    <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50/70">
-      <div className="absolute -left-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-emerald-300 bg-white" />
-      <div className="absolute -right-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-emerald-300 bg-white" />
-      <div className={`flex flex-col gap-3 ${compact ? 'p-3' : 'p-4'}`}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white">
-              <ReceiptText className="h-4 w-4" />
-            </span>
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">
-                Official receipt
-              </div>
-              <div className="text-xs font-semibold text-emerald-950">
-                {receipt.receipt_number || 'Payment confirmed'}
-              </div>
-            </div>
-          </div>
-          <StatusPill status="paid" />
-        </div>
-
-        <div className="flex items-end justify-between gap-3 border-t border-dashed border-emerald-300 pt-3">
+    <div className={cn('space-y-3 rounded-card border border-line bg-surface', compact ? 'p-3' : 'p-4')}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-leaf text-[#052E1B]"
+          >
+            <ReceiptText className="h-4 w-4" />
+          </span>
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-              Amount received
-            </div>
-            <div className="text-lg font-black tracking-tight text-emerald-950">
-              {formatMoney(receipt.amount_paid_minor, currency)}
-            </div>
-          </div>
-          <div className="text-right text-[11px] text-emerald-800">
-            {receipt.payment_date ? <div>{receipt.payment_date}</div> : null}
-            {receipt.verification_code ? (
-              <div className="font-mono text-[10px]">{receipt.verification_code}</div>
-            ) : null}
+            <p className="text-caption text-text-muted">Official receipt</p>
+            <p className="text-body font-extrabold">{receipt.receipt_number || 'Payment confirmed'}</p>
           </div>
         </div>
+        <StatusPill status="paid" />
+      </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <ConfirmationProvenance source={receipt.confirmation_source} provider={receipt.provider} />
-          {detailHref ? (
-            <Link
-              href={detailHref}
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900"
-            >
-              View receipt <ExternalLink className="h-3 w-3" />
-            </Link>
-          ) : null}
+      <div className="flex items-end justify-between gap-3 border-t border-dashed border-line pt-3">
+        <div>
+          <p className="text-caption text-text-muted">Amount received</p>
+          <Money amountMinor={receipt.amount_paid_minor} currency={currency} variant="paid" className="text-amount-m" />
         </div>
+        <div className="text-right text-caption text-text-soft">
+          {receipt.payment_date && <p>{formatDate(receipt.payment_date)}</p>}
+          {receipt.verification_code && <p className="tabular">{receipt.verification_code}</p>}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <ConfirmationProvenance source={receipt.confirmation_source} provider={receipt.provider} />
+        {detailHref && (
+          <Link
+            href={detailHref}
+            className="inline-flex min-h-11 items-center gap-1 text-body font-extrabold text-link underline underline-offset-4 hover:no-underline"
+          >
+            View receipt <ExternalLink aria-hidden className="h-3.5 w-3.5" />
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -124,19 +116,23 @@ export function PaymentProgress({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-[11px]">
-        <span className="font-medium text-neutral-500">
-          {formatMoney(paidMinor, currency)} paid
+      <div className="flex items-center justify-between gap-3 text-body">
+        <span className="text-text-soft">
+          <Money amountMinor={paidMinor} currency={currency} variant="inherit" hideCurrencyCode /> paid
         </span>
-        <span className="font-semibold text-neutral-700">
-          {formatMoney(remaining, currency)} outstanding
+        <span className="font-extrabold">
+          <Money amountMinor={remaining} currency={currency} variant="inherit" hideCurrencyCode /> outstanding
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-neutral-200">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all"
-          style={{ width: `${percentage}%` }}
-        />
+      <div
+        role="progressbar"
+        aria-label="Share of the invoice paid"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percentage}
+        className="h-2.5 overflow-hidden rounded-full border border-ink bg-surface-tint"
+      >
+        <div className="h-full bg-leaf" style={{ width: `${percentage}%` }} />
       </div>
     </div>
   );
@@ -192,24 +188,20 @@ export function AmountBand({
   const isPartial = paidMinor > 0;
 
   return (
-    <div
-      className={`rounded-xl border bg-white ${compact ? 'p-3' : 'p-4'} ${
-        isOverdue ? 'border-red-200' : 'border-neutral-200'
-      }`}
-    >
+    <div className={cn('rounded-card border border-line-subtle bg-surface', compact ? 'p-3' : 'p-4')}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-wide text-neutral-400">
-            {label || (isPartial ? 'Balance outstanding' : 'Amount due')}
-          </div>
-          <div className="mt-0.5 text-lg font-black tracking-tight text-neutral-950">
-            {formatMoney(isPartial ? outstanding : totalMinor, currency)}
-          </div>
-          {isPartial ? (
-            <div className="text-[11px] text-neutral-500">
-              of {formatMoney(totalMinor, currency)} total
-            </div>
-          ) : null}
+          <p className="text-caption text-text-muted">{label || (isPartial ? 'Balance outstanding' : 'Amount due')}</p>
+          <Money
+            amountMinor={isPartial ? outstanding : totalMinor}
+            currency={currency}
+            className="text-amount-m"
+          />
+          {isPartial && (
+            <p className="text-caption text-text-muted">
+              of <Money amountMinor={totalMinor} currency={currency} variant="muted" hideCurrencyCode /> total
+            </p>
+          )}
         </div>
         <div className="flex flex-col items-end gap-1">
           <StatusPill
@@ -217,34 +209,34 @@ export function AmountBand({
             pulse={status === 'payment_claimed'}
           />
           {isOverdue ? (
-            <span className="text-[10px] font-semibold text-red-600">
+            <span className="text-caption font-extrabold text-danger dark:text-[#FFB3A8]">
               {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue === 1 ? '' : 's'} late` : 'Past due'}
             </span>
           ) : dueDate ? (
-            <span className="text-[10px] text-neutral-400">Due {dueDate}</span>
+            <span className="text-caption text-text-muted">Due {formatDate(dueDate)}</span>
           ) : null}
         </div>
       </div>
 
-      {isPartial ? (
+      {isPartial && (
         <div className="mt-3">
           <PaymentProgress totalMinor={totalMinor} paidMinor={paidMinor} currency={currency} />
         </div>
-      ) : null}
+      )}
 
-      {paymentState === 'awaiting_confirmation' ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
-          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+      {paymentState === 'awaiting_confirmation' && (
+        <p className="mt-3 flex items-start gap-2 rounded-row bg-peach p-3 text-body">
+          <CheckCircle2 aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
           The client says they have paid. Confirm the funds before this becomes a receipt.
-        </div>
-      ) : null}
+        </p>
+      )}
 
-      {paymentState === 'processing' ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-sky-50 px-3 py-2 text-[11px] text-sky-800">
-          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+      {paymentState === 'processing' && (
+        <p className="mt-3 flex items-start gap-2 rounded-row bg-peach p-3 text-body">
+          <CheckCircle2 aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
           Payment is processing. We will confirm it when the gateway webhook arrives.
-        </div>
-      ) : null}
+        </p>
+      )}
     </div>
   );
 }

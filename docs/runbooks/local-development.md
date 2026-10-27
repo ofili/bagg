@@ -25,6 +25,13 @@ uv sync
 cd ../..
 ```
 
+Seed the public demo invoice, quote and receipt:
+```bash
+pnpm seed:demo
+```
+
+To recreate the demo documents, run `cd apps/api && uv run python scripts/seed_demo.py --reset`.
+
 ### 3. Run Development Servers
 In separate terminals or using the root commands:
 ```bash
@@ -50,6 +57,8 @@ pnpm test:e2e
 ### 5. Services and Ports
 - **Next.js Web App:** http://localhost:3000
 - **Public Client Invoice Preview:** http://localhost:3000/i/token_demo_sample_ngn
+- **Public Quote Preview:** http://localhost:3000/q/token_demo_sample_qot
+- **Public Receipt Preview:** http://localhost:3000/r/token_demo_sample_rcp
 - **FastAPI Docs:** http://localhost:8000/docs
 - **Mailpit Web UI (Mock Emails):** http://localhost:8025
 - **MinIO Console (Mock S3 Storage):** http://localhost:9001

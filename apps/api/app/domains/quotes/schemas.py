@@ -83,6 +83,10 @@ class QuoteResponse(BaseModel):
     whatsapp_share_url: Optional[str] = None
     sent_at: Optional[datetime] = None
     viewed_at: Optional[datetime] = None
+    email_delivery_status: Optional[str] = None
+    review_requested_at: Optional[datetime] = None
+    review_reason: Optional[str] = None
+    comment_count: int = 0
     accepted_at: Optional[datetime] = None
     accepted_by_name: Optional[str] = None
     declined_at: Optional[datetime] = None
@@ -93,6 +97,24 @@ class QuoteResponse(BaseModel):
     effective_status: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+class QuoteCommentCreate(BaseModel):
+    line_item_id: Optional[str] = None
+    author_name: str = Field(..., min_length=1, max_length=100)
+    message: str = Field(..., min_length=1, max_length=2000)
+
+
+class QuoteCommentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    quote_id: str
+    line_item_id: Optional[str] = None
+    author_name: str
+    message: str
+    is_from_client: bool = True
+    created_at: datetime
 
 
 class PublicQuoteView(BaseModel):
@@ -124,6 +146,8 @@ class PublicQuoteView(BaseModel):
     business_brand_color: Optional[str] = None
     client_name: Optional[str] = None
     viewed_at: Optional[datetime] = None
+    review_requested_at: Optional[datetime] = None
+    review_reason: Optional[str] = None
     accepted_at: Optional[datetime] = None
     accepted_by_name: Optional[str] = None
     declined_at: Optional[datetime] = None
@@ -133,6 +157,7 @@ class PublicQuoteView(BaseModel):
     invoice_status: Optional[str] = None
     effective_status: Optional[str] = None
     show_badge: bool = True
+    comments: List[QuoteCommentResponse] = []
 
 
 class QuoteAcceptRequest(BaseModel):
@@ -159,6 +184,14 @@ class QuoteDeclineRequest(BaseModel):
     reason: Optional[str] = Field(None, max_length=500, description="Optional feedback note explaining why quote was declined")
 
 
+class QuoteReviewRequest(BaseModel):
+    reason: Optional[str] = Field(None, max_length=1000)
+
+
+class QuoteSendRequest(BaseModel):
+    send_email: bool = False
+
+
 class QuoteSendResponse(BaseModel):
     id: str
     quote_number: str
@@ -167,4 +200,7 @@ class QuoteSendResponse(BaseModel):
     share_token: str
     share_url: str
     whatsapp_share_url: str
-    sent_at: datetime
+    sent_at: Optional[datetime] = None
+    email_sent: bool = False
+    recipient_email: Optional[str] = None
+    message: str = ""

@@ -7,6 +7,7 @@ from app.core.money import format_money
 from app.domains.quotes.models import Quote
 from app.domains.quotes.schemas import (
     PublicQuoteView,
+    QuoteCommentResponse,
     QuoteLineItemSchema,
     QuoteResponse,
     QuoteSendResponse,
@@ -84,10 +85,13 @@ def map_quote_to_response(
     is_expired = quote_obj.expires_at < date.today() and quote_obj.status not in [
         "accepted",
         "converted",
+        "declined",
     ]
     display_status = (
         "expired"
-        if is_expired and quote_obj.status in ["draft", "sent", "viewed"]
+        if is_expired
+        and quote_obj.status
+        in ["draft", "issued", "sent", "viewed", "review_requested"]
         else quote_obj.status
     )
 
@@ -122,6 +126,10 @@ def map_quote_to_response(
         whatsapp_share_url=wa_url,
         sent_at=quote_obj.sent_at,
         viewed_at=quote_obj.viewed_at,
+        email_delivery_status=quote_obj.email_delivery_status,
+        review_requested_at=quote_obj.review_requested_at,
+        review_reason=quote_obj.review_reason,
+        comment_count=len(quote_obj.comments or []),
         accepted_at=quote_obj.accepted_at,
         accepted_by_name=quote_obj.accepted_by_name,
         declined_at=quote_obj.declined_at,
@@ -149,15 +157,18 @@ def map_public_quote_view(
         is_expired = quote_obj.expires_at < date.today() and quote_obj.status not in [
             "accepted",
             "converted",
+            "declined",
         ]
     if status is None:
         status = (
             "expired"
-            if is_expired and quote_obj.status in ["draft", "sent", "viewed"]
+            if is_expired
+            and quote_obj.status
+            in ["draft", "issued", "sent", "viewed", "review_requested"]
             else quote_obj.status
         )
     if effective_status is None:
-        effective_status = quote_obj.status
+        effective_status = status
     if show_badge is None:
         show_badge = workspace.tier == "free"
 
@@ -171,6 +182,10 @@ def map_public_quote_view(
             total_minor=item.total_minor,
         )
         for item in (quote_obj.items or [])
+    ]
+    comments_out = [
+        QuoteCommentResponse.model_validate(comment)
+        for comment in (quote_obj.comments or [])
     ]
 
     return PublicQuoteView(
@@ -198,6 +213,8 @@ def map_public_quote_view(
         business_brand_color=workspace.brand_color,
         client_name=client_name,
         viewed_at=quote_obj.viewed_at,
+        review_requested_at=quote_obj.review_requested_at,
+        review_reason=quote_obj.review_reason,
         accepted_at=quote_obj.accepted_at,
         accepted_by_name=quote_obj.accepted_by_name,
         declined_at=quote_obj.declined_at,
@@ -207,11 +224,18 @@ def map_public_quote_view(
         invoice_status=quote_obj.invoice.status if quote_obj.invoice else None,
         effective_status=effective_status,
         show_badge=show_badge,
+        comments=comments_out,
     )
 
 
 def map_quote_send_response(
-    quote_obj: Quote, workspace: Workspace, share_url: str
+    quote_obj: Quote,
+    workspace: Workspace,
+    share_url: str,
+    *,
+    email_sent: bool = False,
+    recipient_email: Optional[str] = None,
+    message: str = "",
 ) -> QuoteSendResponse:
     client = quote_obj.client if "client" in quote_obj.__dict__ else None
     c_name = client.name if client else None
@@ -236,4 +260,7 @@ def map_quote_send_response(
         share_url=share_url,
         whatsapp_share_url=wa_url,
         sent_at=quote_obj.sent_at,
+        email_sent=email_sent,
+        recipient_email=recipient_email,
+        message=message,
     )

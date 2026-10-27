@@ -2,23 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import { AlertCircle, Check, CheckCircle2, Copy, FileText, Loader2, ShieldCheck } from 'lucide-react';
+import { BaggCoin } from '@/components/brand/Logo';
 import { Money } from '@/components/money/Money';
 import { ConfirmationProvenance } from '@/components/status';
-import Link from 'next/link';
-import {
-  CheckCircle2,
-  Building2,
-  Calendar,
-  CreditCard,
-  AlertCircle,
-  Loader2,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  FileText,
-  Copy,
-  Check,
-} from 'lucide-react';
+import { Button, Card, buttonStyles } from '@/components/ui';
+import { formatDate } from '@/lib/date';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -81,196 +71,190 @@ export default function PublicReceiptPage() {
     })();
   }, [token]);
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (!receipt) return;
-    navigator.clipboard.writeText(receipt.verification_code);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2500);
+    try {
+      await navigator.clipboard.writeText(receipt.verification_code);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2500);
+    } catch {
+      // Clipboard can be blocked; the code is still on screen to copy by hand.
+    }
   };
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-neutral-900 flex flex-col items-center justify-center p-6 text-white">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-400 mb-3" />
-        <p className="text-neutral-400 text-sm">Loading official receipt…</p>
+      <div role="status" className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-cream p-6 text-text-muted">
+        <Loader2 aria-hidden className="h-8 w-8 animate-spin" />
+        <p className="text-body">Loading your receipt</p>
       </div>
     );
   }
 
   if (error || !receipt) {
     return (
-      <div className="min-h-dvh bg-neutral-950 flex flex-col items-center justify-center p-6 text-white">
-        <div className="max-w-md w-full bg-neutral-900 border border-neutral-800 rounded-2xl p-6 text-center shadow-xl">
-          <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-          <h1 className="text-xl font-bold mb-2">Receipt Unavailable</h1>
-          <p className="text-neutral-400 text-sm mb-6">{error || 'Receipt could not be found.'}</p>
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-sm font-medium rounded-lg transition"
-          >
-            Visit Bagg Home
+      <div className="flex min-h-dvh items-center justify-center bg-cream p-6">
+        <Card zone="calm" className="w-full max-w-md space-y-4 p-6 text-center">
+          <AlertCircle aria-hidden className="mx-auto h-10 w-10" />
+          <h1 className="text-title">receipt unavailable</h1>
+          <p className="text-body text-text-soft">{error || 'Receipt could not be found.'}</p>
+          <Link href="/" className={buttonStyles({ variant: 'outline', zone: 'calm' })}>
+            Visit bagg
           </Link>
-        </div>
+        </Card>
       </div>
     );
   }
 
-  const brandColor = receipt.business_brand_color || '#10B981';
+  const brandColor = receipt.business_brand_color || 'var(--bagg-mango)';
+  const methodLabel = receipt.payment_method
+    .replace(/_/g, ' ')
+    .replace(/^\w/, (c) => c.toUpperCase());
+  const initials = (receipt.business_name || 'b')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toLowerCase();
 
   return (
-    <div className="min-h-dvh bg-neutral-950 text-neutral-100 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-
-        {/* Verified Status Banner */}
+    <div className="min-h-dvh bg-cream p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-xl space-y-6">
         {receipt.is_verified && (
-          <div className="bg-emerald-950/80 border border-emerald-800/80 rounded-xl p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-emerald-200">Payment Verified & Confirmed</p>
-                <p className="text-xs text-emerald-400">
-                  This is an official immutable payment receipt issued on{' '}
-                  {receipt.verified_at
-                    ? new Date(receipt.verified_at).toLocaleDateString()
-                    : new Date(receipt.payment_date).toLocaleDateString()}.
-                </p>
-              </div>
+          <Card zone="calm" tone="peach" className="flex items-start gap-3">
+            <ShieldCheck aria-hidden className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="text-body font-extrabold">Payment verified</p>
+              <p className="text-body text-text-soft">
+                This is an official payment receipt issued on{' '}
+                {formatDate(receipt.verified_at || receipt.payment_date)}.
+              </p>
             </div>
-            <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-full whitespace-nowrap">
-              ✓ Verified
-            </span>
-          </div>
+          </Card>
         )}
 
-        {/* Main Receipt Card */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 sm:p-6 shadow-2xl relative overflow-hidden">
-          {/* Accent Stripe */}
-          <div className="absolute top-0 left-0 right-0 h-1.5" style={{ backgroundColor: brandColor }} />
+        <article className="overflow-hidden rounded-card border border-line bg-surface">
+          <div className="h-1.5" style={{ backgroundColor: brandColor }} />
 
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-neutral-800">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Building2 className="w-4 h-4 text-neutral-400" />
-                <h2 className="text-lg font-bold text-white tracking-tight">{receipt.business_name}</h2>
-              </div>
-              <div className="text-xs text-neutral-400">Official Payment Receipt</div>
-              <div className="text-xs text-neutral-400 mt-1">
-                Paid by: <span className="text-neutral-200 font-semibold">{receipt.payer_name || receipt.client_name || 'Client'}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-2 w-full sm:w-auto">
-              <div className="text-xs uppercase tracking-wider text-neutral-500 font-medium">Receipt</div>
-              <div className="text-2xl font-black text-white">{receipt.receipt_number}</div>
-              <div className="flex items-center gap-1 text-xs text-neutral-400">
-                <FileText className="w-3 h-3" />
-                <span>Invoice: {receipt.invoice_number}</span>
-              </div>
-              <div className="flex items-center gap-1 text-xs text-neutral-400">
-                <Calendar className="w-3 h-3" />
-                <span>{new Date(receipt.payment_date).toLocaleDateString()}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Payment Details Grid */}
-          <div className="py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <div className="text-[11px] uppercase tracking-wider text-neutral-500 font-semibold mb-1">
-                Payment Method
-              </div>
-              <div className="flex items-center gap-2 text-sm text-white font-medium">
-                <CreditCard className="w-4 h-4 text-neutral-400" />
-                {receipt.payment_method.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[11px] uppercase tracking-wider text-neutral-500 font-semibold mb-1">
-                Reference / Session ID
-              </div>
-              <div className="text-sm text-white font-mono">{receipt.reference || 'N/A'}</div>
-            </div>
-
-            <div className="sm:col-span-2">
-              <div className="text-[11px] uppercase tracking-wider text-neutral-500 font-semibold mb-1">
-                Confirmed Via
-              </div>
-              <ConfirmationProvenance source={receipt.confirmation_source} provider={receipt.provider} />
-            </div>
-
-            <div>
-              <div className="text-[11px] uppercase tracking-wider text-neutral-500 font-semibold mb-1">
-                Remaining Invoice Balance
-              </div>
-              <div className="text-sm font-mono font-semibold">
-                {receipt.balance_remaining_minor === 0 ? (
-                  <span className="text-emerald-400">Fully Settled</span>
+          <div className="space-y-6 p-5 sm:p-6">
+            {/* Who issued it */}
+            <header className="flex items-start justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-3">
+                {receipt.business_logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={receipt.business_logo_url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
                 ) : (
-                  <span className="text-amber-400">                <Money amountMinor={receipt.balance_remaining_minor} currency={receipt.currency} /> outstanding</span>
+                  <span
+                    aria-hidden
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-peach-chip text-body font-extrabold"
+                  >
+                    {initials}
+                  </span>
                 )}
-              </div>
-            </div>
-
-            {receipt.notes && (
-              <div>
-                <div className="text-[11px] uppercase tracking-wider text-neutral-500 font-semibold mb-1">
-                  Notes
+                <div className="min-w-0">
+                  <h1 className="truncate text-heading">{receipt.business_name}</h1>
+                  <p className="text-body text-text-soft">Official payment receipt</p>
                 </div>
-                <div className="text-sm text-neutral-300">{receipt.notes}</div>
               </div>
-            )}
-          </div>
-
-          {/* Amount & Verification Stamp Box */}
-          <div className="bg-emerald-950/40 border border-emerald-800/60 rounded-xl p-6 text-center">
-            <div className="text-[11px] uppercase tracking-wider text-emerald-400 font-bold mb-2">
-              Amount Received & Verified
-            </div>
-            <div className="text-4xl font-black text-emerald-400 font-mono mb-4">
-                <Money amountMinor={receipt.amount_paid_minor} currency={receipt.currency} />
-            </div>
-
-            {/* Digital Verification Stamp */}
-            <div className="inline-flex flex-col items-center gap-2">
-              <div className="inline-flex items-center gap-2 border-2 border-emerald-500/60 text-emerald-300 font-black text-xs uppercase tracking-widest px-4 py-2 rounded-lg" style={{ transform: 'rotate(-2deg)' }}>
-                <CheckCircle2 className="w-4 h-4" />
-                PAID & VERIFIED
+              <div className="text-right">
+                <p className="text-caption text-text-muted">Receipt</p>
+                <p className="tabular text-title">{receipt.receipt_number}</p>
               </div>
+            </header>
 
-              <button
-                onClick={handleCopyCode}
-                className="flex items-center gap-1.5 text-[11px] text-neutral-400 hover:text-white transition mt-1"
-              >
-                <span className="font-mono">{receipt.verification_code}</span>
-                {copiedCode ? (
-                  <Check className="w-3 h-3 text-emerald-400" />
-                ) : (
-                  <Copy className="w-3 h-3" />
-                )}
-              </button>
+            <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-body text-text-soft">
+              <span className="inline-flex items-center gap-1.5">
+                <FileText aria-hidden className="h-3.5 w-3.5" /> Invoice {receipt.invoice_number}
+              </span>
+              <span>{formatDate(receipt.payment_date)}</span>
+              <span>
+                Paid by{' '}
+                <span className="font-medium text-text">{receipt.payer_name || receipt.client_name || 'Client'}</span>
+              </span>
+            </p>
+
+            {/* Amount and the one paid stamp */}
+            <div className="space-y-3 rounded-row bg-surface-sunken p-5 text-center">
+              <p className="text-body text-text-soft">Amount received</p>
+              <Money
+                amountMinor={receipt.amount_paid_minor}
+                currency={receipt.currency}
+                variant="paid"
+                className="block text-amount-l sm:text-amount-xl"
+                hideCurrencyCode
+              />
+              <p className="text-caption text-text-muted">{receipt.currency}</p>
+              <span className="inline-flex items-center gap-2 rounded-full bg-leaf px-4 py-1.5 text-body font-extrabold text-[#052E1B]">
+                <CheckCircle2 aria-hidden className="h-4 w-4" /> Paid and verified
+              </span>
             </div>
-          </div>
 
-          {/* Legal Footer */}
-          <div className="mt-5 pt-3 border-t border-neutral-800 text-center text-[11px] text-neutral-500">
-            This document constitutes valid legal proof of payment issued via Bagg. Verification code
-            can be used to confirm authenticity.
-          </div>
-        </div>
+            {/* Details */}
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <dt className="text-caption text-text-muted">Payment method</dt>
+                <dd className="text-body font-medium">{methodLabel}</dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-caption text-text-muted">Reference or session ID</dt>
+                <dd className="tabular break-all text-body font-medium">{receipt.reference || 'None given'}</dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-caption text-text-muted">Confirmed by</dt>
+                <dd>
+                  <ConfirmationProvenance source={receipt.confirmation_source} provider={receipt.provider} />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-caption text-text-muted">Balance left on the invoice</dt>
+                <dd className="text-body font-medium">
+                  {receipt.balance_remaining_minor === 0 ? (
+                    'Fully settled'
+                  ) : (
+                    <>
+                      <Money amountMinor={receipt.balance_remaining_minor} currency={receipt.currency} variant="inherit" />{' '}
+                      outstanding
+                    </>
+                  )}
+                </dd>
+              </div>
+              {receipt.notes && (
+                <div>
+                  <dt className="text-caption text-text-muted">Notes</dt>
+                  <dd className="text-body text-text-soft">{receipt.notes}</dd>
+                </div>
+              )}
+            </dl>
 
-        {/* Bagg Viral Footer (Free Tier) */}
+            {/* Verification code */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-line pt-4">
+              <div>
+                <p className="text-caption text-text-muted">Verification code</p>
+                <p className="tabular text-body font-extrabold">{receipt.verification_code}</p>
+              </div>
+              <Button variant="outline" zone="calm" onClick={handleCopyCode}>
+                {copiedCode ? <Check aria-hidden className="h-4 w-4" /> : <Copy aria-hidden className="h-4 w-4" />}
+                {copiedCode ? 'Copied' : 'Copy code'}
+              </Button>
+            </div>
+
+            <p className="border-t border-line-subtle pt-4 text-center text-caption text-text-muted">
+              This document constitutes valid legal proof of payment issued via Bagg. The verification code can be used
+              to confirm authenticity.
+            </p>
+          </div>
+        </article>
+
         {receipt.show_badge && (
-          <div className="text-center pt-4">
+          <div className="text-center">
             <Link
               href="/"
               target="_blank"
-              className="inline-flex items-center gap-2 text-xs text-neutral-500 hover:text-neutral-300 transition"
+              className="inline-flex min-h-11 items-center gap-2 text-caption text-text-muted hover:text-text"
             >
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Powered by <strong>Bagg</strong> — Instant Receipts for African Freelancers</span>
-              <ArrowRight className="w-3 h-3 text-neutral-600" />
+              <BaggCoin size={20} />
+              <span>Sent with bagg. Instant receipts for African freelancers.</span>
             </Link>
           </div>
         )}

@@ -80,6 +80,11 @@ uv sync --extra dev
 cd ../..
 ```
 
+Seed the public demo invoice, quote and receipt used by the marketing links and e2e suite:
+```bash
+pnpm seed:demo
+```
+
 ### 3. Run Development Servers
 ```bash
 # Start Next.js PWA (http://localhost:3000)
@@ -116,6 +121,8 @@ pnpm test:e2e
 | :--- | :--- | :--- |
 | **Bagg Web App** | [http://localhost:3000](http://localhost:3000) | Landing page & Freelancer workspace |
 | **Demo Client Invoice** | [http://localhost:3000/i/token_demo_sample_ngn](http://localhost:3000/i/token_demo_sample_ngn) | Public client payment view |
+| **Demo Quote** | [http://localhost:3000/q/token_demo_sample_qot](http://localhost:3000/q/token_demo_sample_qot) | Public quote acceptance view |
+| **Demo Receipt** | [http://localhost:3000/r/token_demo_sample_rcp](http://localhost:3000/r/token_demo_sample_rcp) | Public receipt view |
 | **FastAPI Swagger Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) | Interactive API documentation |
 | **Mailpit Web UI** | [http://localhost:8025](http://localhost:8025) | Local inbox for payment reminder emails |
 | **MinIO Console** | [http://localhost:9001](http://localhost:9001) | S3 storage console for proofs and logos |

@@ -9,6 +9,7 @@
     "dev:web": "pnpm --filter @bagg/web dev",
     "dev:api": "cd apps/api && uv run uvicorn app.main:app --reload --port 8000",
     "dev:worker": "cd apps/api && uv run python -m app.jobs.worker",
+    "seed:demo": "cd apps/api && uv run python scripts/seed_demo.py",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",

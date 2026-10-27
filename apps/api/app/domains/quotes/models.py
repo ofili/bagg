@@ -8,6 +8,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Boolean,
     Index,
     Text,
     JSON,
@@ -32,7 +33,7 @@ class Quote(Base):
     quote_number = Column(String, nullable=False)
     sequence_number = Column(Integer, nullable=False)
     currency = Column(String, nullable=False, index=True)  # NGN, USD, GBP, EUR, GHS, KES, ZAR
-    status = Column(String, nullable=False, default="draft", index=True)  # draft, issued, sent, viewed, accepted, declined, converted, expired
+    status = Column(String, nullable=False, default="draft", index=True)  # draft, issued, sent, viewed, review_requested, accepted, declined, converted, expired
 
     issue_date = Column(Date, nullable=False, default=date.today)
     expires_at = Column(Date, nullable=False)  # Expiration date (US-QOT-01)
@@ -65,12 +66,17 @@ class Quote(Base):
     # Delivery & Tracking (US-QOT-02)
     sent_at = Column(DateTime(timezone=True), nullable=True)
     viewed_at = Column(DateTime(timezone=True), nullable=True)
+    email_delivery_status = Column(String, nullable=True)
 
     # Acceptance / Decline (US-QOT-02)
     accepted_at = Column(DateTime(timezone=True), nullable=True)
     accepted_by_name = Column(String, nullable=True)
     declined_at = Column(DateTime(timezone=True), nullable=True)
     decline_reason = Column(Text, nullable=True)
+
+    # Client requested changes before responding
+    review_requested_at = Column(DateTime(timezone=True), nullable=True)
+    review_reason = Column(Text, nullable=True)
 
     # Converted Invoice Link (US-QOT-03)
     invoice_id = Column(String, ForeignKey("invoices.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -93,6 +99,13 @@ class Quote(Base):
         back_populates="quote",
         cascade="all, delete-orphan",
         order_by="QuoteRevision.version",
+        lazy="selectin",
+    )
+    comments = relationship(
+        "QuoteComment",
+        back_populates="quote",
+        cascade="all, delete-orphan",
+        order_by="QuoteComment.created_at",
         lazy="selectin",
     )
 
@@ -143,3 +156,27 @@ class QuoteRevision(Base):
     __table_args__ = (
         UniqueConstraint("quote_id", "version", name="uq_quote_version"),
     )
+
+
+class QuoteComment(Base):
+    __tablename__ = "quote_comments"
+
+    id = Column(String, primary_key=True, default=lambda: generate_uuid("qcmt_"))
+    quote_id = Column(
+        String,
+        ForeignKey("quotes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    line_item_id = Column(
+        String,
+        ForeignKey("quote_line_items.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    author_name = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    is_from_client = Column(Boolean, default=True, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    quote = relationship("Quote", back_populates="comments")

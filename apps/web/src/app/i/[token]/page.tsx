@@ -2,24 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { formatMoney } from '@/lib/money';
 import Link from 'next/link';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { InvoiceDocument } from '@/components/invoice';
-import { Money } from '@/components/money/Money';
-import {
-  AlertCircle,
-  Check,
-  Loader2,
-  MessageSquare,
-  Send,
-  ShieldCheck,
-  Info,
-  X,
-  Share2,
-  Sparkles,
-  ArrowRight,
-} from 'lucide-react';
+import { AlertCircle, Check, Info, Loader2, MessageSquare, Send } from 'lucide-react';
+import { BaggCoin } from '@/components/brand/Logo';
+import { InvoiceDocument, PaymentDetails } from '@/components/invoice';
+import { MoneyInput } from '@/components/mobile/MoneyInput';
+import { Button, Card, Field, Input, inputStyles } from '@/components/ui';
+import { Sheet, SheetClose, SheetContent } from '@/components/ui/sheet';
+import { cleanAmount, toMinor } from '@/lib/amount';
+import { formatDate } from '@/lib/date';
+import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -130,6 +122,7 @@ export default function PublicClientInvoiceView() {
   const [authorName, setAuthorName] = useState('');
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
 
   const fetchInvoiceData = () => {
     if (!token) return;
@@ -156,14 +149,12 @@ export default function PublicClientInvoiceView() {
     setSubmittingClaim(true);
     setClaimError(null);
 
-    const amountNum = parseFloat(claimAmount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      setClaimError('Please enter a valid payment amount.');
+    const amountMinor = toMinor(claimAmount);
+    if (amountMinor <= 0) {
+      setClaimError('Enter the amount you paid.');
       setSubmittingClaim(false);
       return;
     }
-
-    const amountMinor = Math.round(amountNum * 100);
 
     try {
       const res = await fetch(`${API_BASE}/share/${token}/claim`, {
@@ -183,7 +174,7 @@ export default function PublicClientInvoiceView() {
       }
 
       setIsClaimSheetOpen(false);
-      setToastMsg('Payment claim submitted to freelancer!');
+      setToastMsg('Done. Your payment claim was sent.');
       fetchInvoiceData();
     } catch (err: any) {
       setClaimError(err.message || 'Error submitting claim.');
@@ -246,6 +237,7 @@ export default function PublicClientInvoiceView() {
     if (!commentText.trim() || !authorName.trim()) return;
 
     setSubmittingComment(true);
+    setCommentError(null);
     try {
       const res = await fetch(`${API_BASE}/share/${token}/comments`, {
         method: 'POST',
@@ -255,12 +247,11 @@ export default function PublicClientInvoiceView() {
           message: commentText.trim(),
         }),
       });
-      if (res.ok) {
-        setCommentText('');
-        fetchInvoiceData();
-      }
+      if (!res.ok) throw new Error('send failed');
+      setCommentText('');
+      fetchInvoiceData();
     } catch {
-      // Fallback
+      setCommentError('Your message did not send. Check your connection and try again.');
     } finally {
       setSubmittingComment(false);
     }
@@ -268,360 +259,290 @@ export default function PublicClientInvoiceView() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-neutral-100 flex items-center justify-center p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+      <div role="status" className="flex min-h-dvh items-center justify-center bg-cream p-4 text-text-muted">
+        <Loader2 aria-hidden className="h-8 w-8 animate-spin" />
+        <span className="sr-only">Loading invoice</span>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-dvh bg-neutral-100 flex items-center justify-center p-4">
-        <div className="bg-white p-6 rounded-2xl border shadow-sm text-center space-y-3 max-w-sm w-full">
-          <Info className="w-10 h-10 text-neutral-400 mx-auto" />
-          <h2 className="font-bold text-lg text-neutral-900">Invoice Unavailable</h2>
-          <p className="text-xs text-neutral-500">
-            {error || 'This link may have been revoked or expired.'}
-          </p>
-        </div>
+      <div className="flex min-h-dvh items-center justify-center bg-cream p-4">
+        <Card zone="calm" className="w-full max-w-sm space-y-3 p-6 text-center">
+          <Info aria-hidden className="mx-auto h-9 w-9 text-text-muted" />
+          <h1 className="text-title">invoice unavailable</h1>
+          <p className="text-body text-text-soft">{error || 'This link may have been revoked or expired.'}</p>
+        </Card>
       </div>
     );
   }
 
   const { invoice, payment_profile, comments, is_revised, revision_banner, show_viral_footer, viral_footer_link } = data;
 
-  const whatsappText = encodeURIComponent(
-    `Hi ${invoice.client_name || 'there'}, here is invoice ${invoice.invoice_number}: ${window.location.origin}/i/${invoice.share_token}`
-  );
+  const openClaimSheet = () => {
+    const payable = invoice.net_payable_minor || invoice.total_minor;
+    const remaining = invoice.remaining_minor ?? Math.max(0, payable - (invoice.amount_paid_minor || 0));
+    setClaimAmount((remaining / 100).toFixed(2));
+    setClaimError(null);
+    setIsClaimSheetOpen(true);
+  };
 
   return (
-    <div className="min-h-dvh bg-neutral-100 p-4 sm:p-6 lg:p-8">
-      {/* Copy Feedback Toast */}
-      {toastMsg && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-neutral-900 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce">
-          <Check className="w-3.5 h-3.5 text-emerald-400" />
-          <span>{toastMsg}</span>
-        </div>
-      )}
+    <div className="min-h-dvh bg-cream p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-xl space-y-6">
+        {/* Copy and status toast */}
+        {toastMsg && (
+          <div
+            role="status"
+            className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2 rounded-btn border-brut-thin border-ink bg-surface px-4 py-2 text-body font-extrabold"
+          >
+            <Check aria-hidden className="h-4 w-4" />
+            <span>{toastMsg}</span>
+          </div>
+        )}
 
-      {/* Revision Banner */}
-      {is_revised && revision_banner && (
-        <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2.5 text-blue-900 text-xs font-medium">
-          <Info className="w-4 h-4 text-blue-600 shrink-0" />
-          <span>{revision_banner}</span>
-        </div>
-      )}
+        {/* Revision banner */}
+        {is_revised && revision_banner && (
+          <Card zone="calm" tone="peach" className="flex items-start gap-2.5 text-body">
+            <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{revision_banner}</span>
+          </Card>
+        )}
 
-      {/* Invoice Document */}
-      <InvoiceDocument
-        variant="public"
-        invoice={{
-          ...invoice,
-          remaining_minor: invoice.remaining_minor,
-          amount_paid_minor: invoice.amount_paid_minor,
-        }}
-      />
+        <InvoiceDocument
+          variant="public"
+          onClaimPaid={openClaimSheet}
+          paymentSlot={
+            <PaymentDetails
+              profile={payment_profile}
+              currency={invoice.currency}
+              onCopy={handleCopy}
+              copiedKey={copiedKey}
+            />
+          }
+          invoice={{
+            ...invoice,
+            remaining_minor: invoice.remaining_minor,
+            amount_paid_minor: invoice.amount_paid_minor,
+          }}
+        />
 
-      {/* Claim Bottom Sheet */}
-      {isClaimSheetOpen && (
-        <Sheet>
-          <SheetTrigger asChild>
-            <button className="hidden" />
-          </SheetTrigger>
-          <SheetContent className="rounded-2xl border border-neutral-200 bg-white shadow-xl max-h-[90dvh] p-6">
-            <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-              <h3 className="font-bold text-base text-neutral-900">Notify Freelancer of Payment</h3>
-            </div>
-            <div className="p-4">
-              <p className="text-xs text-neutral-500 mb-4">
-                Let {invoice.client_name ? 'the freelancer' : 'them'} know funds have been sent so
-                they can verify and issue your receipt.
-              </p>
+        {/* Comments */}
+        <section aria-labelledby="comments-heading" className="space-y-4 border-t border-line pt-6">
+          <div className="flex items-center gap-2">
+            <MessageSquare aria-hidden className="h-4 w-4" />
+            <h2 id="comments-heading" className="text-heading">
+              questions or clarifications
+            </h2>
+          </div>
 
-              {claimError && (
-                <div className="p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200 mb-4">
-                  {claimError}
-                </div>
+          {comments && comments.length > 0 ? (
+            <ul className="space-y-2">
+              {comments.map((cmt) => (
+                <li key={cmt.id} className="space-y-1 rounded-row bg-surface-sunken p-3 text-body">
+                  <div className="flex justify-between gap-3">
+                    <span className="font-extrabold">{cmt.author_name}</span>
+                    <span className="text-caption text-text-muted">{formatDate(cmt.created_at)}</span>
+                  </div>
+                  <p className="text-text-soft">{cmt.message}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-body text-text-soft">
+              Have a question about a line item? Leave a message below and your freelancer will be notified.
+            </p>
+          )}
+
+          <form onSubmit={handleAddComment} className="space-y-3">
+            <Field label="Your name">
+              {(a) => (
+                <Input
+                  type="text"
+                  required
+                  placeholder="e.g. Tunde"
+                  value={authorName}
+                  onChange={(e) => setAuthorName(e.target.value)}
+                  {...a}
+                />
               )}
+            </Field>
+            <Field label="Your question">
+              {(a) => (
+                <Input
+                  type="text"
+                  required
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  {...a}
+                />
+              )}
+            </Field>
+            {commentError && (
+              <p role="alert" className="text-body font-medium text-danger dark:text-[#FFB3A8]">
+                {commentError}
+              </p>
+            )}
+            <Button type="submit" variant="outline" zone="calm" fullWidth loading={submittingComment}>
+              <Send aria-hidden className="h-4 w-4" /> Send message
+            </Button>
+          </form>
+        </section>
 
-              <form onSubmit={handleClaimPayment} className="space-y-4">
-                <div>
-                  <label className="block font-medium text-neutral-700 mb-1">
-                    Amount Paid ({invoice.currency})
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    required
-                    value={claimAmount}
-                    onChange={(e) => setClaimAmount(e.target.value)}
-                    className="min-h-[44px] w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 font-mono text-neutral-900"
-                  />
-                </div>
+        {/* Branding footer, only when the plan shows it */}
+        {show_viral_footer && (
+          <div className="text-center">
+            <Link
+              href={viral_footer_link || 'https://bagg.africa?utm_source=invoice_footer&utm_medium=referral'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center gap-2 text-caption text-text-muted hover:text-text"
+            >
+              <BaggCoin size={20} />
+              <span>Sent with bagg. Invoicing for African creators.</span>
+            </Link>
+          </div>
+        )}
 
-                <div>
-                  <label className="block font-medium text-neutral-700 mb-1">Date Transferred</label>
-                  <input
-                    type="date"
-                    required
-                    value={claimDate}
-                    onChange={(e) => setClaimDate(e.target.value)}
-                    className="min-h-[44px] w-full border rounded-lg focus:ring-1 focus:ring-emerald-500 text-neutral-800 text-sm"
-                  />
-                </div>
+        <div className="text-center">
+          <Button variant="link" onClick={() => setShowAbuseSheet(true)} className="text-caption font-medium">
+            Report this invoice as suspicious
+          </Button>
+        </div>
+      </div>
 
-                <div>
-                  <label className="block font-medium text-neutral-700 mb-1">
-                    Transaction Reference / Session ID / Narration
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 000013241020084534 or bank session ref"
-                    value={claimReference}
-                    onChange={(e) => setClaimReference(e.target.value)}
-                    className="min-h-[44px] w-full border rounded-lg focus:ring-1 focus:ring-emerald-500 text-neutral-800 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-medium text-neutral-700 mb-1">
-                    Proof URL or Screenshot Link (Optional)
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://... or link to receipt screenshot"
-                    value={claimProofUrl}
-                    onChange={(e) => setClaimProofUrl(e.target.value)}
-                    className="min-h-[44px] w-full border rounded-lg focus:ring-1 focus:ring-emerald-500 text-neutral-800 text-sm"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-3 border-t">
-                  <button
-                    type="button"
-                    disabled={submittingClaim}
-                    onClick={() => setIsClaimSheetOpen(false)}
-                    className="px-3.5 py-2 border rounded-lg text-neutral-600 hover:bg-neutral-50 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submittingClaim}
-                    className="px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 inline-flex items-center gap-1.5"
-                  >
-                    {submittingClaim ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      'Confirm Payment Sent'
-                    )}
-                  </button>
-                </div>
-              </form>
+      {/* "I've paid" sheet */}
+      <Sheet open={isClaimSheetOpen} onOpenChange={setIsClaimSheetOpen}>
+        <SheetContent title="Tell your freelancer you paid" className="overflow-y-auto">
+          <form onSubmit={handleClaimPayment} className="space-y-4 p-5 pb-8">
+            <div className="space-y-1">
+              <h2 className="text-title">i&rsquo;ve paid</h2>
+              <p className="text-body text-text-soft">
+                Share the transfer details so they can check the funds and send your receipt.
+              </p>
             </div>
-          </SheetContent>
-        </Sheet>
-      )}
 
-      {/* Abuse Report Bottom Sheet */}
-      {showAbuseSheet && (
-        <Sheet>
-          <SheetTrigger asChild>
-            <button className="hidden" />
-          </SheetTrigger>
-          <SheetContent className="rounded-2xl border border-neutral-200 bg-white shadow-xl max-h-[90dvh] p-6">
-            <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-              <div className="flex items-center gap-2 text-red-600">
-                <AlertCircle className="w-5 h-5" />
-                <h3 className="font-bold text-base text-neutral-900">Report Suspicious Invoice</h3>
-              </div>
+            {claimError && (
+              <p role="alert" className="rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]">
+                {claimError}
+              </p>
+            )}
+
+            <MoneyInput
+              label="Amount you paid"
+              currency={invoice.currency}
+              value={claimAmount}
+              onChange={(v) => setClaimAmount(cleanAmount(v, claimAmount))}
+              required
+            />
+
+            <Field label="Date you paid">
+              {(a) => (
+                <Input type="date" required value={claimDate} onChange={(e) => setClaimDate(e.target.value)} {...a} />
+              )}
+            </Field>
+
+            <Field label="Transfer reference" hint="The session ID or narration from your bank app.">
+              {(a) => (
+                <Input
+                  type="text"
+                  required
+                  value={claimReference}
+                  onChange={(e) => setClaimReference(e.target.value)}
+                  {...a}
+                />
+              )}
+            </Field>
+
+            <Field label="Link to proof (optional)" hint="A link to a screenshot or receipt.">
+              {(a) => (
+                <Input
+                  type="url"
+                  placeholder="https://"
+                  value={claimProofUrl}
+                  onChange={(e) => setClaimProofUrl(e.target.value)}
+                  {...a}
+                />
+              )}
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <SheetClose asChild>
+                <Button variant="outline" zone="calm" size="lg" disabled={submittingClaim}>
+                  Cancel
+                </Button>
+              </SheetClose>
+              <Button type="submit" zone="calm" size="lg" loading={submittingClaim}>
+                Send claim
+              </Button>
             </div>
-            <div className="p-4">
-              {abuseSuccess ? (
-                <div className="p-4 bg-emerald-50 text-emerald-800 text-xs rounded-xl flex items-center gap-2 border border-emerald-200">
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>
-                    Thank you. Your report has been submitted. Our security team will inspect this invoice promptly.
-                  </span>
-                </div>
-              ) : (
-                <form onSubmit={handleReportAbuse} className="space-y-4">
-                  <p className="text-neutral-500 text-xs">
-                    If this invoice appears to be impersonation, phishing, or an unauthorized charge,
-                    report it below. We take platform integrity seriously.
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Report abuse sheet */}
+      <Sheet open={showAbuseSheet} onOpenChange={setShowAbuseSheet}>
+        <SheetContent title="Report a suspicious invoice" className="overflow-y-auto">
+          <div className="space-y-4 p-5 pb-8">
+            <h2 className="flex items-center gap-2 text-title">
+              <AlertCircle aria-hidden className="h-5 w-5" /> report this invoice
+            </h2>
+
+            {abuseSuccess ? (
+              <p role="status" className="flex items-start gap-2 rounded-row bg-peach p-3 text-body">
+                <Check aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+                Thank you. Your report was sent and our team will look at this invoice promptly.
+              </p>
+            ) : (
+              <form onSubmit={handleReportAbuse} className="space-y-4">
+                <p className="text-body text-text-soft">
+                  If this invoice looks like impersonation, phishing or a charge you did not expect, tell us below.
+                </p>
+
+                {abuseError && (
+                  <p role="alert" className="rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]">
+                    {abuseError}
                   </p>
+                )}
 
-                  {abuseError && (
-                    <div className="p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
-                      {abuseError}
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block font-medium text-neutral-700 mb-1">
-                      Reason for Report *
-                    </label>
+                <Field label="What looks wrong?" hint="At least 10 characters.">
+                  {(a) => (
                     <textarea
                       required
                       minLength={10}
                       rows={4}
-                      placeholder="Describe why you believe this invoice is suspicious or fraudulent..."
                       value={abuseReason}
                       onChange={(e) => setAbuseReason(e.target.value)}
-                      className="min-h-[44px] w-full border rounded-lg focus:ring-1 focus:ring-red-500 text-neutral-800 text-sm"
+                      className={cn(inputStyles, 'min-h-28 py-2')}
+                      {...a}
                     />
-                  </div>
+                  )}
+                </Field>
+                <Field label="Your email (optional)">
+                  {(a) => (
+                    <Input type="email" value={abuseEmail} onChange={(e) => setAbuseEmail(e.target.value)} {...a} />
+                  )}
+                </Field>
+                <Field label="Your name (optional)">
+                  {(a) => <Input type="text" value={abuseName} onChange={(e) => setAbuseName(e.target.value)} {...a} />}
+                </Field>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-medium text-neutral-700 mb-1">
-                        Your Email (Optional)
-                      </label>
-                      <input
-                        type="email"
-                        placeholder="you@company.com"
-                        value={abuseEmail}
-                        onChange={(e) => setAbuseEmail(e.target.value)}
-                        className="min-h-[44px] w-full border rounded-lg focus:ring-1 focus:ring-neutral-500 text-neutral-800 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-medium text-neutral-700 mb-1">
-                        Your Name (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Jane Doe"
-                        value={abuseName}
-                        onChange={(e) => setAbuseName(e.target.value)}
-                        className="min-h-[44px] w-full border rounded-lg focus:ring-1 focus:ring-neutral-500 text-neutral-800 text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-3 border-t">
-                    <button
-                      type="button"
-                      onClick={() => setShowAbuseSheet(false)}
-                      className="px-3.5 py-2 border rounded-lg text-neutral-600 hover:bg-neutral-50 transition"
-                    >
+                <div className="grid grid-cols-2 gap-3">
+                  <SheetClose asChild>
+                    <Button variant="outline" zone="calm" size="lg">
                       Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submittingAbuse}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition disabled:opacity-50 inline-flex items-center gap-1.5"
-                    >
-                      {submittingAbuse ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        'Submit Report'
-                      )}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </SheetContent>
-        </Sheet>
-      )}
-
-      {/* Comments Section */}
-      <div className="mt-8 border-t pt-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-emerald-600" />
-          <h3 className="font-bold text-sm text-neutral-900">Questions or Clarifications</h3>
-        </div>
-
-        {comments && comments.length > 0 ? (
-          <div className="space-y-2">
-            {comments.map((cmt) => (
-              <div key={cmt.id} className="p-3 bg-neutral-50 rounded-lg text-xs space-y-1">
-                <div className="flex justify-between font-semibold text-neutral-800">
-                  <span>{cmt.author_name}</span>
-                  <span className="text-[10px] text-neutral-400 font-normal">
-                    {new Date(cmt.created_at).toLocaleDateString()}
-                  </span>
+                    </Button>
+                  </SheetClose>
+                  <Button type="submit" variant="danger" zone="calm" size="lg" loading={submittingAbuse}>
+                    Send report
+                  </Button>
                 </div>
-                <p className="text-neutral-600">{cmt.message}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-neutral-400 italic">
-            Have a question about a line item? Leave a message below and the freelancer will be notified.
-          </p>
-        )}
-
-        <form onSubmit={handleAddComment} className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="text"
-              required
-              placeholder="Your Name (e.g. Tunde)"
-              value={authorName}
-              onChange={(e) => setAuthorName(e.target.value)}
-              className="min-h-[44px] px-3 py-2 border rounded-lg focus:ring-1 focus:ring-emerald-500 text-neutral-800 text-sm"
-            />
-            <input
-              type="text"
-              required
-              placeholder="Ask a question..."
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              className="min-h-[44px] px-3 py-2 border rounded-lg focus:ring-1 focus:ring-emerald-500 text-neutral-800 text-sm"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submittingComment}
-            className="w-full min-h-[44px] px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-semibold rounded-lg transition disabled:opacity-50"
-          >
-            {submittingComment ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <Send className="w-3 h-3" />
+              </form>
             )}
-          </button>
-        </form>
-      </div>
-
-      {/* Viral Footer */}
-      {show_viral_footer && (
-        <div className="mt-8 pt-4 pb-2 text-center">
-          <Link
-            href={
-              viral_footer_link ||
-              'https://bagg.africa?utm_source=invoice_footer&utm_medium=referral'
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-700 transition"
-          >
-            <span>Powered by</span>
-            <span className="font-bold text-neutral-900 tracking-tight">bagg.</span>
-            <span>— Invoicing & get-paid workspace for African creators</span>
-          </Link>
-        </div>
-      )}
-
-      {/* Abuse Reporting Link */}
-      <div className="mt-8 pt-1 pb-2 text-center">
-        <button
-          type="button"
-          onClick={() => setShowAbuseSheet(true)}
-          className="text-[11px] text-neutral-400 hover:text-red-600 underline transition"
-        >
-          Report this invoice as suspicious or fraudulent
-        </button>
-      </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

@@ -133,6 +133,7 @@ class InvoiceResponse(BaseModel):
     workspace_id: str
     client_id: str
     client_name: Optional[str] = None
+    client_email: Optional[str] = None
     invoice_number: Optional[str] = None
     sequence_number: Optional[int] = None
     quote_id: Optional[str] = None
@@ -180,6 +181,10 @@ class InvoiceResponse(BaseModel):
     updated_at: datetime
 
 
+class InvoiceSendRequest(BaseModel):
+    send_email: bool = True
+
+
 class InvoiceSendResponse(BaseModel):
     invoice: InvoiceResponse
     whatsapp_url: str
@@ -196,6 +201,7 @@ class CurrencyMetricsResponse(BaseModel):
     paid_this_month_minor: int = 0
     invoices_count: int = 0
     draft_count: int = 0
+    issued_count: int = 0
     sent_count: int = 0
     viewed_count: int = 0
     claimed_count: int = 0

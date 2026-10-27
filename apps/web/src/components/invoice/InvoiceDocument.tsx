@@ -1,26 +1,12 @@
 'use client';
 
-import { formatMoney } from '@/lib/money';
+import Link from 'next/link';
+import { CheckCircle2, ExternalLink, ReceiptText, ShieldCheck } from 'lucide-react';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
-import Link from 'next/link';
-import {
-  ArrowRight,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  CreditCard,
-  Download,
-  ExternalLink,
-  FileText,
-  Loader2,
-  MessageCircle,
-  ReceiptText,
-  Send,
-  Share2,
-  ShieldCheck,
-  X,
-} from 'lucide-react';
+import { Button, Card, buttonStyles } from '@/components/ui';
+import { formatDate } from '@/lib/date';
+import { cn } from '@/lib/utils';
 
 interface InvoiceLineItem {
   id: string;
@@ -59,6 +45,10 @@ interface InvoiceDocumentProps {
   invoice: {
     id: string;
     invoice_number?: string;
+    /** Business name shown at the top. The API should send this; nothing is invented when it is missing. */
+    issuer_name?: string | null;
+    /** Optional logo. The document works without one (initials are used). */
+    issuer_logo_url?: string | null;
     client_name?: string | null;
     currency: string;
     status: string;
@@ -85,11 +75,49 @@ interface InvoiceDocumentProps {
   };
   variant: 'public' | 'issuer';
   className?: string;
+  /** Public view: start an online payment. When absent, the bank-transfer claim becomes the main action. */
+  onPay?: () => void;
+  /** Public view: open the "I've paid" claim sheet. */
+  onClaimPaid?: () => void;
+  /** Public view: shown above the actions while the invoice is unpaid (for example the bank details). */
+  paymentSlot?: React.ReactNode;
 }
 
-export function InvoiceDocument({ invoice, variant = 'public', className }: InvoiceDocumentProps) {
+function initials(name?: string | null) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'b';
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join('')
+    .toLowerCase();
+}
+
+function Row({ label, children, strong }: { label: string; children: React.ReactNode; strong?: boolean }) {
+  return (
+    <div className={cn('flex items-baseline justify-between gap-4', strong && 'font-extrabold')}>
+      <span className={strong ? 'text-body-l' : 'text-body text-text-soft'}>{label}</span>
+      <span className="text-right">{children}</span>
+    </div>
+  );
+}
+
+/**
+ * Quote, invoice and receipt share one calm layout: sender, amount, line items, total, one action, footer.
+ * This is a calm-zone component: no hard shadows, no stickers, green only for paid.
+ */
+export function InvoiceDocument({
+  invoice,
+  variant = 'public',
+  className,
+  onPay,
+  onClaimPaid,
+  paymentSlot,
+}: InvoiceDocumentProps) {
   const {
     invoice_number,
+    issuer_name,
+    issuer_logo_url,
     client_name,
     currency,
     status,
@@ -105,7 +133,6 @@ export function InvoiceDocument({ invoice, variant = 'public', className }: Invo
     wht_rate_percent = 0,
     wht_minor = 0,
     net_payable_minor,
-    deposit_percentage,
     deposit_amount_minor,
     notes,
     share_token,
@@ -122,309 +149,274 @@ export function InvoiceDocument({ invoice, variant = 'public', className }: Invo
   const isClaimed = status === 'payment_claimed' || latest_claim?.status === 'pending';
   const isPartiallyPaid = status === 'partially_paid' || (amount_paid_minor > 0 && !isPaid);
   const displayStatus = user_facing_status || status;
+  const paidPercent = Math.min(100, Math.round((amount_paid_minor / Math.max(netPayable, 1)) * 100));
 
   const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const whatsappText = encodeURIComponent(
-    `Hi ${client_name || 'there'}, here is invoice ${invoice_number}: ${shareUrl}/i/${share_token}`
+    `Hi ${client_name || 'there'}, here is invoice ${invoice_number}: ${shareUrl}/i/${share_token}`,
   );
 
+  const claimLabel = isPartiallyPaid ? "I've paid the rest" : "I've paid by bank transfer";
+
   return (
-    <div className={className}>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-neutral-200">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-              Invoice From
+    <div className={cn('space-y-6 text-text', className)}>
+      {/* Sender, status */}
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          {issuer_logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={issuer_logo_url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+          ) : (
+            <span
+              aria-hidden
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-peach-chip text-body font-extrabold"
+            >
+              {initials(issuer_name)}
             </span>
-            <h1 className="text-lg font-bold text-neutral-900 mt-1">
-              Studio Bagg Creative Ltd
-            </h1>
+          )}
+          <div className="min-w-0">
+            {issuer_name && <p className="truncate text-heading">{issuer_name}</p>}
             {client_name && (
-              <div className="text-xs text-neutral-500 mt-0.5">
-                Billed to: <strong>{client_name}</strong>
-              </div>
+              <p className="truncate text-body text-text-soft">
+                Billed to <span className="font-medium text-text">{client_name}</span>
+              </p>
             )}
           </div>
-          <div className="flex items-baseline gap-1 w-full sm:w-auto">
-            <span className="text-xs uppercase tracking-wider text-neutral-500 font-medium">
-              Invoice
-            </span>
-            <div className="text-2xl font-black text-neutral-900">{invoice_number}</div>
-            <StatusPill
-              status={status}
-              labelOverride={displayStatus}
-              subLabel={
-                ['issued', 'sent', 'viewed'].includes(status)
-                  ? status.charAt(0).toUpperCase() + status.slice(1)
-                  : undefined
-              }
-            />
-          </div>
-          <div className="flex items-center gap-1 text-xs text-neutral-400 w-full sm:w-auto">
-            <span>Issued: {issue_date}</span>
-            <span className="mx-1">•</span>
-            <span className={isOverdue ? 'text-red-600 font-semibold' : 'text-emerald-400 font-medium'}>
-              Due {due_date}
-            </span>
-          </div>
         </div>
+        <StatusPill status={status} labelOverride={displayStatus} />
+      </header>
 
-        {variant === 'issuer' && share_token && (
-          <Link
-            href={`/i/${share_token}`}
-            target="_blank"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-600 hover:text-neutral-900 border px-2.5 py-1 rounded-md bg-neutral-50 hover:bg-neutral-100 transition"
-          >
-            <ExternalLink className="w-3 h-3" /> Client view
-          </Link>
-        )}
-      </div>
-
-      {/* Amount Band */}
-      <div className="mt-4 rounded-xl border bg-white p-4 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-wide text-neutral-400">
-              {isPaid ? 'Total paid' : 'Balance outstanding'}
-            </div>
-            <div className="mt-0.5 text-lg font-black tracking-tight text-neutral-950">
-              <Money
-                amountMinor={isPaid ? amount_paid_minor : remaining}
-                currency={currency}
-                variant={isPaid ? 'paid' : 'outstanding'}
-              />
-            </div>
-            {!isPaid && remaining > 0 && (
-              <div className="text-[11px] text-neutral-500">
-                of <Money amountMinor={total_minor} currency={currency} variant="muted" /> total
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <StatusPill status={status} />
-            {isOverdue ? (
-              <span className="text-[10px] font-semibold text-red-600">Past due</span>
-            ) : due_date ? (
-              <span className="text-[10px] text-neutral-400">Due {due_date}</span>
-            ) : null}
-          </div>
+      {/* Amount */}
+      <Card zone="calm" className="space-y-3 p-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-body text-text-soft">
+            Invoice {invoice_number}
+            {isPaid ? ' · paid' : ' · balance due'}
+          </p>
+          <p className="text-caption text-text-muted">{currency}</p>
         </div>
+        <p className="text-amount-l sm:text-amount-xl">
+          <Money
+            amountMinor={isPaid ? amount_paid_minor : remaining}
+            currency={currency}
+            variant={isPaid ? 'paid' : 'total'}
+            hideCurrencyCode
+          />
+        </p>
+        <p className="text-body text-text-soft">
+          Issued {formatDate(issue_date)}
+          {due_date && (
+            <>
+              {' · '}
+              <span className={cn(isOverdue && 'font-extrabold text-danger dark:text-[#FFB3A8]')}>
+                {isOverdue ? 'Overdue, was due' : 'Due'} {formatDate(due_date)}
+              </span>
+            </>
+          )}
+        </p>
 
-        {(!isPaid && remaining > 0) || isPartiallyPaid ? (
-          <div className="mt-3">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-medium text-neutral-500">
-                  <Money amountMinor={amount_paid_minor} currency={currency} variant="muted" /> paid
-                </span>
-                <span className="font-semibold text-neutral-700">
-                  <Money amountMinor={remaining} currency={currency} /> outstanding
-                </span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-neutral-200">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all"
-                  style={{ width: `${Math.min(100, Math.round((amount_paid_minor / Math.max(total_minor, 1)) * 100))}%` }}
-                />
-              </div>
+        {!isPaid && isPartiallyPaid && (
+          <div className="space-y-1.5 pt-1">
+            <div
+              role="progressbar"
+              aria-label="Share of the invoice paid"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={paidPercent}
+              className="h-2.5 overflow-hidden rounded-full border border-ink bg-surface-tint"
+            >
+              <div className="h-full bg-leaf" style={{ width: `${paidPercent}%` }} />
             </div>
-          </div>
-        ) : null}
-
-        {status === 'payment_claimed' && (
-          <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
-            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-            Payment claim received — confirm funds before this becomes a receipt.
+            <p className="text-body text-text-soft">
+              <Money amountMinor={amount_paid_minor} currency={currency} variant="inherit" hideCurrencyCode /> of{' '}
+              <Money amountMinor={netPayable} currency={currency} variant="inherit" hideCurrencyCode /> paid
+            </p>
           </div>
         )}
-      </div>
 
-      {/* Line Items */}
-      <div className="mt-6 space-y-3">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-neutral-900">Line items</h2>
+        {isClaimed && (
+          <p className="flex items-start gap-2 rounded-row bg-peach p-3 text-body">
+            <CheckCircle2 aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+            {variant === 'issuer'
+              ? 'Payment claim received. Confirm the funds before this becomes a receipt.'
+              : 'Payment claim sent. You will get a receipt once the funds are confirmed.'}
+          </p>
+        )}
+      </Card>
+
+      {/* Line items */}
+      <section aria-labelledby="line-items" className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 id="line-items" className="text-heading">
+            Line items
+          </h2>
           {share_token && (
             <Link
               href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/invoices/${invoice.id}/pdf`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-600 hover:text-neutral-900 border px-2.5 py-1 rounded-md bg-neutral-50 hover:bg-neutral-100 transition"
+              className={buttonStyles({ variant: 'link' })}
             >
-              <Download className="w-3 h-3" /> PDF
+              Download PDF
             </Link>
           )}
         </div>
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center justify-between gap-3 rounded-lg border border-neutral-100 bg-neutral-50 p-3"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-neutral-800">{item.description}</div>
-              <div className="text-[11px] text-neutral-500">
-                {item.quantity} ×
-                <Money amountMinor={item.unit_price_minor} currency={currency} variant="muted" />
+        <ul className="space-y-2">
+          {items.map((item) => (
+            <li
+              key={item.id}
+              className="flex items-center justify-between gap-3 rounded-row border border-line-subtle bg-surface p-3"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-body font-medium">{item.description}</p>
+                <p className="text-caption text-text-muted">
+                  {item.quantity} ×{' '}
+                  <Money amountMinor={item.unit_price_minor} currency={currency} variant="muted" hideCurrencyCode />
+                </p>
               </div>
-            </div>
-            <span className="font-mono font-semibold text-neutral-900 text-sm">
-              <Money amountMinor={item.total_minor} currency={currency} />
-            </span>
-          </div>
-        ))}
-      </div>
+              <Money amountMinor={item.total_minor} currency={currency} className="text-amount-s" hideCurrencyCode />
+            </li>
+          ))}
+        </ul>
+      </section>
 
-      {/* Calculation Breakdown */}
-      <div className="mt-6 space-y-2 text-xs text-neutral-600">
-        <div className="flex justify-between">
-          <span>Subtotal:</span>
-          <span className="font-medium text-neutral-900">
-            <Money amountMinor={subtotal_minor} currency={currency} />
-          </span>
-        </div>
+      {/* Totals */}
+      <section aria-label="Totals" className="space-y-2">
+        <Row label="Subtotal">
+          <Money amountMinor={subtotal_minor} currency={currency} hideCurrencyCode />
+        </Row>
         {discount_minor > 0 && (
-          <div className="flex justify-between text-emerald-600">
-            <span>Discount:</span>
-            <span className="font-medium">-<Money amountMinor={discount_minor} currency={currency} /></span>
-          </div>
+          <Row label="Discount">
+            −<Money amountMinor={discount_minor} currency={currency} hideCurrencyCode />
+          </Row>
         )}
         {tax_minor > 0 && (
-          <div className="flex justify-between">
-            <span>VAT ({tax_rate_percent}%):</span>
-            <span className="font-medium text-neutral-900">
-              <Money amountMinor={tax_minor} currency={currency} />
-            </span>
-          </div>
+          <Row label={`VAT (${tax_rate_percent}%)`}>
+            <Money amountMinor={tax_minor} currency={currency} hideCurrencyCode />
+          </Row>
         )}
-        {(wht_minor || 0) > 0 && (
+        {wht_minor > 0 && (
           <>
-            <div className="flex justify-between font-semibold text-neutral-800 pt-1 border-t">
-              <span>Gross Total:</span>
-              <span className="font-mono">
-                <Money amountMinor={total_minor} currency={currency} />
-              </span>
-            </div>
-            <div className="flex justify-between text-amber-700">
-              <span>Less WHT ({wht_rate_percent}%):</span>
-              <span className="font-mono">-<Money amountMinor={wht_minor} currency={currency} /></span>
-            </div>
+            <Row label="Gross total">
+              <Money amountMinor={total_minor} currency={currency} hideCurrencyCode />
+            </Row>
+            <Row label={`Less withholding tax (${wht_rate_percent}%)`}>
+              −<Money amountMinor={wht_minor} currency={currency} hideCurrencyCode />
+            </Row>
           </>
         )}
-        <div className="flex justify-between text-base font-black text-neutral-900 pt-2 border-t">
-          <span>Net Payable:</span>
-          <span className="text-emerald-700 font-mono font-bold">
-            <Money amountMinor={netPayable} currency={currency} />
-          </span>
+        <div className="border-t border-line pt-3">
+          <Row label="Total due" strong>
+            <Money amountMinor={netPayable} currency={currency} className="text-amount-m" hideCurrencyCode />
+          </Row>
         </div>
-      </div>
+      </section>
 
-      {/* Deposit callout */}
+      {/* Deposit */}
       {(deposit_amount_minor || 0) > 0 && (
-        <div className="mt-5 p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900 space-y-2">
-          <div className="flex justify-between font-bold text-xs">
-            <span>Deposit Due Today:</span>
-            <span className="font-mono">
-              <Money amountMinor={deposit_amount_minor || 0} currency={currency} />
-            </span>
-          </div>
-          <div className="flex justify-between text-[11px] text-emerald-700">
-            <span>Remaining Balance:</span>
-            <span className="font-mono">
-              <Money
-                amountMinor={Math.max(0, netPayable - (deposit_amount_minor || 0))}
-                currency={currency}
-              />
-            </span>
-          </div>
-        </div>
+        <Card zone="calm" tone="peach" className="space-y-1">
+          <Row label="Deposit due today" strong>
+            <Money amountMinor={deposit_amount_minor || 0} currency={currency} hideCurrencyCode />
+          </Row>
+          <Row label="Remaining balance">
+            <Money
+              amountMinor={Math.max(0, netPayable - (deposit_amount_minor || 0))}
+              currency={currency}
+              hideCurrencyCode
+            />
+          </Row>
+        </Card>
       )}
 
       {/* Notes */}
       {notes && (
-        <div className="mt-5 rounded-xl border bg-white p-4">
-          <h2 className="text-sm font-bold text-neutral-900 mb-2">Notes</h2>
-          <p className="mt-1 whitespace-pre-line text-xs text-neutral-600">{notes}</p>
-        </div>
+        <Card zone="calm">
+          <h2 className="text-heading">Notes</h2>
+          <p className="mt-2 whitespace-pre-line text-body text-text-soft">{notes}</p>
+        </Card>
       )}
 
-      {/* Payment Details */}
+      {/* Latest receipt */}
       {latest_receipt && (
-        <div className="mt-6 rounded-xl border bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <ReceiptText className="h-4 w-4 text-emerald-600" />
-            <h3 className="font-bold text-sm text-neutral-900">Latest receipt</h3>
+        <Card zone="calm" className="space-y-3">
+          <div className="flex items-center gap-2">
+            <ReceiptText aria-hidden className="h-4 w-4" />
+            <h2 className="text-heading">Latest receipt</h2>
           </div>
-          <div className="flex items-end justify-between gap-3 border-t border-dashed border-emerald-300 pt-3">
+          <div className="flex items-end justify-between gap-3 border-t border-dashed border-line pt-3">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                Amount received
-              </div>
-              <div className="text-lg font-black tracking-tight text-emerald-950">
-                <Money amountMinor={latest_receipt.amount_paid_minor || 0} currency={currency} />
-              </div>
+              <p className="text-caption text-text-muted">Amount received</p>
+              <Money
+                amountMinor={latest_receipt.amount_paid_minor || 0}
+                currency={currency}
+                variant="paid"
+                className="text-amount-m"
+                hideCurrencyCode
+              />
             </div>
-            <div className="text-right text-[11px] text-emerald-800">
-              {latest_receipt.payment_date && <div>{latest_receipt.payment_date}</div>}
-              {latest_receipt.verification_code && (
-                <div className="font-mono text-[10px]">{latest_receipt.verification_code}</div>
-              )}
+            <div className="text-right text-caption text-text-soft">
+              {latest_receipt.payment_date && <p>{formatDate(latest_receipt.payment_date)}</p>}
+              {latest_receipt.verification_code && <p className="tabular">{latest_receipt.verification_code}</p>}
             </div>
           </div>
-          <div className="flex items-center justify-between gap-2 mt-3">
-            <span className="text-[11px] text-neutral-500">Confirmed via</span>
-            <span className="text-[11px] text-emerald-700 font-semibold">
-              {latest_receipt.confirmation_source || 'Issuer'}
-              {latest_receipt.provider ? ` - ${latest_receipt.provider}` : ''}
+          <div className="flex items-center justify-between gap-3 text-caption text-text-soft">
+            <span className="inline-flex items-center gap-1">
+              <ShieldCheck aria-hidden className="h-3.5 w-3.5" />
+              Confirmed by {latest_receipt.confirmation_source || 'the issuer'}
+              {latest_receipt.provider ? ` (${latest_receipt.provider})` : ''}
             </span>
             {latest_receipt.share_token && (
-              <Link
-                href={`/r/${latest_receipt.share_token}`}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900"
-              >
-                View receipt <ExternalLink className="h-3 w-3" />
+              <Link href={`/r/${latest_receipt.share_token}`} className={buttonStyles({ variant: 'link' })}>
+                View receipt <ExternalLink aria-hidden className="h-3.5 w-3.5" />
               </Link>
             )}
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Variant-specific actions */}
+      {variant === 'public' && !isPaid && paymentSlot}
+
+      {/* Client: one main action, then the quieter ones */}
       {variant === 'public' && (
-        <div className="mt-6 space-y-3 pt-4 border-t">
+        <div className="space-y-3 border-t border-line pt-5">
           {!isPaid && (
             <>
-              <button
-                type="button"
-                className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-bold rounded-xl shadow-md transition inline-flex items-center justify-center gap-2"
-              >
-                <CreditCard className="w-4 h-4 text-emerald-400" />
-                Pay with Card / Transfer
-              </button>
-              {!isClaimed && (
-                <button
-                  type="button"
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition inline-flex items-center justify-center gap-2"
-                >
-                  <CreditCard className="w-4 h-4 text-emerald-400" />
-                  {isPartiallyPaid ? "I've Paid Remaining Balance" : "I've Paid via Bank Transfer"}
-                </button>
+              {onPay ? (
+                <>
+                  <Button zone="calm" size="lg" fullWidth onClick={onPay}>
+                    Pay <Money amountMinor={remaining} currency={currency} variant="inherit" hideCurrencyCode />
+                  </Button>
+                  {!isClaimed && (
+                    <Button variant="outline" zone="calm" size="lg" fullWidth onClick={onClaimPaid}>
+                      {claimLabel}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                !isClaimed && (
+                  <Button zone="calm" size="lg" fullWidth onClick={onClaimPaid}>
+                    {claimLabel}
+                  </Button>
+                )
               )}
-              <a
-                href={`https://wa.me/?text=${whatsappText}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 font-semibold hover:bg-emerald-100 transition"
-              >
-                <Share2 className="w-4 h-4" /> Message on WhatsApp
-              </a>
+              <div className="text-center">
+                <a
+                  href={`https://wa.me/?text=${whatsappText}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonStyles({ variant: 'link' })}
+                >
+                  Share on WhatsApp
+                </a>
+              </div>
             </>
           )}
           {isPaid && latest_receipt?.share_token && (
             <Link
               href={`/r/${latest_receipt.share_token}`}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 border border-emerald-200 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition"
+              className={buttonStyles({ variant: 'outline', zone: 'calm', fullWidth: true })}
             >
-              <ShieldCheck className="w-3 h-3" /> View receipt
+              <ShieldCheck aria-hidden className="h-4 w-4" /> View receipt
             </Link>
           )}
         </div>

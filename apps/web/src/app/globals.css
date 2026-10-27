@@ -3,8 +3,57 @@
 @tailwind utilities;
 
 :root {
-  --foreground: #09090b;
-  --background: #ffffff;
+  /* Brand (Mango Sunrise) */
+  --bagg-mango: #ff7a1a;
+  --bagg-pink: #ff4f8b;
+  --bagg-sun: #ffc933;
+  --bagg-leaf: #1fa971;
+  --bagg-danger: #b3261e;
+
+  /* Ink: outlines, hard shadows, darkest text */
+  --ink: #2b1405;
+  --on-mango: #2b1405;
+  --on-pink: #3d0618;
+  --brut-shadow: #2b1405;
+
+  /* Neutrals */
+  --bg: #fff8ee;
+  --surface: #ffffff;
+  --surface-sunken: #fbf1e2;
+  --surface-tint: #f6e8d4;
+  --border: #e3d6c4;
+  --border-subtle: #f1dfc6;
+  --peach: #ffe9d6;
+  --peach-chip: #ffe3cc;
+
+  /* Text */
+  --text: #3a1f0a;
+  --text-soft: #6b5642;
+  --text-muted: #8a6a50;
+  --link: #8a3d0c;
+
+  /* Legacy aliases, remove once nothing reads them */
+  --foreground: var(--text);
+  --background: var(--bg);
+}
+
+/* Dark mode is a first pass: warm brown-black, brand colours unchanged.
+   Outlines and hard shadows flip to cream so they stay visible. */
+[data-theme='dark'] {
+  --ink: #fff1e0;
+  --brut-shadow: #fff1e0;
+  --bg: #1a110a;
+  --surface: #261a12;
+  --surface-sunken: #1f150e;
+  --surface-tint: #33241a;
+  --border: #3a2a1e;
+  --border-subtle: #3a2a1e;
+  --peach: #3a2616;
+  --peach-chip: #4a3220;
+  --text: #fff1e0;
+  --text-soft: #dcc6ab;
+  --text-muted: #bfa88f;
+  --link: #ffb27a;
 }
 
 html {
@@ -13,10 +62,20 @@ html {
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Amounts in tables and lists line up when the font provides tabular figures */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visible focus on every interactive element (WCAG): 2px mango, 2px offset */
+:focus-visible {
+  outline: 2px solid var(--bagg-mango);
+  outline-offset: 2px;
 }
 
 /* Prevent iOS double-tap zoom on interactive elements while keeping pinch zoom accessible */
@@ -25,8 +84,8 @@ a,
 input,
 select,
 textarea,
-[type="button"],
-[type="submit"] {
+[type='button'],
+[type='submit'] {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -45,10 +104,29 @@ textarea {
   max-width: 100%;
 }
 
+/* Horizontal chip rows scroll by touch without a visible scrollbar */
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Safe-area padding helpers for full-bleed mobile layouts */
 .safe-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 .safe-top {
   padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

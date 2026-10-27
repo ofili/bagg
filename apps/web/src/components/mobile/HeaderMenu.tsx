@@ -2,54 +2,50 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { MoreHorizontal, ExternalLink } from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { ExternalLink, MoreHorizontal, Settings } from 'lucide-react';
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 
 const MENU_ITEMS = [
-  { label: 'Settings', href: '/settings', icon: null },
-  { label: 'Preview Client View', href: '/i/token_demo_sample_ngn', external: true },
-];
+  { label: 'Settings', href: '/settings', external: false },
+  { label: 'Preview client view', href: '/i/token_demo_sample_ngn', external: true },
+] as const;
 
 export function HeaderMenu({ className = '' }: { className?: string }) {
   const pathname = usePathname();
 
   return (
-    <div className={`md:hidden ${className}`}>
+    <div className={className}>
       <Sheet>
         <SheetTrigger asChild>
-          <button className="rounded-lg p-2 text-neutral-600 hover:bg-neutral-100 transition">
-            <MoreHorizontal className="w-5 h-5" />
+          <button className="flex h-11 w-11 items-center justify-center rounded-btn border-brut-thin border-ink bg-surface text-text">
+            <MoreHorizontal aria-hidden className="h-5 w-5" />
             <span className="sr-only">More options</span>
           </button>
         </SheetTrigger>
-        <SheetContent
-          className="rounded-2xl border border-neutral-200 bg-white shadow-xl"
-        >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
-            <span className="text-sm font-semibold text-neutral-900">More</span>
-          </div>
-          <div className="px-4 py-2 space-y-1">
-            {MENU_ITEMS.map((item, i) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-              const Comp = item.external ? 'a' : Link;
+        <SheetContent title="More">
+          <div className="space-y-1 p-4">
+            <h2 className="px-2 pb-2 text-title">more</h2>
+            {MENU_ITEMS.map((item) => {
+              const isActive = !item.external && (pathname === item.href || pathname.startsWith(item.href + '/'));
+              const itemClass = cn(
+                'flex min-h-11 items-center gap-3 rounded-row px-3 text-body-l',
+                isActive ? 'bg-peach font-extrabold' : 'font-medium hover:bg-surface-tint',
+              );
               return (
-                <Comp
-                  key={i}
-                  {...(item.external
-                    ? { href: item.href, target: '_blank', rel: 'noopener noreferrer' }
-                    : { href: item.href })}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-neutral-100 text-neutral-900'
-                      : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
-                  }`}
-                >
-                  {item.label}
-                  {item.external && (
-                    <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
+                <SheetClose asChild key={item.href}>
+                  {item.external ? (
+                    <a href={item.href} target="_blank" rel="noopener noreferrer" className={itemClass}>
+                      {item.label}
+                      <ExternalLink aria-hidden className="ml-auto h-4 w-4 text-text-muted" />
+                    </a>
+                  ) : (
+                    <Link href={item.href} aria-current={isActive ? 'page' : undefined} className={itemClass}>
+                      <Settings aria-hidden className="h-4 w-4" />
+                      {item.label}
+                    </Link>
                   )}
-                </Comp>
+                </SheetClose>
               );
             })}
           </div>

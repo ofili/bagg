@@ -16,7 +16,12 @@ class Settings(BaseSettings):
     API_BASE_URL: str = "http://localhost:8000"
     WEB_BASE_URL: str = "http://localhost:3000"
 
-    # SMTP / Email
+    # Email
+    SENDLY_API_KEY: Optional[str] = None
+    SENDLY_FROM_EMAIL: Optional[str] = None
+    SENDLY_FROM_NAME: Optional[str] = None
+
+    # SMTP fallback (Mailpit locally)
     SMTP_HOST: str = "localhost"
     SMTP_PORT: int = 1025
     SMTP_USER: Optional[str] = None

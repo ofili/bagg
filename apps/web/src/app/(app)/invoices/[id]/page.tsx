@@ -3,24 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Money } from '@/components/money/Money';
+import { AlertCircle, ArrowLeft, Check, CheckCircle2, Copy, ExternalLink, FileText, Loader2, ReceiptText, Share2, X } from 'lucide-react';
 import { InvoiceDocument } from '@/components/invoice';
-import { StatusPill } from '@/components/status';
-import {
-  AlertCircle,
-  ArrowLeft,
-  Check,
-  CheckCircle2,
-  Copy,
-  CreditCard,
-  ExternalLink,
-  FileText,
-  Loader2,
-  MessageCircle,
-  ReceiptText,
-  Send,
-  X,
-} from 'lucide-react';
+import { MoneyInput } from '@/components/mobile/MoneyInput';
+import { Money } from '@/components/money/Money';
+import { StatusPill, StatusTimeline, type StatusEvent } from '@/components/status';
+import { Button, Card, Dialog, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
+import { cleanAmount, toMinor } from '@/lib/amount';
+import { formatDate } from '@/lib/date';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -58,6 +48,7 @@ interface InvoiceDetail {
   }>;
   subtotal_minor: number;
   discount_minor: number;
+  tax_rate_percent?: number;
   tax_minor: number;
   total_minor: number;
   wht_minor?: number;
@@ -82,22 +73,33 @@ interface InvoiceDetail {
   created_at: string;
 }
 
-const PAYMENT_METHODS = ['bank_transfer', 'card', 'mobile_money', 'cash', 'manual'];
+const PAYMENT_METHODS = [
+  { value: 'bank_transfer', label: 'Bank transfer' },
+  { value: 'card', label: 'Card' },
+  { value: 'mobile_money', label: 'Mobile money' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'manual', label: 'Other' },
+];
+
+const todayIso = () => new Date().toISOString().split('T')[0];
 
 export default function InvoiceDetailPage() {
   const params = useParams();
   const invoiceId = params?.id as string;
 
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<StatusEvent[]>([]);
   const [claims, setClaims] = useState<PaymentClaim[]>([]);
   const [loading, setLoading] = useState(true);
+  /** The invoice could not be loaded at all. */
   const [error, setError] = useState<string | null>(null);
+  /** An action failed; the invoice itself is still fine. */
+  const [actionError, setActionError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [amount, setAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentDate, setPaymentDate] = useState(todayIso());
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
   const [reference, setReference] = useState('');
   const [confirmed, setConfirmed] = useState(false);
@@ -120,8 +122,7 @@ export default function InvoiceDetailPage() {
         throw new Error(err.detail || 'Invoice could not be loaded');
       }
 
-      const invoiceData: InvoiceDetail = await invoiceRes.json();
-      setInvoice(invoiceData);
+      setInvoice(await invoiceRes.json());
       setEvents(eventsRes.ok ? await eventsRes.json() : []);
       setClaims(claimsRes.ok ? await claimsRes.json() : []);
     } catch (err: any) {
@@ -133,21 +134,27 @@ export default function InvoiceDetailPage() {
 
   useEffect(() => {
     if (invoiceId) loadInvoice();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceId]);
 
-  const copyShareLink = () => {
+  const shareUrl = () => `${window.location.origin}/i/${invoice?.share_token}`;
+
+  const copyShareLink = async () => {
     if (!invoice?.share_token) return;
-    const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    navigator.clipboard.writeText(`${shareUrl}/i/${invoice.share_token}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(shareUrl());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setActionError('Could not copy the link. Open the client view and copy it from the address bar.');
+    }
   };
 
   const openReceiptModal = () => {
     if (!invoice) return;
     const payable = invoice.net_payable_minor || invoice.total_minor;
     setAmount((Math.max(0, payable - invoice.amount_paid_minor) / 100).toFixed(2));
-    setPaymentDate(new Date().toISOString().split('T')[0]);
+    setPaymentDate(todayIso());
     setPaymentMethod('bank_transfer');
     setReference('');
     setConfirmed(false);
@@ -161,9 +168,9 @@ export default function InvoiceDetailPage() {
       setFormError('Confirm that the funds have arrived before recording this payment.');
       return;
     }
-    const amountMinor = Math.round(Number(amount) * 100);
-    if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
-      setFormError('Enter a valid amount received.');
+    const amountMinor = toMinor(amount);
+    if (amountMinor <= 0) {
+      setFormError('Enter the amount you received.');
       return;
     }
 
@@ -200,6 +207,7 @@ export default function InvoiceDetailPage() {
   const handleConfirmClaim = async (claim: PaymentClaim) => {
     try {
       setConfirmingClaimId(claim.id);
+      setActionError(null);
       const res = await fetch(`${API_BASE}/invoices/${invoiceId}/claims/${claim.id}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -212,29 +220,33 @@ export default function InvoiceDetailPage() {
       }
       await loadInvoice();
     } catch (err: any) {
-      setError(err.message || 'Failed to confirm claim');
+      // A failed action must not replace the whole page with "Invoice unavailable"
+      setActionError(err.message || 'Failed to confirm claim');
     } finally {
       setConfirmingClaimId(null);
     }
   };
 
-  if (loading) {
+  if (loading && !invoice) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+      <div role="status" className="flex min-h-[50vh] items-center justify-center text-text-muted">
+        <Loader2 aria-hidden className="h-6 w-6 animate-spin" />
+        <span className="sr-only">Loading invoice</span>
       </div>
     );
   }
 
   if (error || !invoice) {
     return (
-      <div className="mx-auto max-w-lg rounded-2xl border bg-white p-8 text-center shadow-sm">
-        <AlertCircle className="mx-auto h-10 w-10 text-amber-500" />
-        <h1 className="mt-3 text-lg font-bold text-neutral-900">Invoice unavailable</h1>
-        <p className="mt-1 text-sm text-neutral-500">{error || 'Invoice not found.'}</p>
-        <Link href="/invoices" className="mt-4 inline-flex text-sm font-semibold text-emerald-700">
-          Back to invoices
-        </Link>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <Card zone="calm" className="mx-auto max-w-lg space-y-3 p-8 text-center">
+          <AlertCircle aria-hidden className="mx-auto h-9 w-9" />
+          <h1 className="text-title">invoice unavailable</h1>
+          <p className="text-body text-text-soft">{error || 'Invoice not found.'}</p>
+          <Link href="/invoices" className={buttonStyles({ variant: 'outline', zone: 'calm' })}>
+            Back to invoices
+          </Link>
+        </Card>
       </div>
     );
   }
@@ -242,23 +254,27 @@ export default function InvoiceDetailPage() {
   const netPayable = invoice.net_payable_minor || invoice.total_minor;
   const balanceMinor = Math.max(0, netPayable - invoice.amount_paid_minor);
   const pendingClaims = claims.filter((claim) => claim.status === 'pending');
-  const displayStatus = invoice.user_facing_status || invoice.status;
+  const canRecordPayment = !['paid', 'cancelled'].includes(invoice.status);
+  const whatsappHref = invoice.share_token
+    ? `https://wa.me/?text=${encodeURIComponent(
+        `Hi ${invoice.client_name || 'there'}, here is invoice ${invoice.invoice_number}: ${
+          typeof window !== 'undefined' ? window.location.origin : ''
+        }/i/${invoice.share_token}`,
+      )}`
+    : undefined;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <Link
-            href="/invoices"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-neutral-900"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> All invoices
+        <div className="space-y-2">
+          <Link href="/invoices" className={buttonStyles({ variant: 'link' })}>
+            <ArrowLeft aria-hidden className="h-4 w-4" /> All invoices
           </Link>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold text-neutral-900">{invoice.invoice_number}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-title-l sm:text-display">{invoice.invoice_number}</h1>
             <StatusPill
               status={invoice.status}
-              labelOverride={invoice.user_facing_status}
+              labelOverride={invoice.user_facing_status ?? undefined}
               subLabel={
                 ['issued', 'sent', 'viewed'].includes(invoice.status)
                   ? invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)
@@ -266,296 +282,222 @@ export default function InvoiceDetailPage() {
               }
             />
           </div>
-          <p className="mt-1 text-sm text-neutral-500">
-            {invoice.client_name || 'Client'} · Due {invoice.due_date}
+          <p className="text-body text-text-soft">
+            {invoice.client_name || 'Client'} · Due {formatDate(invoice.due_date)}
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           {invoice.share_token && (
             <>
-              <button
-                type="button"
-                onClick={copyShareLink}
-                className="inline-flex items-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
-              >
-                {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+              <Button variant="outline" zone="calm" onClick={copyShareLink}>
+                {copied ? <Check aria-hidden className="h-4 w-4" /> : <Copy aria-hidden className="h-4 w-4" />}
                 {copied ? 'Copied' : 'Copy link'}
-              </button>
+              </Button>
               <Link
                 href={`/i/${invoice.share_token}`}
                 target="_blank"
-                className="inline-flex items-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
+                className={buttonStyles({ variant: 'outline', zone: 'calm' })}
               >
-                <ExternalLink className="h-3.5 w-3.5" /> Client view
+                <ExternalLink aria-hidden className="h-4 w-4" /> Client view
               </Link>
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(
-                  `Hi ${invoice.client_name || 'there'}, here is invoice ${invoice.invoice_number}: ${
-                    typeof window !== 'undefined' ? window.location.origin : ''
-                  }/i/${invoice.share_token}`
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
-              >
-                <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
-              </a>
+              {whatsappHref && (
+                <a
+                  href={whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                >
+                  <Share2 aria-hidden className="h-4 w-4" /> WhatsApp
+                </a>
+              )}
             </>
           )}
-          {!['paid', 'cancelled'].includes(invoice.status) && (
-            <button
-              type="button"
+          {canRecordPayment && (
+            <Button
+              zone="calm"
+              variant={pendingClaims.length > 0 ? 'outline' : 'primary'}
               onClick={openReceiptModal}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
             >
-              <ReceiptText className="h-3.5 w-3.5" /> Record payment
-            </button>
-                ))}
-          </div>
+              <ReceiptText aria-hidden className="h-4 w-4" /> Record payment
+            </Button>
+          )}
+        </div>
+      </div>
 
-        <aside className="space-y-6">
+      {actionError && (
+        <div
+          role="alert"
+          className="flex items-start justify-between gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]"
+        >
+          <span className="pt-2">{actionError}</span>
+          <button
+            type="button"
+            aria-label="Dismiss message"
+            onClick={() => setActionError(null)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn"
+          >
+            <X aria-hidden className="h-5 w-5" />
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
-          {/* InvoiceDocument (issuer variant) */}
+          {pendingClaims.length > 0 && (
+            <Card zone="calm" tone="peach" className="space-y-3">
+              <div>
+                <h2 className="text-heading">payments waiting for you</h2>
+                <p className="text-body text-text-soft">
+                  Your client says they paid. Check your bank or mobile money account before you confirm.
+                </p>
+              </div>
+              <ul className="space-y-2">
+                {pendingClaims.map((claim) => (
+                  <li
+                    key={claim.id}
+                    className="flex flex-col gap-3 rounded-row border border-line-subtle bg-surface p-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <Money amountMinor={claim.amount_minor} currency={invoice.currency} className="text-amount-s" />
+                      <p className="text-caption text-text-muted">
+                        Claimed {formatDate(claim.payment_date)}
+                        {claim.reference ? ` · Ref ${claim.reference}` : ''}
+                      </p>
+                    </div>
+                    <Button
+                      zone="calm"
+                      loading={confirmingClaimId === claim.id}
+                      onClick={() => handleConfirmClaim(claim)}
+                    >
+                      <CheckCircle2 aria-hidden className="h-4 w-4" /> Confirm funds received
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
           <InvoiceDocument
             variant="issuer"
             invoice={{
               ...invoice,
+              tax_rate_percent: invoice.tax_rate_percent ?? 0,
               remaining_minor: invoice.remaining_minor,
             }}
           />
-
-          {/* Pending Claims */}
-          {pendingClaims.length > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-              <h2 className="text-sm font-bold text-amber-950">Payments awaiting your confirmation</h2>
-              <p className="mt-1 text-xs text-amber-800">
-                The client submitted these claims. Check your bank or mobile money account before confirming.
-              </p>
-              <div className="mt-3 space-y-2">
-                {pendingClaims.map((claim) => (
-                  <div key={claim.id} className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="text-sm font-bold text-neutral-900">
-                        <Money amountMinor={claim.amount_minor} currency={invoice.currency} />
-                      </div>
-                      <div className="text-[11px] text-neutral-500">
-                        Claimed {claim.payment_date}
-                        {claim.reference ? ` · Ref ${claim.reference}` : ''}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleConfirmClaim(claim)}
-                      disabled={confirmingClaimId === claim.id}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
-                    >
-                      {confirmingClaimId === claim.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                      Confirm funds received
-                    </button>
-                  </div>
-                )}
-          </div>
-            {invoice.notes && (
-              <div className="rounded-xl border bg-white p-5">
-                <h2 className="text-sm font-bold text-neutral-900">Notes</h2>
-                <p className="mt-1 whitespace-pre-line text-xs text-neutral-600">{invoice.notes}</p>
-              </div>
-            )}
-          </div>
-                ))}
-          </div>
+        </div>
 
         <aside className="space-y-6">
-          <div className="rounded-xl border bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Send className="h-4 w-4 text-neutral-400" />
-              <h2 className="text-sm font-bold text-neutral-900">Status history</h2>
-            </div>
-            <div className="mt-4">
-              {/* Timeline placeholder - events come from API */}
-              {events.length === 0 ? (
-                <div className="text-xs text-neutral-500 text-center py-8">
-                  No status history available
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {events.map((event) => (
-                    <div
-                      key={event.id}
-                      className="flex flex-col gap-1"
-                    >
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="font-semibold text-neutral-900">
-                          {event.source.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </span>
-                        <span className="text-neutral-400">{event.to_status}</span>
-                      </div>
-                      {event.event_metadata && (
-                        <div className="ml-8 text-[10px] text-neutral-500">
-                          {JSON.stringify(event.event_metadata)}
-                        </div>
-
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <Card zone="calm" className="space-y-4">
+            <h2 className="text-heading">status history</h2>
+            <StatusTimeline events={events} />
+          </Card>
 
           {invoice.latest_receipt?.share_token && (
             <Link
               href={`/r/${invoice.latest_receipt.share_token}`}
-              className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
+              className={buttonStyles({ variant: 'outline', zone: 'calm', fullWidth: true })}
             >
-              <span className="flex items-center gap-2">
-                <FileText className="h-4 w-4" /> Official receipt
-              </span>
-              <ExternalLink className="h-3.5 w-3.5" />
+              <FileText aria-hidden className="h-4 w-4" /> Official receipt
             </Link>
           )}
 
-          <div className="rounded-xl border bg-white p-5 text-xs text-neutral-600">
-            <div className="flex items-center gap-2 text-sm font-bold text-neutral-900">
-              <CreditCard className="h-4 w-4 text-neutral-400" /> Payment details
-            </div>
-            <div className="mt-3 space-y-2">
+          <Card zone="calm" className="space-y-3">
+            <h2 className="text-heading">payment summary</h2>
+            <dl className="space-y-2 text-body">
               <div className="flex justify-between gap-3">
-                <span>Issued</span>
-                <span className="font-medium text-neutral-900">{invoice.issue_date}</span>
+                <dt className="text-text-soft">Issued</dt>
+                <dd className="font-medium">{formatDate(invoice.issue_date)}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <span>Due</span>
-                <span className="font-medium text-neutral-900">{invoice.due_date}</span>
+                <dt className="text-text-soft">Due</dt>
+                <dd className="font-medium">{formatDate(invoice.due_date)}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <span>Amount paid</span>
-                <span className="font-medium text-neutral-900">
-                  <Money amountMinor={invoice.amount_paid_minor} currency={invoice.currency} />
-                </span>
+                <dt className="text-text-soft">Paid</dt>
+                <dd>
+                  <Money amountMinor={invoice.amount_paid_minor} currency={invoice.currency} hideCurrencyCode />
+                </dd>
               </div>
-              <div className="flex justify-between gap-3">
-                <span>Outstanding</span>
-                <span className="font-medium text-neutral-900">
-                  <Money amountMinor={balanceMinor} currency={invoice.currency} />
-                </span>
+              <div className="flex justify-between gap-3 border-t border-line pt-2">
+                <dt className="font-extrabold">Outstanding</dt>
+                <dd>
+                  <Money amountMinor={balanceMinor} currency={invoice.currency} hideCurrencyCode />
+                </dd>
               </div>
-            </div>
-          </div>
+            </dl>
+          </Card>
         </aside>
       </div>
 
-      {/* Record Payment Modal */}
-      {showReceiptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <form
-            onSubmit={handleRecordPayment}
-            className="w-full max-w-md space-y-4 rounded-2xl border bg-white p-6 shadow-xl"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-base font-bold text-neutral-900">Record payment received</h2>
-                <p className="mt-1 text-xs text-neutral-500">
-                  Only record this after the funds have arrived. This issues an official receipt and marks the invoice paid.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowReceiptModal(false)}
-                className="rounded-lg p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+      <Dialog
+        open={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        title="record a payment you received"
+        className="max-h-[90dvh] overflow-y-auto"
+      >
+        <form onSubmit={handleRecordPayment} className="space-y-4">
+          <p className="text-body text-text-soft">
+            Only record this after the funds have arrived. It issues an official receipt and updates the invoice.
+          </p>
 
-            <label className="block">
-              <span className="text-xs font-semibold text-neutral-700">Amount received ({invoice.currency})</span>
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                required
-              />
-              <span className="mt-1 block text-[11px] text-neutral-400">
-                Outstanding balance: <Money amountMinor={balanceMinor} currency={invoice.currency} />
-              </span>
-            </label>
+          <MoneyInput
+            label="Amount received"
+            currency={invoice.currency}
+            value={amount}
+            onChange={(v) => setAmount(cleanAmount(v, amount))}
+            hint={`Outstanding balance: ${(balanceMinor / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${invoice.currency}`}
+            required
+          />
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-xs font-semibold text-neutral-700">Payment date</span>
-                <input
-                  type="date"
-                  value={paymentDate}
-                  onChange={(e) => setPaymentDate(e.target.value)}
-                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  required
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold text-neutral-700">Method</span>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {PAYMENT_METHODS.map((method) => (
-                    <option key={method} value={method}>
-                      {method.replace('_', ' ')}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Payment date">
+              {(a) => <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} required {...a} />}
+            </Field>
+            <Field label="Method">
+              {(a) => (
+                <select className={inputStyles} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} {...a}>
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
                     </option>
                   ))}
                 </select>
-              </label>
-            </div>
+              )}
+            </Field>
+          </div>
 
-            <label className="block">
-              <span className="text-xs font-semibold text-neutral-700">Reference (optional)</span>
-              <input
-                type="text"
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="Bank session ID or transfer reference"
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </label>
+          <Field label="Reference (optional)" hint="Bank session ID or transfer reference.">
+            {(a) => <Input type="text" value={reference} onChange={(e) => setReference(e.target.value)} {...a} />}
+          </Field>
 
-            <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-              <input
-                type="checkbox"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-amber-300 text-emerald-600"
-              />
-              <span>I confirm I have verified that these funds were received in my account.</span>
-            </label>
+          <label className="flex min-h-11 items-start gap-3 rounded-row bg-peach p-3 text-body">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(e) => setConfirmed(e.target.checked)}
+              className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--bagg-mango)]"
+            />
+            <span>I have checked that these funds arrived in my account.</span>
+          </label>
 
-            {formError && <p className="text-xs font-medium text-red-600">{formError}</p>}
+          {formError && (
+            <p role="alert" className="text-body font-medium text-danger dark:text-[#FFB3A8]">
+              {formError}
+            </p>
+          )}
 
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setShowReceiptModal(false)}
-                className="rounded-lg border px-3 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
-              >
-                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Confirm payment received
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          <div className="flex justify-between gap-3">
+            <Button variant="outline" zone="calm" onClick={() => setShowReceiptModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" zone="calm" loading={saving}>
+              Confirm payment received
+            </Button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 }

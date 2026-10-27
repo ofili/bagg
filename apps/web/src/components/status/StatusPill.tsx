@@ -35,67 +35,67 @@ const STATUS_META: Record<
 > = {
   draft: {
     label: 'Draft',
-    className: 'bg-neutral-100 text-neutral-600 border-neutral-200',
+    className: 'bg-[#E6DAC6] text-[#5A4A35]',
     icon: FileEdit,
   },
   sent: {
     label: 'Open',
-    className: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    className: 'bg-peach-chip text-text',
     icon: Send,
   },
   viewed: {
     label: 'Open',
-    className: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    className: 'bg-peach-chip text-text',
     icon: Eye,
   },
   payment_claimed: {
     label: 'Needs review',
-    className: 'bg-amber-50 text-amber-800 border-amber-200',
+    className: 'bg-sun text-[#4A3200]',
     icon: Clock3,
   },
   partially_paid: {
     label: 'Partially paid',
-    className: 'bg-blue-50 text-blue-700 border-blue-200',
+    className: 'bg-[#FFF1C2] text-[#8A6200]',
     icon: CircleDashed,
   },
   paid: {
     label: 'Paid',
-    className: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    className: 'bg-leaf text-[#052E1B]',
     icon: CheckCircle2,
   },
   cancelled: {
     label: 'Cancelled',
-    className: 'bg-red-50 text-red-700 border-red-200',
+    className: 'bg-[#EFE6D8] text-[#8A6A50]',
     icon: XCircle,
   },
   overdue: {
     label: 'Overdue',
-    className: 'bg-red-50 text-red-700 border-red-200',
+    className: 'bg-[#FFB3B3] text-[#5A1010]',
     icon: AlertTriangle,
   },
   processing: {
     label: 'Processing',
-    className: 'bg-sky-50 text-sky-700 border-sky-200',
+    className: 'bg-[#FFF1C2] text-[#8A6200]',
     icon: Loader2,
   },
   accepted: {
     label: 'Accepted',
-    className: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    className: 'bg-[#E6DAC6] text-[#5A4A35]',
     icon: ThumbsUp,
   },
   declined: {
     label: 'Declined',
-    className: 'bg-red-50 text-red-700 border-red-200',
+    className: 'bg-[#EFE6D8] text-[#8A6A50]',
     icon: ThumbsDown,
   },
   expired: {
     label: 'Expired',
-    className: 'bg-neutral-100 text-neutral-500 border-neutral-200',
+    className: 'bg-[#EFE6D8] text-[#8A6A50]',
     icon: TimerOff,
   },
   converted: {
     label: 'Converted to invoice',
-    className: 'bg-violet-50 text-violet-700 border-violet-200',
+    className: 'bg-[#E6DAC6] text-[#5A4A35]',
     icon: ArrowRightCircle,
   },
 };
@@ -137,12 +137,12 @@ export function StatusPill({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap ${meta.className} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-caption font-extrabold whitespace-nowrap ${meta.className} ${className}`}
     >
-      <Icon className={`h-3 w-3 ${pulse ? 'animate-pulse' : ''}`} />
+      <Icon aria-hidden className={`h-3 w-3 ${pulse ? 'animate-pulse' : ''}`} />
       <span className="leading-none">{label}</span>
       {sub && (
-        <span className="ml-1 text-[10px] font-normal opacity-70 whitespace-nowrap">{sub}</span>
+        <span className="ml-1 text-caption font-normal whitespace-nowrap">{sub}</span>
       )}
     </span>
   );

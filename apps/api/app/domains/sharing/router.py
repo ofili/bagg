@@ -64,6 +64,8 @@ async def get_public_invoice(
         raise HTTPException(status_code=404, detail="Invoice not found or invalid link")
 
     invoice, client_name, workspace = row
+    if invoice.status == "draft":
+        raise HTTPException(status_code=404, detail="Invoice not found or invalid link")
 
     # Automatically transition from sent -> viewed (US-CLV-01)
     if invoice.status == "sent":
@@ -173,7 +175,7 @@ async def submit_payment_claim(
     stmt = select(Invoice).where(Invoice.share_token == token)
     res = await db.execute(stmt)
     invoice = res.scalar_one_or_none()
-    if not invoice:
+    if not invoice or invoice.status == "draft":
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     if invoice.status in {"cancelled", "paid"}:
@@ -237,7 +239,7 @@ async def post_comment(
     stmt = select(Invoice).where(Invoice.share_token == token)
     res = await db.execute(stmt)
     invoice = res.scalar_one_or_none()
-    if not invoice:
+    if not invoice or invoice.status == "draft":
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     comment = InvoiceComment(
@@ -271,7 +273,7 @@ async def list_comments(
     stmt = select(Invoice).where(Invoice.share_token == token)
     res = await db.execute(stmt)
     invoice = res.scalar_one_or_none()
-    if not invoice:
+    if not invoice or invoice.status == "draft":
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     cmt_stmt = select(InvoiceComment).where(InvoiceComment.invoice_id == invoice.id).order_by(InvoiceComment.created_at.asc())
@@ -316,6 +318,8 @@ async def initiate_direct_checkout(
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     invoice, client, workspace = row
+    if invoice.status == "draft":
+        raise HTTPException(status_code=404, detail="Invoice not found")
 
     if not invoice.direct_checkout_enabled:
         raise HTTPException(status_code=403, detail="Direct checkout is disabled for this invoice")
@@ -403,7 +407,7 @@ async def verify_direct_payment(
     stmt = select(Invoice).where(Invoice.share_token == token)
     result = await db.execute(stmt)
     invoice = result.scalar_one_or_none()
-    if not invoice:
+    if not invoice or invoice.status == "draft":
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     # Verify with Paystack
@@ -480,6 +484,8 @@ async def report_abuse(
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     invoice, workspace = row
+    if invoice.status == "draft":
+        raise HTTPException(status_code=404, detail="Invoice not found")
 
     report = AbuseReport(
         invoice_id=invoice.id,

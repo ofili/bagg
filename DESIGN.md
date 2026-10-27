@@ -1,6 +1,6 @@
 # Bagg design system
 
-Version 0.1 · 22 October 2026 · Owner: Lewis
+Version 0.2 · 22 October 2026 · Owner: Lewis
 
 This file is the source of truth for how Bagg looks, reads and behaves. Designers, engineers and AI coding tools should read it before building or changing any screen, email, PDF or marketing page. If a screen and this file disagree, fix the screen or update this file in the same change.
 
@@ -10,6 +10,7 @@ Status notes:
 - Values marked "estimate" were calculated by hand during design and must be re-checked in the real build.
 - Currency glyph coverage for the chosen font must be verified in the build (see section 4.4).
 - Dropbox, Box and Microsoft integration rules are not covered here.
+- Section 14.7 maps this document to the code that implements it.
 
 ---
 
@@ -57,6 +58,8 @@ Status notes:
 
 Rules:
 - Text on mango uses #2B1405. Text on pink uses #3D0618. Never white on mango or pink.
+- **Never use mango or pink as text colour or as a thin outline on cream or white.** Mango on white is about 2.6 to 1 and on cream about 2.5 to 1 (estimates), which fails text and UI contrast. Use the link brown (#8A3D0C) for coloured text and cocoa for outlines.
+- A selected state must never rely on mango alone against a light surface. Add a second cue: a dark label, a check icon or a dark outline.
 - Green means paid or success. Do not use it for decoration or for generic "good" states that are not about money or completion.
 - Danger red is for destructive buttons and errors that need action. Overdue states use the soft late tones below, not danger.
 - Pink and mango never touch as large adjacent fills. Separate them with cream, white or cocoa.
@@ -103,12 +106,18 @@ Dark mode is a warm brown-black, never pure black. Brand colours stay the same. 
 | bg | #FFF8EE | #1A110A |
 | surface | #FFFFFF | #261A12 |
 | border | #E3D6C4 | #3A2A1E |
+| surface-sunken | #FBF1E2 | #2F2118 |
+| surface-tint | #F6E8D4 | #33241A |
+| border-subtle | #F1DFC6 | #33241A |
 | text | #3A1F0A | #FFF1E0 |
+| text-soft | #6B5642 | #D9C3A8 |
 | text-muted | #8A6A50 | #BFA88F |
-| paid text | #1FA971 | #3DD598 |
+| link | #8A3D0C | #FFB27A |
+| paid text | #0F6B45 | #3DD598 |
 | late text | #B3261E | #FFB3A8 |
 | overdue card | #FFE9E6 | #3A1F1B (border #5A2E28) |
-| nudge or peach card | #FFE9D6 | #3A2616 |
+| peach | #FFE9D6 | #3A2616 |
+| peach-chip | #FFE3CC | #4A2E1A |
 
 Mango and pink buttons keep their dark label text in dark mode. Client-facing pages follow the viewer's device setting. PDFs are always light.
 
@@ -118,6 +127,9 @@ Mango and pink buttons keep their dark label text in dark mode. Client-facing pa
 - Dark text on pink: about 5.5 to 1.
 - Dark text on the green paid pill: about 4.9 to 1.
 - Muted text (#8A6A50) on cream: about 4.7 to 1. This only just passes AA for normal text, so muted text must never go lighter.
+
+- Link brown (#8A3D0C) on cream: about 7 to 1.
+- Mango as a colour against white or cream: about 2.6 to 1 (fails). See the rules in 3.1.
 
 Re-check all pairs with a contrast tool in the real build. Any new colour pair must reach 4.5 to 1 for text under 18 px and 3 to 1 for large text and UI outlines.
 
@@ -168,7 +180,7 @@ Amounts:
 - Headlines and screen titles are lowercase (for example "hey ada", "send. chase. get paid."). Buttons, labels and body copy use sentence case.
 - No all-caps labels. No tracked-out eyebrow text above headings.
 - Keep body lines under 70 characters on wide screens.
-- Use tabular numerals for amounts in tables so digits align (`font-variant-numeric: tabular-nums`, if the font provides them).
+- Use tabular numerals for amounts in tables so digits align (`tabular-nums`, if the font provides them).
 - Right-align amounts in tables and lists.
 - Never accent a single word in a headline with a different colour or italic.
 
@@ -202,11 +214,13 @@ Base unit 4 px. Allowed steps: 4, 8, 12, 16, 20, 24, 32, 40, 48, 64. Screen padd
 
 | Name | Width | Navigation | Lists |
 |---|---|---|---|
-| phone | under 640 | Bottom tab bar (Home, Docs, Clients, Balance) | Cards, one per document |
+| phone | under 640 | Bottom tab bar | Cards, one per document |
 | tablet | 640 to 1023 | Icon rail on the left | Table with 3 or 4 columns |
 | desktop | 1024 and up | Labelled sidebar | Full table plus a side panel on row click |
 
 Max content width 1200 px. Client pages: payment 480 px, documents and portal 720 px, centred.
+
+Implementation note: the app shell switches at Tailwind's md (768 px) and lg (1024 px) breakpoints, so the icon rail starts at 768 px.
 
 ### 5.3 Radius
 
@@ -231,9 +245,9 @@ Prefer borders to shadows. Cards and rows use a 0.5 to 1 px border in `border-su
 
 ### 6.1 Icons
 
-Use one outline icon set (Tabler Icons) at 16, 18 or 22 px with a 1.5 px stroke. Icons always sit beside or inside a label unless the action is universally known (close, back, search). Icon-only buttons need an accessible name and a 44 px hit area.
+Use `lucide-react` (already a dependency of the web app) in its outline style at 16, 18 or 22 px with a stroke width of 1.5 to 1.75. Icons always sit beside or inside a label unless the action is universally known (close, back, search). Icon-only buttons need an accessible name and a 44 px hit area.
 
-Standard icons: home, file-invoice (documents), users (clients), wallet (balance), settings, plus, check, circle-check, alert-circle, alert-triangle, clock, lock, link-off, wifi-off, shield-check, building-bank, credit-card, device-mobile.
+Standard icons (lucide names): Home, FileCheck (quotes), FileText (invoices), Users (clients), Wallet (balance), Settings, Plus, Check, CircleCheck, CircleAlert, TriangleAlert, Clock, Lock, Link2Off, WifiOff, ShieldCheck, Landmark (bank), CreditCard, Smartphone.
 
 ### 6.2 Stickers and doodles
 
@@ -251,7 +265,7 @@ Rules:
 - Stickers never carry meaning alone. A paid stamp always sits beside the word status or amount.
 - Never put stickers on a client-facing invoice or quote. A small paid stamp is allowed on receipts and the success page.
 - Never use more than one celebratory element on screen at a time.
-- Every sticker has a text description for screen readers.
+- Every sticker has a text description for screen readers, or is marked decorative.
 - Doodles are drawn with simple rounded strokes, 2 to 2.5 px, in pink or cocoa.
 
 ### 6.3 Photography
@@ -295,15 +309,15 @@ Shape is pill, height 44 (48 for the main action on a phone). One primary per sc
 
 ### 8.2 Text fields
 
-Height 44, radius 10, 1 px `border`, white or surface fill, 16 px text (so mobile browsers do not zoom). Label above in `caption` or `label`. Placeholder in muted text, never the only label. Focus: 2 px mango ring plus a cocoa border. Error: danger border plus a message below that says what is wrong and how to fix it. Verified values (for example an account name) show a green check with the verified text.
+Height 44, radius 10, 1 px `border`, white or surface fill, 16 px text (so mobile browsers do not zoom). Label above in `caption` or `label`. Placeholder in muted text, never the only label. Focus: 2 px cocoa border plus the standard focus ring (section 11). Error: danger border plus a message below that says what is wrong and how to fix it. Verified values (for example an account name) show a check icon with the verified text.
 
 ### 8.3 Chips and segmented controls
 
-Selected chip: mango fill, dark label, weight 800. Unselected: white fill, 1 px border, regular label. Segmented control: track in `surface-tint`, selected segment in mango. Use chips for 2 to 4 short options (currency, due date, tone). Use a select for longer lists.
+Selected chip: mango fill, dark label, weight 800, and a check icon or 1.5 px cocoa border as the second cue. Unselected: white fill, 1 px border, regular label. Segmented control: track in `surface-tint`, selected segment in mango with a dark, bold label. Use chips for 2 to 4 short options (currency, due date, tone). Use a select for longer lists.
 
 ### 8.4 Toggles
 
-Visible size 28 by 16, hit area 44 by 44. On: mango with a white knob on the right. Off: #D9C3A5 with the knob on the left. A toggle always has a visible label and, when the effect is not obvious, a one-line helper below it.
+Visible size 28 by 16, hit area 44 by 44. On: mango with a white knob on the right. Off: #D9C3A5 with the knob on the left. A toggle always has a visible label and, when the effect is not obvious, a one-line helper below it. Because mango is low contrast against light surfaces, the on state must also change the helper or label text (for example "On") or add a dark outline.
 
 ### 8.5 Status pill
 
@@ -328,9 +342,9 @@ Circular. Use initials on a soft tint when there is no logo or photo. Client ava
 
 ### 8.9 Navigation
 
-- **Bottom tab bar (phone):** four items (Home, Docs, Clients, Balance). Selected item uses mango icon and label in weight 800. Settings opens from the avatar, not the tab bar.
-- **Icon rail (tablet):** coin at the top, then icons. The selected icon sits in a mango rounded square.
-- **Sidebar (desktop):** same items with labels, plus a New invoice button at the top.
+- **Bottom tab bar (phone):** four items. The design target is Home, Docs, Clients, Balance. Until a combined Documents page and a Balance page exist, the tab bar shows Home, Quotes, Invoices and Clients. Settings opens from the avatar in the header. The selected item shows its icon inside a mango pill, with the label in cocoa at weight 800 (mango text on a white bar fails contrast).
+- **Icon rail (tablet):** coin at the top, then icons. The selected icon sits in a mango rounded square with a dark icon.
+- **Sidebar (desktop):** same items with labels, plus a New invoice button at the top. The selected item has a mango fill and dark label.
 - **Back link:** a plain "Back" or the parent name with an arrow, in link colour.
 
 ### 8.10 Documents list and tables
@@ -339,7 +353,7 @@ Header row on `surface-sunken`, caption size. Columns on desktop: client and num
 
 ### 8.11 Side panel (desktop)
 
-Opens on row click beside the table, about 360 px wide. Contains status, client, amount, due date, actions, a suggested reminder, and an activity timeline (latest first, orange dot for the latest event, grey dots for earlier ones). Close with the X or Escape.
+Opens on row click beside the table, about 360 px wide. Contains status, client, amount, due date, actions, a suggested reminder, and an activity timeline (latest first, cocoa dot for the latest event, grey dots for earlier ones). Close with the X or Escape.
 
 ### 8.12 Modals and sheets
 
@@ -362,12 +376,12 @@ Bag character, a lowercase headline, one sentence on what to do, one primary act
 
 ### 8.16 Progress
 
-- Step bar for flows (onboarding, invoice builder): equal segments, mango for done, `border-subtle` for remaining.
+- Step bar for flows (onboarding, invoice builder): equal segments, cocoa or mango for done, `border-subtle` for remaining.
 - Project progress: a thin bar showing the share of money paid, in green, with a text line such as "$255 of $850 paid".
 
 ### 8.17 Project components (Phase 2)
 
-- **Milestone card:** name, amount, status pill. The current milestone has a 1.5 px mango border. Upcoming milestones are at 75 percent opacity. A lock icon and a one-line note appear when final files are tied to that milestone.
+- **Milestone card:** name, amount, status pill. The current milestone has a 1.5 px cocoa border and a mango accent. Upcoming milestones are at 75 percent opacity. A lock icon and a one-line note appear when final files are tied to that milestone.
 - **Approval block:** previews of the delivered work, a plain-language note about what approval does, an Approve button (primary) and Request changes (outline). Shows revision round counts.
 - **Change order summary:** a peach block listing what changes (total, new milestone, delivery date).
 - **Contract key terms card:** two-column rows (term and value). Each value needs confirmation before it is relied on.
@@ -471,7 +485,7 @@ All reminders end with "Already paid? Please ignore this note." and are editable
 - Meet WCAG 2.1 AA as the floor.
 - Contrast: 4.5 to 1 for text under 18 px, 3 to 1 for large text and UI outlines.
 - Tap targets of 44 by 44 px.
-- Visible focus ring on every interactive element: 2 px mango outline with 2 px offset.
+- **Focus ring:** every interactive element shows a 2 px outline in the text colour (cocoa in light mode, cream in dark mode) with a 2 px offset. Mango is not used for focus because it is too low contrast on light surfaces.
 - Status never by colour alone.
 - Respect reduced motion (section 7).
 - Inputs have real labels; placeholders are hints only.
@@ -510,79 +524,42 @@ All reminders end with "Already paid? Please ignore this note." and are editable
 - Proof: real freelancer stories and numbers as they become available. Until then, show product proof only.
 - Fees page: plain list of what is free and what costs money, with an example showing the fee and the amount received. Rates remain placeholders until pricing is set.
 - Trust page: four safeguards (encryption, account-name checks, change alerts, no stored card numbers), each only if true at launch, and a link to the help centre.
-- 404: sleepy bag character, "this page took the day off", Take me home, Contact support.
+- 404: sleepy bag character, "this page took the day off", Take me home.
 - Same palette, same font, same voice as the product, with a little more room and more playfulness than the app.
 
 ---
 
 ## 14. Implementation notes
 
-### 14.1 Token file
+### 14.1 Tokens
 
-Define tokens once as CSS variables and map them into the styling system (Tailwind theme or equivalent). Names below are suggestions; adapt them to the codebase when the repo is reviewed.
+Tokens are CSS variables in `apps/web/src/app/globals.css`, mapped to Tailwind names in `apps/web/tailwind.config.ts`. Dark mode applies with `data-theme="dark"` or automatically from the device setting unless `data-theme="light"` is set.
 
-```css
-:root {
-  --bagg-mango: #FF7A1A;
-  --bagg-pink: #FF4F8B;
-  --bagg-sun: #FFC933;
-  --bagg-leaf: #1FA971;
-  --bagg-danger: #B3261E;
+| Token in this document | Tailwind name | Example class |
+|---|---|---|
+| bg | canvas | `bg-canvas` |
+| surface | surface | `bg-surface` |
+| surface-sunken | sunken | `bg-sunken` |
+| surface-tint | tint | `bg-tint` |
+| border | line | `border-line` |
+| border-subtle | line-subtle | `border-line-subtle` |
+| text | ink | `text-ink` |
+| text-soft | ink-soft | `text-ink-soft` |
+| text-muted | ink-muted | `text-ink-muted` |
+| link | link | `text-link` |
+| peach | peach | `bg-peach` |
+| peach-chip | peach-chip | `bg-peach-chip` |
+| mango, pink, sun, leaf, cocoa, danger | same | `bg-mango`, `text-cocoa` |
+| text on mango, text on pink | on-mango, on-pink | `text-on-mango` |
+| status pills | pill-paid, pill-paid-fg, and so on | `bg-pill-late text-pill-late-fg` |
 
-  --bg: #FFF8EE;
-  --surface: #FFFFFF;
-  --surface-sunken: #FBF1E2;
-  --surface-tint: #F6E8D4;
-  --border: #E3D6C4;
-  --border-subtle: #F1DFC6;
-  --text: #3A1F0A;
-  --text-soft: #6B5642;
-  --text-muted: #8A6A50;
-  --link: #8A3D0C;
-  --peach: #FFE9D6;
-  --on-mango: #2B1405;
-  --on-pink: #3D0618;
+Type sizes are Tailwind font sizes with the names in section 4.2 (`text-display`, `text-title-l`, `text-title`, `text-heading`, `text-body-l`, `text-body`, `text-label`, `text-caption`, `text-amount-xl`, `text-amount-l`, `text-amount-m`, `text-amount-s`). Radii: `rounded-card`, `rounded-row`, `rounded-input`, `rounded-small`, `rounded-sheet`, and `rounded-full` for pills.
 
-  --radius-pill: 999px;
-  --radius-card: 16px;
-  --radius-row: 12px;
-  --radius-input: 10px;
-  --radius-small: 8px;
-  --radius-sheet: 20px;
-}
-
-[data-theme="dark"] {
-  --bg: #1A110A;
-  --surface: #261A12;
-  --border: #3A2A1E;
-  --border-subtle: #3A2A1E;
-  --text: #FFF1E0;
-  --text-muted: #BFA88F;
-  --paid-text: #3DD598;
-  --late-text: #FFB3A8;
-  --peach: #3A2616;
-}
-```
-
-```js
-// Tailwind theme extension (adapt to the repo's setup)
-export default {
-  theme: {
-    extend: {
-      colors: {
-        mango: '#FF7A1A', pink: '#FF4F8B', sun: '#FFC933', leaf: '#1FA971',
-        cocoa: '#3A1F0A', cream: '#FFF8EE', danger: '#B3261E',
-      },
-      borderRadius: { card: '16px', row: '12px', input: '10px', small: '8px', sheet: '20px' },
-      fontFamily: { sans: ['Bricolage Grotesque', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'] },
-    },
-  },
-};
-```
+The old `brand-*` scale is kept as an alias of the mango scale so existing classes keep working while pages are migrated. Remove it once nothing uses it.
 
 ### 14.2 Fonts
 
-Self-host the font files and subset them to Latin plus Latin Extended, and make sure U+20A6 (₦) is included. Use `font-display: swap` with a metric-matched fallback to avoid layout shift. Preload the 800 weight used in headlines and amounts.
+The web app loads Bricolage Grotesque through `next/font/google` with the latin and latin-ext subsets, so U+20A6 (₦) is included if the font has it. Run the glyph test in section 4.4 against the built app.
 
 ### 14.3 Money in code
 
@@ -603,7 +580,7 @@ Store amounts as integers in minor units with a currency code. Format with the l
 
 ### 14.5 Assets to produce
 
-Coin and wordmark (SVG, light and dark), app icon sizes, favicon, bag character in four expressions (default, sleepy, cheering, confused), paid stamp, milestone star (earned and locked), squiggle, email header, PDF template, and Open Graph image.
+Coin and wordmark (SVG, light and dark), app icon sizes, favicon, bag character in four expressions (default, sleepy, cheering, confused), paid stamp, milestone star (earned and locked), squiggle, email header, PDF template, and Open Graph image. The coin, wordmark, squiggle, bag character (default and sleepy), paid stamp and milestone star exist as React components (section 14.7).
 
 ### 14.6 Known open items
 
@@ -612,6 +589,22 @@ Coin and wordmark (SVG, light and dark), app icon sizes, favicon, bag character 
 - Dark-mode values are a first pass and need a full pass on real screens.
 - Dropbox, Box and OneDrive picker styling is not defined yet.
 - WhatsApp message formatting is not defined yet.
+- Existing pages still use the old emerald and neutral classes and are being migrated screen by screen.
+- End-to-end tests assert some old copy (for example the marketing headline and "Dashboard"). Update them in the same change as the copy.
+
+### 14.7 Code map
+
+| What | Where |
+|---|---|
+| Tokens (CSS) | `apps/web/src/app/globals.css` |
+| Tokens (Tailwind) | `apps/web/tailwind.config.ts` |
+| Font loading and root layout | `apps/web/src/app/layout.tsx` |
+| Class merge helper | `apps/web/src/lib/cn.ts` |
+| Brand pieces (coin, wordmark, squiggle, bag, paid stamp, milestone star) | `apps/web/src/components/brand/index.tsx` |
+| Button styles and component | `apps/web/src/components/ui/button.tsx` |
+| Status pill | `apps/web/src/components/ui/status-pill.tsx` |
+| App shell (sidebar, rail, tab bar) | `apps/web/src/app/(app)/layout.tsx` |
+| 404 page | `apps/web/src/app/not-found.tsx` |
 
 ---
 
@@ -625,7 +618,7 @@ Coin and wordmark (SVG, light and dark), app icon sizes, favicon, bag character 
 - Keep client pages white, calm and branded lightly.
 
 **Don't**
-- Put white text on mango or pink.
+- Put white text on mango or pink, or mango text on cream or white.
 - Use green for anything other than paid or success.
 - Put stickers on client invoices.
 - Use all-caps labels, script fonts or tracked eyebrow text.
@@ -637,4 +630,5 @@ Coin and wordmark (SVG, light and dark), app icon sizes, favicon, bag character 
 
 ## 16. Changelog
 
+- 0.2 (22 October 2026): aligned with the repo (lucide-react icons, Tailwind token names, code map). Fixed contrast problems found while implementing: mango is no longer used as text or thin outline on light surfaces, focus ring is now cocoa, and the selected tab uses a mango pill with a dark label.
 - 0.1 (22 October 2026): first version, written from the design discussion covering core billing, projects, contracts and delivery.

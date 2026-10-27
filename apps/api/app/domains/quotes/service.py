@@ -1,24 +1,41 @@
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import and_, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.errors import BadRequestException, NotFoundException
-from app.core.money import calculate_invoice_totals
+from app.core.money import calculate_invoice_totals, format_money
 from app.core.security import generate_share_token
+from app.domains.billing.service import (
+    check_delivery_quota,
+    consume_delivery_send,
+)
 from app.domains.clients.models import Client
 from app.domains.invoices import service as invoices_service
 from app.domains.lifecycle.service import record_status_event
-from app.domains.quotes.models import Quote, QuoteLineItem, QuoteRevision
+from app.domains.quotes.models import Quote, QuoteComment, QuoteLineItem, QuoteRevision
 from app.domains.quotes.schemas import (
     QuoteAcceptRequest,
+    QuoteCommentCreate,
     QuoteCreate,
     QuoteDeclineRequest,
+    QuoteReviewRequest,
     QuoteReviseRequest,
     QuoteUpdate,
 )
 from app.domains.workspaces.models import Workspace
+from app.integrations.email import EmailSender
+
+
+@dataclass
+class SendQuoteOutcome:
+    quote: Quote
+    email_sent: bool
+    recipient_email: Optional[str]
+    share_url: str
 
 
 def _ensure_share_token(quote_obj: Quote) -> None:
@@ -268,6 +285,10 @@ async def revise_quote(
     old_status = quote_obj.status
     quote_obj.version = (quote_obj.version or 1) + 1
     quote_obj.last_revised_at = datetime.now(timezone.utc)
+    if quote_obj.status == "review_requested":
+        quote_obj.status = "issued"
+        quote_obj.review_requested_at = None
+        quote_obj.review_reason = None
 
     if payload.client_id is not None:
         client = (
@@ -486,8 +507,12 @@ async def update_quote(
 
 
 async def send_quote(
-    db: AsyncSession, workspace: Workspace, quote_id: str
-) -> Quote:
+    db: AsyncSession,
+    workspace: Workspace,
+    quote_id: str,
+    *,
+    send_email: bool = False,
+) -> SendQuoteOutcome:
     quote_obj = await _get_quote_or_404(db, workspace, quote_id)
 
     if quote_obj.status == "draft":
@@ -495,28 +520,63 @@ async def send_quote(
             f"Quote '{quote_obj.quote_number}' is a draft and cannot be sent. "
             f"Finalize it first with POST /quotes/{quote_id}/finalize."
         )
+    if quote_obj.status not in {"issued", "sent", "viewed"}:
+        raise BadRequestException(
+            f"Quote '{quote_obj.quote_number}' is '{quote_obj.status}' and cannot be sent."
+        )
 
+    client = quote_obj.client
+    recipient_email = client.email if client else None
     _ensure_share_token(quote_obj)
+    share_url = f"{settings.WEB_BASE_URL}/q/{quote_obj.share_token}"
+
+    email_sent = False
+    if send_email:
+        if recipient_email:
+            await check_delivery_quota(workspace, db)
+            email_sent = await EmailSender().send_quote_email(
+                to_email=recipient_email,
+                quote_number=quote_obj.quote_number,
+                share_url=share_url,
+                business_name=workspace.business_name,
+                client_name=client.name if client else None,
+                formatted_total=format_money(quote_obj.total_minor, quote_obj.currency),
+                expires_at=quote_obj.expires_at.strftime("%d %b %Y"),
+            )
+            if email_sent:
+                quote_obj.email_delivery_status = "delivered"
+                await consume_delivery_send(workspace, db)
+            else:
+                quote_obj.email_delivery_status = "failed"
+        else:
+            quote_obj.email_delivery_status = "no_email"
 
     old_status = quote_obj.status
-    quote_obj.status = "sent"
+    if quote_obj.status in {"issued", "sent"}:
+        quote_obj.status = "sent"
     quote_obj.sent_at = datetime.now(timezone.utc)
 
-    record_status_event(
-        db=db,
-        workspace_id=workspace.id,
-        document_type="quote",
-        document_id=quote_obj.id,
-        from_status=old_status,
-        to_status=quote_obj.status,
-        actor_type="issuer",
-        actor_id=workspace.owner_id,
-        source="issuer_send",
-    )
+    if old_status != quote_obj.status:
+        record_status_event(
+            db=db,
+            workspace_id=workspace.id,
+            document_type="quote",
+            document_id=quote_obj.id,
+            from_status=old_status,
+            to_status=quote_obj.status,
+            actor_type="issuer",
+            actor_id=workspace.owner_id,
+            source="issuer_send",
+        )
 
     await db.commit()
     await db.refresh(quote_obj)
-    return quote_obj
+    return SendQuoteOutcome(
+        quote=quote_obj,
+        email_sent=email_sent,
+        recipient_email=recipient_email,
+        share_url=share_url,
+    )
 
 
 async def convert_quote_to_invoice(
@@ -586,6 +646,9 @@ async def view_public_quote(
 
     quote_obj, client_name, workspace = row
 
+    if quote_obj.status == "draft":
+        raise NotFoundException("Quote not found or invalid link")
+
     if quote_obj.status == "sent":
         quote_obj.status = "viewed"
         quote_obj.viewed_at = datetime.now(timezone.utc)
@@ -623,6 +686,12 @@ async def accept_public_quote(
 
     quote_obj, client_name, workspace = row
 
+    if quote_obj.status == "draft":
+        raise NotFoundException("Quote not found or invalid link")
+    if quote_obj.status == "review_requested":
+        raise BadRequestException(
+            "The issuer is revising this quote. Please wait for the updated version."
+        )
     if quote_obj.status == "converted":
         raise BadRequestException(
             "This quote has already been accepted and converted into an invoice."
@@ -698,6 +767,8 @@ async def decline_public_quote(
 
     quote_obj, client_name, workspace = row
 
+    if quote_obj.status == "draft":
+        raise NotFoundException("Quote not found or invalid link")
     if quote_obj.status == "converted":
         raise BadRequestException(
             "Cannot decline a quote that has already been converted into an invoice."
@@ -724,3 +795,113 @@ async def decline_public_quote(
     await db.commit()
     await db.refresh(quote_obj)
     return quote_obj, client_name, workspace
+
+async def request_quote_review(
+    db: AsyncSession,
+    token: str,
+    payload: QuoteReviewRequest,
+) -> tuple[Quote, Optional[str], Workspace]:
+    row = (
+        await db.execute(
+            select(Quote, Client.name.label("client_name"), Workspace)
+            .join(Client, Quote.client_id == Client.id, isouter=True)
+            .join(Workspace, Quote.workspace_id == Workspace.id)
+            .where(Quote.share_token == token)
+        )
+    ).first()
+    if not row:
+        raise NotFoundException("Quote not found or invalid link")
+
+    quote_obj, client_name, workspace = row
+
+    if quote_obj.status == "draft":
+        raise NotFoundException("Quote not found or invalid link")
+    if quote_obj.status in {"accepted", "declined", "converted"}:
+        raise BadRequestException(
+            f"Cannot request changes on a {quote_obj.status} quote."
+        )
+    if quote_obj.expires_at < date.today():
+        raise BadRequestException(
+            "This quote has expired. Please contact the freelancer for an updated quote."
+        )
+    if quote_obj.status == "review_requested":
+        return quote_obj, client_name, workspace
+
+    old_status = quote_obj.status
+    quote_obj.status = "review_requested"
+    quote_obj.review_requested_at = datetime.now(timezone.utc)
+    quote_obj.review_reason = (payload.reason or "").strip() or None
+
+    record_status_event(
+        db=db,
+        workspace_id=quote_obj.workspace_id,
+        document_type="quote",
+        document_id=quote_obj.id,
+        from_status=old_status,
+        to_status="review_requested",
+        actor_type="client",
+        source="client_request_review",
+        metadata={"reason": quote_obj.review_reason},
+    )
+
+    await db.commit()
+    await db.refresh(quote_obj)
+    return quote_obj, client_name, workspace
+
+
+async def post_public_quote_comment(
+    db: AsyncSession,
+    token: str,
+    payload: QuoteCommentCreate,
+) -> tuple[QuoteComment, Quote, Workspace, Optional[str]]:
+    row = (
+        await db.execute(
+            select(Quote, Workspace)
+            .join(Workspace, Quote.workspace_id == Workspace.id)
+            .where(Quote.share_token == token)
+        )
+    ).first()
+    if not row:
+        raise NotFoundException("Quote not found or invalid link")
+
+    quote_obj, workspace = row
+    if quote_obj.status == "draft":
+        raise NotFoundException("Quote not found or invalid link")
+
+    item_description: Optional[str] = None
+    if payload.line_item_id:
+        item = next(
+            (item for item in (quote_obj.items or []) if item.id == payload.line_item_id),
+            None,
+        )
+        if item is None:
+            raise BadRequestException("That line item does not belong to this quote.")
+        item_description = item.description
+
+    comment = QuoteComment(
+        quote_id=quote_obj.id,
+        line_item_id=payload.line_item_id,
+        author_name=payload.author_name.strip(),
+        message=payload.message.strip(),
+        is_from_client=True,
+    )
+    db.add(comment)
+    await db.commit()
+    await db.refresh(comment)
+    return comment, quote_obj, workspace, item_description
+
+
+async def list_quote_comments(
+    db: AsyncSession,
+    workspace: Workspace,
+    quote_id: str,
+) -> list[QuoteComment]:
+    await _get_quote_or_404(db, workspace, quote_id)
+    rows = (
+        await db.execute(
+            select(QuoteComment)
+            .where(QuoteComment.quote_id == quote_id)
+            .order_by(QuoteComment.created_at.asc())
+        )
+    ).scalars().all()
+    return list(rows)

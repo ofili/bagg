@@ -44,6 +44,7 @@ def map_invoice_to_response(
     inv: Invoice,
     client_name: Optional[str] = None,
     client_phone: Optional[str] = None,
+    client_email: Optional[str] = None,
     business_name: str = "Studio Bagg",
     base_url: str = "http://localhost:3000",
 ) -> InvoiceResponse:
@@ -61,11 +62,14 @@ def map_invoice_to_response(
 
     c_name = client_name
     c_phone = client_phone
+    c_email = client_email
     if "client" in inv.__dict__ and inv.client:
         if not c_name:
             c_name = inv.client.name
         if not c_phone:
             c_phone = inv.client.phone
+        if not c_email:
+            c_email = inv.client.email
 
     share_url = f"{base_url}/i/{inv.share_token}" if inv.share_token else ""
     formatted_tot = format_money(inv.total_minor, inv.currency)
@@ -103,6 +107,7 @@ def map_invoice_to_response(
         workspace_id=inv.workspace_id,
         client_id=inv.client_id,
         client_name=c_name,
+        client_email=c_email,
         invoice_number=inv.invoice_number,
         sequence_number=inv.sequence_number,
         quote_id=inv.quote_id,

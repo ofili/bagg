@@ -21,6 +21,7 @@ from app.domains.invoices.schemas import (
     InvoiceResponse,
     InvoiceReviseRequest,
     InvoiceRevisionResponse,
+    InvoiceSendRequest,
     InvoiceSendResponse,
     InvoiceUpdate,
     WHTCreditNoteUpdate,
@@ -112,6 +113,7 @@ async def finalize_invoice(
         invoice,
         client_name=client.name,
         client_phone=client.phone,
+        client_email=client.email,
         business_name=workspace.business_name,
         base_url=settings.WEB_BASE_URL,
     )
@@ -120,10 +122,14 @@ async def finalize_invoice(
 @router.post("/{invoice_id}/send", response_model=InvoiceSendResponse)
 async def send_invoice(
     invoice_id: str,
+    payload: Optional[InvoiceSendRequest] = None,
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    outcome = await service.send_invoice(db, workspace, invoice_id)
+    send_email = payload.send_email if payload else True
+    outcome = await service.send_invoice(
+        db, workspace, invoice_id, send_email=send_email
+    )
     invoice = outcome.invoice
     client = outcome.client
 
@@ -131,7 +137,9 @@ async def send_invoice(
         invoice,
         client_name=client.name,
         client_phone=client.phone,
+        client_email=client.email,
         business_name=workspace.business_name,
+        base_url=settings.WEB_BASE_URL,
     )
     wa_url = generate_whatsapp_share_url(
         phone=client.phone,
@@ -143,13 +151,22 @@ async def send_invoice(
         due_date=invoice.due_date,
     )
 
+    if outcome.email_sent:
+        message = f"Invoice {invoice.invoice_number} emailed successfully."
+    elif send_email and not outcome.recipient_email:
+        message = "Invoice marked sent. Add a client email or share the link directly."
+    elif send_email:
+        message = "Invoice marked sent, but email delivery failed. Share the link instead."
+    else:
+        message = f"Invoice {invoice.invoice_number} is ready to share."
+
     return InvoiceSendResponse(
         invoice=resp_invoice,
         whatsapp_url=wa_url,
         email_sent=outcome.email_sent,
         recipient_email=outcome.recipient_email,
         share_url=outcome.share_url,
-        message=f"Invoice {invoice.invoice_number} sent successfully.",
+        message=message,
     )
 
 

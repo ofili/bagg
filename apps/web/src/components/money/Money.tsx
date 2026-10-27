@@ -3,7 +3,7 @@
 interface MoneyProps {
   amountMinor: number;
   currency: string;
-  variant?: 'total' | 'paid' | 'outstanding' | 'muted' | 'negative';
+  variant?: 'total' | 'paid' | 'outstanding' | 'muted' | 'negative' | 'inherit';
   className?: string;
   hideCurrencyCode?: boolean;
   nowrap?: boolean;
@@ -32,7 +32,8 @@ export function Money({
   const isNegative = major < 0;
   const absMajor = Math.abs(major);
 
-  const formatted = absMajor.toLocaleString(undefined, {
+  // Fixed locale so server and client render the same string (no hydration mismatch)
+  const formatted = absMajor.toLocaleString('en-US', {
     minimumFractionDigits: conf.decimals,
     maximumFractionDigits: conf.decimals,
   });
@@ -40,18 +41,21 @@ export function Money({
   const sign = isNegative ? '−' : '';
   const currencyCode = hideCurrencyCode ? '' : ` ${currency}`;
 
+  // Green means paid, nothing else. Outstanding amounts stay in the normal text colour.
   const variantClass =
-    variant === 'negative'
-      ? 'text-red-700'
-      : variant === 'outstanding'
-      ? 'text-emerald-700'
+    variant === 'inherit'
+      ? ''
+      : variant === 'negative'
+      ? 'text-danger dark:text-[#FFB3A8]'
+      : variant === 'paid'
+      ? 'text-[#0F6B45] dark:text-[#3DD598]'
       : variant === 'muted'
-      ? 'text-neutral-500'
-      : 'text-neutral-900';
+      ? 'text-text-muted'
+      : 'text-text';
 
   return (
     <span
-      className={`font-mono font-semibold tabular-nums ${nowrap ? 'whitespace-nowrap' : ''} ${variantClass} ${className}`}
+      className={`tabular-nums font-extrabold ${nowrap ? 'whitespace-nowrap' : ''} ${variantClass} ${className}`}
     >
       {sign}{conf.symbol}{formatted}{currencyCode}
     </span>

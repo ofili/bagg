@@ -1,9 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { formatMoney } from '@/lib/money';
-import { Share2, Copy, ExternalLink, CheckCircle2, MoreHorizontal } from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Check, Copy, ExternalLink, FileDown, MoreHorizontal, Share2 } from 'lucide-react';
+import { Money } from '@/components/money/Money';
+import { StatusPill } from '@/components/status';
+import { Button, buttonStyles } from '@/components/ui';
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { formatDate } from '@/lib/date';
+import { cn } from '@/lib/utils';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface InvoiceCardProps {
   id: string;
@@ -20,15 +27,13 @@ interface InvoiceCardProps {
   shareToken?: string | null;
   latestReceipt?: { share_token?: string | null; confirmation_source?: string | null } | null;
   dueDate: string;
+  /** Issuer only: opens the payment claim review when the client says they paid. */
+  onReviewClaim?: () => void;
+  /** Issuer only: asks the API for a polite WhatsApp reminder link. Shown on overdue invoices. */
+  onNudge?: () => void;
 }
 
-interface OverflowMenuItem {
-  label: string;
-  href?: string;
-  onClick?: () => void;
-  external?: boolean;
-  icon?: React.ReactNode;
-}
+const menuItemClass = 'flex min-h-11 w-full items-center gap-3 rounded-row px-3 text-body-l font-medium hover:bg-surface-tint';
 
 export function InvoiceCard({
   id,
@@ -43,125 +48,129 @@ export function InvoiceCard({
   daysOverdue = 0,
   paymentState,
   shareToken,
-  latestReceipt,
   dueDate,
+  onReviewClaim,
+  onNudge,
 }: InvoiceCardProps) {
+  const [copied, setCopied] = useState(false);
   const displayStatus = effectiveStatus || status;
   const balanceMinor = Math.max(0, totalMinor - amountPaidMinor);
   const isPaid = displayStatus === 'paid' || paymentState === 'paid';
 
-  const overflowItems: OverflowMenuItem[] = [
-    {
-      label: 'View details',
-      href: `/invoices/${id}`,
-      icon: <ExternalLink className="w-3 h-3" />,
-    },
-    {
-      label: 'Copy link',
-      href: shareToken ? `/i/${shareToken}` : undefined,
-      icon: <Copy className="w-3 h-3" />,
-    },
-  ];
+  const publicUrl = () => `${window.location.origin}/i/${shareToken}`;
 
-  if (shareToken) {
-    overflowItems.push({
-      label: 'Download PDF',
-      href: `/invoices/${id}/pdf`,
-      icon: <Share2 className="w-3 h-3" />,
-    });
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(publicUrl());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard can be blocked (insecure origin or permissions). The link is still on the invoice page.
+    }
   }
 
+  const whatsappHref = shareToken
+    ? `https://wa.me/?text=${encodeURIComponent(
+        `Hi ${clientName || 'there'}, here is invoice ${invoiceNumber}: ${
+          typeof window !== 'undefined' ? window.location.origin : ''
+        }/i/${shareToken}`,
+      )}`
+    : undefined;
+
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-neutral-300">
+    <article className="rounded-card border border-line-subtle bg-surface p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-xs font-bold text-neutral-900">{invoiceNumber}</span>
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <h3 className="text-body-l font-extrabold">{invoiceNumber}</h3>
             {isOverdue && (
-              <span className="text-[10px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded">
-                {daysOverdue > 0 ? `${daysOverdue}d late` : 'Past due'}
+              <span className="rounded-full bg-[#FFB3B3] px-2 py-0.5 text-caption font-extrabold text-[#5A1010]">
+                {daysOverdue > 0 ? `${daysOverdue} days late` : 'Past due'}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-neutral-500 mb-2">
-            <span>{clientName || 'Client'}</span>
-            <span className="mx-0.5">•</span>
-            <span>Due {dueDate}</span>
-          </div>
-
-          {/* Status pill */}
-          <button
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border"
-            aria-label={`Invoice status: ${displayStatus}`}
-          >
-            <CheckCircle2
-              className={`w-3 h-3 ${
-                isPaid ? 'text-emerald-600' : 'text-neutral-400'
-              }`}
-              aria-hidden="true"
-            />
-            <span className={`capitalize ${
-              isPaid
-                ? 'text-emerald-700 border-emerald-200 bg-emerald-50'
-                : 'text-neutral-600 border-neutral-200 bg-neutral-50'
-            }`}>
-              {displayStatus}
-            </span>
-          </button>
+          <p className="text-body text-text-soft">
+            {clientName || 'Client'} · Due {formatDate(dueDate)}
+          </p>
+          <StatusPill status={displayStatus} />
         </div>
 
         <div className="text-right">
-          <div className="text-base font-black tracking-tight text-neutral-900">
-            {formatMoney(isPaid ? amountPaidMinor : balanceMinor, currency)}
-          </div>
-          {!isPaid && balanceMinor > 0 && (
-            <div className="text-xs text-neutral-500">
-              of {formatMoney(totalMinor, currency)} total
-            </div>
+          <Money
+            amountMinor={isPaid ? amountPaidMinor : balanceMinor}
+            currency={currency}
+            variant={isPaid ? 'paid' : 'total'}
+            className="text-amount-m"
+            hideCurrencyCode
+          />
+          {!isPaid && balanceMinor > 0 && balanceMinor < totalMinor && (
+            <p className="text-caption text-text-muted">
+              of <Money amountMinor={totalMinor} currency={currency} variant="muted" hideCurrencyCode />
+            </p>
           )}
+          <p className="text-caption text-text-muted">{currency}</p>
         </div>
 
-        {/* Overflow menu (primary action = WhatsApp share on mobile) */}
         <Sheet>
           <SheetTrigger asChild>
-            <button className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition" aria-label="More options">
-              <MoreHorizontal className="w-4 h-4" />
+            <button
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn text-text hover:bg-surface-tint"
+              aria-label={`More options for invoice ${invoiceNumber}`}
+            >
+              <MoreHorizontal aria-hidden className="h-5 w-5" />
             </button>
           </SheetTrigger>
-          <SheetContent className="w-48 rounded-xl border border-neutral-200 bg-white shadow-xl p-2">
-            <div className="space-y-1">
-              {overflowItems.map((item, i) => {
-                if (!item.href) return null;
-                const Comp = item.external ? 'a' : Link;
-                return (
-                  <Comp
-                    key={i}
-                    {...(item.external
-                      ? { href: item.href, target: '_blank', rel: 'noopener noreferrer' }
-                      : { href: item.href })}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 rounded-lg transition"
-                  >
-                    {item.icon}
-                    {item.label}
-                  </Comp>
-                );
-              })}
+          <SheetContent title={`Options for invoice ${invoiceNumber}`}>
+            <div className="space-y-1 p-4">
+              <h2 className="px-2 pb-2 text-title">{invoiceNumber}</h2>
+              <SheetClose asChild>
+                <Link href={`/invoices/${id}`} className={menuItemClass}>
+                  <ExternalLink aria-hidden className="h-4 w-4" /> View details
+                </Link>
+              </SheetClose>
+              {shareToken && (
+                <button type="button" onClick={copyLink} className={cn(menuItemClass, 'text-left')}>
+                  {copied ? <Check aria-hidden className="h-4 w-4" /> : <Copy aria-hidden className="h-4 w-4" />}
+                  {copied ? 'Link copied' : 'Copy link'}
+                </button>
+              )}
+              {shareToken && (
+                <a
+                  href={`${API_BASE}/invoices/${id}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={menuItemClass}
+                >
+                  <FileDown aria-hidden className="h-4 w-4" /> Download PDF
+                </a>
+              )}
             </div>
           </SheetContent>
         </Sheet>
       </div>
 
-      {/* WhatsApp primary action - full width on mobile */}
-      {shareToken && (
+      {displayStatus === 'payment_claimed' && onReviewClaim && (
+        <Button zone="calm" fullWidth className="mt-4" onClick={onReviewClaim}>
+          Review payment claim
+        </Button>
+      )}
+
+      {isOverdue && onNudge && displayStatus !== 'payment_claimed' && !isPaid && (
+        <Button variant="outline" zone="calm" fullWidth className="mt-4" onClick={onNudge}>
+          <Share2 aria-hidden className="h-4 w-4" /> Send a nudge on WhatsApp
+        </Button>
+      )}
+
+      {whatsappHref && !isPaid && displayStatus !== 'payment_claimed' && !(isOverdue && onNudge) && (
         <a
-          href={`https://wa.me/?text=${encodeURIComponent(`Hi ${clientName || 'there'}, here is invoice ${invoiceNumber}: ${typeof window !== 'undefined' ? window.location.origin : ''}/i/${shareToken}`)}`}
+          href={whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 font-semibold text-sm hover:bg-emerald-100 transition"
+          className={cn(buttonStyles({ variant: 'outline', zone: 'calm', fullWidth: true }), 'mt-4')}
         >
-          <Share2 className="w-3 h-3" /> Share on WhatsApp
+          <Share2 aria-hidden className="h-4 w-4" /> Share on WhatsApp
         </a>
       )}
-    </div>
+    </article>
   );
 }

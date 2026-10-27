@@ -2,120 +2,103 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  FileText,
-  Users,
-  LayoutDashboard,
-  Plus,
-  FileCheck,
-  Settings,
-} from 'lucide-react';
+import { Plus, User } from 'lucide-react';
+import { BaggCoin, Wordmark } from '@/components/brand/Logo';
 import { BottomNav } from '@/components/mobile/BottomNav';
-import { HeaderMenu } from '@/components/mobile/HeaderMenu';
 import { ClientOnly } from '@/components/mobile/ClientOnly';
+import { HeaderMenu } from '@/components/mobile/HeaderMenu';
+import { NAV_ITEMS } from '@/components/mobile/navItems';
+import { buttonStyles } from '@/components/ui';
+import { cn } from '@/lib/utils';
 
-const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Invoices', href: '/invoices', icon: FileText },
-  { label: 'Quotes', href: '/quotes', icon: FileCheck },
-  { label: 'Clients', href: '/clients', icon: Users },
-] as const;
+const SHOW_DEV_BADGE = process.env.NODE_ENV !== 'production';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-dvh bg-neutral-100">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 bg-white border-r flex flex-col shrink-0">
-        <div className="h-16 flex items-center px-6 border-b justify-between">
-          <Link href="/dashboard" className="text-xl font-black tracking-tight">
-            bagg<span className="text-emerald-500">.</span>
+    <div className="flex min-h-dvh bg-cream">
+      {/* Tablet: icon rail. Desktop: labelled sidebar. Phone: bottom tab bar (below). */}
+      <aside className="hidden w-[72px] shrink-0 flex-col border-r-brut border-ink bg-surface sm:flex lg:w-64">
+        <div className="flex h-16 items-center justify-center border-b-brut border-ink px-3 lg:justify-between lg:px-5">
+          <Link href="/dashboard" aria-label="bagg home" className="flex items-center">
+            <BaggCoin className="lg:hidden" />
+            <Wordmark className="hidden lg:inline-flex" />
           </Link>
-          <span className="text-[10px] font-bold px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded">
-            DEV
-          </span>
+          {SHOW_DEV_BADGE && (
+            <span className="hidden rounded-small border border-ink bg-sun px-2 py-0.5 text-caption font-extrabold text-[#4A3200] lg:inline">
+              dev
+            </span>
+          )}
         </div>
 
-        <div className="p-4">
+        <div className="p-3 lg:p-4">
           <Link
-            href="/invoices"
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-lg transition"
+            href="/invoices/new"
+            aria-label="New invoice"
+            className={cn(buttonStyles({ variant: 'accent', fullWidth: true }), 'px-0 lg:px-5')}
           >
-            <Plus className="w-4 h-4" /> New Invoice
+            <Plus aria-hidden className="h-4 w-4" />
+            <span className="hidden lg:inline">New invoice</span>
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 space-y-1">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-neutral-900 text-white'
-                    : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav aria-label="Main navigation" className="flex-1 px-3 lg:px-4">
+          <ul className="space-y-2">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    aria-current={isActive ? 'page' : undefined}
+                    aria-label={item.label}
+                    className={cn(
+                      'flex min-h-11 items-center justify-center gap-3 rounded-btn border-brut-thin px-3 text-body lg:justify-start',
+                      isActive
+                        ? 'border-ink bg-mango font-extrabold text-on-mango shadow-brut-sm'
+                        : 'border-transparent font-medium text-text hover:bg-surface-tint',
+                    )}
+                  >
+                    <Icon aria-hidden className="h-[18px] w-[18px] shrink-0" />
+                    <span className="hidden lg:inline">{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </nav>
-
-        {/* Client Demo Link */}
-        <div className="p-4 border-t">
-          <Link
-            href="/i/token_demo_sample_ngn"
-            target="_blank"
-            className="flex items-center justify-between text-xs font-medium text-neutral-500 hover:text-neutral-900 p-2 rounded-md hover:bg-neutral-50 transition"
-          >
-            <span>Preview Client View</span>
-            <Settings className="w-3.5 h-3.5" />
-          </Link>
-        </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto relative">
-        {/* Desktop Header */}
-        <header className="lg:block h-16 bg-white border-b px-8 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
-              SB
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-neutral-900">Studio Bagg Creative</div>
-              <div className="text-xs text-neutral-500">freelancer@example.com</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-neutral-600 bg-neutral-50 px-3 py-1.5 rounded-full border">
-            <span>Free Tier: <strong>40 credits remaining</strong></span>
-          </div>
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-y-auto">
+        {/* Tablet and desktop header. Settings opens from the avatar. */}
+        <header className="hidden h-16 shrink-0 items-center justify-end border-b-brut border-ink bg-surface px-8 sm:flex">
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            aria-current={pathname.startsWith('/settings') ? 'page' : undefined}
+            className="flex h-11 w-11 items-center justify-center rounded-full border-brut border-ink bg-peach-chip text-text"
+          >
+            <User aria-hidden className="h-5 w-5" />
+          </Link>
         </header>
 
-        {/* Mobile Header: title + menu */}
-        <header className="lg:hidden h-14 bg-white border-b px-4 flex items-center justify-between shrink-0">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="font-black text-emerald-600 text-sm tracking-tight">bagg<span className="text-neutral-400">.</span></span>
+        {/* Phone header */}
+        <header className="flex h-14 shrink-0 items-center justify-between border-b-brut border-ink bg-surface px-4 sm:hidden">
+          <Link href="/dashboard" aria-label="bagg home">
+            <Wordmark />
           </Link>
           <ClientOnly>
-            <HeaderMenu className="ml-auto" />
+            <HeaderMenu />
           </ClientOnly>
         </header>
 
-        {/* Scrollable content with responsive padding */}
-        <div className={`p-4 lg:p-8 max-w-6xl w-full mx-auto safe-bottom`}>
-          {children}
-        </div>
+        {/* Pages own their padding. The bottom padding keeps content clear of the fixed tab bar on phones. */}
+        <div className="w-full pb-24 sm:pb-0">{children}</div>
 
-        {/* Mobile Bottom Nav */}
         <ClientOnly>
-          <BottomNav className="lg:hidden" />
+          <BottomNav className="sm:hidden" />
         </ClientOnly>
       </main>
     </div>

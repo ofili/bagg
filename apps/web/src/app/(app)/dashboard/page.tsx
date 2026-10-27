@@ -1,19 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { formatMoney } from '@/lib/money';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  ArrowUpRight,
-  Clock,
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-  FileText,
-  Plus,
-  TrendingUp,
-  Receipt,
-} from 'lucide-react';
+import { ArrowUpRight, Loader2, Plus } from 'lucide-react';
+import { BaggCoin } from '@/components/brand/Logo';
+import { Money } from '@/components/money/Money';
+import { Button, Card, buttonStyles, chipStyles } from '@/components/ui';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -36,218 +28,175 @@ interface CurrencyMetrics {
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState<CurrencyMetrics[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setFailed(false);
     fetch(`${API_BASE}/invoices/metrics`, { credentials: 'include' })
       .then((res) => {
         if (!res.ok) throw new Error('Could not load metrics');
         return res.json();
       })
-      .then((data: CurrencyMetrics[]) => {
-        setMetrics(data);
-      })
-      .catch(() => {
-        setMetrics([
-          {
-            currency: 'NGN',
-            outstanding_minor: 0,
-            overdue_minor: 0,
-            paid_this_month_minor: 0,
-            invoices_count: 0,
-            draft_count: 0,
-            sent_count: 0,
-            viewed_count: 0,
-            claimed_count: 0,
-            partially_paid_count: 0,
-            paid_count: 0,
-            overdue_count: 0,
-            cancelled_count: 0,
-          },
-        ]);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .then((data: CurrencyMetrics[]) => setMetrics(data))
+      // Never show zeros when the request failed: zero money looks like real data.
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const isEmpty = !loading && !failed && metrics.length === 0;
+
   return (
-    <>
-      <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-none w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-neutral-900">Dashboard</h1>
-            <p className="text-sm text-neutral-500">
-              Currency-segregated metrics. Multi-currency balances are strictly grouped and never summed together.
-            </p>
-          </div>
-          <Link
-            href="/invoices/new"
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-lg transition shadow-sm"
-          >
-            <Plus className="w-4 h-4" /> Create Invoice
-          </Link>
+    <div className="w-full space-y-8 p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-title-l sm:text-display">home</h1>
+          <p className="mt-1 text-body text-text-soft">
+            Each currency is counted on its own. Nothing is converted or added together.
+          </p>
         </div>
+        {!isEmpty && !failed && (
+          <Link href="/invoices/new" className={buttonStyles({ variant: 'accent' })}>
+            <Plus aria-hidden className="h-4 w-4" /> New invoice
+          </Link>
+        )}
+      </div>
 
-        {loading ? (
-          <div className="py-16 flex justify-center text-neutral-400">
-            <Loader2 className="w-7 h-7 animate-spin text-emerald-600" />
-          </div>
-        ) : metrics.length === 0 ? (
-          <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-white space-y-3">
-            <FileText className="w-10 h-10 text-neutral-300 mx-auto" />
-            <h3 className="font-semibold text-neutral-800 text-base">No invoice data yet</h3>
-            <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-              Create your first invoice to begin tracking outstanding, overdue, and collected revenue.
-            </p>
-            <Link
-              href="/invoices/new"
-              className="w-full inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition"
-            >
-              <Plus className="w-3.5 h-3.5" /> Draft an Invoice
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {metrics.map((stat) => (
-              <div key={stat.currency} className="bg-white rounded-xl border shadow-sm p-4 sm:p-6">
-                <div className="flex items-center justify-between border-b pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-lg text-neutral-900">
-                      {stat.currency} Workspace
-                    </span>
-                    <span className="text-[10px] bg-neutral-100 px-2 py-0.5 rounded-full text-neutral-600 font-semibold uppercase tracking-wider">
-                      {stat.invoices_count} {stat.invoices_count === 1 ? 'Invoice' : 'Invoices'}
-                    </span>
-                  </div>
-                  <Link
-                    href={`/invoices?currency=${stat.currency}`}
-                    className="text-xs text-emerald-600 font-semibold hover:underline flex items-center gap-1"
-                  >
-                    View all {stat.currency} invoices <ArrowUpRight className="w-3 h-3" />
-                  </Link>
+      {loading && (
+        <div role="status" className="flex justify-center py-16 text-text-muted">
+          <Loader2 aria-hidden className="h-7 w-7 animate-spin" />
+          <span className="sr-only">Loading your numbers</span>
+        </div>
+      )}
+
+      {failed && (
+        <Card zone="calm" className="space-y-3 p-6">
+          <h2 className="text-heading">we couldn&rsquo;t load your numbers</h2>
+          <p className="text-body text-text-soft">Check your connection and try again. Nothing was changed.</p>
+          <Button zone="calm" variant="outline" onClick={load}>
+            Try again
+          </Button>
+        </Card>
+      )}
+
+      {isEmpty && (
+        <Card tone="peach" className="space-y-4 p-8 text-center">
+          <BaggCoin size={56} className="mx-auto" />
+          <h2 className="text-title">no invoices yet</h2>
+          <p className="mx-auto max-w-sm text-body text-text-soft">
+            Send your first invoice in about two minutes. We&rsquo;ll track what&rsquo;s waiting and what&rsquo;s paid.
+          </p>
+          <Link href="/invoices/new" className={buttonStyles({ size: 'lg' })}>
+            <Plus aria-hidden className="h-4 w-4" /> Create your first invoice
+          </Link>
+        </Card>
+      )}
+
+      {!loading &&
+        !failed &&
+        metrics.map((stat) => {
+          const filters = [
+            { label: 'Drafts', status: 'draft', count: stat.draft_count },
+            { label: 'Sent', status: 'sent', count: stat.sent_count },
+            { label: 'Viewed', status: 'viewed', count: stat.viewed_count },
+            { label: 'Claimed', status: 'payment_claimed', count: stat.claimed_count },
+            { label: 'Partial', status: 'partially_paid', count: stat.partially_paid_count },
+            { label: 'Paid', status: 'paid', count: stat.paid_count },
+            ...(stat.overdue_count > 0 ? [{ label: 'Overdue', status: 'overdue', count: stat.overdue_count }] : []),
+          ];
+
+          return (
+            <section key={stat.currency} aria-labelledby={`cur-${stat.currency}`} className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <h2 id={`cur-${stat.currency}`} className="text-title">
+                    {stat.currency}
+                  </h2>
+                  <span className="rounded-full bg-peach-chip px-2.5 py-0.5 text-caption font-extrabold">
+                    {stat.invoices_count} {stat.invoices_count === 1 ? 'invoice' : 'invoices'}
+                  </span>
                 </div>
-
-                {/* 3 Core Currency Metrics Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-                  <div className="p-3 rounded-xl bg-amber-50/50 border border-amber-100">
-                    <div className="flex items-center justify-between text-[10px] font-semibold text-amber-800 mb-1">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-amber-600" /> Outstanding
-                      </span>
-                      <span className="text-[10px] text-amber-600 font-mono">Unsettled</span>
-                    </div>
-                    <div className="text-lg font-bold text-neutral-900">
-                      {formatMoney(stat.outstanding_minor, stat.currency)}
-                    </div>
-                    <div className="text-[10px] text-neutral-500 mt-1">
-                      Sent or viewed pending settlement
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-red-50/50 border border-red-100">
-                    <div className="flex items-center justify-between text-[10px] font-semibold text-red-800 mb-1">
-                      <span className="flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3 text-red-600" /> Overdue
-                      </span>
-                      {stat.overdue_count > 0 && (
-                        <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.2 rounded font-bold">
-                          {stat.overdue_count}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-lg font-bold text-neutral-900">
-                      {formatMoney(stat.overdue_minor, stat.currency)}
-                    </div>
-                    <div className="text-[10px] text-neutral-500 mt-1">
-                      Past due date without payment
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-100">
-                    <div className="flex items-center justify-between text-[10px] font-semibold text-emerald-800 mb-1">
-                      <span className="flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Paid this Month
-                      </span>
-                      <span className="text-[10px] text-emerald-600 font-mono">Settled</span>
-                    </div>
-                    <div className="text-lg font-bold text-neutral-900">
-                      {formatMoney(stat.paid_this_month_minor, stat.currency)}
-                    </div>
-                    <div className="text-[10px] text-neutral-500 mt-1">
-                      Confirmed revenue in current month
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status Breakdown Pills */}
-                <div className="pt-3 border-t flex flex-wrap items-center gap-1.5 text-[10px]">
-                  <span className="text-neutral-400 font-medium">Status Filter:</span>
-                  <Link
-                    href={`/invoices?currency=${stat.currency}&status=draft`}
-                    className="px-2 py-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-medium transition"
-                  >
-                    Drafts ({stat.draft_count})
-                  </Link>
-                  <Link
-                    href={`/invoices?currency=${stat.currency}&status=sent`}
-                    className="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-medium transition"
-                  >
-                    Sent ({stat.sent_count})
-                  </Link>
-                  <Link
-                    href={`/invoices?currency=${stat.currency}&status=viewed`}
-                    className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium transition"
-                  >
-                    Viewed ({stat.viewed_count})
-                  </Link>
-                  <Link
-                    href={`/invoices?currency=${stat.currency}&status=payment_claimed`}
-                    className="px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-medium transition"
-                  >
-                    Claimed ({stat.claimed_count})
-                  </Link>
-                  <Link
-                    href={`/invoices?currency=${stat.currency}&status=partially_paid`}
-                    className="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-800 font-medium transition"
-                  >
-                    Partial ({stat.partially_paid_count})
-                  </Link>
-                  <Link
-                    href={`/invoices?currency=${stat.currency}&status=paid`}
-                    className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-medium transition"
-                  >
-                    Paid ({stat.paid_count})
-                  </Link>
-                  {stat.overdue_count > 0 && (
-                    <Link
-                      href={`/invoices?currency=${stat.currency}&status=overdue`}
-                      className="px-2 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-900 font-medium transition"
-                    >
-                      Overdue ({stat.overdue_count})
-                    </Link>
-                  )}
-                </div>
+                <Link
+                  href={`/invoices?currency=${stat.currency}`}
+                  className={buttonStyles({ variant: 'link' })}
+                >
+                  View all {stat.currency} invoices <ArrowUpRight aria-hidden className="h-4 w-4" />
+                </Link>
               </div>
-            ))}
-          </div>
-          )}
-        </div>
 
-        {/* Quick Action Guide */}
-        <div className="bg-emerald-50 rounded-xl p-4 sm:p-6 border border-emerald-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div>
-            <h3 className="font-bold text-emerald-950 text-sm">Fast 2-Minute Invoicing</h3>
-            <p className="text-[11px] text-emerald-800">
-              Share invoices directly to WhatsApp or download a crisp PDF. Payment instructions attach automatically.
-            </p>
-          </div>
-          <Link
-            href="/invoices/new"
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-lg whitespace-nowrap transition"
-          >
-            Draft an Invoice
-          </Link>
-        </div>
-    </>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Card tone="mango" className="space-y-1">
+                  <p className="text-body font-extrabold">Waiting on clients</p>
+                  <Money
+                    amountMinor={stat.outstanding_minor}
+                    currency={stat.currency}
+                    variant="inherit"
+                    className="block text-amount-l"
+                    hideCurrencyCode
+                  />
+                  <p className="text-caption">Sent or viewed, not paid yet</p>
+                </Card>
+
+                <Card className="space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-body font-extrabold">Overdue</p>
+                    {stat.overdue_count > 0 && (
+                      <span className="rounded-full bg-[#FFB3B3] px-2 py-0.5 text-caption font-extrabold text-[#5A1010]">
+                        {stat.overdue_count} late
+                      </span>
+                    )}
+                  </div>
+                  <Money
+                    amountMinor={stat.overdue_minor}
+                    currency={stat.currency}
+                    variant={stat.overdue_minor > 0 ? 'negative' : 'total'}
+                    className="block text-amount-l"
+                    hideCurrencyCode
+                  />
+                  <p className="text-caption text-text-muted">Past the due date</p>
+                </Card>
+
+                <Card className="space-y-1">
+                  <p className="text-body font-extrabold">Paid this month</p>
+                  <Money
+                    amountMinor={stat.paid_this_month_minor}
+                    currency={stat.currency}
+                    variant="paid"
+                    className="block text-amount-l"
+                    hideCurrencyCode
+                  />
+                  <p className="text-caption text-text-muted">Confirmed this month</p>
+                </Card>
+              </div>
+
+              <nav aria-label={`Filter ${stat.currency} invoices by status`} className="space-y-2">
+                <p className="text-caption text-text-muted">Filter by status</p>
+                <ul className="flex flex-wrap gap-2">
+                  {filters.map((f) => (
+                    <li key={f.status}>
+                      <Link href={`/invoices?currency=${stat.currency}&status=${f.status}`} className={chipStyles()}>
+                        {f.label} <span className="tabular font-extrabold">{f.count}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </section>
+          );
+        })}
+
+      {!loading && !failed && !isEmpty && (
+        <Card zone="calm" tone="peach">
+          <p className="text-body">
+            <span className="font-extrabold">Fast invoicing.</span> Share an invoice on WhatsApp or download it as a
+            PDF. Payment details attach automatically.
+          </p>
+        </Card>
+      )}
+    </div>
   );
 }

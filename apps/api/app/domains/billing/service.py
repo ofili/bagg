@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from app.domains.billing.models import Subscription, CreditLedgerEntry, WebhookEvent
 from app.domains.workspaces.models import Workspace
 from app.domains.invoices.models import Invoice
+from app.domains.quotes.models import Quote
 
 
 FREE_TIER_MONTHLY_SENDS_LIMIT = 3
@@ -26,20 +27,27 @@ async def get_credit_balance(workspace_id: str, db: AsyncSession) -> int:
 
 
 async def get_free_sends_used_this_month(workspace_id: str, db: AsyncSession) -> int:
-    """Calculates how many free invoice delivery sends were dispatched this calendar month."""
+    """Calculates invoice and quote delivery sends dispatched this calendar month."""
     today = date.today()
     start_of_month = datetime(today.year, today.month, 1, tzinfo=timezone.utc)
 
-    stmt = select(func.count(Invoice.id)).where(
+    invoice_stmt = select(func.count(Invoice.id)).where(
         and_(
             Invoice.workspace_id == workspace_id,
             Invoice.sent_at >= start_of_month,
             Invoice.email_delivery_status.in_(["delivered", "opened", "bounced"]),
         )
     )
-    res = await db.execute(stmt)
-    count = res.scalar() or 0
-    return count
+    quote_stmt = select(func.count(Quote.id)).where(
+        and_(
+            Quote.workspace_id == workspace_id,
+            Quote.sent_at >= start_of_month,
+            Quote.email_delivery_status.in_(["delivered", "opened", "bounced"]),
+        )
+    )
+    invoice_count = (await db.execute(invoice_stmt)).scalar() or 0
+    quote_count = (await db.execute(quote_stmt)).scalar() or 0
+    return invoice_count + quote_count
 
 
 async def check_delivery_quota(workspace: Workspace, db: AsyncSession) -> bool:
@@ -64,7 +72,7 @@ async def check_delivery_quota(workspace: Workspace, db: AsyncSession) -> bool:
         status_code=402,
         detail=(
             f"You have used your {FREE_TIER_MONTHLY_SENDS_LIMIT} free delivery sends for this month. "
-            "Please upgrade to Creator Pro (₦14,000/yr) or purchase a credit top-up pack to continue delivering invoices."
+            "Please upgrade to Creator Pro (₦14,000/yr) or purchase a credit top-up pack to continue delivering invoices and quotes."
         ),
     )
 

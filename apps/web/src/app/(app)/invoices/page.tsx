@@ -1,27 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { formatMoney } from '@/lib/money';
 import Link from 'next/link';
-import { AmountBand, StatusPill, type ReceiptInfo } from '@/components/status';
+import { type ReceiptInfo } from '@/components/status';
 import {
-  Share2,
-  Copy,
-  Check,
-  Send,
-  MessageCircle,
-  FileDown,
   Plus,
   Loader2,
-  FileText,
-  Clock,
   CheckCircle2,
   AlertCircle,
   X,
 } from 'lucide-react';
 import { InvoiceCard } from '@/components/mobile/InvoiceCard';
 import { ChipStrip } from '@/components/mobile/ChipStrip';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetClose, SheetContent } from '@/components/ui/sheet';
+import { BaggCoin } from '@/components/brand/Logo';
+import { Button, Card, Field, buttonStyles, inputStyles } from '@/components/ui';
+import { Money } from '@/components/money/Money';
+import { formatDate } from '@/lib/date';
+import { cn } from '@/lib/utils';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -78,7 +74,6 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [currencyFilter, setCurrencyFilter] = useState('');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Claim Review State (US-CLM-02)
   const [reviewingInvoice, setReviewingInvoice] = useState<Invoice | null>(null);
@@ -88,6 +83,7 @@ export default function InvoicesPage() {
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
   const [showPartialInput, setShowPartialInput] = useState(false);
+  const [actionClaimId, setActionClaimId] = useState<string | null>(null);
   const [processingAction, setProcessingAction] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -119,6 +115,7 @@ export default function InvoicesPage() {
     setReviewingInvoice(inv);
     setShowRejectInput(false);
     setShowPartialInput(false);
+    setActionClaimId(null);
     setRejectReason('');
     setPartialAmount('');
     setActionError(null);
@@ -235,52 +232,43 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleCopyLink = (token: string, id: string) => {
-    const url = `${window.location.origin}/i/${token}`;
-    navigator.clipboard.writeText(url);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
 
   const filteredInvoices = invoices.filter((inv) => {
     if (currencyFilter && inv.currency !== currencyFilter) return false;
     return true;
   });
+  const overdueCount = filteredInvoices.filter(isInvoiceOverdue).length;
 
   return (
-    <div className="space-y-4 p-4 sm:p-6 lg:p-8 max-w-none w-full">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-neutral-900">Invoices</h1>
-          <p className="text-sm text-neutral-500">
-            Create, track, and manage client invoices with automated numbering and minor-unit math.
-          </p>
+    <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-title-l sm:text-display">invoices</h1>
+          <p className="mt-1 text-body text-text-soft">Create, send and track what clients owe you.</p>
         </div>
-        <Link
-          href="/invoices/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-lg transition shadow-sm"
-        >
-          <Plus className="w-4 h-4" /> Create Invoice
+        <Link href="/invoices/new" className={buttonStyles({ variant: 'accent' })}>
+          <Plus aria-hidden className="h-4 w-4" /> New invoice
         </Link>
       </div>
 
-      {/* Overdue Alert Banner */}
-      {filteredInvoices.filter(isInvoiceOverdue).length > 0 && (
-        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-amber-900 text-xs">
-          <div className="flex items-center gap-2.5">
-            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span className="flex-1 min-w-0 truncate">
-              You have <strong>{filteredInvoices.filter(isInvoiceOverdue).length} overdue invoice(s)</strong>.
-              Send a 1-tap polite nudge on WhatsApp to get paid faster.
+      {/* Overdue notice */}
+      {overdueCount > 0 && (
+        <Card zone="calm" tone="peach" className="flex flex-wrap items-center justify-between gap-3">
+          <p className="flex items-center gap-2 text-body">
+            <AlertCircle aria-hidden className="h-4 w-4 shrink-0" />
+            <span>
+              <span className="font-extrabold">
+                {overdueCount} overdue {overdueCount === 1 ? 'invoice' : 'invoices'}.
+              </span>{' '}
+              A friendly nudge on WhatsApp usually gets you paid faster.
             </span>
-          </div>
-          <button
-            onClick={() => setCurrencyFilter('')}
-            className="ml-2 text-[11px] font-bold text-emerald-600 hover:underline"
-          >
-            Dismiss
-          </button>
-        </div>
+          </p>
+          {statusFilter !== 'overdue' && (
+            <Button variant="link" onClick={() => setStatusFilter('overdue')}>
+              Show overdue
+            </Button>
+          )}
+        </Card>
       )}
 
       {/* Filter Chip Strip */}
@@ -294,16 +282,20 @@ export default function InvoicesPage() {
         }))}
         value={statusFilter}
         onChange={setStatusFilter}
+        label="Filter invoices by status"
       />
 
-      <div className="flex items-center gap-2 mt-2 sm:mt-0">
-        <label className="text-[11px] text-neutral-400 font-normal">Currency:</label>
+      <div className="flex items-center gap-3">
+        <label htmlFor="currency-filter" className="text-body text-text-soft">
+          Currency
+        </label>
         <select
+          id="currency-filter"
           value={currencyFilter}
           onChange={(e) => setCurrencyFilter(e.target.value)}
-          className="min-h-[40px] px-3 py-1.5 text-xs font-medium border rounded-lg bg-white text-neutral-800 focus:ring-1 focus:ring-emerald-500 shadow-sm"
+          className={cn(inputStyles, 'w-auto min-w-40')}
         >
-          <option value="">All Currencies</option>
+          <option value="">All currencies</option>
           <option value="NGN">NGN (₦)</option>
           <option value="USD">USD ($)</option>
           <option value="GBP">GBP (£)</option>
@@ -315,25 +307,23 @@ export default function InvoicesPage() {
       </div>
 
       {loading ? (
-        <div className="py-16 flex justify-center text-neutral-400">
-          <Loader2 className="w-6 h-6 animate-spin" />
+        <div role="status" className="flex justify-center py-16 text-text-muted">
+          <Loader2 aria-hidden className="h-6 w-6 animate-spin" />
+          <span className="sr-only">Loading invoices</span>
         </div>
       ) : filteredInvoices.length === 0 ? (
-        <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-white space-y-3">
-          <FileText className="w-10 h-10 text-neutral-300 mx-auto" />
-          <h3 className="font-semibold text-neutral-800 text-base">No invoices found</h3>
-          <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+        <Card tone="peach" className="space-y-4 p-8 text-center">
+          <BaggCoin size={48} className="mx-auto" />
+          <h2 className="text-title">no invoices here</h2>
+          <p className="mx-auto max-w-sm text-body text-text-soft">
             {statusFilter
-              ? `No invoices currently in "${statusFilter}" status.`
-              : 'Create your first invoice in under 60 seconds. Bagg auto-assigns sequential numbering.'}
+              ? `Nothing is marked ${statusFilter.replace('_', ' ')} right now.`
+              : 'Create your first invoice in under a minute. Numbers are assigned in order for you.'}
           </p>
-          <Link
-            href="/invoices/new"
-            className="w-full inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition"
-          >
-            <Plus className="w-3.5 h-3.5" /> Create New Invoice
+          <Link href="/invoices/new" className={buttonStyles({ size: 'lg' })}>
+            <Plus aria-hidden className="h-4 w-4" /> Create an invoice
           </Link>
-        </div>
+        </Card>
       ) : (
         <div className="space-y-3">
           {filteredInvoices.map((inv) => (
@@ -353,193 +343,216 @@ export default function InvoicesPage() {
               shareToken={inv.share_token}
               latestReceipt={inv.latest_receipt}
               dueDate={inv.due_date}
+              onReviewClaim={() => handleOpenReview(inv)}
+              onNudge={() => handleWhatsAppNudge(inv)}
             />
           ))}
         </div>
       )}
 
-      {/* Claim Review Bottom Sheet */}
+      {/* Claim review sheet */}
       {reviewingInvoice && (
-        <Sheet>
-          <SheetTrigger asChild>
-            <button className="hidden" />
-          </SheetTrigger>
-          <SheetContent
-            className="rounded-2xl border border-neutral-200 bg-white shadow-xl max-h-[90dvh]"
-          >
-            <div className="flex justify-between items-start border-b border-neutral-100 px-4 py-3">
-              <div>
-                <h3 className="font-bold text-base text-neutral-900">
-                  Review Payment Claim ({reviewingInvoice.invoice_number})
-                </h3>
-                <p className="text-xs text-neutral-500">
-                  Client: <strong>{reviewingInvoice.client_name || 'Client'}</strong> &bull; Total: {formatMoney(reviewingInvoice.total_minor, reviewingInvoice.currency)}
+        <Sheet open onOpenChange={(open) => !open && setReviewingInvoice(null)}>
+          <SheetContent title="Review payment claim" className="overflow-y-auto">
+            <div className="space-y-4 p-4 pb-8">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-title">review claim</h2>
+                  <p className="text-body text-text-soft">
+                    {reviewingInvoice.invoice_number} · {reviewingInvoice.client_name || 'Client'} · total{' '}
+                    <Money
+                      amountMinor={reviewingInvoice.total_minor}
+                      currency={reviewingInvoice.currency}
+                      variant="inherit"
+                      className="font-extrabold"
+                    />
+                  </p>
+                </div>
+                <SheetClose asChild>
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn hover:bg-surface-tint"
+                  >
+                    <X aria-hidden className="h-5 w-5" />
+                  </button>
+                </SheetClose>
+              </div>
+
+              {actionError && (
+                <p role="alert" className="rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]">
+                  {actionError}
                 </p>
-              </div>
-              <button
-                onClick={() => setReviewingInvoice(null)}
-                className="text-neutral-400 hover:text-neutral-700 p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+              )}
 
-            {actionError && (
-              <div className="px-4 py-2 p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
-                {actionError}
-              </div>
-            )}
-
-            <div className="p-4">
               {loadingClaims ? (
-                <div className="py-6 flex justify-center text-neutral-400">
-                  <Loader2 className="w-6 h-6 animate-spin" />
+                <div role="status" className="flex justify-center py-6 text-text-muted">
+                  <Loader2 aria-hidden className="h-6 w-6 animate-spin" />
+                  <span className="sr-only">Loading claims</span>
                 </div>
               ) : claimsList.length === 0 ? (
-                <p className="text-xs text-neutral-500 py-4 text-center">No payment claims on record.</p>
+                <p className="py-4 text-center text-body text-text-soft">No payment claims on record.</p>
               ) : (
-                <div className="space-y-3">
-                  {claimsList.map((claim) => (
-                    <div
-                      key={claim.id}
-                      className="p-3 bg-neutral-50 rounded-xl border space-y-3"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-neutral-900 text-sm">
-                          {formatMoney(claim.amount_minor, reviewingInvoice.currency)}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                          claim.status === 'confirmed'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : claim.status === 'rejected'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {claim.status}
-                        </span>
-                      </div>
+                <ul className="space-y-3">
+                  {claimsList.map((claim) => {
+                    const isPending = claim.status === 'pending';
+                    const formOpen = actionClaimId === claim.id;
+                    return (
+                      <li key={claim.id}>
+                        <Card zone="calm" className="space-y-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <Money
+                              amountMinor={claim.amount_minor}
+                              currency={reviewingInvoice.currency}
+                              className="text-amount-m"
+                            />
+                            <span
+                              className={cn(
+                                'rounded-full px-2.5 py-0.5 text-caption font-extrabold',
+                                claim.status === 'confirmed'
+                                  ? 'bg-leaf text-[#052E1B]'
+                                  : claim.status === 'rejected'
+                                  ? 'bg-[#FFB3B3] text-[#5A1010]'
+                                  : 'bg-sun text-[#4A3200]',
+                              )}
+                            >
+                              {claim.status === 'pending' ? 'Waiting for you' : claim.status === 'confirmed' ? 'Confirmed' : 'Rejected'}
+                            </span>
+                          </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-neutral-600 text-[11px]">
-                        <div>
-                          <span className="text-neutral-400 block">Payment Date</span>
-                          <span>{claim.payment_date}</span>
-                        </div>
-                        <div>
-                          <span className="text-neutral-400 block">Reference / Session ID</span>
-                          <span className="font-mono font-medium text-neutral-800">
-                            {claim.reference || 'None'}
-                          </span>
-                        </div>
-                      </div>
+                          <dl className="grid grid-cols-2 gap-3 text-body">
+                            <div>
+                              <dt className="text-caption text-text-muted">Payment date</dt>
+                              <dd>{formatDate(claim.payment_date)}</dd>
+                            </div>
+                            <div className="min-w-0">
+                              <dt className="text-caption text-text-muted">Reference</dt>
+                              <dd className="tabular truncate font-medium">{claim.reference || 'None'}</dd>
+                            </div>
+                          </dl>
 
-                      <div className="flex items-center gap-2 pt-3 border-t">
-                        <button
-                          type="button"
-                          onClick={() => handleConfirmFull(claim.id)}
-                          disabled={processingAction}
-                          className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg disabled:opacity-50 transition flex items-center justify-center gap-1.5"
-                        >
-                          {processingAction ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="w-3 h-3" />
+                          {claim.status === 'rejected' && claim.rejection_reason && (
+                            <p className="text-body text-text-soft">Reason: {claim.rejection_reason}</p>
                           )}
-                          Confirm Funds Received
-                        </button>
-                      </div>
 
-                      {claim.status === 'pending' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowPartialInput(false);
-                              setShowRejectInput(true);
-                              setRejectReason('');
-                            }}
-                            className="text-[11px] text-amber-600 hover:text-amber-800 font-medium py-1"
-                          >
-                            Confirm Partial Amount
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowPartialInput(false);
-                              setShowRejectInput(false);
-                              setRejectReason('');
-                              setActionError(null);
-                            }}
-                            className="text-[11px] text-neutral-500 hover:text-neutral-700 font-medium py-1"
-                          >
-                            Dismiss
-                          </button>
-                        </>
-                      )}
+                          {isPending && (
+                            <div className="space-y-3 border-t border-line-subtle pt-4">
+                              <Button
+                                zone="calm"
+                                size="lg"
+                                fullWidth
+                                loading={processingAction}
+                                onClick={() => handleConfirmFull(claim.id)}
+                              >
+                                <CheckCircle2 aria-hidden className="h-4 w-4" /> Confirm funds received
+                              </Button>
+                              <div className="grid grid-cols-2 gap-3">
+                                <Button
+                                  variant="outline"
+                                  zone="calm"
+                                  fullWidth
+                                  onClick={() => {
+                                    setActionError(null);
+                                    setActionClaimId(claim.id);
+                                    setShowRejectInput(false);
+                                    setShowPartialInput(true);
+                                  }}
+                                >
+                                  Different amount
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  zone="calm"
+                                  fullWidth
+                                  onClick={() => {
+                                    setActionError(null);
+                                    setActionClaimId(claim.id);
+                                    setShowPartialInput(false);
+                                    setShowRejectInput(true);
+                                    setRejectReason('');
+                                  }}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
 
-                      {showPartialInput && (
-                        <div className="mt-3 space-y-2">
-                          <MoneyInput
-                            id="partial-amount"
-                            label="Partial amount to confirm"
-                            value={partialAmount}
-                            onChange={setPartialAmount}
-                            currencySymbol={reviewingInvoice.currency === 'NGN' ? '₦' : ''}
-                            placeholder="0.00"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleConfirmPartial(claim.id)}
-                              disabled={processingAction}
-                              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg disabled:opacity-50 transition"
-                            >
-                              Confirm Partial
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setShowPartialInput(false)}
-                              className="flex-1 py-2 border border-neutral-200 rounded-lg text-neutral-600 hover:bg-neutral-50 transition"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                              {formOpen && showPartialInput && (
+                                <div className="space-y-3">
+                                  <MoneyInput
+                                    id={`partial-${claim.id}`}
+                                    label="Amount you actually received"
+                                    value={partialAmount}
+                                    onChange={setPartialAmount}
+                                    currency={reviewingInvoice.currency}
+                                  />
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <Button
+                                      variant="outline"
+                                      zone="calm"
+                                      fullWidth
+                                      onClick={() => {
+                                        setShowPartialInput(false);
+                                        setActionClaimId(null);
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      zone="calm"
+                                      fullWidth
+                                      loading={processingAction}
+                                      onClick={() => handleConfirmPartial(claim.id)}
+                                    >
+                                      Confirm amount
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
 
-                      {showRejectInput && (
-                        <div className="mt-3 space-y-2">
-                          <label className="block text-[11px] font-medium text-neutral-700">
-                            Rejection Reason
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={rejectReason}
-                            onChange={(e) => setRejectReason(e.target.value)}
-                            placeholder="Explain why the claim is being rejected..."
-                            className="min-h-[60px] w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-emerald-500 text-neutral-800"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleRejectClaim(claim.id)}
-                              disabled={processingAction}
-                              className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg disabled:opacity-50 transition"
-                            >
-                              Reject Claim
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setShowRejectInput(false)}
-                              className="flex-1 py-2 border border-neutral-200 rounded-lg text-neutral-600 hover:bg-neutral-50 transition"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                              {formOpen && showRejectInput && (
+                                <div className="space-y-3">
+                                  <Field label="Why are you rejecting this?" hint="Say what is wrong so your client can fix it.">
+                                    {(a11y) => (
+                                      <textarea
+                                        rows={3}
+                                        value={rejectReason}
+                                        onChange={(e) => setRejectReason(e.target.value)}
+                                        className={cn(inputStyles, 'min-h-24 py-2')}
+                                        {...a11y}
+                                      />
+                                    )}
+                                  </Field>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <Button
+                                      variant="outline"
+                                      zone="calm"
+                                      fullWidth
+                                      onClick={() => {
+                                        setShowRejectInput(false);
+                                        setActionClaimId(null);
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      variant="danger"
+                                      zone="calm"
+                                      fullWidth
+                                      loading={processingAction}
+                                      onClick={() => handleRejectClaim(claim.id)}
+                                    >
+                                      Reject claim
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </Card>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
             </div>
           </SheetContent>
