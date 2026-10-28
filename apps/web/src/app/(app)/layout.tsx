@@ -9,7 +9,7 @@ import { ClientOnly } from '@/components/mobile/ClientOnly';
 import { HeaderMenu } from '@/components/mobile/HeaderMenu';
 import { NAV_ITEMS } from '@/components/mobile/navItems';
 import { buttonStyles } from '@/components/ui';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 const SHOW_DEV_BADGE = process.env.NODE_ENV !== 'production';
 
