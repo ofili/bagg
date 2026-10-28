@@ -42,21 +42,68 @@ export default function QuotesPage() {
   }, [fetchQuotes]);
 
   const handleSend = async (id: string) => {
-    try {
-      setSendingId(id);
-      setNotice(null);
-      const res = await fetch(`${API_BASE}/quotes/${id}/send`, { method: 'POST', credentials: 'include' });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || 'Could not send this quote.');
-      }
-      await fetchQuotes();
-    } catch (err: any) {
-      setNotice({ kind: 'error', text: err.message || 'Could not send this quote.' });
-    } finally {
-      setSendingId(null);
+  try {
+    setSendingId(id);
+    setNotice(null);
+
+    // Reload the latest quote state before deciding whether to finalize.
+    const current = quotes.find((quote) => quote.id === id);
+    if (!current) {
+      throw new Error('Quote not found. Refresh the page and try again.');
     }
-  };
+
+    // Draft quotes must be finalized before they can be sent.
+    if (current.status === 'draft') {
+      const finalizeRes = await fetch(
+        `${API_BASE}/quotes/${id}/finalize`,
+        {
+          method: 'POST',
+          credentials: 'include',
+        },
+      );
+
+      if (!finalizeRes.ok) {
+        const err = await finalizeRes.json().catch(() => ({}));
+        throw new Error(
+          err.detail || 'Could not finalize this quote.',
+        );
+      }
+    }
+
+    // Send only after finalization succeeds (or if already finalized).
+    const sendRes = await fetch(`${API_BASE}/quotes/${id}/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ send_email: true }),
+    });
+
+    const result = await sendRes.json().catch(() => ({}));
+
+    if (!sendRes.ok) {
+      throw new Error(result.detail || 'Could not send this quote.');
+    }
+
+    setNotice({
+      kind: 'success',
+      text:
+        result.message ||
+        `Quote ${current.quote_number} is ready to share.`,
+    });
+
+    await fetchQuotes();
+  } catch (err: unknown) {
+    setNotice({
+      kind: 'error',
+      text:
+        err instanceof Error
+          ? err.message
+          : 'Could not finalize and send this quote.',
+    });
+  } finally {
+    setSendingId(null);
+  }
+};
 
   const handleConvert = async (quote: QuoteCardData) => {
     try {

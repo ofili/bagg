@@ -86,7 +86,7 @@ export function QuoteCard({ quote: q, onSend, onConvert, sending = false, conver
           <p className="text-caption text-text-muted">{q.currency} · net payable</p>
         </div>
 
-        {q.share_token && (
+        {q.share_token && q.status !== 'draft' && (
           <Sheet>
             <SheetTrigger asChild>
               <button
@@ -122,11 +122,22 @@ export function QuoteCard({ quote: q, onSend, onConvert, sending = false, conver
       </div>
 
       {/* One next step per card */}
-      {q.status === 'draft' && onSend && (
-        <Button zone="calm" fullWidth className="mt-4" loading={sending} onClick={onSend}>
-          Send quote
-        </Button>
-      )}
+      {['draft', 'issued', 'sent', 'viewed'].includes(q.status) &&
+  onSend && (
+    <Button
+      zone="calm"
+      fullWidth
+      className="mt-4"
+      loading={sending}
+      onClick={onSend}
+    >
+      {q.status === 'draft'
+        ? 'Finalize & send quote'
+        : q.status === 'issued'
+          ? 'Send quote'
+          : 'Send quote again'}
+    </Button>
+  )}
       {isAccepted && !isConverted && onConvert && (
         <Button zone="calm" fullWidth className="mt-4" loading={converting} onClick={onConvert}>
           Convert to invoice

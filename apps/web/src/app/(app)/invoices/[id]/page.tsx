@@ -106,6 +106,7 @@ export default function InvoiceDetailPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmingClaimId, setConfirmingClaimId] = useState<string | null>(null);
+  const [sendingInvoice, setSendingInvoice] = useState(false);
 
   const loadInvoice = async () => {
     try {
@@ -227,6 +228,70 @@ export default function InvoiceDetailPage() {
     }
   };
 
+  const handleSendInvoice = async () => {
+  if (!invoice) return;
+
+  try {
+    setSendingInvoice(true);
+    setActionError(null);
+
+    // A draft must be finalized first.
+    if (invoice.status === 'draft') {
+      const finalizeRes = await fetch(
+        `${API_BASE}/invoices/${invoice.id}/finalize`,
+        {
+          method: 'POST',
+          credentials: 'include',
+        },
+      );
+
+      if (!finalizeRes.ok) {
+        const err = await finalizeRes.json().catch(() => ({}));
+        throw new Error(
+          err.detail || 'Could not finalize this invoice.',
+        );
+      }
+    }
+
+    // Finalization must succeed before the send request runs.
+    const sendRes = await fetch(
+      `${API_BASE}/invoices/${invoice.id}/send`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ send_email: true }),
+      },
+    );
+
+    const result = await sendRes.json().catch(() => ({}));
+
+    if (!sendRes.ok) {
+      throw new Error(result.detail || 'Could not send this invoice.');
+    }
+
+    // The API may mark the invoice sent even if email delivery fails.
+    // Keep the returned message so the user knows what happened.
+    if (result.message) {
+      setActionError(
+        result.email_sent
+          ? null
+          : result.message,
+      );
+    }
+
+    await loadInvoice();
+  } catch (err: unknown) {
+    setActionError(
+      err instanceof Error
+        ? err.message
+        : 'Could not finalize and send this invoice.',
+    );
+  } finally {
+    setSendingInvoice(false);
+  }
+};
+
   if (loading && !invoice) {
     return (
       <div role="status" className="flex min-h-[50vh] items-center justify-center text-text-muted">
@@ -288,7 +353,20 @@ export default function InvoiceDetailPage() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {invoice.share_token && (
+          {['draft', 'issued', 'sent', 'viewed'].includes(invoice.status) && (
+            <Button
+              zone="calm"
+              loading={sendingInvoice}
+              onClick={handleSendInvoice}
+            >
+              {invoice.status === 'draft'
+                ? 'Finalize & send invoice'
+                : invoice.status === 'issued'
+                  ? 'Send invoice'
+                  : 'Send invoice again'}
+            </Button>
+          )}
+          {invoice.share_token && invoice.status !== 'draft' && (
             <>
               <Button variant="outline" zone="calm" onClick={copyShareLink}>
                 {copied ? <Check aria-hidden className="h-4 w-4" /> : <Copy aria-hidden className="h-4 w-4" />}

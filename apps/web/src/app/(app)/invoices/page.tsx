@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { type ReceiptInfo } from '@/components/status';
+// import { type ReceiptInfo } from '@/components/status';
 import {
   Plus,
   Loader2,
@@ -52,7 +52,13 @@ interface Invoice {
   payment_state?: string;
   share_token?: string | null;
   latest_claim?: PaymentClaim | null;
-  latest_receipt?: ReceiptInfo | null;
+  latest_receipt?: {
+  id: string;
+  amount_minor: number;
+  receipt_number?: string | null;
+  issued_at?: string | null;
+  created_at?: string | null;
+} | null;
   created_at: string;
 }
 
@@ -340,7 +346,7 @@ export default function InvoicesPage() {
               isOverdue={isInvoiceOverdue(inv)}
               daysOverdue={inv.days_overdue || 0}
               paymentState={inv.payment_state}
-              shareToken={inv.share_token}
+              shareToken={inv.status === 'draft' ? null : inv.share_token}
               latestReceipt={inv.latest_receipt}
               dueDate={inv.due_date}
               onReviewClaim={() => handleOpenReview(inv)}
