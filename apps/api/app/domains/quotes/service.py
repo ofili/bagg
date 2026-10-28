@@ -430,10 +430,6 @@ async def revise_quote(
     await db.refresh(quote_obj)
     return quote_obj
 
-    await db.commit()
-    await db.refresh(quote_obj)
-    return quote_obj
-
 
 async def update_quote(
     db: AsyncSession,
