@@ -27,20 +27,32 @@ async def create_sent_invoice(client: AsyncClient, payload: Dict[str, Any]) -> D
     fin_res = await client.post(f"/invoices/{inv['id']}/finalize")
     assert fin_res.status_code == 200, fin_res.text
 
-    send_res = await client.post(f"/invoices/{inv['id']}/send")
+    send_res = await client.post(
+        f"/invoices/{inv['id']}/send",
+        json={"send_email": False},
+    )
     assert send_res.status_code == 200, send_res.text
     return send_res.json()["invoice"]
 
 
-async def create_sent_quote(client: AsyncClient, payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Create a draft quote, finalize it, then send it. Returns the sent quote JSON."""
+async def create_sent_quote(
+    client: AsyncClient,
+    payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Create, finalize, and send a quote; return its full current representation."""
     q_res = await client.post("/quotes", json=payload)
     assert q_res.status_code == 201, q_res.text
-    q = q_res.json()
+    quote = q_res.json()
 
-    fin_res = await client.post(f"/quotes/{q['id']}/finalize")
+    quote_id = quote["id"]
+
+    fin_res = await client.post(f"/quotes/{quote_id}/finalize")
     assert fin_res.status_code == 200, fin_res.text
 
-    send_res = await client.post(f"/quotes/{q['id']}/send")
+    send_res = await client.post(f"/quotes/{quote_id}/send")
     assert send_res.status_code == 200, send_res.text
-    return send_res.json()
+
+    detail_res = await client.get(f"/quotes/{quote_id}")
+    assert detail_res.status_code == 200, detail_res.text
+
+    return detail_res.json()

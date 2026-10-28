@@ -10,7 +10,10 @@ from datetime import date, timedelta
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 from tests.helpers import create_sent_quote
+from sqlalchemy import select
 
+from app.core.database import AsyncSessionLocal
+from app.domains.quotes.models import Quote
 
 @pytest.mark.asyncio
 async def test_quotes_full_lifecycle():
@@ -133,9 +136,13 @@ async def test_quotes_full_lifecycle():
             assert len(pub["items"]) == 2
 
             # --- 9. US-QOT-02: Online Acceptance ---
-            accept_res = await anon_client.post(f"/quotes/share/{token1}/accept", json={
-                "accepted_by_name": "Amara Okonkwo",
-            })
+            accept_res = await anon_client.post(
+                f"/quotes/share/{token1}/accept",
+                json={
+                    "accepted_by_name": "Amara Okonkwo",
+                    "version": send_data["version"],
+                },
+            )
             assert accept_res.status_code == 200
             accepted_data = accept_res.json()
             assert accepted_data["status"] == "accepted"
@@ -228,36 +235,72 @@ async def test_quote_decline_and_expiration():
             assert dec_data["declined_at"] is not None
 
             # Cannot accept a declined quote
-            fail_acc = await anon_client.post(f"/quotes/share/{token}/accept", json={
-                "accepted_by_name": "Ibrahim Kano"
-            })
+            fail_acc = await anon_client.post(
+                f"/quotes/share/{token}/accept",
+                json={
+                    "accepted_by_name": "Ibrahim Kano",
+                    "version": q_data["version"],
+                },
+            )
             assert fail_acc.status_code == 400
 
-        # --- Quote Expiration Flow ---
-        past_date = date.today() - timedelta(days=2)
-        expired_res = await client.post("/quotes", json={
-            "client_id": client_id,
-            "currency": "NGN",
-            "issue_date": str(past_date - timedelta(days=10)),
-            "expires_at": str(past_date),
-            "items": [{"description": "Flash Discount Package", "quantity": 1, "unit_price_minor": 100_000_00}],
-        })
-        exp_data = expired_res.json()
-        assert exp_data["is_expired"] is True
-        assert exp_data["status"] == "expired"
+            # --- Quote Expiration Flow ---
+        # Create and send a valid quote first. Then expire it so we can
+        # verify that its existing public link rejects acceptance.
+        future_date = date.today() + timedelta(days=2)
 
-        # Client viewing expired quote
-        exp_token = exp_data["share_token"]
-        async with AsyncClient(transport=transport, base_url="http://test") as anon_client:
+        expired_res = await client.post(
+            "/quotes",
+            json={
+                "client_id": client_id,
+                "currency": "NGN",
+                "issue_date": str(date.today() - timedelta(days=10)),
+                "expires_at": str(future_date),
+                "items": [
+                    {
+                        "description": "Flash Discount Package",
+                        "quantity": 1,
+                        "unit_price_minor": 100_000_00,
+                    }
+                ],
+            },
+        )
+        assert expired_res.status_code == 201, expired_res.text
+        exp_data = expired_res.json()
+
+        # Finalize and send while the quote is still valid.
+        exp_finalize = await client.post(f"/quotes/{exp_data['id']}/finalize")
+        assert exp_finalize.status_code == 200, exp_finalize.text
+
+        exp_send = await client.post(f"/quotes/{exp_data['id']}/send")
+        assert exp_send.status_code == 200, exp_send.text
+        exp_token = exp_send.json()["share_token"]
+
+        # Simulate the passage of time by expiring the sent quote in the DB.
+        async with AsyncSessionLocal() as db:
+            quote_obj = await db.get(Quote, exp_data["id"])
+            assert quote_obj is not None
+            quote_obj.expires_at = date.today() - timedelta(days=2)
+            await db.commit()
+
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as anon_client:
+            # The already-issued public link remains resolvable.
             pub_exp = await anon_client.get(f"/quotes/share/{exp_token}")
-            assert pub_exp.status_code == 200
+            assert pub_exp.status_code == 200, pub_exp.text
             assert pub_exp.json()["is_expired"] is True
 
-            # Attempting to accept an expired quote fails
-            accept_exp = await anon_client.post(f"/quotes/share/{exp_token}/accept", json={
-                "accepted_by_name": "Tunde Late"
-            })
-            assert accept_exp.status_code == 400
+            # Expired quotes cannot be accepted.
+            accept_exp = await anon_client.post(
+                f"/quotes/share/{exp_token}/accept",
+                json={
+                    "accepted_by_name": "Tunde Late",
+                    "version": exp_data["version"],
+                },
+            )
+            assert accept_exp.status_code == 400, accept_exp.text
             assert "expired" in accept_exp.json()["detail"].lower()
 
 
@@ -452,12 +495,31 @@ async def test_quote_revise_bumps_version():
         assert rev_res.json()["notes"] == "Revised scope"
 
         # Accept the quote with the current version, then both revise and direct patch must be rejected (locked)
-        q_current = await client.get(f"/quotes/{q['id']}")
-        current_version = q_current.json()["version"]
-        async with AsyncClient(transport=transport, base_url="http://test") as anon_client:
-            acc = await anon_client.post(f"/quotes/share/{q['share_token']}/accept", json={
-                "accepted_by_name": "Revise User", "version": current_version,
-            })
+        # A revision invalidates the old public link.
+        # Finalize and send the revised version to issue a fresh link.
+        finalize_revised = await client.post(f"/quotes/{q['id']}/finalize")
+        assert finalize_revised.status_code == 200
+
+        send_revised = await client.post(f"/quotes/{q['id']}/send")
+        assert send_revised.status_code == 200
+
+        current_quote = await client.get(f"/quotes/{q['id']}")
+        assert current_quote.status_code == 200
+
+        current_version = current_quote.json()["version"]
+        current_token = send_revised.json()["share_token"]
+
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as anon_client:
+            acc = await anon_client.post(
+                f"/quotes/share/{current_token}/accept",
+                json={
+                    "accepted_by_name": "Revise User",
+                    "version": current_version,
+                },
+            )
             assert acc.status_code == 200
 
         rev_locked = await client.post(f"/quotes/{q['id']}/revise", json={"notes": "after accept"})

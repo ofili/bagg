@@ -1,5 +1,6 @@
 from datetime import date
 from types import SimpleNamespace
+from typing import Any, cast
 
 from app.domains.documents.builders.invoices import build_invoice_document
 from app.domains.documents.service import render_invoice_html
@@ -45,7 +46,7 @@ def test_invoice_builder_preserves_authoritative_financial_values():
 
 
 def test_invoice_html_renderer_escapes_user_controlled_content():
-    html = render_invoice_html(make_invoice())
+    html = render_invoice_html(cast(Any, make_invoice()))
 
     assert "INV-0001" in html
     assert "Subtotal:" in html

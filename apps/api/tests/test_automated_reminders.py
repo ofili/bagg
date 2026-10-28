@@ -64,7 +64,9 @@ async def test_automated_reminders_lifecycle():
         # 2. Test SKIP LOCKED worker claiming (US-REM-03)
         # Force one job to be due in the past
         target_job_id = jobs[0]["id"]
-        past_due = datetime.now(timezone.utc) - timedelta(days=1)
+        # Make this test's target job older than ordinary overdue jobs so
+        # the global worker selects it first in a persistent test database.
+        past_due = datetime.now(timezone.utc) - timedelta(days=3650)
 
         async with AsyncSessionLocal() as session:
             await session.execute(
@@ -75,7 +77,7 @@ async def test_automated_reminders_lifecycle():
             await session.commit()
 
         # Trigger worker process
-        proc_res = await client.post("/reminders/process?limit=10")
+        proc_res = await client.post("/reminders/process?limit=100")
         assert proc_res.status_code == 200
         proc_data = proc_res.json()
         assert proc_data["processed_count"] >= 1

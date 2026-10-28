@@ -65,23 +65,37 @@ async def test_financial_dashboard_and_metrics_lifecycle():
         )
 
         # 4. NGN Paid (300,000 NGN) -> Paid this month
-        inv_ngn_paid = (
-            await client.post(
-                "/invoices",
-                json={
-                    "client_id": client_id,
-                    "currency": "NGN",
-                    "items": [{"description": "Brand Sprint", "quantity": 1, "unit_price_minor": 30000000}],
-                },
-            )
-        ).json()
-        token_paid = inv_ngn_paid["share_token"]
-        claim_res = await client.post(
-            f"/share/{token_paid}/claim",
-            json={"amount_minor": 30000000, "reference": "NIP/FULL/PAID"},
+        inv_ngn_paid = await create_sent_invoice(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "due_date": (today + timedelta(days=7)).isoformat(),
+                "items": [
+                    {
+                        "description": "Brand Sprint",
+                        "quantity": 1,
+                        "unit_price_minor": 30000000,
+                    }
+                ],
+            },
         )
+
+        claim_res = await client.post(
+            f"/share/{inv_ngn_paid['share_token']}/claim",
+            json={
+                "amount_minor": 30000000,
+                "reference": "NIP/FULL/PAID",
+            },
+        )
+        assert claim_res.status_code == 201, claim_res.text
+
         claim_id = claim_res.json()["id"]
-        await client.post(f"/invoices/{inv_ngn_paid['id']}/claims/{claim_id}/confirm")
+
+        confirm_res = await client.post(
+            f"/invoices/{inv_ngn_paid['id']}/claims/{claim_id}/confirm"
+        )
+        assert confirm_res.status_code == 200, confirm_res.text
 
         # 5. USD Sent ($1,200 = 120,000 cents) -> Outstanding
         inv_usd_sent = await create_sent_invoice(
@@ -95,21 +109,35 @@ async def test_financial_dashboard_and_metrics_lifecycle():
         )
 
         # 6. USD Paid ($500 = 50,000 cents) -> Paid this month
-        inv_usd_paid = (
-            await client.post(
-                "/invoices",
-                json={
-                    "client_id": client_id,
-                    "currency": "USD",
-                    "items": [{"description": "US Retainer", "quantity": 1, "unit_price_minor": 50000}],
-                },
-            )
-        ).json()
+        inv_usd_paid = await create_sent_invoice(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "USD",
+                "due_date": (today + timedelta(days=7)).isoformat(),
+                "items": [
+                    {
+                        "description": "US Retainer",
+                        "quantity": 1,
+                        "unit_price_minor": 50000,
+                    }
+                ],
+            },
+        )
+
         claim_usd = await client.post(
             f"/share/{inv_usd_paid['share_token']}/claim",
-            json={"amount_minor": 50000, "reference": "WIRE/USD/PAID"},
+            json={
+                "amount_minor": 50000,
+                "reference": "WIRE/USD/PAID",
+            },
         )
-        await client.post(f"/invoices/{inv_usd_paid['id']}/claims/{claim_usd.json()['id']}/confirm")
+        assert claim_usd.status_code == 201, claim_usd.text
+
+        confirm_usd = await client.post(
+            f"/invoices/{inv_usd_paid['id']}/claims/{claim_usd.json()['id']}/confirm"
+        )
+        assert confirm_usd.status_code == 200, confirm_usd.text
 
         # Verify US-DSH-01: Currency-Segregated Metrics
         metrics_res = await client.get("/invoices/metrics")

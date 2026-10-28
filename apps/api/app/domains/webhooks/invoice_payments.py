@@ -62,10 +62,14 @@ async def paystack_invoice_payment_webhook(
 
     invoice_id = metadata.get("invoice_id")
     workspace_id = metadata.get("workspace_id")
-    if not invoice_id or not workspace_id:
-        raise HTTPException(status_code=400, detail="Missing invoice metadata")
 
-        idempotency_key = f"paystack:invoice-payment:{reference}"
+    if not invoice_id or not workspace_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing invoice metadata",
+        )
+
+    idempotency_key = f"paystack:invoice-payment:{reference}"
 
     event_stmt = (
         select(WebhookEvent)
