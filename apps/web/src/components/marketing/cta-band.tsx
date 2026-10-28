@@ -24,14 +24,12 @@ export function CtaBand({
               <p className="mt-2 text-body-l text-on-mango/80">{copy}</p>
             </div>
             <Link
-              href={href}
-              className={buttonStyles({
-                variant: 'outline',
-                size: 'lg',
-                className:
-                  'shrink-0 border-on-mango bg-transparent text-on-mango hover:bg-on-mango/10',
-              })}
-            >
+  href={href}
+  className={`${buttonStyles({
+    variant: 'outline',
+    size: 'lg',
+  })} shrink-0 border-on-mango bg-transparent text-on-mango hover:bg-on-mango/10`}
+>
               {label} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
