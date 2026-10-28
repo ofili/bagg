@@ -106,19 +106,19 @@ export function MarketingHeader() {
             ))}
             <div className="mt-3 grid gap-2 border-t border-line-subtle pt-3">
               <Link
-                href="/login"
-                onClick={() => setOpen(false)}
-                className={buttonStyles({ variant: 'outline', className: 'w-full' })}
-              >
-                Log in
-              </Link>
+  href="/login"
+  onClick={() => setOpen(false)}
+  className={`${buttonStyles({ variant: 'outline' })} w-full`}
+>
+  Log in
+</Link>
               <Link
-                href="/signup"
-                onClick={() => setOpen(false)}
-                className={buttonStyles({ className: 'w-full' })}
-              >
-                Start free
-              </Link>
+  href="/signup"
+  onClick={() => setOpen(false)}
+  className={`${buttonStyles()} w-full`}
+>
+  Start free
+</Link>
             </div>
           </nav>
         </div>
