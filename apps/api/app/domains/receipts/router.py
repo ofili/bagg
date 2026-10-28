@@ -253,6 +253,28 @@ async def get_receipt_pdf(
 
     receipt, client_name, invoice_number = row
 
+    if receipt.confirmation_source == "webhook_paystack":
+        confirmation_heading = "Payment verified by Paystack"
+        confirmation_stamp = "PAYSTACK-VERIFIED"
+        confirmation_disclaimer = (
+            "This receipt records a transaction verified through Paystack "
+            "and recorded by Bagg."
+        )
+    elif receipt.confirmation_source.startswith("issuer"):
+        confirmation_heading = "Payment confirmed by business"
+        confirmation_stamp = "BUSINESS-CONFIRMED"
+        confirmation_disclaimer = (
+            "This receipt records the business's confirmation that funds "
+            "were received. Bagg has not independently verified bank settlement."
+        )
+    else:
+        confirmation_heading = "Payment confirmation recorded"
+        confirmation_stamp = "RECORD-STAMPED"
+        confirmation_disclaimer = (
+            "Refer to the confirmation source shown on this receipt "
+            "for how the payment was recorded."
+        )
+
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -315,8 +337,8 @@ async def get_receipt_pdf(
   </div>
 
   <div class="footer">
-    This document constitutes valid legal proof of payment issued via Bagg.
-  </div>
+    {confirmation_disclaimer}
+    </div>
 </div>
 </body>
 </html>"""

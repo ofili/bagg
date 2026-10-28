@@ -12,8 +12,8 @@ from app.domains.invoices import service
 from app.domains.invoices.presenter import (
     generate_whatsapp_share_url,
     map_invoice_to_response,
-    render_invoice_html,
 )
+from app.domains.documents.service import render_invoice_html
 from app.domains.invoices.schemas import (
     CurrencyMetricsResponse,
     DocumentStatusEventResponse,
@@ -209,11 +209,20 @@ async def get_invoice_pdf(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
+    """Return the existing invoice HTML representation.
+
+    The route name is retained for API compatibility. Actual PDF generation
+    will be added after a renderer is selected and deployment-tested.
+    """
     invoice = await service.get_invoice(db, workspace, invoice_id)
+    html_content = render_invoice_html(invoice)
+
     return HTMLResponse(
-        content=render_invoice_html(invoice),
+        content=html_content,
         headers={
-            "Content-Disposition": f"inline; filename=Invoice-{invoice.invoice_number}.html"
+            "Content-Disposition": (
+                f'inline; filename="Invoice-{invoice.invoice_number}.html"'
+            )
         },
     )
 

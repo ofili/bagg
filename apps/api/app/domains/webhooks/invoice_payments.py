@@ -65,18 +65,21 @@ async def paystack_invoice_payment_webhook(
     if not invoice_id or not workspace_id:
         raise HTTPException(status_code=400, detail="Missing invoice metadata")
 
-    idempotency_key = f"paystack:invoice-payment:{reference}"
-    existing_event = (
-        await db.execute(
-            select(WebhookEvent).where(WebhookEvent.idempotency_key == idempotency_key)
-        )
-    ).scalar_one_or_none()
-    if existing_event and existing_event.processed:
+        idempotency_key = f"paystack:invoice-payment:{reference}"
+
+    event_stmt = (
+        select(WebhookEvent)
+        .where(WebhookEvent.idempotency_key == idempotency_key)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+    event = (await db.execute(event_stmt)).scalar_one_or_none()
+
+    if event and event.processed:
         return {"status": "already_processed"}
 
-    event = existing_event
-
-    if not event:
+    if event is None:
         candidate = WebhookEvent(
             processor="paystack",
             event_type=event_type,
@@ -87,28 +90,25 @@ async def paystack_invoice_payment_webhook(
         db.add(candidate)
 
         try:
+            # Persist the unique idempotency key first. We acquire its
+            # row lock below before beginning financial processing.
             await db.commit()
-            await db.refresh(candidate)
-            event = candidate
         except IntegrityError:
-            # Another delivery may have inserted the same unique key first.
+            # A concurrent delivery may have inserted the same key.
             await db.rollback()
-            event = (
-                await db.execute(
-                    select(WebhookEvent).where(
-                        WebhookEvent.idempotency_key == idempotency_key
-                    )
-                )
-            ).scalar_one_or_none()
 
-            if event is None:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Unable to establish webhook idempotency state",
-                )
+        # Both the successful-insert path and the unique-key-conflict
+        # path must reacquire the same event row under a lock.
+        event = (await db.execute(event_stmt)).scalar_one_or_none()
 
-            if event.processed:
-                return {"status": "already_processed"}
+        if event is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Unable to establish webhook idempotency state",
+            )
+
+        if event.processed:
+            return {"status": "already_processed"}
 
     try:
         invoice_stmt = select(Invoice).where(
@@ -138,6 +138,12 @@ async def paystack_invoice_payment_webhook(
             )
 
         amount_minor = int(data.get("amount") or 0)
+
+        if amount_minor <= 0:
+            raise ValueError(
+                "Paystack transaction amount must be greater than zero"
+            )
+
         existing_receipt = (
             await db.execute(
                 select(Receipt).where(
@@ -149,12 +155,36 @@ async def paystack_invoice_payment_webhook(
             )
         ).scalars().first()
 
-        if not existing_receipt:
+        if existing_receipt:
+            if existing_receipt.invoice_id != invoice.id:
+                raise ValueError(
+                    "Paystack transaction reference is already linked "
+                    "to another invoice"
+                )
+
+            if (
+                existing_receipt.amount_paid_minor != amount_minor
+                or existing_receipt.currency != invoice.currency
+            ):
+                raise ValueError(
+                    "Paystack transaction does not match the existing receipt"
+                )
+        else:
             channel = (data.get("channel") or "card").lower()
-            payment_method = "mobile_money" if channel in {"mobile_money", "ussd"} else "card"
+            payment_method = (
+                "mobile_money"
+                if channel in {"mobile_money", "ussd"}
+                else "card"
+            )
+
             customer = data.get("customer") or {}
             payer_name = " ".join(
-                part for part in [customer.get("first_name"), customer.get("last_name")] if part
+                part
+                for part in [
+                    customer.get("first_name"),
+                    customer.get("last_name"),
+                ]
+                if part
             ) or customer.get("email")
 
             await confirm_payment(

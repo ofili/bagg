@@ -1,9 +1,6 @@
-import os
 from datetime import date
 from typing import Optional
 from urllib.parse import quote
-
-from jinja2 import Template
 
 from app.core.money import format_money
 from app.domains.invoices.models import Invoice
@@ -157,32 +154,4 @@ def map_invoice_to_response(
         latest_receipt=latest_receipt,
         created_at=inv.created_at,
         updated_at=inv.updated_at,
-    )
-
-
-def render_invoice_html(invoice: Invoice) -> str:
-    template_path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "templates", "invoice.html"
-    )
-    with open(template_path, "r", encoding="utf-8") as f:
-        template = Template(f.read())
-
-    return template.render(
-        invoice_number=invoice.invoice_number,
-        issue_date=invoice.issue_date.strftime("%B %d, %Y"),
-        due_date=invoice.due_date.strftime("%B %d, %Y"),
-        items=[
-            {
-                "description": it.description,
-                "quantity": it.quantity,
-                "formatted_unit_price": format_money(
-                    it.unit_price_minor, invoice.currency
-                ),
-                "formatted_total": format_money(it.total_minor, invoice.currency),
-            }
-            for it in invoice.items
-        ],
-        formatted_subtotal=format_money(invoice.subtotal_minor, invoice.currency),
-        formatted_tax=format_money(invoice.tax_minor, invoice.currency),
-        formatted_total=format_money(invoice.total_minor, invoice.currency),
     )
