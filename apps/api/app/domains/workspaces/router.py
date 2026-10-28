@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.errors import NotFoundException
-from app.domains.workspaces.schemas import WorkspaceResponse, WorkspaceUpdate
+from app.domains.workspaces.schemas import (
+    WorkspaceResponse,
+    WorkspaceUpdate,
+    WorkspaceOnboardingRequest,
+)
 from app.domains.workspaces.models import Workspace
 from app.domains.auth.router import get_current_user_and_workspace
 
@@ -38,6 +42,66 @@ async def resolve_active_workspace(
     await db.commit()
     await db.refresh(ws)
     return ws
+
+
+@router.post(
+    "/current/complete-onboarding",
+    response_model=WorkspaceResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def complete_current_workspace_onboarding(
+    payload: WorkspaceOnboardingRequest,
+    auth_data=Depends(get_current_user_and_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save the initial business profile and mark onboarding complete."""
+
+    # Never complete onboarding against the demo or an arbitrary workspace.
+    if not auth_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Please sign in to complete onboarding.",
+        )
+
+    _, ws = auth_data
+
+    business_name = payload.business_name.strip()
+    country = payload.country.strip().upper()
+    currency = payload.default_currency.strip().upper()
+    address = payload.address.strip() if payload.address else None
+
+    if not business_name:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Business name is required.",
+        )
+
+    ws.business_name = business_name
+    ws.country = country
+    ws.default_currency = currency
+    ws.address = address
+    ws.onboarding_completed = True
+
+    await db.commit()
+    await db.refresh(ws)
+
+    return WorkspaceResponse(
+        id=ws.id,
+        owner_id=ws.owner_id,
+        name=ws.name,
+        business_name=ws.business_name,
+        brand_color=ws.brand_color,
+        country=ws.country,
+        default_currency=ws.default_currency,
+        tax_id=ws.tax_id,
+        address=ws.address,
+        logo_url=ws.logo_url,
+        invoice_prefix=ws.invoice_prefix,
+        onboarding_completed=ws.onboarding_completed,
+        next_invoice_number=ws.next_invoice_number,
+        next_quote_number=ws.next_quote_number,
+        next_receipt_number=ws.next_receipt_number,
+    )
 
 
 @router.get("/current", response_model=WorkspaceResponse)

@@ -1,4 +1,11 @@
-from fastapi import APIRouter, Depends, Response, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Response,
+    Request,
+    HTTPException,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
@@ -78,8 +85,11 @@ async def verify_code(
             default_currency=workspace.default_currency,
             tax_id=workspace.tax_id,
             address=workspace.address,
+            logo_url=workspace.logo_url,
+            invoice_prefix=workspace.invoice_prefix,
+            onboarding_completed=workspace.onboarding_completed,
         ),
-        message="Successfully authenticated"
+        message="Successfully authenticated",
     )
 
 
@@ -90,20 +100,10 @@ async def get_current_user_profile(
 ):
     """Returns profile and active workspace of currently authenticated session."""
     if not auth_data:
-        # Demo fallback for dev initial state
-        return AuthResponse(
-            user=UserResponse(id="usr_demo", email="demo@bagg.app", is_active=True),
-            workspace=WorkspaceResponse(
-                id="ws_demo",
-                owner_id="usr_demo",
-                name="Studio Bagg",
-                business_name="Studio Bagg Creative Ltd",
-                brand_color="#10B981",
-                country="NG",
-                default_currency="NGN",
-                tax_id="TIN-98765432-0001",
-                address="12 Adeola Odeku St, Victoria Island, Lagos"
-            )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Please sign in.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     user, workspace = auth_data
@@ -119,7 +119,10 @@ async def get_current_user_profile(
             default_currency=workspace.default_currency,
             tax_id=workspace.tax_id,
             address=workspace.address,
-        )
+            logo_url=workspace.logo_url,
+            invoice_prefix=workspace.invoice_prefix,
+            onboarding_completed=workspace.onboarding_completed,
+        ),
     )
 
 

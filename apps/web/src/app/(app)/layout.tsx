@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Plus, Settings, User } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { Plus, Settings } from 'lucide-react';
 import { BaggCoin, Wordmark } from '@/components/brand/Logo';
 import { BottomNav } from '@/components/mobile/BottomNav';
 import { ClientOnly } from '@/components/mobile/ClientOnly';
@@ -13,8 +14,72 @@ import { cn } from '@/lib/cn';
 
 const SHOW_DEV_BADGE = process.env.NODE_ENV !== 'production';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkSession() {
+      try {
+        const apiBase =
+          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+        const response = await fetch(`${apiBase}/auth/me`, {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (response.status === 401 && !cancelled) {
+          const returnTo = pathname.startsWith('/')
+            ? pathname
+            : '/dashboard';
+
+          router.replace(
+            `/login?next=${encodeURIComponent(returnTo)}`,
+          );
+        }
+      } catch {
+        // Network failures are not authentication failures.
+        // Do not redirect to login merely because the API is unreachable.
+      }
+    }
+
+    checkSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, router]);
+
+  const [businessName, setBusinessName] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(`${API_BASE}/workspaces/current`, {
+      credentials: 'include',
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Could not load workspace');
+        return res.json();
+      })
+      .then((workspace) => {
+        if (!cancelled) {
+          setBusinessName(workspace.business_name?.trim() || '');
+        }
+      })
+      .catch(() => {
+        // Leave the layout usable if workspace data cannot be loaded.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="flex min-h-dvh bg-cream">
@@ -90,8 +155,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <main className="relative flex min-w-0 flex-1 flex-col overflow-y-auto">
         {/* Tablet and desktop header. Settings opens from the avatar. */}
-        <header className="hidden h-16 shrink-0 items-center justify-end border-b-brut border-ink bg-surface px-8 sm:flex">
-            {/* Keep this header for future desktop actions if needed. */}
+        <header className="hidden h-16 shrink-0 items-center border-b-brut border-ink bg-surface px-8 sm:flex">
+          <p
+            className="truncate text-sm font-extrabold text-ink"
+            title={businessName || undefined}
+          >
+            {businessName || 'Your business'}
+          </p>
         </header>
 
         {/* Phone header */}
