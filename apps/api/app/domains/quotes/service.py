@@ -737,6 +737,12 @@ async def accept_public_quote(
             "This quote has expired. Please contact the freelancer for an updated quote."
         )
 
+   
+    if quote_obj.status not in {"issued", "sent", "viewed", "accepted"}:
+        raise BadRequestException(
+            f"Cannot accept a quote in '{quote_obj.status}' status."
+          )
+
     if payload.version != quote_obj.version:
         raise BadRequestException(
             f"This quote has been revised to v{quote_obj.version}; you are accepting "
