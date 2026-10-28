@@ -109,7 +109,7 @@ export default function HelpPage() {
             </div>
             <Link
               href="/contact"
-              className={buttonStyles({ variant: 'outline', size: 'lg', className: 'shrink-0' })}
+              className={`${buttonStyles({ variant: 'outline', size: 'lg' })} shrink-0`}
             >
               Contact support <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
