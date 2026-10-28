@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { CheckCircle2, ExternalLink, ReceiptText, ShieldCheck } from 'lucide-react';
 import { Money } from '@/components/money/Money';
 import { formatDate } from '@/lib/date';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 import { StatusPill } from './StatusPill';
 
 export interface ReceiptInfo {

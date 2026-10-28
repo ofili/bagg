@@ -8,7 +8,7 @@ import { StatusPill } from '@/components/status';
 import { Button, buttonStyles } from '@/components/ui';
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { formatDate } from '@/lib/date';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 

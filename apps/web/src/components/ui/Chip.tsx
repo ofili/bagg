@@ -1,5 +1,5 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 /** Chip look for anything that is not a <button> (filter links, for example). */
 export function chipStyles({ selected = false }: { selected?: boolean } = {}) {

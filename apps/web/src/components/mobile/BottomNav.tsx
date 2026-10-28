@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 import { NAV_ITEMS } from './navItems';
 
 export function BottomNav({ className = '' }: { className?: string }) {

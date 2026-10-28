@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ExternalLink, MoreHorizontal, Settings } from 'lucide-react';
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 const MENU_ITEMS = [
   { label: 'Settings', href: '/settings', external: false },

@@ -1,6 +1,6 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 export type ButtonVariant = 'primary' | 'accent' | 'outline' | 'link' | 'danger';
 export type ButtonSize = 'md' | 'lg';

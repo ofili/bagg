@@ -17,7 +17,7 @@ import { BaggCoin } from '@/components/brand/Logo';
 import { Button, Card, Field, buttonStyles, inputStyles } from '@/components/ui';
 import { Money } from '@/components/money/Money';
 import { formatDate } from '@/lib/date';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';

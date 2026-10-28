@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 /** App icon and favicon mark: orange sticker coin, dashed border, lowercase b, tilted 8 degrees. */
 export function BaggCoin({ size = 32, className }: { size?: number; className?: string }) {

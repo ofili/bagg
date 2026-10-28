@@ -6,7 +6,7 @@ import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
 import { Button, Card, buttonStyles } from '@/components/ui';
 import { formatDate } from '@/lib/date';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 interface InvoiceLineItem {
   id: string;

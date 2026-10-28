@@ -8,7 +8,7 @@ import { StatusPill } from '@/components/status';
 import { Button } from '@/components/ui';
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { formatDate } from '@/lib/date';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 export interface QuoteCardData {
   id: string;

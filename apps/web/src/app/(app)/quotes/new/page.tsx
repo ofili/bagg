@@ -9,7 +9,7 @@ import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { Money } from '@/components/money/Money';
 import { Button, Card, Chip, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
 import { cleanAmount, toMinor } from '@/lib/amount';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 

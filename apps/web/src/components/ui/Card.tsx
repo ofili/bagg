@@ -1,5 +1,5 @@
 import type { HTMLAttributes } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 import type { Zone } from './Button';
 
 export type CardTone = 'surface' | 'mango' | 'peach' | 'sun' | 'pink';

@@ -11,7 +11,7 @@ import { Button, Card, Field, Input, inputStyles } from '@/components/ui';
 import { Sheet, SheetClose, SheetContent } from '@/components/ui/sheet';
 import { cleanAmount, toMinor } from '@/lib/amount';
 import { formatDate } from '@/lib/date';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 

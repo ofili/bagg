@@ -3,7 +3,7 @@
 import * as React from 'react';
 import * as DrawerPrimitive from 'vaul';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 const Sheet = DrawerPrimitive.Drawer.Root;
 const SheetTrigger = DrawerPrimitive.Drawer.Trigger;

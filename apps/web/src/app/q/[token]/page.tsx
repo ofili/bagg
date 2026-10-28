@@ -10,7 +10,7 @@ import { StatusPill } from '@/components/status';
 import { Button, Card, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
 import { Sheet, SheetClose, SheetContent } from '@/components/ui/sheet';
 import { formatDate } from '@/lib/date';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 

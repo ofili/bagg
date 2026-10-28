@@ -1,5 +1,5 @@
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 /** 44px tall, 16px text (stops iOS zoom-on-focus), 1.5px ink outline, no shadow. */
 export const inputStyles =

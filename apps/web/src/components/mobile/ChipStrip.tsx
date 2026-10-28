@@ -1,7 +1,7 @@
 'use client';
 
 import { Chip } from '@/components/ui';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 
 interface ChipItem {
   value: string;
