@@ -89,9 +89,12 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/signup" className={buttonStyles({ className: 'mt-7 w-full' })}>
-                Start free <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+              <Link
+  href="/signup"
+  className={`${buttonStyles()} mt-7 w-full`}
+>
+  Start free <ArrowRight className="h-4 w-4" aria-hidden="true" />
+</Link>
               <p className="mt-3 text-caption text-ink-muted">No card needed.</p>
             </div>
 
