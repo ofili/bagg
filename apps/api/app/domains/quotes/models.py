@@ -135,27 +135,48 @@ class QuoteRevision(Base):
     __tablename__ = "quote_revisions"
 
     id = Column(String, primary_key=True, default=lambda: generate_uuid("qrev_"))
-    quote_id = Column(String, ForeignKey("quotes.id", ondelete="CASCADE"), nullable=False, index=True)
+    quote_id = Column(
+        String,
+        ForeignKey("quotes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     version = Column(Integer, nullable=False)
+
+    # Commercial identity and terms at the time this version was superseded.
+    # Nullable so existing revision rows remain valid after the migration.
+    client_id = Column(String, nullable=True)
+    client_name = Column(String, nullable=True)
+    currency = Column(String, nullable=True)
+    issue_date = Column(Date, nullable=True)
+    expires_at = Column(Date, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    # Financial terms captured at the time of revision.
     subtotal_minor = Column(BigInteger, nullable=False)
     discount_minor = Column(BigInteger, nullable=False)
     tax_rate_percent = Column(Float, nullable=False)
     tax_minor = Column(BigInteger, nullable=False)
     total_minor = Column(BigInteger, nullable=False)
     wht_rate_percent = Column(Float, nullable=False, default=0.0)
-    wht_minor = Column(BigInteger, nullable=False, default=0)
+    wht_minor = Column(BigInteger, nullable=False, default=0.0)
     net_payable_minor = Column(BigInteger, nullable=False)
+    deposit_percentage = Column(Float, nullable=True)
     deposit_amount_minor = Column(BigInteger, nullable=True)
+
+    # Immutable JSON snapshot of the line items for this version.
     items_snapshot = Column(JSON, nullable=False)
     revised_reason = Column(String, nullable=True)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
 
     quote = relationship("Quote", back_populates="revisions")
 
-    __table_args__ = (
-        UniqueConstraint("quote_id", "version", name="uq_quote_version"),
-    )
+    __table_args__ = (UniqueConstraint("quote_id", "version", name="uq_quote_version"),)
 
 
 class QuoteComment(Base):

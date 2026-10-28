@@ -255,10 +255,24 @@ async def revise_quote(
         raise BadRequestException(
             f"Quote '{quote_obj.quote_number}' is a draft; update it directly with PATCH /quotes/{quote_id}."
         )
+    if quote_obj.status not in {"issued", "sent", "viewed", "review_requested"}:
+        raise BadRequestException(
+            f"Quote '{quote_obj.quote_number}' is '{quote_obj.status}' and cannot be revised."
+        )
 
+    old_version = quote_obj.version or 1
+    old_status = quote_obj.status
+
+    # Preserve the previous version's commercial terms before mutation.
     revision = QuoteRevision(
         quote_id=quote_obj.id,
-        version=quote_obj.version,
+        version=old_version,
+        client_id=quote_obj.client_id,
+        client_name=quote_obj.client.name if quote_obj.client else None,
+        currency=quote_obj.currency,
+        issue_date=quote_obj.issue_date,
+        expires_at=quote_obj.expires_at,
+        notes=quote_obj.notes,
         subtotal_minor=quote_obj.subtotal_minor,
         discount_minor=quote_obj.discount_minor,
         tax_rate_percent=quote_obj.tax_rate_percent,
@@ -267,28 +281,22 @@ async def revise_quote(
         wht_rate_percent=quote_obj.wht_rate_percent,
         wht_minor=quote_obj.wht_minor,
         net_payable_minor=quote_obj.net_payable_minor,
+        deposit_percentage=quote_obj.deposit_percentage,
         deposit_amount_minor=quote_obj.deposit_amount_minor,
         items_snapshot=[
             {
-                "position": it.position,
-                "description": it.description,
-                "quantity": it.quantity,
-                "unit_price_minor": it.unit_price_minor,
-                "total_minor": it.total_minor,
+                "id": item.id,
+                "position": item.position,
+                "description": item.description,
+                "quantity": item.quantity,
+                "unit_price_minor": item.unit_price_minor,
+                "total_minor": item.total_minor,
             }
-            for it in (quote_obj.items or [])
+            for item in (quote_obj.items or [])
         ],
-        revised_reason=payload.reason,
+        revised_reason=(payload.reason or "").strip() or None,
     )
     db.add(revision)
-
-    old_status = quote_obj.status
-    quote_obj.version = (quote_obj.version or 1) + 1
-    quote_obj.last_revised_at = datetime.now(timezone.utc)
-    if quote_obj.status == "review_requested":
-        quote_obj.status = "issued"
-        quote_obj.review_requested_at = None
-        quote_obj.review_reason = None
 
     if payload.client_id is not None:
         client = (
@@ -345,23 +353,28 @@ async def revise_quote(
     )
 
     if payload.items is not None:
+        if not payload.items:
+            raise BadRequestException("A quote must contain at least one line item.")
         quote_obj.items.clear()
-        for i, it in enumerate(payload.items):
+        for position, item in enumerate(payload.items):
             quote_obj.items.append(
                 QuoteLineItem(
                     quote_id=quote_obj.id,
-                    position=i,
-                    description=it.description,
-                    quantity=it.quantity,
-                    unit_price_minor=it.unit_price_minor,
-                    total_minor=it.quantity * it.unit_price_minor,
+                    position=position,
+                    description=item.description,
+                    quantity=item.quantity,
+                    unit_price_minor=item.unit_price_minor,
+                    total_minor=item.quantity * item.unit_price_minor,
                 )
             )
 
     totals = calculate_invoice_totals(
         items=[
-            {"quantity": it.quantity, "unit_price_minor": it.unit_price_minor}
-            for it in quote_obj.items
+            {
+                "quantity": item.quantity,
+                "unit_price_minor": item.unit_price_minor,
+            }
+            for item in quote_obj.items
         ],
         discount_minor=discount,
         tax_percent=tax_rate,
@@ -378,22 +391,44 @@ async def revise_quote(
         deposit_pct=deposit_pct,
     )
 
+    # A revision is a new draft version and must be finalized and shared again.
+    quote_obj.version = old_version + 1
+    quote_obj.last_revised_at = datetime.now(timezone.utc)
+    quote_obj.status = "draft"
+
+    # Invalidate the old public link and clear delivery/response state.
+    quote_obj.share_token = None
+    quote_obj.share_token_hash = None
+    quote_obj.sent_at = None
+    quote_obj.viewed_at = None
+    quote_obj.email_delivery_status = None
+    quote_obj.accepted_at = None
+    quote_obj.accepted_by_name = None
+    quote_obj.declined_at = None
+    quote_obj.decline_reason = None
+    quote_obj.review_requested_at = None
+    quote_obj.review_reason = None
+
     record_status_event(
         db=db,
         workspace_id=workspace.id,
         document_type="quote",
         document_id=quote_obj.id,
         from_status=old_status,
-        to_status=quote_obj.status,
+        to_status="draft",
         actor_type="issuer",
         actor_id=workspace.owner_id,
         source="issuer_revise",
         metadata={
-            "from_version": revision.version,
+            "from_version": old_version,
             "to_version": quote_obj.version,
-            "reason": payload.reason,
+            "reason": revision.revised_reason,
         },
     )
+
+    await db.commit()
+    await db.refresh(quote_obj)
+    return quote_obj
 
     await db.commit()
     await db.refresh(quote_obj)
@@ -770,9 +805,23 @@ async def decline_public_quote(
 
     if quote_obj.status == "draft":
         raise NotFoundException("Quote not found or invalid link")
-    if quote_obj.status == "converted":
+
+    if quote_obj.status == "review_requested":
         raise BadRequestException(
-            "Cannot decline a quote that has already been converted into an invoice."
+            "The issuer is revising this quote. Please wait for the updated version."
+        )
+
+    if quote_obj.status in {"accepted", "converted"}:
+        raise BadRequestException(
+            "This quote has already been accepted and cannot be declined."
+        )
+
+    if quote_obj.status == "declined":
+        raise BadRequestException("This quote has already been declined.")
+
+    if quote_obj.expires_at < date.today():
+        raise BadRequestException(
+            "This quote has expired and can no longer be declined."
         )
 
     old_status = quote_obj.status
@@ -817,14 +866,17 @@ async def request_quote_review(
 
     if quote_obj.status == "draft":
         raise NotFoundException("Quote not found or invalid link")
+
     if quote_obj.status in {"accepted", "declined", "converted"}:
         raise BadRequestException(
             f"Cannot request changes on a {quote_obj.status} quote."
         )
+
     if quote_obj.expires_at < date.today():
         raise BadRequestException(
-            "This quote has expired. Please contact the freelancer for an updated quote."
+            "This quote has expired. Please contact the issuer for an updated quote."
         )
+
     if quote_obj.status == "review_requested":
         return quote_obj, client_name, workspace
 
@@ -888,8 +940,14 @@ async def post_public_quote_comment(
         raise NotFoundException("Quote not found or invalid link")
 
     quote_obj, workspace = row
+
     if quote_obj.status == "draft":
         raise NotFoundException("Quote not found or invalid link")
+
+    if quote_obj.status in {"accepted", "declined", "converted"}:
+        raise BadRequestException(
+            "This quote is closed and no longer accepts comments."
+        )
 
     item_description: Optional[str] = None
     if payload.line_item_id:
