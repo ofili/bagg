@@ -3,11 +3,8 @@
 from alembic import op
 import sqlalchemy as sa
 
-# Replace with a unique revision ID for this migration.
-revision = "add_workspace_onboarding_completed"
-
-# Replace with the actual current Alembic head revision.
-down_revision = "f1a2b3c4d5e6_add_quote_delivery_review_and_comments"
+revision = "ws_onboarding_001"
+down_revision = "a1b2c3d4e5f6"
 
 branch_labels = None
 depends_on = None
