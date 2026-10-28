@@ -17,9 +17,9 @@ export default function NotFound() {
         <p className="mt-2 max-w-sm text-body text-ink-soft">
           The link may be old or mistyped. Your invoices are safe.
         </p>
-        <Link href="/" className={buttonStyles({ className: 'mt-6' })}>
-          Take me home
-        </Link>
+        <Link href="/" className={`${buttonStyles()} mt-6`}>
+  Take me home
+</Link>
       </div>
     </main>
   );
