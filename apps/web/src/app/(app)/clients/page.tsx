@@ -358,7 +358,6 @@ export default function ClientsPage() {
                       <Money
                         amountMinor={client.total_paid_minor}
                         currency={client.preferred_currency}
-                        context="list"
                         hideCurrencyCode
                       />
                     </dd>
@@ -369,7 +368,6 @@ export default function ClientsPage() {
                       <Money
                         amountMinor={client.total_outstanding_minor}
                         currency={client.preferred_currency}
-                        context="list"
                         hideCurrencyCode
                       />
                     </dd>
