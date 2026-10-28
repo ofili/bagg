@@ -58,9 +58,12 @@ export function MarketingHeader() {
             >
               Log in
             </Link>
-            <Link href="/signup" className={buttonStyles({ className: 'hidden sm:inline-flex' })}>
-              Start free
-            </Link>
+            <Link
+  href="/signup"
+  className={`${buttonStyles()} hidden sm:inline-flex`}
+>
+  Start free
+</Link>
             <button
               type="button"
               aria-label={open ? 'Close menu' : 'Open menu'}
