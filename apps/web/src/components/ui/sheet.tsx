@@ -44,6 +44,14 @@ const SheetContent = React.forwardRef<
   );
 });
 
+function SheetFooter({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col-reverse gap-3 border-t border-line-subtle py-4 sm:flex-row sm:justify-end">
+      {children}
+    </div>
+  );
+}
+
 export { Sheet, SheetTrigger, SheetContent, SheetClose };
 
 export type { SheetProps, SheetContentProps, SheetCloseProps };
