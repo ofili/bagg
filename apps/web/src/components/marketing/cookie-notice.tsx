@@ -50,9 +50,13 @@ export function CookieNotice() {
             .
           </p>
         </div>
-        <button type="button" onClick={dismiss} className={buttonStyles({ className: 'shrink-0' })}>
-          Got it
-        </button>
+        <button
+  type="button"
+  onClick={dismiss}
+  className={`${buttonStyles()} shrink-0`}
+>
+  Got it
+</button>
       </div>
     </div>
   );
