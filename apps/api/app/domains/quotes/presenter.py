@@ -97,6 +97,7 @@ def map_quote_to_response(
 
     return QuoteResponse(
         id=quote_obj.id,
+        bagg_reference=quote_obj.bagg_reference,
         workspace_id=quote_obj.workspace_id,
         client_id=quote_obj.client_id,
         client_name=c_name,
@@ -253,6 +254,7 @@ def map_quote_send_response(
 
     return QuoteSendResponse(
         id=quote_obj.id,
+        bagg_reference=quote_obj.bagg_reference,
         quote_number=quote_obj.quote_number,
         version=quote_obj.version,
         status=quote_obj.status,

@@ -7,6 +7,7 @@ from app.core.database import Base
 
 # Import all models to ensure they are registered with Base.metadata
 import app.domains.auth.models  # noqa: F401
+import app.domains.clients.models  # noqa: F401
 import app.domains.workspaces.models  # noqa: F401
 import app.domains.payments.models  # noqa: F401
 import app.domains.clients.models  # noqa: F401

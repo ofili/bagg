@@ -101,6 +101,7 @@ def map_invoice_to_response(
 
     return InvoiceResponse(
         id=inv.id,
+        bagg_reference=inv.bagg_reference,
         workspace_id=inv.workspace_id,
         client_id=inv.client_id,
         client_name=c_name,

@@ -19,66 +19,10 @@ const SHOW_DEV_BADGE = process.env.NODE_ENV !== 'production';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-const BREADCRUMB_LABELS: Record<string, string> = {
-  dashboard: 'Dashboard',
-  invoices: 'Invoices',
-  quotes: 'Quotes',
-  receipts: 'Receipts',
-  clients: 'Clients',
-  settings: 'Settings',
-  new: 'New invoice',
-  profile: 'Profile',
-  business: 'Business',
-  billing: 'Billing',
-  payments: 'Payments',
-  security: 'Security',
-};
-
-function getBreadcrumbLabel(
-  segment: string,
-  index: number,
-  segments: string[],
-  currentRecordLabel?: string | null,
-): string {
-  const parent = segments[index - 1];
-
-  // Never expose internal IDs as breadcrumb labels.
-  if (parent === 'invoices' && segment !== 'new') {
-    return currentRecordLabel || 'Invoice';
-  }
-
-  if (parent === 'quotes' && segment !== 'new') {
-    return currentRecordLabel || 'Quote';
-  }
-
-  if (parent === 'receipts') {
-    return currentRecordLabel || 'Receipt';
-  }
-
-  if (parent === 'clients' && segment !== 'new') {
-    return currentRecordLabel || 'Client';
-  }
-
-  return (
-    BREADCRUMB_LABELS[segment] ??
-    segment
-      .split('-')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ')
-  );
-}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-
-  const breadcrumbSegments = pathname.split('/').filter(Boolean);
-
-  const breadcrumbs = breadcrumbSegments.map((segment, index) => ({
-    label: getBreadcrumbLabel(segment, index, breadcrumbSegments),
-    href: `/${breadcrumbSegments.slice(0, index + 1).join('/')}`,
-    current: index === breadcrumbSegments.length - 1,
-  }));
 
   useEffect(() => {
     let cancelled = false;
@@ -233,43 +177,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <HeaderMenu />
           </ClientOnly>
         </header>
-
-        {/* Shared breadcrumbs for all authenticated app pages */}
-        {breadcrumbs.length > 0 && (
-          <nav
-            aria-label="Breadcrumb"
-            className="px-4 pt-4 sm:px-8 sm:pt-5"
-          >
-            <ol className="flex flex-wrap items-center gap-1.5 text-caption text-text-muted">
-              {breadcrumbs.map((item, index) => (
-                <li key={item.href} className="flex min-w-0 items-center gap-1.5">
-                  {index > 0 && (
-                    <ChevronRight
-                      aria-hidden
-                      className="h-3.5 w-3.5 shrink-0"
-                    />
-                  )}
-
-                  {item.current ? (
-                    <span
-                      aria-current="page"
-                      className="truncate font-bold text-ink"
-                    >
-                      {item.label}
-                    </span>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      className="truncate underline-offset-4 hover:text-ink hover:underline"
-                    >
-                      {item.label}
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ol>
-          </nav>
-        )}
 
         {/* Pages own their padding. The bottom padding keeps content clear of the fixed tab bar on phones. */}
         <BreadcrumbProvider>

@@ -7,19 +7,24 @@ import { ChevronRight } from 'lucide-react';
 import { useCurrentBreadcrumb } from './BreadcrumbContext';
 
 const LABELS: Record<string, string> = {
-  dashboard: 'Dashboard',
   invoices: 'Invoices',
   quotes: 'Quotes',
   receipts: 'Receipts',
   clients: 'Clients',
   settings: 'Settings',
-  new: 'New',
   profile: 'Profile',
   business: 'Business',
   billing: 'Billing',
   payments: 'Payments',
   security: 'Security',
 };
+
+const DETAIL_SECTIONS = new Set([
+  'invoices',
+  'quotes',
+  'receipts',
+  'clients',
+]);
 
 function fallbackLabel(segment: string) {
   return (
@@ -36,26 +41,44 @@ export function AppBreadcrumbs() {
   const { currentLabel } = useCurrentBreadcrumb();
 
   const segments = pathname.split('/').filter(Boolean);
+  const section = segments[0];
+  const recordSegment = segments[1];
 
-  if (!segments.length) return null;
+  // Breadcrumbs are only needed on record detail pages and their subpages.
+  if (
+    segments.length < 2 ||
+    !DETAIL_SECTIONS.has(section) ||
+    recordSegment === 'new'
+  ) {
+    return null;
+  }
 
   const items = segments.map((segment, index) => {
     const href = `/${segments.slice(0, index + 1).join('/')}`;
     const isCurrent = index === segments.length - 1;
     const parent = segments[index - 1];
 
-    let label = fallbackLabel(segment);
+    let label: string;
 
-    if (isCurrent && currentLabel) {
+    if (index === 0) {
+      label = fallbackLabel(segment);
+    } else if (index === 1) {
+      // Never display the internal ID from the URL.
+      label = isCurrent
+        ? currentLabel || fallbackLabel(section.slice(0, -1))
+        : fallbackLabel(section);
+    } else if (isCurrent && currentLabel) {
       label = currentLabel;
-    } else if (parent === 'invoices' && segment !== 'new') {
+    } else if (parent === 'invoices') {
       label = 'Invoice';
-    } else if (parent === 'quotes' && segment !== 'new') {
+    } else if (parent === 'quotes') {
       label = 'Quote';
     } else if (parent === 'receipts') {
       label = 'Receipt';
-    } else if (parent === 'clients' && segment !== 'new') {
+    } else if (parent === 'clients') {
       label = 'Client';
+    } else {
+      label = fallbackLabel(segment);
     }
 
     return { href, label, isCurrent };

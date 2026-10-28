@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   AlertCircle,
   Check,
@@ -14,14 +15,20 @@ import {
   Search,
   Trash2,
   Users,
+  Building2,
+  UserRound,
+  ContactRound,
 } from 'lucide-react';
 import { BagCharacter } from '@/components/brand';
 import { Money } from '@/components/money/Money';
-import { Button, buttonStyles } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetFooter } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+
+type ClientType = 'PERSON' | 'BUSINESS';
+type DirectoryTab = 'clients' | 'contacts';
 
 interface Client {
   id: string;
@@ -31,6 +38,9 @@ interface Client {
   phone?: string | null;
   address?: string | null;
   country?: string | null;
+  bagg_reference?: string | null;
+  client_type: ClientType;
+  contacts?: Contact[];
   preferred_currency: string;
   default_payment_terms_days: number;
   tax_id?: string | null;
@@ -40,6 +50,21 @@ interface Client {
   total_outstanding_minor: number;
   invoice_count: number;
   created_at: string;
+}
+
+interface Contact {
+  id: string;
+  workspace_id: string;
+  client_id: string;
+  name: string;
+  job_title?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  is_primary: boolean;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  client_name?: string | null;
 }
 
 const SUPPORTED_CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'KES', 'ZAR'];
@@ -53,16 +78,37 @@ function errorText(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
 }
 
+function responseError(data: unknown, fallback: string): string {
+  if (
+    typeof data === 'object' &&
+    data !== null &&
+    'detail' in data &&
+    typeof data.detail === 'string'
+  ) {
+    return data.detail;
+  }
+
+  return fallback;
+}
+
+function normalisePhone(phone?: string | null) {
+  return phone ? phone.replace(/[^0-9+]/g, '') : '';
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [contactsLoading, setContactsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<DirectoryTab>('clients');
 
   const [showSheet, setShowSheet] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [saving, setSaving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [name, setName] = useState('');
@@ -74,31 +120,87 @@ export default function ClientsPage() {
   const [paymentTerms, setPaymentTerms] = useState(14);
   const [taxId, setTaxId] = useState('');
   const [notes, setNotes] = useState('');
+  const [clientType, setClientType] = useState<ClientType>('PERSON');
 
-  const fetchClients = async () => {
+  const [primaryContactName, setPrimaryContactName] = useState('');
+  const [primaryContactTitle, setPrimaryContactTitle] = useState('');
+  const [primaryContactEmail, setPrimaryContactEmail] = useState('');
+  const [primaryContactPhone, setPrimaryContactPhone] = useState('');
+
+  const [contactClientId, setContactClientId] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [contactTitle, setContactTitle] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactFormError, setContactFormError] = useState<string | null>(null);
+
+  const fetchClients = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+
     try {
-      setLoading(true);
-      setLoadError(null);
       const params = new URLSearchParams();
-      if (searchQuery.trim()) params.append('q', searchQuery.trim());
+      if (searchQuery.trim()) params.set('q', searchQuery.trim());
 
-      const url = `${API_BASE}/clients${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = `${API_BASE}/clients${params.toString() ? `?${params}` : ''}`;
       const res = await fetch(url, { credentials: 'include' });
-      if (!res.ok) throw new Error('we could not load your clients. Try again.');
-      setClients(await res.json());
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(responseError(data, 'We could not load your clients. Try again.'));
+      }
+
+      const data: Client[] = await res.json();
+      setClients(data);
     } catch (err) {
-      setLoadError(errorText(err, 'we could not load your clients. Try again.'));
+      setLoadError(errorText(err, 'We could not load your clients. Try again.'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery]);
+
+  const fetchContacts = useCallback(async () => {
+    setContactsLoading(true);
+
+    try {
+      const params = new URLSearchParams();
+      if (searchQuery.trim()) params.set('q', searchQuery.trim());
+
+      const url = `${API_BASE}/clients/contacts${params.toString() ? `?${params}` : ''}`;
+      const res = await fetch(url, { credentials: 'include' });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(responseError(data, 'We could not load your contacts. Try again.'));
+      }
+
+      const data: Contact[] = await res.json();
+      setContacts(data);
+    } catch (err) {
+      setLoadError(errorText(err, 'We could not load your contacts. Try again.'));
+    } finally {
+      setContactsLoading(false);
+    }
+  }, [searchQuery]);
+
+  const refreshDirectory = useCallback(async () => {
+    await Promise.all([fetchClients(), fetchContacts()]);
+  }, [fetchClients, fetchContacts]);
 
   useEffect(() => {
-    fetchClients();
-  }, [searchQuery]);
+    void refreshDirectory();
+  }, [refreshDirectory]);
+
+  const showSuccess = (message: string) => {
+    setSuccessMessage(message);
+    window.setTimeout(() => setSuccessMessage(null), 3500);
+  };
 
   const openSheet = (client: Client | null = null) => {
     setEditingClient(client);
+    setClientType(client?.client_type ?? 'PERSON');
+
     setName(client?.name ?? '');
     setEmail(client?.email ?? '');
     setPhone(client?.phone ?? '');
@@ -108,35 +210,65 @@ export default function ClientsPage() {
     setPaymentTerms(client?.default_payment_terms_days ?? 14);
     setTaxId(client?.tax_id ?? '');
     setNotes(client?.notes ?? '');
+
+    setPrimaryContactName('');
+    setPrimaryContactTitle('');
+    setPrimaryContactEmail('');
+    setPrimaryContactPhone('');
+
     setErrorMessage(null);
     setShowSheet(true);
   };
 
-  const handleSaveClient = async (e: React.FormEvent) => {
+  const handleSaveClient = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSaving(true);
     setErrorMessage(null);
+
+    if (!name.trim()) {
+      setErrorMessage('Enter a client or company name.');
+      return;
+    }
+
+    if (!editingClient && clientType === 'BUSINESS' && !primaryContactName.trim()) {
+      setErrorMessage('Add a primary contact for this business.');
+      return;
+    }
+
+    setSaving(true);
 
     const payload = {
       name: name.trim(),
-      email: email.trim() ? email.trim() : null,
-      phone: phone.trim() ? phone.trim() : null,
-      address: address.trim() ? address.trim() : null,
-      country: country.trim() ? country.trim() : 'NG',
+      client_type: clientType,
+      email: email.trim() || null,
+      phone: phone.trim() || null,
+      address: address.trim() || null,
+      country: country.trim() || 'NG',
       preferred_currency: preferredCurrency,
       default_payment_terms_days: Number(paymentTerms),
-      tax_id: taxId.trim() ? taxId.trim() : null,
-      notes: notes.trim() ? notes.trim() : null,
+      tax_id: taxId.trim() || null,
+      notes: notes.trim() || null,
+      ...(!editingClient && clientType === 'BUSINESS'
+        ? {
+            contacts: [
+              {
+                name: primaryContactName.trim(),
+                job_title: primaryContactTitle.trim() || null,
+                email: primaryContactEmail.trim() || null,
+                phone: primaryContactPhone.trim() || null,
+                is_primary: true,
+              },
+            ],
+          }
+        : {}),
     };
 
     try {
       const url = editingClient
         ? `${API_BASE}/clients/${editingClient.id}`
         : `${API_BASE}/clients`;
-      const method = editingClient ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
-        method,
+        method: editingClient ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(payload),
@@ -144,17 +276,21 @@ export default function ClientsPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || 'we could not save this client. Check the details and try again.');
+        throw new Error(
+          responseError(data, 'We could not save this client. Check the details and try again.'),
+        );
       }
 
       setShowSheet(false);
-      setSuccessMessage(
-        editingClient ? `${name.trim()} updated.` : `${name.trim()} added to your clients.`,
+      showSuccess(
+        editingClient
+          ? `${name.trim()} updated.`
+          : `${name.trim()} added to your clients.`,
       );
-      window.setTimeout(() => setSuccessMessage(null), 3500);
-      await fetchClients();
+
+      await refreshDirectory();
     } catch (err) {
-      setErrorMessage(errorText(err, 'we could not save this client. Check the details and try again.'));
+      setErrorMessage(errorText(err, 'We could not save this client. Try again.'));
     } finally {
       setSaving(false);
     }
@@ -162,11 +298,13 @@ export default function ClientsPage() {
 
   const handleDeleteClient = async (client: Client) => {
     const confirmed = window.confirm(
-      `delete ${client.name}? Their invoices stay in your workspace. This cannot be undone.`,
+      `Delete ${client.name}? Their invoices may remain in your workspace. This cannot be undone.`,
     );
+
     if (!confirmed) return;
 
     setLoadError(null);
+
     try {
       const res = await fetch(`${API_BASE}/clients/${client.id}`, {
         method: 'DELETE',
@@ -175,219 +313,716 @@ export default function ClientsPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || 'we could not delete this client. try again.');
+        throw new Error(responseError(data, 'We could not delete this client. Try again.'));
       }
 
-      setSuccessMessage(`${client.name} deleted.`);
-      window.setTimeout(() => setSuccessMessage(null), 3500);
-      await fetchClients();
+      showSuccess(`${client.name} deleted.`);
+      await refreshDirectory();
     } catch (err) {
-      setLoadError(errorText(err, 'we could not delete this client. try again.'));
+      setLoadError(errorText(err, 'We could not delete this client. Try again.'));
+    }
+  };
+
+  const resetContactForm = () => {
+    setContactName('');
+    setContactTitle('');
+    setContactEmail('');
+    setContactPhone('');
+    setContactFormError(null);
+  };
+
+  const handleSaveContact = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setContactFormError(null);
+
+    if (!contactClientId) {
+      setContactFormError('Choose a client for this contact.');
+      return;
+    }
+
+    if (!contactName.trim()) {
+      setContactFormError('Enter the contact name.');
+      return;
+    }
+
+    setContactSaving(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/clients/contacts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          client_id: contactClientId,
+          name: contactName.trim(),
+          job_title: contactTitle.trim() || null,
+          email: contactEmail.trim() || null,
+          phone: contactPhone.trim() || null,
+          is_primary: false,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(responseError(data, 'We could not save this contact.'));
+      }
+
+      resetContactForm();
+      showSuccess('Contact added.');
+      await refreshDirectory();
+    } catch (err) {
+      setContactFormError(errorText(err, 'We could not save this contact.'));
+    } finally {
+      setContactSaving(false);
+    }
+  };
+
+  const handleDeleteContact = async (contact: Contact) => {
+    if (!window.confirm(`Delete ${contact.name}? This removes the contact record.`)) {
+      return;
+    }
+
+    setLoadError(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/clients/contacts/${contact.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(responseError(data, 'We could not delete this contact.'));
+      }
+
+      showSuccess('Contact deleted.');
+      await refreshDirectory();
+    } catch (err) {
+      setLoadError(errorText(err, 'We could not delete this contact.'));
     }
   };
 
   const filteredClients = clients.filter((client) => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
+
     return (
       client.name.toLowerCase().includes(query) ||
       (client.email ?? '').toLowerCase().includes(query) ||
-      (client.phone ?? '').includes(query)
+      (client.phone ?? '').toLowerCase().includes(query) ||
+      (client.bagg_reference ?? '').toLowerCase().includes(query)
     );
   });
 
+  const filteredContacts = contacts.filter((contact) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+
+    const clientName =
+      contact.client_name ??
+      clients.find((client) => client.id === contact.client_id)?.name ??
+      '';
+
+    return (
+      contact.name.toLowerCase().includes(query) ||
+      (contact.email ?? '').toLowerCase().includes(query) ||
+      (contact.phone ?? '').toLowerCase().includes(query) ||
+      (contact.job_title ?? '').toLowerCase().includes(query) ||
+      clientName.toLowerCase().includes(query)
+    );
+  });
+
+  const getContactClientName = (contact: Contact) =>
+    contact.client_name ??
+    clients.find((client) => client.id === contact.client_id)?.name ??
+    'Client';
+
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-title-l text-ink">clients</h1>
-          <p className="mt-1 text-body text-ink-soft">the people you invoice, in one place.</p>
+          <h1 className="text-title-l text-ink">Clients &amp; contacts</h1>
+          <p className="mt-1 text-body text-ink-soft">
+            Keep client details and the people you work with in one place.
+          </p>
         </div>
-        <Button onClick={() => openSheet()} className="w-fit">
-          <Plus className="h-4 w-4" aria-hidden="true" /> Add client
-        </Button>
-      </div>
+
+        {activeTab === 'clients' ? (
+          <Button onClick={() => openSheet()} className="w-fit">
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Add client
+          </Button>
+        ) : (
+          <Button
+            onClick={() => {
+              resetContactForm();
+              document.getElementById('new-contact-form')?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+              });
+            }}
+            className="w-fit"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Add contact
+          </Button>
+        )}
+      </header>
 
       {successMessage && (
-        <div role="status" className="flex items-center gap-2 rounded-input bg-pill-paid/20 px-3 py-2 text-body text-paid-text">
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded-input bg-pill-paid/20 px-3 py-2 text-body text-paid-text"
+        >
           <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
           {successMessage}
         </div>
       )}
 
       {loadError && (
-        <div role="alert" className="flex items-center justify-between gap-3 rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text">
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text"
+        >
           <span className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             {loadError}
           </span>
-          <button type="button" onClick={fetchClients} className="font-bold hover:underline">
+          <button
+            type="button"
+            onClick={() => void refreshDirectory()}
+            className="shrink-0 font-bold hover:underline"
+          >
             Try again
           </button>
         </div>
       )}
 
-      <div className="relative w-full max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
-        <input
-          type="search"
-          aria-label="Search clients"
-          placeholder="Name, email or phone"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className={cn(inputClass, 'pl-9')}
-        />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          role="tablist"
+          aria-label="Client directory"
+          className="inline-flex w-fit rounded-input border border-line bg-tint p-1"
+        >
+          <button
+            id="clients-tab"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'clients'}
+            aria-controls="clients-panel"
+            onClick={() => setActiveTab('clients')}
+            className={cn(
+              'inline-flex min-h-10 items-center gap-2 rounded-input px-4 text-body font-bold transition-colors',
+              activeTab === 'clients'
+                ? 'bg-surface text-ink shadow-sm'
+                : 'text-ink-soft hover:text-ink',
+            )}
+          >
+            <Users className="h-4 w-4" aria-hidden="true" />
+            Clients
+            <span className="rounded-full bg-tint px-2 py-0.5 text-caption">
+              {clients.length}
+            </span>
+          </button>
+
+          <button
+            id="contacts-tab"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'contacts'}
+            aria-controls="contacts-panel"
+            onClick={() => setActiveTab('contacts')}
+            className={cn(
+              'inline-flex min-h-10 items-center gap-2 rounded-input px-4 text-body font-bold transition-colors',
+              activeTab === 'contacts'
+                ? 'bg-surface text-ink shadow-sm'
+                : 'text-ink-soft hover:text-ink',
+            )}
+          >
+            <ContactRound className="h-4 w-4" aria-hidden="true" />
+            Contacts
+            <span className="rounded-full bg-tint px-2 py-0.5 text-caption">
+              {contacts.length}
+            </span>
+          </button>
+        </div>
+
+        <div className="relative w-full sm:max-w-md">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            aria-label={`Search ${activeTab}`}
+            placeholder={
+              activeTab === 'clients'
+                ? 'Search clients by name, email or phone'
+                : 'Search contacts or client names'
+            }
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={cn(inputClass, 'pl-9')}
+          />
+        </div>
       </div>
 
-      {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading clients">
-          {[0, 1, 2].map((item) => (
-            <div key={item} className="h-52 animate-pulse rounded-card bg-tint" />
-          ))}
-        </div>
-      ) : filteredClients.length === 0 ? (
-        <div className="rounded-card border border-line-subtle bg-surface px-6 py-12 text-center">
-          <BagCharacter size={80} className="mx-auto" />
-          <h2 className="mt-4 text-heading text-ink">
-            {searchQuery ? 'no clients match that search' : 'no clients yet'}
-          </h2>
-          <p className="mx-auto mt-1 max-w-sm text-body text-ink-soft">
-            {searchQuery
-              ? 'Try a name, email or phone number.'
-              : 'Save a client once, then draft their next invoice in under a minute.'}
-          </p>
-          {!searchQuery && (
-            <Button onClick={() => openSheet()} className="mt-5">
-              <Plus className="h-4 w-4" aria-hidden="true" /> Add your first client
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredClients.map((client) => {
-            const cleanPhone = client.phone ? client.phone.replace(/[^0-9+]/g, '') : null;
-            return (
-              <article
-                key={client.id}
-                className="flex flex-col rounded-card border border-line-subtle bg-surface p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-peach-chip text-body font-extrabold text-ink">
-                      {client.name.trim().charAt(0).toUpperCase() || <Users className="h-4 w-4" />}
-                    </span>
-                    <div className="min-w-0">
-                      <h2 className="truncate text-heading text-ink">{client.name}</h2>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-caption text-ink-muted">
-                        <span className="rounded-full bg-tint px-2 py-0.5 font-extrabold text-ink-soft">
-                          {client.preferred_currency}
+      {activeTab === 'clients' ? (
+        <section
+          id="clients-panel"
+          role="tabpanel"
+          aria-labelledby="clients-tab"
+          className="space-y-4"
+        >
+          {loading ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Loading clients">
+              {[0, 1, 2].map((item) => (
+                <div key={item} className="h-56 animate-pulse rounded-card bg-tint" />
+              ))}
+            </div>
+          ) : filteredClients.length === 0 ? (
+            <div className="rounded-card border border-line-subtle bg-surface px-6 py-12 text-center">
+              <BagCharacter size={80} className="mx-auto" />
+              <h2 className="mt-4 text-heading text-ink">
+                {searchQuery ? 'No clients match that search' : 'No clients yet'}
+              </h2>
+              <p className="mx-auto mt-1 max-w-sm text-body text-ink-soft">
+                {searchQuery
+                  ? 'Try a different name, email, phone number or reference.'
+                  : 'Save a client once, then draft their next invoice in under a minute.'}
+              </p>
+              {!searchQuery && (
+                <Button onClick={() => openSheet()} className="mt-5">
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Add your first client
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredClients.map((client) => {
+                const cleanPhone = normalisePhone(client.phone);
+                const clientContacts = contacts.filter(
+                  (contact) => contact.client_id === client.id,
+                );
+
+                return (
+                  <article
+                    key={client.id}
+                    className="flex flex-col rounded-card border border-line-subtle bg-surface p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-peach-chip text-body font-extrabold text-ink">
+                          {client.client_type === 'BUSINESS' ? (
+                            <Building2 className="h-5 w-5" aria-hidden="true" />
+                          ) : (
+                            client.name.trim().charAt(0).toUpperCase() || (
+                              <UserRound className="h-4 w-4" aria-hidden="true" />
+                            )
+                          )}
                         </span>
-                        <span>net {client.default_payment_terms_days} days</span>
+
+                        <div className="min-w-0">
+                          <h2 className="truncate text-heading text-ink">{client.name}</h2>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-caption text-ink-muted">
+                            <span className="rounded-full bg-tint px-2 py-0.5 font-extrabold text-ink-soft">
+                              {client.client_type === 'BUSINESS' ? 'Business' : 'Individual'}
+                            </span>
+                            {client.bagg_reference && (
+                              <span>{client.bagg_reference}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-center">
+                        <button
+                          type="button"
+                          onClick={() => openSheet(client)}
+                          aria-label={`Edit ${client.name}`}
+                          className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-tint hover:text-ink"
+                        >
+                          <Edit2 className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteClient(client)}
+                          aria-label={`Delete ${client.name}`}
+                          className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-pill-late/40 hover:text-late-text"
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </button>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex shrink-0 items-center">
-                    <button
-                      type="button"
-                      onClick={() => openSheet(client)}
-                      aria-label={`Edit ${client.name}`}
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-tint hover:text-ink"
-                    >
-                      <Edit2 className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteClient(client)}
-                      aria-label={`Delete ${client.name}`}
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-pill-late/40 hover:text-late-text"
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
 
-                <div className="mt-4 min-h-14 space-y-1.5 text-body text-ink-soft">
-                  {client.email ? (
-                    <a href={`mailto:${client.email}`} className="flex items-center gap-2 hover:text-ink">
-                      <Mail className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
-                      <span className="truncate">{client.email}</span>
-                    </a>
-                  ) : (
-                    <p className="text-caption font-bold text-ink-muted">WhatsApp only</p>
-                  )}
-                  {client.phone && (
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <Phone className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
-                        <span className="truncate">{client.phone}</span>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-caption text-ink-muted">
+                      <span className="rounded-full bg-tint px-2 py-1 font-bold text-ink-soft">
+                        {client.preferred_currency}
                       </span>
-                      {cleanPhone && (
-                        <a
-                          href={`https://wa.me/${cleanPhone.replace('+', '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex shrink-0 items-center gap-1 text-caption font-bold text-link hover:underline"
-                        >
-                          <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /> WhatsApp
-                        </a>
+                      <span>Net {client.default_payment_terms_days} days</span>
+                      {client.client_type === 'BUSINESS' && (
+                        <span className="rounded-full bg-tint px-2 py-1">
+                          {clientContacts.length} {clientContacts.length === 1 ? 'contact' : 'contacts'}
+                        </span>
                       )}
                     </div>
-                  )}
-                  {client.address && (
-                    <p className="flex items-start gap-2 text-caption text-ink-muted">
-                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                      <span className="truncate">{client.address}</span>
-                    </p>
-                  )}
-                </div>
 
-                <dl className="mt-auto grid grid-cols-3 gap-2 border-t border-line-subtle pt-3">
-                  <div>
-                    <dt className="text-caption text-ink-muted">invoiced</dt>
-                    <dd className="mt-0.5 text-caption font-extrabold text-ink">
-                      <Money
-                        amountMinor={client.total_invoiced_minor}
-                        currency={client.preferred_currency}
-                        hideCurrencyCode
-                      />
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-caption text-ink-muted">paid</dt>
-                    <dd className="mt-0.5 text-caption font-extrabold text-paid-text">
-                      <Money
-                        amountMinor={client.total_paid_minor}
-                        currency={client.preferred_currency}
-                        hideCurrencyCode
-                      />
-                    </dd>
-                  </div>
-                  <div className="text-right">
-                    <dt className="text-caption text-ink-muted">outstanding</dt>
-                    <dd className="mt-0.5 text-caption font-extrabold text-ink">
-                      <Money
-                        amountMinor={client.total_outstanding_minor}
-                        currency={client.preferred_currency}
-                        hideCurrencyCode
-                      />
-                    </dd>
-                  </div>
-                </dl>
-              </article>
-            );
-          })}
-        </div>
+                    <div className="mt-4 min-h-14 space-y-1.5 text-body text-ink-soft">
+                      {client.email ? (
+                        <a
+                          href={`mailto:${client.email}`}
+                          className="flex items-center gap-2 hover:text-ink"
+                        >
+                          <Mail className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+                          <span className="truncate">{client.email}</span>
+                        </a>
+                      ) : (
+                        <p className="text-caption font-bold text-ink-muted">
+                          No billing email
+                        </p>
+                      )}
+
+                      {client.phone && (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <Phone className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+                            <span className="truncate">{client.phone}</span>
+                          </span>
+                          {cleanPhone && (
+                            <a
+                              href={`https://wa.me/${cleanPhone.replace(/\+/g, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex shrink-0 items-center gap-1 text-caption font-bold text-link hover:underline"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                              WhatsApp
+                            </a>
+                          )}
+                        </div>
+                      )}
+
+                      {client.address && (
+                        <p className="flex items-start gap-2 text-caption text-ink-muted">
+                          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                          <span className="truncate">{client.address}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {client.client_type === 'BUSINESS' && clientContacts.length > 0 && (
+                      <div className="mt-3 space-y-2 rounded-input bg-tint p-3">
+                        <p className="text-caption font-extrabold uppercase tracking-wide text-ink-muted">
+                          {clientContacts.length === 1 ? 'Primary contact' : 'Contacts'}
+                        </p>
+                        {clientContacts.slice(0, 2).map((contact) => (
+                          <div key={contact.id} className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-body font-bold text-ink">
+                                {contact.name}
+                              </span>
+                              {contact.is_primary && (
+                                <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-caption text-ink-soft">
+                                  Primary
+                                </span>
+                              )}
+                            </div>
+                            {contact.job_title && (
+                              <p className="text-caption text-ink-muted">{contact.job_title}</p>
+                            )}
+                          </div>
+                        ))}
+                        {clientContacts.length > 2 && (
+                          <p className="text-caption text-ink-muted">
+                            +{clientContacts.length - 2} more
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <dl className="mt-auto grid grid-cols-3 gap-2 border-t border-line-subtle pt-3">
+                      <div>
+                        <dt className="text-caption text-ink-muted">Invoiced</dt>
+                        <dd className="mt-0.5 text-caption font-extrabold text-ink">
+                          <Money
+                            amountMinor={client.total_invoiced_minor}
+                            currency={client.preferred_currency}
+                            hideCurrencyCode
+                          />
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-caption text-ink-muted">Paid</dt>
+                        <dd className="mt-0.5 text-caption font-extrabold text-paid-text">
+                          <Money
+                            amountMinor={client.total_paid_minor}
+                            currency={client.preferred_currency}
+                            hideCurrencyCode
+                          />
+                        </dd>
+                      </div>
+                      <div className="text-right">
+                        <dt className="text-caption text-ink-muted">Outstanding</dt>
+                        <dd className="mt-0.5 text-caption font-extrabold text-ink">
+                          <Money
+                            amountMinor={client.total_outstanding_minor}
+                            currency={client.preferred_currency}
+                            hideCurrencyCode
+                          />
+                        </dd>
+                      </div>
+                    </dl>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      ) : (
+        <section
+          id="contacts-panel"
+          role="tabpanel"
+          aria-labelledby="contacts-tab"
+          className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]"
+        >
+          <div className="min-w-0 space-y-4">
+            <div>
+              <h2 className="text-heading text-ink">People and business contacts</h2>
+              <p className="mt-1 text-body text-ink-soft">
+                Contacts belong to a client. A business can have several contacts.
+              </p>
+            </div>
+
+            {contactsLoading ? (
+              <div className="space-y-3" aria-label="Loading contacts">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="h-24 animate-pulse rounded-card bg-tint" />
+                ))}
+              </div>
+            ) : filteredContacts.length === 0 ? (
+              <div className="rounded-card border border-line-subtle bg-surface px-6 py-10 text-center">
+                <ContactRound className="mx-auto h-10 w-10 text-ink-muted" aria-hidden="true" />
+                <h3 className="mt-3 text-heading text-ink">
+                  {searchQuery ? 'No contacts match that search' : 'No contacts yet'}
+                </h3>
+                <p className="mt-1 text-body text-ink-soft">
+                  {searchQuery
+                    ? 'Try searching by contact name, role, email or client.'
+                    : 'Add a contact to an existing client using the form.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredContacts.map((contact) => {
+                  const cleanPhone = normalisePhone(contact.phone);
+
+                  return (
+                    <article
+                      key={contact.id}
+                      className="flex flex-col gap-3 rounded-card border border-line-subtle bg-surface p-4 sm:flex-row sm:items-start sm:justify-between"
+                    >
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">
+                          <UserRound className="h-5 w-5" aria-hidden="true" />
+                        </span>
+
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-heading text-ink">{contact.name}</h3>
+                            {contact.is_primary && (
+                              <span className="rounded-full bg-tint px-2 py-0.5 text-caption font-bold text-ink-soft">
+                                Primary
+                              </span>
+                            )}
+                          </div>
+
+                          {contact.job_title && (
+                            <p className="mt-0.5 text-body text-ink-soft">{contact.job_title}</p>
+                          )}
+
+                          <p className="mt-1 text-caption font-bold text-ink-muted">
+                            Client: {getContactClientName(contact)}
+                          </p>
+
+                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-caption text-ink-soft">
+                            {contact.email && (
+                              <a
+                                href={`mailto:${contact.email}`}
+                                className="inline-flex items-center gap-1.5 hover:text-ink"
+                              >
+                                <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                                {contact.email}
+                              </a>
+                            )}
+                            {contact.phone && (
+                              <span className="inline-flex items-center gap-1.5">
+                                <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                                {contact.phone}
+                              </span>
+                            )}
+                            {cleanPhone && (
+                              <a
+                                href={`https://wa.me/${cleanPhone.replace(/\+/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 font-bold text-link hover:underline"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                                WhatsApp
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteContact(contact)}
+                        aria-label={`Delete ${contact.name}`}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full text-ink-muted transition-colors hover:bg-pill-late/40 hover:text-late-text sm:self-start"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <form
+            id="new-contact-form"
+            onSubmit={handleSaveContact}
+            className="space-y-4 rounded-card border border-line-subtle bg-surface p-4"
+          >
+            <div>
+              <h2 className="text-heading text-ink">Add contact</h2>
+              <p className="mt-1 text-body text-ink-soft">
+                Link this person to an existing client.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="contact-client" className={labelClass}>
+                Client
+              </label>
+              <select
+                id="contact-client"
+                required
+                value={contactClientId}
+                onChange={(e) => setContactClientId(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Choose a client</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                    {client.client_type === 'BUSINESS' ? ' (Business)' : ''}
+                  </option>
+                ))}
+              </select>
+              {clients.length === 0 && (
+                <p className="mt-1 text-caption text-ink-muted">
+                  Create a client before adding a contact.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="contact-name" className={labelClass}>
+                Contact name
+              </label>
+              <input
+                id="contact-name"
+                required
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="e.g. Ada Okafor"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="contact-title" className={labelClass}>
+                Role or job title
+              </label>
+              <input
+                id="contact-title"
+                value={contactTitle}
+                onChange={(e) => setContactTitle(e.target.value)}
+                placeholder="e.g. Finance Manager"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="contact-email" className={labelClass}>
+                Email
+              </label>
+              <input
+                id="contact-email"
+                type="email"
+                autoComplete="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                placeholder="ada@company.com"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="contact-phone" className={labelClass}>
+                Phone or WhatsApp
+              </label>
+              <input
+                id="contact-phone"
+                type="tel"
+                autoComplete="tel"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                placeholder="+234 803 123 4567"
+                className={inputClass}
+              />
+            </div>
+
+            {contactFormError && (
+              <div
+                role="alert"
+                className="rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text"
+              >
+                {contactFormError}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={contactSaving || clients.length === 0}
+            >
+              {contactSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Plus className="h-4 w-4" aria-hidden="true" />
+              )}
+              Add contact
+            </Button>
+          </form>
+        </section>
       )}
 
       <Sheet open={showSheet} onOpenChange={setShowSheet}>
         <SheetContent className="max-h-[92dvh] overflow-y-auto rounded-t-sheet border border-line-subtle bg-surface p-5 pb-0 sm:inset-0 sm:m-auto sm:h-fit sm:w-[calc(100vw-2rem)] sm:max-w-lg sm:rounded-sheet">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-title text-ink">{editingClient ? 'edit client' : 'new client'}</h2>
+              <h2 className="text-title text-ink">
+                {editingClient ? 'Edit client' : 'New client'}
+              </h2>
               <p className="mt-1 text-body text-ink-soft">
-                These details fill the next invoice, so you type them once.
+                Save client details once to reuse them on future invoices.
               </p>
             </div>
+
             <button
               type="button"
               onClick={() => setShowSheet(false)}
@@ -402,14 +1037,37 @@ export default function ClientsPage() {
 
           <form onSubmit={handleSaveClient} className="space-y-4">
             <div>
+              <label htmlFor="client-type" className={labelClass}>
+                Client type
+              </label>
+              <select
+                id="client-type"
+                value={clientType}
+                onChange={(e) => setClientType(e.target.value as ClientType)}
+                className={inputClass}
+                disabled={Boolean(editingClient)}
+              >
+                <option value="PERSON">Individual</option>
+                <option value="BUSINESS">Business</option>
+              </select>
+
+              {editingClient && (
+                <p className="mt-1 text-caption text-ink-muted">
+                  Client type cannot be changed here.
+                </p>
+              )}
+            </div>
+
+            <div>
               <label htmlFor="client-name" className={labelClass}>
-                client or company name
+                Client or company name
               </label>
               <input
                 id="client-name"
                 type="text"
                 required
-                placeholder="e.g. Kofi Mensah"
+                autoComplete="organization"
+                placeholder="e.g. Kofi Mensah or Acme Limited"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className={inputClass}
@@ -419,7 +1077,7 @@ export default function ClientsPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="client-email" className={labelClass}>
-                  email <span className="font-normal text-ink-muted">(optional)</span>
+                  Billing email <span className="font-normal text-ink-muted">(optional)</span>
                 </label>
                 <input
                   id="client-email"
@@ -431,9 +1089,10 @@ export default function ClientsPage() {
                   className={inputClass}
                 />
               </div>
+
               <div>
                 <label htmlFor="client-phone" className={labelClass}>
-                  phone or WhatsApp
+                  Phone or WhatsApp
                 </label>
                 <input
                   id="client-phone"
@@ -447,14 +1106,81 @@ export default function ClientsPage() {
                 />
               </div>
             </div>
+
             <p className="text-caption text-ink-muted">
-              Leave email blank if this client only uses WhatsApp.
+              Leave billing email blank if the client does not use email.
             </p>
+
+            {clientType === 'BUSINESS' && !editingClient && (
+              <section className="space-y-3 rounded-card border border-line-subtle bg-tint p-4">
+                <div>
+                  <h3 className="text-heading text-ink">Primary contact</h3>
+                  <p className="text-caption text-ink-soft">
+                    Every new business client must have at least one named contact.
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="primary-contact-name" className={labelClass}>
+                    Contact name
+                  </label>
+                  <input
+                    id="primary-contact-name"
+                    required
+                    value={primaryContactName}
+                    onChange={(e) => setPrimaryContactName(e.target.value)}
+                    placeholder="e.g. Ada Okafor"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="primary-contact-title" className={labelClass}>
+                    Role or job title
+                  </label>
+                  <input
+                    id="primary-contact-title"
+                    value={primaryContactTitle}
+                    onChange={(e) => setPrimaryContactTitle(e.target.value)}
+                    placeholder="e.g. Finance Manager"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="primary-contact-email" className={labelClass}>
+                      Contact email
+                    </label>
+                    <input
+                      id="primary-contact-email"
+                      type="email"
+                      value={primaryContactEmail}
+                      onChange={(e) => setPrimaryContactEmail(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="primary-contact-phone" className={labelClass}>
+                      Contact phone
+                    </label>
+                    <input
+                      id="primary-contact-phone"
+                      type="tel"
+                      value={primaryContactPhone}
+                      onChange={(e) => setPrimaryContactPhone(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </section>
+            )}
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="client-currency" className={labelClass}>
-                  invoicing currency
+                  Invoicing currency
                 </label>
                 <select
                   id="client-currency"
@@ -469,9 +1195,10 @@ export default function ClientsPage() {
                   ))}
                 </select>
               </div>
+
               <div>
                 <label htmlFor="client-terms" className={labelClass}>
-                  payment terms
+                  Payment terms
                 </label>
                 <select
                   id="client-terms"
@@ -491,7 +1218,7 @@ export default function ClientsPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="client-tax" className={labelClass}>
-                  tax ID or TIN <span className="font-normal text-ink-muted">(optional)</span>
+                  Tax ID or TIN <span className="font-normal text-ink-muted">(optional)</span>
                 </label>
                 <input
                   id="client-tax"
@@ -502,9 +1229,10 @@ export default function ClientsPage() {
                   className={inputClass}
                 />
               </div>
+
               <div>
                 <label htmlFor="client-country" className={labelClass}>
-                  country
+                  Country
                 </label>
                 <input
                   id="client-country"
@@ -520,7 +1248,7 @@ export default function ClientsPage() {
 
             <div>
               <label htmlFor="client-address" className={labelClass}>
-                billing address <span className="font-normal text-ink-muted">(optional)</span>
+                Billing address <span className="font-normal text-ink-muted">(optional)</span>
               </label>
               <input
                 id="client-address"
@@ -535,7 +1263,7 @@ export default function ClientsPage() {
 
             <div>
               <label htmlFor="client-notes" className={labelClass}>
-                private notes <span className="font-normal text-ink-muted">(optional)</span>
+                Private notes <span className="font-normal text-ink-muted">(optional)</span>
               </label>
               <textarea
                 id="client-notes"
@@ -548,13 +1276,21 @@ export default function ClientsPage() {
             </div>
 
             {errorMessage && (
-              <div role="alert" className="rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text">
+              <div
+                role="alert"
+                className="rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text"
+              >
                 {errorMessage}
               </div>
             )}
 
             <SheetFooter>
-              <Button type="button" variant="outline" onClick={() => setShowSheet(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowSheet(false)}
+                disabled={saving}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={saving}>
