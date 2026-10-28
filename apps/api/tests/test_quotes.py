@@ -465,3 +465,149 @@ async def test_quote_revise_bumps_version():
 
         patch_locked = await client.patch(f"/quotes/{q['id']}", json={"notes": "after accept"})
         assert patch_locked.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_quote_revision_preserves_terms_and_accepts_only_current_version():
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        email = f"revision-audit-{uuid.uuid4().hex[:8]}@studio.ng"
+
+        request = await client.post(
+            "/auth/magic-link",
+            json={"email": email},
+        )
+        assert request.status_code == 200
+
+        verification = await client.post(
+            "/auth/verify",
+            json={
+                "email": email,
+                "code": request.json()["dev_code"],
+            },
+        )
+        assert verification.status_code == 200
+        client.cookies.set(
+            "bagg_session",
+            verification.cookies["bagg_session"],
+        )
+
+        client_response = await client.post(
+            "/clients",
+            json={
+                "name": "Revision Audit Client Ltd",
+                "preferred_currency": "NGN",
+            },
+        )
+        assert client_response.status_code == 201
+        client_id = client_response.json()["id"]
+
+        quote = await create_sent_quote(
+            client,
+            {
+                "client_id": client_id,
+                "currency": "NGN",
+                "notes": "Original scope",
+                "items": [
+                    {
+                        "description": "Original deliverable",
+                        "quantity": 1,
+                        "unit_price_minor": 100_000_00,
+                    }
+                ],
+            },
+        )
+
+        original_token = quote["share_token"]
+        original_version = quote["version"]
+        original_total = quote["total_minor"]
+
+        # Client requests changes to the existing sent quote.
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as public_client:
+            review = await public_client.post(
+                f"/quotes/share/{original_token}/request-review",
+                json={"reason": "Please expand the scope."},
+            )
+            assert review.status_code == 200
+            assert review.json()["status"] == "review_requested"
+
+        # The issuer creates a new version.
+        revision = await client.post(
+            f"/quotes/{quote['id']}/revise",
+            json={
+                "reason": "Scope expanded",
+                "notes": "Expanded scope",
+                "items": [
+                    {
+                        "description": "Expanded deliverable",
+                        "quantity": 1,
+                        "unit_price_minor": 150_000_00,
+                    }
+                ],
+            },
+        )
+
+        assert revision.status_code == 200
+        revised_quote = revision.json()
+        assert revised_quote["version"] == original_version + 1
+        assert revised_quote["status"] == "draft"
+        assert revised_quote["total_minor"] != original_total
+
+        # The previous version remains available as a revision snapshot.
+        history = await client.get(f"/quotes/{quote['id']}/revisions")
+        assert history.status_code == 200
+
+        previous = next(
+            item for item in history.json() if item["version"] == original_version
+        )
+
+        assert previous["total_minor"] == original_total
+        assert previous["notes"] == "Original scope"
+        assert previous["items_snapshot"][0]["description"] == ("Original deliverable")
+
+        # Finalize and issue the new version.
+        finalized = await client.post(f"/quotes/{quote['id']}/finalize")
+        assert finalized.status_code == 200
+        assert finalized.json()["status"] == "issued"
+
+        sent = await client.post(f"/quotes/{quote['id']}/send")
+        assert sent.status_code == 200
+        current = sent.json()
+
+        # Acceptance must reference the current version.
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as public_client:
+            stale = await public_client.post(
+                f"/quotes/share/{current['share_token']}/accept",
+                json={
+                    "accepted_by_name": "Client Representative",
+                    "version": original_version,
+                },
+            )
+            assert stale.status_code == 400
+
+            accepted = await public_client.post(
+                f"/quotes/share/{current['share_token']}/accept",
+                json={
+                    "accepted_by_name": "Client Representative",
+                    "version": current["version"],
+                },
+            )
+            assert accepted.status_code == 200
+            assert accepted.json()["status"] == "accepted"
+
+        # Accepted commercial terms cannot be edited in place.
+        locked = await client.patch(
+            f"/quotes/{quote['id']}",
+            json={"notes": "Attempted silent change"},
+        )
+        assert locked.status_code == 400
