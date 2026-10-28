@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Plus, User } from 'lucide-react';
+import { Plus, Settings, User } from 'lucide-react';
 import { BaggCoin, Wordmark } from '@/components/brand/Logo';
 import { BottomNav } from '@/components/mobile/BottomNav';
 import { ClientOnly } from '@/components/mobile/ClientOnly';
@@ -69,19 +69,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             })}
           </ul>
         </nav>
+        <div className="mx-3 mb-3 mt-3 border-t-brut border-ink pt-3 lg:mx-4">
+        <Link
+          href="/settings"
+          aria-current={pathname.startsWith('/settings') ? 'page' : undefined}
+          aria-label="Settings"
+          title="Settings"
+          className={cn(
+            'flex min-h-11 items-center justify-center gap-3 rounded-btn border-brut-thin px-3 text-body lg:justify-start',
+            pathname.startsWith('/settings')
+              ? 'border-ink bg-mango font-extrabold text-on-mango shadow-brut-sm'
+              : 'border-transparent font-medium text-text hover:bg-surface-tint',
+          )}
+        >
+          <Settings aria-hidden className="h-[18px] w-[18px] shrink-0" />
+          <span className="hidden lg:inline">Settings</span>
+        </Link>
+      </div>
       </aside>
 
       <main className="relative flex min-w-0 flex-1 flex-col overflow-y-auto">
         {/* Tablet and desktop header. Settings opens from the avatar. */}
         <header className="hidden h-16 shrink-0 items-center justify-end border-b-brut border-ink bg-surface px-8 sm:flex">
-          <Link
-            href="/settings"
-            aria-label="Settings"
-            aria-current={pathname.startsWith('/settings') ? 'page' : undefined}
-            className="flex h-11 w-11 items-center justify-center rounded-full border-brut border-ink bg-peach-chip text-text"
-          >
-            <User aria-hidden className="h-5 w-5" />
-          </Link>
+            {/* Keep this header for future desktop actions if needed. */}
         </header>
 
         {/* Phone header */}
