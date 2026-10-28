@@ -221,10 +221,14 @@ class QuoteRevisionResponse(BaseModel):
     id: str
     quote_id: str
     version: int
+
+    # Older revision rows may not have captured these fields.
     client_id: Optional[str] = None
-    currency: str
-    issue_date: date
-    expires_at: date
+    client_name: Optional[str] = None
+    currency: Optional[str] = None
+    issue_date: Optional[date] = None
+    expires_at: Optional[date] = None
+
     subtotal_minor: int
     discount_minor: int
     tax_rate_percent: float
@@ -233,9 +237,11 @@ class QuoteRevisionResponse(BaseModel):
     wht_rate_percent: float
     wht_minor: int
     net_payable_minor: int
+
     deposit_percentage: Optional[float] = None
     deposit_amount_minor: Optional[int] = None
     notes: Optional[str] = None
+
     items_snapshot: List[dict]
     revised_reason: Optional[str] = None
     created_at: datetime
