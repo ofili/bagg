@@ -131,9 +131,9 @@ export default function SecurityPage() {
               </p>
             </div>
             <a
-              href={`mailto:${securityEmail}`}
-              className={buttonStyles({ variant: 'outline', size: 'lg', className: 'shrink-0' })}
-            >
+  href={`mailto:${securityEmail}`}
+  className={`${buttonStyles({ variant: 'outline', size: 'lg' })} shrink-0`}
+>
               <Mail className="h-4 w-4" aria-hidden="true" />
               {securityEmail}
             </a>
