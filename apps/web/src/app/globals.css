@@ -130,3 +130,208 @@ textarea {
     scroll-behavior: auto !important;
   }
 }
+
+/* =========================================
+   Bagg Select
+   ========================================= */
+
+.bagg-select {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+  color: var(--text);
+  font-family: inherit;
+}
+
+.bagg-select__label {
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.bagg-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.bagg-select__trigger:hover:not(:disabled) {
+  background: var(--peach);
+  border-color: var(--bagg-mango);
+}
+
+.bagg-select__trigger:focus-visible {
+  outline: 2px solid var(--bagg-mango);
+  outline-offset: 2px;
+  border-color: var(--bagg-mango);
+}
+
+.bagg-select__trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bagg-select__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bagg-select__placeholder {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.bagg-select__chevron {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--text-soft);
+  transition: transform 140ms ease;
+}
+
+.bagg-select__chevron--open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown panel */
+
+.bagg-select__menu {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  left: 0;
+
+  width: 100%;
+  min-width: max-content;
+  max-height: 280px;
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  margin: 0;
+  padding: 5px;
+
+  list-style: none;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  box-shadow:
+    0 8px 24px rgb(43 20 5 / 10%),
+    0 2px 6px rgb(43 20 5 / 5%);
+
+  animation: bagg-select-enter 120ms ease-out;
+}
+
+.bagg-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  min-height: 38px;
+  padding: 9px 10px;
+
+  color: var(--text);
+  background: transparent;
+  border-radius: 7px;
+
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+
+  cursor: pointer;
+  transition:
+    background-color 100ms ease,
+    color 100ms ease;
+}
+
+/* Hover and keyboard highlight */
+
+.bagg-select__option:hover,
+.bagg-select__option--active {
+  color: var(--text);
+  background: var(--peach);
+}
+
+/* Selected option */
+
+.bagg-select__option--selected {
+  color: var(--link);
+  font-weight: 700;
+}
+
+.bagg-select__option--selected
+  .bagg-select__check {
+  color: var(--bagg-mango);
+}
+
+.bagg-select__option--selected:hover,
+.bagg-select__option--selected.bagg-select__option--active {
+  color: var(--text);
+  background: var(--peach);
+}
+
+.bagg-select__check {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.bagg-select__option--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bagg-select__option--disabled:hover {
+  background: transparent;
+}
+
+@keyframes bagg-select-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bagg-select__trigger,
+  .bagg-select__chevron,
+  .bagg-select__option {
+    transition: none;
+  }
+
+  .bagg-select__menu {
+    animation: none;
+  }
+}

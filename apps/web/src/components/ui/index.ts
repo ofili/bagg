@@ -1,5 +1,5 @@
-export { Button, buttonStyles } from './Button';
-export type { ButtonProps, ButtonVariant, ButtonSize, Zone } from './Button';
+export { Button, buttonStyles } from './button';
+export type { ButtonProps, ButtonVariant, ButtonSize, Zone } from './button';
 export { Input, TextField, Field, inputStyles } from './Input';
 export { Chip, chipStyles } from './Chip';
 export type { ChipProps } from './Chip';
