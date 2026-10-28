@@ -348,7 +348,6 @@ export default function ClientsPage() {
                       <Money
                         amountMinor={client.total_invoiced_minor}
                         currency={client.preferred_currency}
-                        context="list"
                         hideCurrencyCode
                       />
                     </dd>
