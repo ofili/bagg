@@ -121,11 +121,11 @@ export default function PricingPage() {
                 </ul>
               </div>
               <Link
-                href="/early-access"
-                className={buttonStyles({ variant: 'outline', className: 'mt-7 w-full' })}
-              >
-                Join early access
-              </Link>
+  href="/early-access"
+  className={`${buttonStyles({ variant: 'outline' })} mt-7 w-full`}
+>
+  Join early access
+</Link>
             </div>
           </div>
         </Container>
