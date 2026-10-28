@@ -34,19 +34,55 @@ async def confirm_payment(
     provider: Optional[str] = None,
     provider_reference: Optional[str] = None,
 ) -> Receipt:
+
     """
     Single authoritative writer for confirmed payments.
 
-    Every payment path (issuer claim review, manual receipt, verified gateway
-    webhook) must pass through here. Nothing else may move an invoice into
-    partially_paid or paid.
+    Lock and refresh the invoice before evaluating its balance. This ensures
+    concurrent payment confirmations serialize against the same financial
+    state on databases that support row-level locking.
     """
+
+    locked_invoice = (
+        await db.execute(
+            select(Invoice)
+            .where(
+                and_(
+                    Invoice.id == invoice.id,
+                    Invoice.workspace_id == workspace.id,
+                )
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+
+    if locked_invoice is None:
+        raise BadRequestException("Invoice no longer exists")
+
+    invoice = locked_invoice
+
+    locked_workspace = (
+        await db.execute(
+            select(Workspace)
+            .where(Workspace.id == workspace.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+
+    if locked_workspace is None:
+        raise BadRequestException("Workspace no longer exists")
+
+    workspace = locked_workspace
+
     if amount_paid_minor <= 0:
         raise BadRequestException("Confirmed payment amount must be greater than zero")
 
     if invoice.status == "cancelled":
         raise BadRequestException(
-            f"Invoice '{invoice.invoice_number}' is cancelled and cannot receive payment"
+            f"Invoice '{invoice.invoice_number}' is cancelled "
+            "and cannot receive payment"
         )
 
     if provider_reference:
@@ -57,10 +93,12 @@ async def confirm_payment(
             )
         )
         existing = (await db.execute(existing_stmt)).scalars().first()
+
         if existing:
             if existing.invoice_id != invoice.id:
                 raise BadRequestException(
-                    f"Provider reference '{provider_reference}' is already linked to another invoice"
+                    f"Provider reference '{provider_reference}' "
+                    "is already linked to another invoice"
                 )
             return existing
 

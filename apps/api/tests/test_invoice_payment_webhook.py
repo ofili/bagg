@@ -194,6 +194,25 @@ async def test_invoice_payment_webhook_confirms_once(monkeypatch):
         assert mismatch.status_code == 400
         assert "currency" in mismatch.json()["detail"].lower()
 
+        missing_currency = webhook_body(
+            reference=reference,
+            invoice_id=invoice_id,
+            workspace_id=invoice_data["workspace_id"],
+            invoice_number=invoice_data["invoice_number"],
+            amount_minor=invoice_data["total_minor"],
+            currency="NGN",
+        )
+        del missing_currency["data"]["currency"]
+
+        missing_currency_response = await post_webhook(
+            client,
+            missing_currency,
+            sign(missing_currency),
+        )
+
+        assert missing_currency_response.status_code == 400
+        assert "currency" in (missing_currency_response.json()["detail"].lower())
+
         overpay = webhook_body(
             reference=reference,
             invoice_id=invoice_id,

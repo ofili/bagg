@@ -753,8 +753,44 @@ async def confirm_payment_claim(
     *,
     confirmed_by_user_id: str,
 ) -> PaymentClaim:
-    invoice = await _get_invoice_or_404(db, workspace, invoice_id)
-    claim = await _get_claim_or_404(db, invoice, claim_id)
+    # Lock the invoice first so all payment and claim-confirmation paths
+    # serialize on the same financial record.
+    invoice = (
+        await db.execute(
+            select(Invoice)
+            .where(
+                and_(
+                    Invoice.id == invoice_id,
+                    Invoice.workspace_id == workspace.id,
+                )
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+
+    if not invoice:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
+
+    # Reload claim status after acquiring the invoice lock. A concurrent
+    # request may already have confirmed or rejected this claim.
+    claim = (
+        await db.execute(
+            select(PaymentClaim)
+            .where(
+                and_(
+                    PaymentClaim.id == claim_id,
+                    PaymentClaim.invoice_id == invoice.id,
+                )
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+
+    if not claim:
+        raise NotFoundException(f"Payment claim '{claim_id}' not found")
+
     if claim.status != "pending":
         raise BadRequestException(
             f"Payment claim '{claim_id}' is already '{claim.status}'"
@@ -762,7 +798,7 @@ async def confirm_payment_claim(
 
     confirmed_amount = (
         payload.amount_paid_minor
-        if (payload and payload.amount_paid_minor is not None)
+        if payload and payload.amount_paid_minor is not None
         else claim.amount_minor
     )
 
@@ -782,10 +818,10 @@ async def confirm_payment_claim(
 
     claim.status = "confirmed"
     claim.confirmed_at = datetime.now(timezone.utc)
+
     await db.commit()
     await db.refresh(claim)
     return claim
-
 
 async def reject_payment_claim(
     db: AsyncSession,
