@@ -52,6 +52,6 @@ function SheetFooter({ children }: { children: React.ReactNode }) {
   );
 }
 
-export { Sheet, SheetTrigger, SheetContent, SheetClose };
+export { Sheet, SheetTrigger, SheetContent, SheetClose, SheetFooter };
 
 export type { SheetProps, SheetContentProps, SheetCloseProps };

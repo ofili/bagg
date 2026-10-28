@@ -9,4 +9,4 @@ export { Toggle } from './Toggle';
 export type { ToggleProps } from './Toggle';
 export { Dialog } from './Dialog';
 export type { DialogProps } from './Dialog';
-export { Sheet, SheetTrigger, SheetContent, SheetClose } from './sheet';
+export { Sheet, SheetTrigger, SheetContent, SheetClose, SheetFooter } from './sheet';
