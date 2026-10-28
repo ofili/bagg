@@ -58,6 +58,7 @@ interface PublicQuoteData {
   invoice_number?: string | null;
   invoice_status?: string | null;
   show_badge: boolean;
+  version: number;
 }
 
 export default function PublicQuotePage() {
@@ -110,23 +111,36 @@ export default function PublicQuotePage() {
 
   const handleAcceptQuote = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!quote) {
+      setAcceptError('Quote details are not loaded. Refresh and try again.');
+      return;
+    }
+
     if (!acceptName.trim()) {
       setAcceptError('Please enter your full name to accept this quote.');
       return;
     }
+
     try {
       setAccepting(true);
       setAcceptError(null);
+
       const res = await fetch(`${API_BASE}/quotes/share/${token}/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accepted_by_name: acceptName.trim() }),
+        body: JSON.stringify({
+          accepted_by_name: acceptName.trim(),
+          version: quote.version,
+        }),
       });
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setAcceptError(err.detail || 'Failed to accept quote.');
         return;
       }
+
       const updated = await res.json();
       setQuote(updated);
       setShowAcceptSheet(false);

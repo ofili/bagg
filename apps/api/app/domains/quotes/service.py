@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, cast
 
 from sqlalchemy import and_, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -204,7 +204,7 @@ async def finalize_quote(
 ) -> Quote:
     quote_obj = await _get_quote_or_404(db, workspace, quote_id)
 
-    if quote_obj.status != "draft":
+    if cast(str, quote_obj.status) != "draft":
         raise BadRequestException(
             f"Quote '{quote_obj.quote_number}' is '{quote_obj.status}' and cannot be finalized."
         )
@@ -408,9 +408,10 @@ async def update_quote(
 ) -> Quote:
     quote_obj = await _get_quote_or_404(db, workspace, quote_id)
 
-    if quote_obj.status in ["accepted", "converted"]:
+    if quote_obj.status != "draft":
         raise BadRequestException(
-            f"Cannot update quote in '{quote_obj.status}' status"
+            f"Quote '{quote_obj.quote_number}' is '{quote_obj.status}' "
+            "and cannot be edited in place. Create a revision instead."
         )
 
     if payload.client_id is not None:
@@ -705,7 +706,7 @@ async def accept_public_quote(
             "This quote has expired. Please contact the freelancer for an updated quote."
         )
 
-    if payload.version is not None and payload.version != quote_obj.version:
+    if payload.version != quote_obj.version:
         raise BadRequestException(
             f"This quote has been revised to v{quote_obj.version}; you are accepting "
             f"v{payload.version}. Please refresh and accept the latest version."
@@ -847,6 +848,28 @@ async def request_quote_review(
     await db.commit()
     await db.refresh(quote_obj)
     return quote_obj, client_name, workspace
+
+
+async def list_quote_revisions(
+    db: AsyncSession,
+    workspace: Workspace,
+    quote_id: str,
+) -> list[QuoteRevision]:
+    await _get_quote_or_404(db, workspace, quote_id)
+
+    rows = (
+        (
+            await db.execute(
+                select(QuoteRevision)
+                .where(QuoteRevision.quote_id == quote_id)
+                .order_by(QuoteRevision.version.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    return list(rows)
 
 
 async def post_public_quote_comment(

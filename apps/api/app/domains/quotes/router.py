@@ -26,6 +26,7 @@ from app.domains.quotes.schemas import (
     QuoteResponse,
     QuoteReviewRequest,
     QuoteReviseRequest,
+    QuoteRevisionResponse,
     QuoteSendRequest,
     QuoteSendResponse,
     QuoteUpdate,
@@ -85,6 +86,15 @@ async def get_quote(
 ):
     quote_obj = await service.get_quote(db, workspace, id)
     return _map(quote_obj, workspace)
+
+
+@router.get("/{id}/revisions", response_model=List[QuoteRevisionResponse])
+async def list_quote_revisions(
+    id: str,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    return await service.list_quote_revisions(db, workspace, id)
 
 
 @router.post("/{id}/finalize", response_model=QuoteResponse)

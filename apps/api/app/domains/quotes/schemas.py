@@ -161,8 +161,17 @@ class PublicQuoteView(BaseModel):
 
 
 class QuoteAcceptRequest(BaseModel):
-    accepted_by_name: str = Field(..., min_length=2, max_length=100, description="Full name of person accepting the quote")
-    version: Optional[int] = Field(default=None, description="Quote version being accepted (pinned to avoid accepting a stale revision)")
+    accepted_by_name: str = Field(
+        ...,
+        min_length=2,
+        max_length=100,
+        description="Full name of person accepting the quote",
+    )
+    version: int = Field(
+        ...,
+        ge=1,
+        description="Exact quote version being accepted",
+    )
 
 
 class QuoteReviseRequest(BaseModel):
@@ -204,3 +213,29 @@ class QuoteSendResponse(BaseModel):
     email_sent: bool = False
     recipient_email: Optional[str] = None
     message: str = ""
+
+
+class QuoteRevisionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    quote_id: str
+    version: int
+    client_id: Optional[str] = None
+    currency: str
+    issue_date: date
+    expires_at: date
+    subtotal_minor: int
+    discount_minor: int
+    tax_rate_percent: float
+    tax_minor: int
+    total_minor: int
+    wht_rate_percent: float
+    wht_minor: int
+    net_payable_minor: int
+    deposit_percentage: Optional[float] = None
+    deposit_amount_minor: Optional[int] = None
+    notes: Optional[str] = None
+    items_snapshot: List[dict]
+    revised_reason: Optional[str] = None
+    created_at: datetime
