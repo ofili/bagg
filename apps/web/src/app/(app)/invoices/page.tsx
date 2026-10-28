@@ -77,6 +77,7 @@ const FILTER_CHIPS = [
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [currencyFilter, setCurrencyFilter] = useState('');
@@ -241,8 +242,21 @@ export default function InvoicesPage() {
 
   const filteredInvoices = invoices.filter((inv) => {
     if (currencyFilter && inv.currency !== currencyFilter) return false;
-    return true;
+
+    const query = search.trim().toLowerCase();
+
+    if (!query) return true;
+
+    return [
+      inv.invoice_number,
+      inv.client_name,
+      inv.status,
+      inv.effective_status,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
   });
+
   const overdueCount = filteredInvoices.filter(isInvoiceOverdue).length;
 
   return (
@@ -313,7 +327,10 @@ export default function InvoicesPage() {
       </div>
 
       {loading ? (
-        <div role="status" className="flex justify-center py-16 text-text-muted">
+        <div
+          role="status"
+          className="flex justify-center py-16 text-text-muted"
+        >
           <Loader2 aria-hidden className="h-6 w-6 animate-spin" />
           <span className="sr-only">Loading invoices</span>
         </div>
@@ -322,38 +339,205 @@ export default function InvoicesPage() {
           <BaggCoin size={48} className="mx-auto" />
           <h2 className="text-title">no invoices here</h2>
           <p className="mx-auto max-w-sm text-body text-text-soft">
-            {statusFilter
-              ? `Nothing is marked ${statusFilter.replace('_', ' ')} right now.`
-              : 'Create your first invoice in under a minute. Numbers are assigned in order for you.'}
+            {search.trim() || statusFilter || currencyFilter
+              ? 'No invoices match your current search and filters.'
+              : 'Create your first invoice in under a minute.'}
           </p>
           <Link href="/invoices/new" className={buttonStyles({ size: 'lg' })}>
-            <Plus aria-hidden className="h-4 w-4" /> Create an invoice
+            <Plus aria-hidden className="h-4 w-4" />
+            Create an invoice
           </Link>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {filteredInvoices.map((inv) => (
-            <InvoiceCard
-              key={inv.id}
-              id={inv.id}
-              invoiceNumber={inv.invoice_number}
-              clientName={inv.client_name}
-              currency={inv.currency}
-              totalMinor={inv.total_minor}
-              amountPaidMinor={inv.amount_paid_minor}
-              status={inv.status}
-              effectiveStatus={inv.effective_status}
-              isOverdue={isInvoiceOverdue(inv)}
-              daysOverdue={inv.days_overdue || 0}
-              paymentState={inv.payment_state}
-              shareToken={inv.status === 'draft' ? null : inv.share_token}
-              latestReceipt={inv.latest_receipt}
-              dueDate={inv.due_date}
-              onReviewClaim={() => handleOpenReview(inv)}
-              onNudge={() => handleWhatsAppNudge(inv)}
+        <>
+          <div className="flex items-center gap-3">
+            <label htmlFor="invoice-search" className="sr-only">
+              Search invoices
+            </label>
+            <input
+              id="invoice-search"
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search invoice number, customer or status"
+              className={cn(inputStyles, 'w-full')}
             />
-          ))}
-        </div>
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-row border border-line-subtle md:block">
+            <table className="w-full min-w-[900px] text-left text-body">
+              <thead className="bg-surface-tint text-caption text-text-soft">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Invoice</th>
+                  <th className="px-4 py-3 font-semibold">Customer</th>
+                  <th className="px-4 py-3 font-semibold">Issue date</th>
+                  <th className="px-4 py-3 font-semibold">Due date</th>
+                  <th className="px-4 py-3 text-right font-semibold">Total</th>
+                  <th className="px-4 py-3 text-right font-semibold">Paid</th>
+                  <th className="px-4 py-3 text-right font-semibold">Balance</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredInvoices.map((inv) => {
+                  const balance = Math.max(
+                    0,
+                    inv.total_minor - inv.amount_paid_minor,
+                  );
+                  const overdue = isInvoiceOverdue(inv);
+
+                  return (
+                    <tr
+                      key={inv.id}
+                      className="border-t border-line-subtle hover:bg-surface-tint"
+                    >
+                      <td className="px-4 py-4 font-bold">
+                        <Link
+                          href={`/invoices/${encodeURIComponent(inv.id)}`}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {inv.invoice_number}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-4">
+                        {inv.client_name || 'Unnamed client'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        {formatDate(inv.issue_date)}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={overdue ? 'font-bold text-danger' : ''}>
+                          {formatDate(inv.due_date)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-right whitespace-nowrap">
+                        <Money
+                          amountMinor={inv.total_minor}
+                          currency={inv.currency}
+                          hideCurrencyCode
+                        />
+                      </td>
+                      <td className="px-4 py-4 text-right whitespace-nowrap">
+                        <Money
+                          amountMinor={inv.amount_paid_minor}
+                          currency={inv.currency}
+                          hideCurrencyCode
+                        />
+                      </td>
+                      <td className="px-4 py-4 text-right whitespace-nowrap font-semibold">
+                        <Money
+                          amountMinor={balance}
+                          currency={inv.currency}
+                          hideCurrencyCode
+                        />
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span
+                          className={cn(
+                            'inline-flex rounded-full px-2.5 py-1 text-caption font-bold',
+                            overdue
+                              ? 'bg-[#FFB3B3] text-[#5A1010]'
+                              : inv.status === 'paid'
+                                ? 'bg-leaf text-[#052E1B]'
+                                : 'bg-surface-tint',
+                          )}
+                        >
+                          {overdue
+                            ? 'Overdue'
+                            : (inv.effective_status || inv.status)
+                                .replaceAll('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/invoices/${encodeURIComponent(inv.id)}`}
+                            className={buttonStyles({
+                              variant: 'outline',
+                              zone: 'calm',
+                            })}
+                          >
+                            View
+                          </Link>
+                          {inv.latest_claim?.status === 'pending' && (
+                            <Button
+                              variant="outline"
+                              zone="calm"
+                              onClick={() => void handleOpenReview(inv)}
+                            >
+                              Review payment
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <ul className="space-y-3 md:hidden">
+            {filteredInvoices.map((inv) => (
+              <li key={inv.id}>
+                <Card zone="calm" className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/invoices/${encodeURIComponent(inv.id)}`}
+                        className="font-bold underline-offset-4 hover:underline"
+                      >
+                        {inv.invoice_number}
+                      </Link>
+                      <p className="mt-1 text-body text-text-soft">
+                        {inv.client_name || 'Unnamed client'}
+                      </p>
+                    </div>
+                    <Money
+                      amountMinor={inv.total_minor}
+                      currency={inv.currency}
+                      className="shrink-0 font-bold"
+                      hideCurrencyCode
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-body">
+                    <span className="text-text-soft">
+                      Due {formatDate(inv.due_date)}
+                    </span>
+                    <span className="rounded-full bg-surface-tint px-2.5 py-1 text-caption font-bold">
+                      {isInvoiceOverdue(inv)
+                        ? 'Overdue'
+                        : (inv.effective_status || inv.status).replaceAll('_', ' ')}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 border-t border-line-subtle pt-3">
+                    <div>
+                      <p className="text-caption text-text-muted">Balance due</p>
+                      <Money
+                        amountMinor={Math.max(
+                          0,
+                          inv.total_minor - inv.amount_paid_minor,
+                        )}
+                        currency={inv.currency}
+                        className="font-semibold"
+                        hideCurrencyCode
+                      />
+                    </div>
+                    <Link
+                      href={`/invoices/${encodeURIComponent(inv.id)}`}
+                      className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                    >
+                      View invoice
+                    </Link>
+                  </div>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {/* Claim review sheet */}

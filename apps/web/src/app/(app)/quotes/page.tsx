@@ -7,6 +7,9 @@ import { AlertCircle, CheckCircle2, Loader2, Plus } from 'lucide-react';
 import { BaggCoin } from '@/components/brand/Logo';
 import { ChipStrip } from '@/components/mobile/ChipStrip';
 import { QuoteCard, type QuoteCardData } from '@/components/mobile/QuoteCard';
+import { Money } from '@/components/money/Money';
+import { StatusPill } from '@/components/status';
+import { formatDate } from '@/lib/date';
 import {
   Button,
   Card,
@@ -47,6 +50,7 @@ async function responseError(
 
 export default function QuotesPage() {
   const router = useRouter();
+  const [search, setSearch] = useState('');
 
   const [quotes, setQuotes] = useState<QuoteCardData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -330,6 +334,22 @@ export default function QuotesPage() {
     return quote.status === statusFilter;
   });
 
+  const searchableQuotes = visible.filter((quote) => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return true;
+
+    return [
+      quote.quote_number,
+      quote.client_name,
+      quote.status,
+      quote.effective_status,
+      quote.invoice_number,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
+  });
+
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -411,17 +431,230 @@ export default function QuotesPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {visible.map((quote) => (
-            <QuoteCard
-              key={quote.id}
-              quote={quote}
-              sending={sendingId === quote.id}
-              converting={convertingId === quote.id}
-              onFinalize={() => void handleFinalize(quote)}
-              onSend={() => openDeliveryDialog(quote)}
-              onConvert={() => void handleConvert(quote)}
+          <label className="block">
+            <span className="sr-only">Search quotes</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search quote number, customer or status"
+              className="w-full rounded-row border border-line-subtle bg-surface px-3 py-2.5 text-body outline-none focus:ring-2 focus:ring-link"
             />
-          ))}
+          </label>
+
+          {searchableQuotes.length === 0 ? (
+            <Card zone="calm" className="p-6 text-center">
+              <p className="text-body text-text-soft">
+                No quotes match your search.
+              </p>
+            </Card>
+          ) : (
+            <>
+              <div className="hidden overflow-x-auto rounded-row border border-line-subtle md:block">
+                <table className="w-full min-w-[850px] text-left text-body">
+                  <thead className="bg-surface-tint text-caption text-text-soft">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Quote</th>
+                      <th className="px-4 py-3 font-semibold">Customer</th>
+                      <th className="px-4 py-3 font-semibold">Created</th>
+                      <th className="px-4 py-3 font-semibold">Expires</th>
+                      <th className="px-4 py-3 text-right font-semibold">Total</th>
+                      <th className="px-4 py-3 font-semibold">Status</th>
+                      <th className="px-4 py-3 font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {searchableQuotes.map((quote) => {
+                      const expired =
+                        (quote.is_expired ||
+                          quote.effective_status === 'expired') &&
+                        !['accepted', 'converted'].includes(quote.status);
+
+                      return (
+                        <tr
+                          key={quote.id}
+                          className="border-t border-line-subtle hover:bg-surface-tint"
+                        >
+                          <td className="px-4 py-4 font-bold">
+                            {quote.share_token ? (
+                              <Link
+                                href={`/q/${quote.share_token}`}
+                                target="_blank"
+                                className="underline-offset-4 hover:underline"
+                              >
+                                {quote.quote_number}
+                              </Link>
+                            ) : (
+                              quote.quote_number
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            {quote.client_name || 'Unnamed client'}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            {formatDate(quote.issue_date)}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <span className={expired ? 'font-bold text-danger' : ''}>
+                              {formatDate(quote.expires_at)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 text-right whitespace-nowrap">
+                            <Money
+                              amountMinor={quote.net_payable_minor}
+                              currency={quote.currency}
+                              hideCurrencyCode
+                            />
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <StatusPill
+                              status={
+                                expired
+                                  ? 'expired'
+                                  : quote.effective_status || quote.status
+                              }
+                            />
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex flex-wrap gap-2">
+                              {quote.status === 'draft' && (
+                                <Button
+                                  zone="calm"
+                                  loading={sendingId === quote.id}
+                                  onClick={() => void handleFinalize(quote)}
+                                >
+                                  Approve & issue
+                                </Button>
+                              )}
+
+                              {['issued', 'sent', 'viewed'].includes(quote.status) && (
+                                <Button
+                                  zone="calm"
+                                  variant="outline"
+                                  loading={sendingId === quote.id}
+                                  onClick={() => openDeliveryDialog(quote)}
+                                >
+                                  Send
+                                </Button>
+                              )}
+
+                              {quote.status === 'accepted' && (
+                                <Button
+                                  zone="calm"
+                                  loading={convertingId === quote.id}
+                                  onClick={() => void handleConvert(quote)}
+                                >
+                                  Convert to invoice
+                                </Button>
+                              )}
+
+                              {quote.status === 'converted' && (
+                                <Link
+                                  href={
+                                    quote.invoice_id
+                                      ? `/invoices/${quote.invoice_id}`
+                                      : '/invoices'
+                                  }
+                                  className={buttonStyles({
+                                    variant: 'outline',
+                                    zone: 'calm',
+                                  })}
+                                >
+                                  View invoice
+                                </Link>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <ul className="space-y-3 md:hidden">
+                {searchableQuotes.map((quote) => (
+                  <li key={quote.id}>
+                    <Card zone="calm" className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-bold">{quote.quote_number}</p>
+                          <p className="mt-1 text-body text-text-soft">
+                            {quote.client_name || 'Unnamed client'}
+                          </p>
+                        </div>
+                        <Money
+                          amountMinor={quote.net_payable_minor}
+                          currency={quote.currency}
+                          className="shrink-0 font-bold"
+                          hideCurrencyCode
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-body">
+                        <span className="text-text-soft">
+                          Expires {formatDate(quote.expires_at)}
+                        </span>
+                        <StatusPill
+                          status={quote.effective_status || quote.status}
+                        />
+                      </div>
+
+                      {quote.status === 'draft' && (
+                        <Button
+                          zone="calm"
+                          fullWidth
+                          loading={sendingId === quote.id}
+                          onClick={() => void handleFinalize(quote)}
+                        >
+                          Approve & issue quote
+                        </Button>
+                      )}
+
+                      {['issued', 'sent', 'viewed'].includes(quote.status) && (
+                        <Button
+                          zone="calm"
+                          fullWidth
+                          loading={sendingId === quote.id}
+                          onClick={() => openDeliveryDialog(quote)}
+                        >
+                          Send quote
+                        </Button>
+                      )}
+
+                      {quote.status === 'accepted' && (
+                        <Button
+                          zone="calm"
+                          fullWidth
+                          loading={convertingId === quote.id}
+                          onClick={() => void handleConvert(quote)}
+                        >
+                          Convert to invoice
+                        </Button>
+                      )}
+
+                      {quote.status === 'converted' && (
+                        <Link
+                          href={
+                            quote.invoice_id
+                              ? `/invoices/${quote.invoice_id}`
+                              : '/invoices'
+                          }
+                          className={buttonStyles({
+                            variant: 'outline',
+                            zone: 'calm',
+                            fullWidth: true,
+                          })}
+                        >
+                          View invoice
+                        </Link>
+                      )}
+                    </Card>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       )}
 

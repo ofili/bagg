@@ -98,6 +98,23 @@ interface InvoiceDetail {
   created_at: string;
 }
 
+interface InvoiceReceipt {
+  id: string;
+  receipt_number: string;
+  invoice_id: string;
+  invoice_number: string;
+  client_name?: string | null;
+  currency: string;
+  amount_paid_minor: number;
+  balance_remaining_minor: number;
+  payment_date: string;
+  payment_method: string;
+  reference?: string | null;
+  is_verified: boolean;
+  share_url?: string | null;
+  created_at: string;
+}
+
 interface InvoiceSendResult {
   detail?: string;
   message?: string;
@@ -131,6 +148,8 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [events, setEvents] = useState<StatusEvent[]>([]);
   const [claims, setClaims] = useState<PaymentClaim[]>([]);
+  const [receipts, setReceipts] = useState<InvoiceReceipt[]>([]);
+const [receiptsError, setReceiptsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   /** The invoice could not be loaded at all. */
   const [error, setError] = useState<string | null>(null);
@@ -160,17 +179,41 @@ export default function InvoiceDetailPage() {
       setLoading(true);
       setError(null);
 
-      const [invoiceRes, eventsRes, claimsRes] = await Promise.all([
-        fetch(`${API_BASE}/invoices/${invoiceId}`, {
-          credentials: 'include',
-        }),
-        fetch(`${API_BASE}/invoices/${invoiceId}/status-events`, {
-          credentials: 'include',
-        }),
-        fetch(`${API_BASE}/invoices/${invoiceId}/claims`, {
-          credentials: 'include',
-        }),
-      ]);
+      const [invoiceRes, eventsRes, claimsRes, receiptsRes] =
+  await Promise.all([
+    fetch(`${API_BASE}/invoices/${invoiceId}`, {
+      credentials: 'include',
+    }),
+    fetch(`${API_BASE}/invoices/${invoiceId}/status-events`, {
+      credentials: 'include',
+    }),
+    fetch(`${API_BASE}/invoices/${invoiceId}/claims`, {
+      credentials: 'include',
+    }),
+    fetch(
+      `${API_BASE}/receipts?invoice_id=${encodeURIComponent(invoiceId)}`,
+      {
+        credentials: 'include',
+        cache: 'no-store',
+      },
+    ),
+  ]);
+
+  if (!invoiceRes.ok) {
+    throw await readError(invoiceRes, 'Invoice could not be loaded.');
+  }
+
+  setInvoice(await invoiceRes.json());
+  setEvents(eventsRes.ok ? await eventsRes.json() : []);
+  setClaims(claimsRes.ok ? await claimsRes.json() : []);
+
+  if (receiptsRes.ok) {
+    setReceipts((await receiptsRes.json()) as InvoiceReceipt[]);
+    setReceiptsError(null);
+  } else {
+    setReceipts([]);
+    setReceiptsError('Receipt history could not be loaded.');
+  }
 
       if (!invoiceRes.ok) {
         throw await readError(invoiceRes, 'Invoice could not be loaded.');
@@ -739,6 +782,96 @@ export default function InvoiceDetailPage() {
               remaining_minor: invoice.remaining_minor,
             }}
           />
+
+          <Card zone="calm" className="space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-heading">receipts</h2>
+                <p className="mt-1 text-body text-text-soft">
+                  Issued receipts for payments recorded against this invoice.
+                </p>
+              </div>
+              <span className="rounded-full bg-surface-tint px-3 py-1 text-caption font-bold">
+                {receipts.length} {receipts.length === 1 ? 'receipt' : 'receipts'}
+              </span>
+            </div>
+
+            {receiptsError && (
+              <p role="alert" className="text-body text-danger">
+                {receiptsError}
+              </p>
+            )}
+
+            {!receiptsError && receipts.length === 0 ? (
+              <div className="rounded-row border border-dashed border-line-subtle p-5">
+                <ReceiptText
+                  aria-hidden
+                  className="h-6 w-6 text-text-muted"
+                />
+                <p className="mt-2 font-semibold">No receipts issued yet</p>
+                <p className="mt-1 text-body text-text-soft">
+                  When a payment is recorded and a receipt is issued, it will appear here.
+                </p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-line-subtle">
+                {receipts.map((receipt) => (
+                  <li
+                    key={receipt.id}
+                    className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-row bg-peach">
+                        <ReceiptText aria-hidden className="h-5 w-5" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <Link
+                          href={`/receipts/${encodeURIComponent(receipt.id)}`}
+                          className="font-bold underline-offset-4 hover:underline"
+                        >
+                          {receipt.receipt_number}
+                        </Link>
+                        <p className="mt-1 text-body text-text-soft">
+                          {formatDate(receipt.payment_date)}
+                          {' · '}
+                          {receipt.payment_method.replaceAll('_', ' ')}
+                        </p>
+                        {receipt.reference && (
+                          <p className="mt-1 break-all text-caption text-text-muted">
+                            Ref: {receipt.reference}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 sm:justify-end">
+                      <div className="text-left sm:text-right">
+                        <Money
+                          amountMinor={receipt.amount_paid_minor}
+                          currency={receipt.currency}
+                          className="font-bold"
+                        />
+                        <p className="text-caption text-text-muted">
+                          {receipt.is_verified ? 'Verified' : 'Unverified'}
+                        </p>
+                      </div>
+
+                      <Link
+                        href={`/receipts/${encodeURIComponent(receipt.id)}`}
+                        className={buttonStyles({
+                          variant: 'outline',
+                          zone: 'calm',
+                        })}
+                      >
+                        View
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
         </div>
 
         <aside className="space-y-6">
