@@ -285,10 +285,10 @@ export default function OnboardingPage() {
               </div>
 
               <button
-                type="submit"
-                disabled={saving || loading}
-                className={buttonStyles({ className: 'w-full' })}
-              >
+  type="submit"
+  disabled={saving || loading}
+  className={`${buttonStyles()} w-full`}
+>
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
