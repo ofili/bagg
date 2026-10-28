@@ -16,6 +16,7 @@ from app.domains.workspaces.models import Workspace
 from app.domains.workspaces.router import resolve_active_workspace
 from app.domains.auth.router import get_current_user_and_workspace
 from app.domains.clients.models import Client
+from app.domains.documents.service import render_receipt_html
 from app.domains.invoices.models import Invoice
 from app.domains.receipts.models import Receipt
 from app.domains.receipts.service import create_receipt
@@ -238,114 +239,43 @@ async def get_receipt_pdf(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Renders deterministic server-side HTML/PDF view for printing or archiving (US-RCP-02).
+    Render the receipt as server-side HTML for printing or archiving.
+
+    The endpoint name and response contract are retained for compatibility.
     """
     stmt = (
         select(Receipt, Client.name.label("client_name"), Invoice.invoice_number)
         .join(Client, Receipt.client_id == Client.id, isouter=True)
         .join(Invoice, Receipt.invoice_id == Invoice.id)
-        .where(and_(Receipt.id == id, Receipt.workspace_id == workspace.id))
+        .where(
+            and_(
+                Receipt.id == id,
+                Receipt.workspace_id == workspace.id,
+            )
+        )
     )
     res = await db.execute(stmt)
     row = res.first()
+
     if not row:
         raise NotFoundException(f"Receipt '{id}' not found")
 
     receipt, client_name, invoice_number = row
 
-    if receipt.confirmation_source == "webhook_paystack":
-        confirmation_heading = "Payment verified by Paystack"
-        confirmation_stamp = "PAYSTACK-VERIFIED"
-        confirmation_disclaimer = (
-            "This receipt records a transaction verified through Paystack "
-            "and recorded by Bagg."
-        )
-    elif receipt.confirmation_source.startswith("issuer"):
-        confirmation_heading = "Payment confirmed by business"
-        confirmation_stamp = "BUSINESS-CONFIRMED"
-        confirmation_disclaimer = (
-            "This receipt records the business's confirmation that funds "
-            "were received. Bagg has not independently verified bank settlement."
-        )
-    else:
-        confirmation_heading = "Payment confirmation recorded"
-        confirmation_stamp = "RECORD-STAMPED"
-        confirmation_disclaimer = (
-            "Refer to the confirmation source shown on this receipt "
-            "for how the payment was recorded."
-        )
-
-    html_content = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Receipt {receipt.receipt_number}</title>
-<style>
-  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fff; color: #111; margin: 0; padding: 40px; }}
-  .card {{ max-width: 650px; margin: 0 auto; border: 1px solid #e5e5e5; border-radius: 12px; padding: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
-  .header {{ display: flex; justify-content: space-between; border-bottom: 2px solid #10b981; padding-bottom: 16px; margin-bottom: 24px; }}
-  .title {{ font-size: 24px; font-weight: 800; color: #111; }}
-  .meta {{ color: #666; font-size: 13px; margin-top: 4px; }}
-  .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; font-size: 14px; }}
-  .label {{ font-size: 11px; text-transform: uppercase; color: #888; font-weight: 700; margin-bottom: 2px; }}
-  .value {{ font-weight: 600; color: #222; }}
-  .amount-box {{ background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 18px; text-align: center; margin: 24px 0; }}
-  .amount-box .amt {{ font-size: 32px; font-weight: 900; color: #166534; font-family: monospace; }}
-  .stamp {{ display: inline-block; border: 3px solid #16a34a; color: #16a34a; font-weight: 900; font-size: 14px; text-transform: uppercase; padding: 6px 14px; border-radius: 6px; letter-spacing: 1px; transform: rotate(-3deg); margin-top: 12px; }}
-  .footer {{ border-top: 1px solid #eee; padding-top: 16px; font-size: 12px; color: #777; text-align: center; }}
-</style>
-</head>
-<body>
-<div class="card">
-  <div class="header">
-    <div>
-      <div class="title">{workspace.business_name}</div>
-      <div class="meta">Official Payment Receipt</div>
-    </div>
-    <div style="text-align: right;">
-      <div style="font-size: 18px; font-weight: 800;">{receipt.receipt_number}</div>
-      <div class="meta">Invoice: {invoice_number}</div>
-      <div class="meta">Date: {receipt.payment_date.strftime("%B %d, %Y")}</div>
-    </div>
-  </div>
-
-  <div class="grid">
-    <div>
-      <div class="label">Payer / Client</div>
-      <div class="value">{client_name or receipt.payer_name or 'Client'}</div>
-    </div>
-    <div>
-      <div class="label">Payment Method</div>
-      <div class="value">{receipt.payment_method.replace('_', ' ').title()}</div>
-    </div>
-    <div>
-      <div class="label">Reference / Session ID</div>
-      <div class="value" style="font-family: monospace;">{receipt.reference or 'N/A'}</div>
-    </div>
-    <div>
-      <div class="label">Invoice Remaining Balance</div>
-      <div class="value font-mono">{format_money(receipt.balance_remaining_minor, receipt.currency)}</div>
-    </div>
-  </div>
-
-  <div class="amount-box">
-    <div class="label" style="color: #166534;">Amount Received & Verified</div>
-    <div class="amt">{format_money(receipt.amount_paid_minor, receipt.currency)}</div>
-    <div>
-      <span class="stamp">✓ PAID & VERIFIED • {receipt.verification_code}</span>
-    </div>
-  </div>
-
-  <div class="footer">
-    {confirmation_disclaimer}
-    </div>
-</div>
-</body>
-</html>"""
+    html_content = render_receipt_html(
+        receipt,
+        business_name=workspace.business_name,
+        client_name=client_name,
+        invoice_number=invoice_number,
+    )
 
     return HTMLResponse(
         content=html_content,
-        headers={"Content-Disposition": f"inline; filename=Receipt-{receipt.receipt_number}.html"},
+        headers={
+            "Content-Disposition": (
+                f"inline; filename=Receipt-{receipt.receipt_number}.html"
+            )
+        },
     )
 
 

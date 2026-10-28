@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Receipt {{ receipt_number }}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #fff;
+      color: #111;
+      margin: 0;
+      padding: 40px;
+    }
+
+    .card {
+      max-width: 650px;
+      margin: 0 auto;
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 36px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 2px solid #10b981;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      gap: 24px;
+    }
+
+    .title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #111;
+    }
+
+    .meta {
+      color: #666;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .receipt-meta {
+      text-align: right;
+    }
+
+    .receipt-number {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+
+    .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #888;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .value {
+      font-weight: 600;
+      color: #222;
+      overflow-wrap: anywhere;
+    }
+
+    .amount-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 18px;
+      text-align: center;
+      margin: 24px 0;
+    }
+
+    .amount-label {
+      color: #166534;
+    }
+
+    .amount {
+      font-size: 32px;
+      font-weight: 900;
+      color: #166534;
+      font-family: monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .stamp {
+      display: inline-block;
+      border: 3px solid #16a34a;
+      color: #16a34a;
+      font-weight: 900;
+      font-size: 14px;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+      transform: rotate(-3deg);
+      margin-top: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .footer {
+      border-top: 1px solid #eee;
+      padding-top: 16px;
+      font-size: 12px;
+      color: #777;
+      text-align: center;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+      }
+
+      .card {
+        max-width: none;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+      }
+    }
+
+    @media (max-width: 560px) {
+      body {
+        padding: 16px;
+      }
+
+      .card {
+        padding: 20px;
+      }
+
+      .header {
+        flex-direction: column;
+      }
+
+      .receipt-meta {
+        text-align: left;
+      }
+
+      .amount {
+        font-size: 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <header class="header">
+      <div>
+        <div class="title">{{ business_name }}</div>
+        <div class="meta">Official Payment Receipt</div>
+      </div>
+
+      <div class="receipt-meta">
+        <div class="receipt-number">{{ receipt_number }}</div>
+        <div class="meta">Invoice: {{ invoice_number }}</div>
+        <div class="meta">Date: {{ payment_date }}</div>
+      </div>
+    </header>
+
+    <section class="grid" aria-label="Receipt details">
+      <div>
+        <div class="label">Payer / Client</div>
+        <div class="value">{{ payer_name }}</div>
+      </div>
+
+      <div>
+        <div class="label">Payment Method</div>
+        <div class="value">{{ payment_method }}</div>
+      </div>
+
+      <div>
+        <div class="label">Reference / Session ID</div>
+        <div class="value" style="font-family: monospace;">
+          {{ reference }}
+        </div>
+      </div>
+
+      <div>
+        <div class="label">Invoice Remaining Balance</div>
+        <div class="value">{{ formatted_balance_remaining }}</div>
+      </div>
+    </section>
+
+    <section class="amount-box">
+  <div class="label amount-label">Amount Received &amp; Verified</div>
+  <div class="amount">{{ formatted_amount_paid }}</div>
+  <div>
+    <span class="stamp">
+      ✓ PAID &amp; VERIFIED · {{ verification_code }}
+    </span>
+  </div>
+  <div class="meta">
+    {{ confirmation_heading }} · {{ confirmation_stamp }}
+  </div>
+</section>
+
+    <footer class="footer">
+      <div>{{ confirmation_heading }}</div>
+      <p>{{ confirmation_disclaimer }}</p>
+    </footer>
+  </main>
+</body>
+</html>
