@@ -34,6 +34,7 @@ import {
   buttonStyles,
   inputStyles,
 } from '@/components/ui';
+import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import { cleanAmount, toMinor } from '@/lib/amount';
 import { formatDate } from '@/lib/date';
 
@@ -52,7 +53,8 @@ interface PaymentClaim {
 }
 
 interface InvoiceDetail {
-  id: string;
+  id: string; // Internal route/relationship ID; do not display as a reference.
+  bagg_reference: string;
   invoice_number: string;
   client_id: string;
   client_name?: string | null;
@@ -174,54 +176,64 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
   const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
   const [deliveryEmail, setDeliveryEmail] = useState('');
 
+  const { setCurrentLabel } = useCurrentBreadcrumb();
+
+  useEffect(() => {
+    setCurrentLabel(invoice?.invoice_number ?? null);
+
+    return () => setCurrentLabel(null);
+  }, [invoice?.invoice_number, setCurrentLabel]);
+  
   const loadInvoice = async () => {
     try {
       setLoading(true);
       setError(null);
 
       const [invoiceRes, eventsRes, claimsRes, receiptsRes] =
-  await Promise.all([
-    fetch(`${API_BASE}/invoices/${invoiceId}`, {
-      credentials: 'include',
-    }),
-    fetch(`${API_BASE}/invoices/${invoiceId}/status-events`, {
-      credentials: 'include',
-    }),
-    fetch(`${API_BASE}/invoices/${invoiceId}/claims`, {
-      credentials: 'include',
-    }),
-    fetch(
-      `${API_BASE}/receipts?invoice_id=${encodeURIComponent(invoiceId)}`,
-      {
-        credentials: 'include',
-        cache: 'no-store',
-      },
-    ),
-  ]);
-
-  if (!invoiceRes.ok) {
-    throw await readError(invoiceRes, 'Invoice could not be loaded.');
-  }
-
-  setInvoice(await invoiceRes.json());
-  setEvents(eventsRes.ok ? await eventsRes.json() : []);
-  setClaims(claimsRes.ok ? await claimsRes.json() : []);
-
-  if (receiptsRes.ok) {
-    setReceipts((await receiptsRes.json()) as InvoiceReceipt[]);
-    setReceiptsError(null);
-  } else {
-    setReceipts([]);
-    setReceiptsError('Receipt history could not be loaded.');
-  }
+        await Promise.all([
+          fetch(`${API_BASE}/invoices/${invoiceId}`, {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+          fetch(`${API_BASE}/invoices/${invoiceId}/status-events`, {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+          fetch(`${API_BASE}/invoices/${invoiceId}/claims`, {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+          fetch(
+            `${API_BASE}/receipts?invoice_id=${encodeURIComponent(invoiceId)}`,
+            {
+              credentials: 'include',
+              cache: 'no-store',
+            },
+          ),
+        ]);
 
       if (!invoiceRes.ok) {
         throw await readError(invoiceRes, 'Invoice could not be loaded.');
       }
 
-      setInvoice(await invoiceRes.json());
-      setEvents(eventsRes.ok ? await eventsRes.json() : []);
-      setClaims(claimsRes.ok ? await claimsRes.json() : []);
+      // Consume each response body only once.
+      const invoiceData = (await invoiceRes.json()) as InvoiceDetail;
+      setInvoice(invoiceData);
+
+      setEvents(
+        eventsRes.ok ? ((await eventsRes.json()) as StatusEvent[]) : [],
+      );
+      setClaims(
+        claimsRes.ok ? ((await claimsRes.json()) as PaymentClaim[]) : [],
+      );
+
+      if (receiptsRes.ok) {
+        setReceipts((await receiptsRes.json()) as InvoiceReceipt[]);
+        setReceiptsError(null);
+      } else {
+        setReceipts([]);
+        setReceiptsError('Receipt history could not be loaded.');
+      }
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -232,6 +244,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     if (invoiceId) void loadInvoice();

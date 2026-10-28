@@ -53,6 +53,7 @@ class QuoteResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    bagg_reference: str
     workspace_id: str
     client_id: str
     client_name: Optional[str] = None
@@ -203,6 +204,7 @@ class QuoteSendRequest(BaseModel):
 
 class QuoteSendResponse(BaseModel):
     id: str
+    bagg_reference: str
     quote_number: str
     version: int = 1
     status: str

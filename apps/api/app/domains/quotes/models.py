@@ -19,6 +19,7 @@ from sqlalchemy.sql import func
 import uuid
 from app.core.database import Base
 
+from app.core.references import generate_bagg_reference
 
 def generate_uuid(prefix: str = "") -> str:
     return f"{prefix}{uuid.uuid4().hex}"
@@ -28,6 +29,12 @@ class Quote(Base):
     __tablename__ = "quotes"
 
     id = Column(String, primary_key=True, default=lambda: generate_uuid("qot_"))
+    bagg_reference = Column(
+        String(48),
+        nullable=False,
+        unique=True,
+        default=lambda: generate_bagg_reference("quote"),
+    )
     workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     client_id = Column(String, ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False, index=True)
     quote_number = Column(String, nullable=False)

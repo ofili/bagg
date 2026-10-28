@@ -17,6 +17,7 @@ from sqlalchemy.sql import func
 import uuid
 from app.core.database import Base
 
+from app.core.references import generate_bagg_reference
 
 def generate_uuid(prefix: str = "") -> str:
     return f"{prefix}{uuid.uuid4().hex}"
@@ -30,6 +31,12 @@ class Receipt(Base):
     __tablename__ = "receipts"
 
     id = Column(String, primary_key=True, default=lambda: generate_uuid("rcp_"))
+    bagg_reference = Column(
+        String(48),
+        nullable=False,
+        unique=True,
+        default=lambda: generate_bagg_reference("receipt"),
+    )
     workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     client_id = Column(String, ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False, index=True)
     invoice_id = Column(String, ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)

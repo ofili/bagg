@@ -18,6 +18,7 @@ import {
 
 import { Card, Button, buttonStyles } from '@/components/ui';
 import { Money } from '@/components/money/Money';
+import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 
@@ -25,13 +26,14 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface ReceiptDetail {
-  id: string;
+   id: string;
+  bagg_reference: string;
+  receipt_number: string;
   workspace_id: string;
   client_id: string;
   client_name?: string | null;
   invoice_id: string;
   invoice_number: string;
-  receipt_number: string;
   sequence_number: number;
   currency: string;
   amount_paid_minor: number;
@@ -78,6 +80,14 @@ export default function ReceiptDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+
+  const { setCurrentLabel } = useCurrentBreadcrumb();
+
+  useEffect(() => {
+    setCurrentLabel(receipt?.receipt_number ?? null);
+
+    return () => setCurrentLabel(null);
+  }, [receipt?.receipt_number, setCurrentLabel]);
 
   const loadReceipt = useCallback(async () => {
     try {

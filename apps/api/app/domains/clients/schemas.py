@@ -87,6 +87,7 @@ class ClientInvoiceSummary(BaseModel):
 
 class ClientResponse(ClientBase):
     id: str
+    bagg_reference: str
     workspace_id: str
     total_invoiced_minor: int = 0
     total_paid_minor: int = 0

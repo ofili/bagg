@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+
+from app.core.references import generate_bagg_reference
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Index, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -14,6 +16,12 @@ class Client(Base):
     __tablename__ = "clients"
 
     id = Column(String, primary_key=True, default=lambda: generate_uuid("cl_"))
+    bagg_reference = Column(
+        String(48),
+        nullable=False,
+        unique=True,
+        default=lambda: generate_bagg_reference("client"),
+    )
     workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False, index=True)
     email = Column(String, nullable=True)  # Optional for phone-only / WhatsApp clients (US-CLI-01)

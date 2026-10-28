@@ -20,6 +20,7 @@ class ReceiptResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    bagg_reference: str
     workspace_id: str
     client_id: str
     client_name: Optional[str] = None

@@ -21,6 +21,7 @@ import {
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
 import { Button, Card, Field, Input, buttonStyles } from '@/components/ui';
+import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import { formatDate } from '@/lib/date';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -36,11 +37,12 @@ type QuoteLineItem = {
 
 type QuoteDetail = {
   id: string;
+  bagg_reference: string;
+  quote_number: string;
   workspace_id: string;
   client_id: string;
   client_name?: string | null;
   client_email?: string | null;
-  quote_number: string;
   sequence_number: number;
   version: number;
   last_revised_at?: string | null;
@@ -174,6 +176,14 @@ export default function QuoteDetailPage() {
   const [depositPercentage, setDepositPercentage] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<DraftItem[]>([]);
+
+  const { setCurrentLabel } = useCurrentBreadcrumb();
+
+  useEffect(() => {
+    setCurrentLabel(quote?.quote_number ?? null);
+
+    return () => setCurrentLabel(null);
+  }, [quote?.quote_number, setCurrentLabel]);
 
   const populateForm = (data: QuoteDetail) => {
     setClientId(data.client_id);
@@ -937,7 +947,7 @@ export default function QuoteDetailPage() {
               <Card zone="calm" className="space-y-3 p-4 sm:p-6">
                 <h2 className="text-heading">Linked invoice</h2>
                 <p className="text-body">
-                  {quote.invoice_number || quote.invoice_id}
+                  {quote.invoice_number || 'Invoice number unavailable'}
                 </p>
                 <p className="text-body text-text-soft">
                   Status: {quote.invoice_status || 'Unknown'}

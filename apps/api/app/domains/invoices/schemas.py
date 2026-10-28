@@ -98,6 +98,7 @@ class InvoiceReceiptSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    bagg_reference: str
     receipt_number: str
     amount_paid_minor: int
     balance_remaining_minor: int
@@ -130,6 +131,7 @@ class InvoiceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    bagg_reference: str
     workspace_id: str
     client_id: str
     client_name: Optional[str] = None
@@ -209,4 +211,3 @@ class CurrencyMetricsResponse(BaseModel):
     paid_count: int = 0
     overdue_count: int = 0
     cancelled_count: int = 0
-
