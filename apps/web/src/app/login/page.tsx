@@ -280,10 +280,10 @@ function LoginPageContent() {
               </div>
 
               <button
-                type="submit"
-                disabled={loading}
-                className={buttonStyles({ className: 'w-full' })}
-              >
+  type="submit"
+  disabled={loading}
+  className={`${buttonStyles()} w-full`}
+>
                 {loading ? (
                   <>
                     <Loader2
