@@ -1,14 +1,39 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { AlertCircle, ArrowLeft, Check, CheckCircle2, Copy, ExternalLink, FileText, Loader2, ReceiptText, Share2, X } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  FileText,
+  Loader2,
+  ReceiptText,
+  Share2,
+  X,
+} from 'lucide-react';
 import { InvoiceDocument } from '@/components/invoice';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { Money } from '@/components/money/Money';
-import { StatusPill, StatusTimeline, type StatusEvent } from '@/components/status';
-import { Button, Card, Dialog, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
+import {
+  StatusPill,
+  StatusTimeline,
+  type StatusEvent,
+} from '@/components/status';
+import {
+  Button,
+  Card,
+  Dialog,
+  Field,
+  Input,
+  buttonStyles,
+  inputStyles,
+} from '@/components/ui';
 import { cleanAmount, toMinor } from '@/lib/amount';
 import { formatDate } from '@/lib/date';
 
@@ -73,6 +98,14 @@ interface InvoiceDetail {
   created_at: string;
 }
 
+interface InvoiceSendResult {
+  detail?: string;
+  message?: string;
+  email_sent?: boolean;
+  recipient_email?: string | null;
+  whatsapp_url?: string | null;
+}
+
 const PAYMENT_METHODS = [
   { value: 'bank_transfer', label: 'Bank transfer' },
   { value: 'card', label: 'Card' },
@@ -82,6 +115,14 @@ const PAYMENT_METHODS = [
 ];
 
 const todayIso = () => new Date().toISOString().split('T')[0];
+
+async function readError(
+  response: Response,
+  fallback: string,
+): Promise<Error> {
+  const result = await response.json().catch(() => ({}));
+  return new Error(result.detail || result.message || fallback);
+}
 
 export default function InvoiceDetailPage() {
   const params = useParams();
@@ -95,6 +136,7 @@ export default function InvoiceDetailPage() {
   const [error, setError] = useState<string | null>(null);
   /** An action failed; the invoice itself is still fine. */
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -105,56 +147,79 @@ export default function InvoiceDetailPage() {
   const [confirmed, setConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [confirmingClaimId, setConfirmingClaimId] = useState<string | null>(null);
+  const [confirmingClaimId, setConfirmingClaimId] = useState<string | null>(
+    null,
+  );
+
   const [sendingInvoice, setSendingInvoice] = useState(false);
+  const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
+  const [deliveryEmail, setDeliveryEmail] = useState('');
 
   const loadInvoice = async () => {
     try {
       setLoading(true);
       setError(null);
+
       const [invoiceRes, eventsRes, claimsRes] = await Promise.all([
-        fetch(`${API_BASE}/invoices/${invoiceId}`, { credentials: 'include' }),
-        fetch(`${API_BASE}/invoices/${invoiceId}/status-events`, { credentials: 'include' }),
-        fetch(`${API_BASE}/invoices/${invoiceId}/claims`, { credentials: 'include' }),
+        fetch(`${API_BASE}/invoices/${invoiceId}`, {
+          credentials: 'include',
+        }),
+        fetch(`${API_BASE}/invoices/${invoiceId}/status-events`, {
+          credentials: 'include',
+        }),
+        fetch(`${API_BASE}/invoices/${invoiceId}/claims`, {
+          credentials: 'include',
+        }),
       ]);
 
       if (!invoiceRes.ok) {
-        const err = await invoiceRes.json().catch(() => ({}));
-        throw new Error(err.detail || 'Invoice could not be loaded');
+        throw await readError(invoiceRes, 'Invoice could not be loaded.');
       }
 
       setInvoice(await invoiceRes.json());
       setEvents(eventsRes.ok ? await eventsRes.json() : []);
       setClaims(claimsRes.ok ? await claimsRes.json() : []);
-    } catch (err: any) {
-      setError(err.message || 'Invoice could not be loaded');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Invoice could not be loaded.',
+      );
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (invoiceId) loadInvoice();
+    if (invoiceId) void loadInvoice();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceId]);
 
-  const shareUrl = () => `${window.location.origin}/i/${invoice?.share_token}`;
+  const shareUrl = () =>
+    `${window.location.origin}/i/${invoice?.share_token}`;
 
   const copyShareLink = async () => {
     if (!invoice?.share_token) return;
+
     try {
       await navigator.clipboard.writeText(shareUrl());
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      setActionError('Could not copy the link. Open the client view and copy it from the address bar.');
+      setActionError(
+        'Could not copy the link. Open the client view and copy it from the address bar.',
+      );
     }
   };
 
   const openReceiptModal = () => {
     if (!invoice) return;
+
     const payable = invoice.net_payable_minor || invoice.total_minor;
-    setAmount((Math.max(0, payable - invoice.amount_paid_minor) / 100).toFixed(2));
+
+    setAmount(
+      (Math.max(0, payable - invoice.amount_paid_minor) / 100).toFixed(2),
+    );
     setPaymentDate(todayIso());
     setPaymentMethod('bank_transfer');
     setReference('');
@@ -165,11 +230,16 @@ export default function InvoiceDetailPage() {
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!confirmed) {
-      setFormError('Confirm that the funds have arrived before recording this payment.');
+      setFormError(
+        'Confirm that the funds have arrived before recording this payment.',
+      );
       return;
     }
+
     const amountMinor = toMinor(amount);
+
     if (amountMinor <= 0) {
       setFormError('Enter the amount you received.');
       return;
@@ -178,6 +248,7 @@ export default function InvoiceDetailPage() {
     try {
       setSaving(true);
       setFormError(null);
+
       const res = await fetch(`${API_BASE}/receipts/invoice/${invoiceId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -192,14 +263,16 @@ export default function InvoiceDetailPage() {
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || 'Failed to record payment');
+        throw await readError(res, 'Failed to record payment.');
       }
 
       setShowReceiptModal(false);
+      setActionNotice('Payment recorded successfully.');
       await loadInvoice();
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to record payment');
+    } catch (err: unknown) {
+      setFormError(
+        err instanceof Error ? err.message : 'Failed to record payment.',
+      );
     } finally {
       setSaving(false);
     }
@@ -209,35 +282,45 @@ export default function InvoiceDetailPage() {
     try {
       setConfirmingClaimId(claim.id);
       setActionError(null);
-      const res = await fetch(`${API_BASE}/invoices/${invoiceId}/claims/${claim.id}/confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({}),
-      });
+      setActionNotice(null);
+
+      const res = await fetch(
+        `${API_BASE}/invoices/${invoiceId}/claims/${claim.id}/confirm`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({}),
+        },
+      );
+
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || 'Failed to confirm claim');
+        throw await readError(res, 'Failed to confirm claim.');
       }
+
+      setActionNotice('Payment claim confirmed.');
       await loadInvoice();
-    } catch (err: any) {
-      // A failed action must not replace the whole page with "Invoice unavailable"
-      setActionError(err.message || 'Failed to confirm claim');
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to confirm claim.',
+      );
     } finally {
       setConfirmingClaimId(null);
     }
   };
 
-  const handleSendInvoice = async () => {
-  if (!invoice) return;
+  /**
+   * Finalization only: issue the invoice without sending it to the client.
+   */
+  const handleFinalizeInvoice = async () => {
+    if (!invoice) return;
 
-  try {
-    setSendingInvoice(true);
-    setActionError(null);
+    try {
+      setSendingInvoice(true);
+      setActionError(null);
+      setActionNotice(null);
 
-    // A draft must be finalized first.
-    if (invoice.status === 'draft') {
-      const finalizeRes = await fetch(
+      const response = await fetch(
         `${API_BASE}/invoices/${invoice.id}/finalize`,
         {
           method: 'POST',
@@ -245,56 +328,176 @@ export default function InvoiceDetailPage() {
         },
       );
 
-      if (!finalizeRes.ok) {
-        const err = await finalizeRes.json().catch(() => ({}));
-        throw new Error(
-          err.detail || 'Could not finalize this invoice.',
+      if (!response.ok) {
+        throw await readError(
+          response,
+          'Could not approve and issue this invoice.',
         );
+      }
+
+      setActionNotice(
+        `Invoice ${invoice.invoice_number} approved and issued. It has not been sent to the client.`,
+      );
+
+      await loadInvoice();
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : 'Could not approve and issue this invoice.',
+      );
+    } finally {
+      setSendingInvoice(false);
+    }
+  };
+
+  /**
+   * Open delivery separately, after the invoice has been issued.
+   */
+  const openInvoiceDelivery = () => {
+    if (!invoice) return;
+
+    setDeliveryEmail(invoice.client_email?.trim() || '');
+    setActionError(null);
+    setActionNotice(null);
+    setShowDeliveryDialog(true);
+  };
+
+  const closeDeliveryDialog = () => {
+    if (sendingInvoice) return;
+    setShowDeliveryDialog(false);
+  };
+
+  /**
+   * Email: save a changed client address first, then request email delivery.
+   * WhatsApp: use the URL returned by the API and let the user send the message.
+   */
+  const handleDeliverInvoice = async (method: 'email' | 'whatsapp') => {
+    if (!invoice) return;
+
+    const email = deliveryEmail.trim();
+
+    if (method === 'email') {
+      if (!email) {
+        setActionError(
+          'Enter the client’s email address, or choose WhatsApp.',
+        );
+        return;
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setActionError('Enter a valid email address.');
+        return;
       }
     }
 
-    // Finalization must succeed before the send request runs.
-    const sendRes = await fetch(
-      `${API_BASE}/invoices/${invoice.id}/send`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ send_email: true }),
-      },
-    );
+    // Open synchronously during the user gesture to reduce popup blocking.
+    const whatsappTab =
+      method === 'whatsapp' ? window.open('about:blank', '_blank') : null;
 
-    const result = await sendRes.json().catch(() => ({}));
+    try {
+      setSendingInvoice(true);
+      setActionError(null);
+      setActionNotice(null);
 
-    if (!sendRes.ok) {
-      throw new Error(result.detail || 'Could not send this invoice.');
-    }
+      if (
+        method === 'email' &&
+        email !== (invoice.client_email || '').trim()
+      ) {
+        const clientResponse = await fetch(
+          `${API_BASE}/clients/${invoice.client_id}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ email }),
+          },
+        );
 
-    // The API may mark the invoice sent even if email delivery fails.
-    // Keep the returned message so the user knows what happened.
-    if (result.message) {
-      setActionError(
-        result.email_sent
-          ? null
-          : result.message,
+        if (!clientResponse.ok) {
+          throw await readError(
+            clientResponse,
+            'Could not save the client email address.',
+          );
+        }
+      }
+
+      const sendResponse = await fetch(
+        `${API_BASE}/invoices/${invoice.id}/send`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            send_email: method === 'email',
+          }),
+        },
       );
-    }
 
-    await loadInvoice();
-  } catch (err: unknown) {
-    setActionError(
-      err instanceof Error
-        ? err.message
-        : 'Could not finalize and send this invoice.',
-    );
-  } finally {
-    setSendingInvoice(false);
-  }
-};
+      const result = (await sendResponse
+        .json()
+        .catch(() => ({}))) as InvoiceSendResult;
+
+      if (!sendResponse.ok) {
+        throw new Error(
+          result.detail || result.message || 'Could not deliver this invoice.',
+        );
+      }
+
+      if (method === 'email') {
+        if (!result.email_sent) {
+          throw new Error(
+            result.message ||
+              'The invoice was not emailed successfully. You can share it on WhatsApp instead.',
+          );
+        }
+
+        setActionNotice(
+          `Invoice ${invoice.invoice_number} emailed successfully to ${
+            result.recipient_email || email
+          }.`,
+        );
+      } else {
+        if (!result.whatsapp_url) {
+          whatsappTab?.close();
+
+          throw new Error(
+            result.message ||
+              'The invoice was prepared, but a WhatsApp sharing link could not be created.',
+          );
+        }
+
+        if (whatsappTab) {
+          whatsappTab.location.href = result.whatsapp_url;
+        } else {
+          // Fallback when the browser blocks opening a new tab.
+          window.location.href = result.whatsapp_url;
+        }
+
+        setActionNotice(
+          'Invoice is ready to share on WhatsApp. Review the message and send it to the client.',
+        );
+      }
+
+      setShowDeliveryDialog(false);
+      await loadInvoice();
+    } catch (err: unknown) {
+      whatsappTab?.close();
+
+      setActionError(
+        err instanceof Error ? err.message : 'Could not deliver this invoice.',
+      );
+    } finally {
+      setSendingInvoice(false);
+    }
+  };
 
   if (loading && !invoice) {
     return (
-      <div role="status" className="flex min-h-[50vh] items-center justify-center text-text-muted">
+      <div
+        role="status"
+        className="flex min-h-[50vh] items-center justify-center text-text-muted"
+      >
         <Loader2 aria-hidden className="h-6 w-6 animate-spin" />
         <span className="sr-only">Loading invoice</span>
       </div>
@@ -304,11 +507,19 @@ export default function InvoiceDetailPage() {
   if (error || !invoice) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
-        <Card zone="calm" className="mx-auto max-w-lg space-y-3 p-8 text-center">
+        <Card
+          zone="calm"
+          className="mx-auto max-w-lg space-y-3 p-8 text-center"
+        >
           <AlertCircle aria-hidden className="mx-auto h-9 w-9" />
           <h1 className="text-title">invoice unavailable</h1>
-          <p className="text-body text-text-soft">{error || 'Invoice not found.'}</p>
-          <Link href="/invoices" className={buttonStyles({ variant: 'outline', zone: 'calm' })}>
+          <p className="text-body text-text-soft">
+            {error || 'Invoice not found.'}
+          </p>
+          <Link
+            href="/invoices"
+            className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+          >
             Back to invoices
           </Link>
         </Card>
@@ -317,9 +528,13 @@ export default function InvoiceDetailPage() {
   }
 
   const netPayable = invoice.net_payable_minor || invoice.total_minor;
-  const balanceMinor = Math.max(0, netPayable - invoice.amount_paid_minor);
+  const balanceMinor = Math.max(
+    0,
+    netPayable - invoice.amount_paid_minor,
+  );
   const pendingClaims = claims.filter((claim) => claim.status === 'pending');
   const canRecordPayment = !['paid', 'cancelled'].includes(invoice.status);
+
   const whatsappHref = invoice.share_token
     ? `https://wa.me/?text=${encodeURIComponent(
         `Hi ${invoice.client_name || 'there'}, here is invoice ${invoice.invoice_number}: ${
@@ -335,69 +550,104 @@ export default function InvoiceDetailPage() {
           <Link href="/invoices" className={buttonStyles({ variant: 'link' })}>
             <ArrowLeft aria-hidden className="h-4 w-4" /> All invoices
           </Link>
+
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-title-l sm:text-display">{invoice.invoice_number}</h1>
+            <h1 className="text-title-l sm:text-display">
+              {invoice.invoice_number}
+            </h1>
             <StatusPill
               status={invoice.status}
               labelOverride={invoice.user_facing_status ?? undefined}
               subLabel={
                 ['issued', 'sent', 'viewed'].includes(invoice.status)
-                  ? invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)
+                  ? invoice.status.charAt(0).toUpperCase() +
+                    invoice.status.slice(1)
                   : undefined
               }
             />
           </div>
+
           <p className="text-body text-text-soft">
-            {invoice.client_name || 'Client'} · Due {formatDate(invoice.due_date)}
+            {invoice.client_name || 'Client'} · Due{' '}
+            {formatDate(invoice.due_date)}
           </p>
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {['draft', 'issued', 'sent', 'viewed'].includes(invoice.status) && (
+          {invoice.status === 'draft' && (
             <Button
               zone="calm"
               loading={sendingInvoice}
-              onClick={handleSendInvoice}
+              onClick={handleFinalizeInvoice}
             >
-              {invoice.status === 'draft'
-                ? 'Finalize & send invoice'
-                : invoice.status === 'issued'
-                  ? 'Send invoice'
-                  : 'Send invoice again'}
+              Approve & issue invoice
             </Button>
           )}
+
+          {['issued', 'sent', 'viewed'].includes(invoice.status) && (
+            <Button
+              zone="calm"
+              loading={sendingInvoice}
+              onClick={openInvoiceDelivery}
+            >
+              {invoice.status === 'issued'
+                ? 'Send invoice'
+                : 'Send invoice again'}
+            </Button>
+          )}
+
           {invoice.share_token && invoice.status !== 'draft' && (
             <>
-              <Button variant="outline" zone="calm" onClick={copyShareLink}>
-                {copied ? <Check aria-hidden className="h-4 w-4" /> : <Copy aria-hidden className="h-4 w-4" />}
+              <Button
+                variant="outline"
+                zone="calm"
+                onClick={copyShareLink}
+              >
+                {copied ? (
+                  <Check aria-hidden className="h-4 w-4" />
+                ) : (
+                  <Copy aria-hidden className="h-4 w-4" />
+                )}
                 {copied ? 'Copied' : 'Copy link'}
               </Button>
+
               <Link
                 href={`/i/${invoice.share_token}`}
                 target="_blank"
-                className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                className={buttonStyles({
+                  variant: 'outline',
+                  zone: 'calm',
+                })}
               >
-                <ExternalLink aria-hidden className="h-4 w-4" /> Client view
+                <ExternalLink aria-hidden className="h-4 w-4" />
+                Client view
               </Link>
+
               {whatsappHref && (
                 <a
                   href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                  className={buttonStyles({
+                    variant: 'outline',
+                    zone: 'calm',
+                  })}
                 >
-                  <Share2 aria-hidden className="h-4 w-4" /> WhatsApp
+                  <Share2 aria-hidden className="h-4 w-4" />
+                  WhatsApp
                 </a>
               )}
             </>
           )}
+
           {canRecordPayment && (
             <Button
               zone="calm"
               variant={pendingClaims.length > 0 ? 'outline' : 'primary'}
               onClick={openReceiptModal}
             >
-              <ReceiptText aria-hidden className="h-4 w-4" /> Record payment
+              <ReceiptText aria-hidden className="h-4 w-4" />
+              Record payment
             </Button>
           )}
         </div>
@@ -420,6 +670,23 @@ export default function InvoiceDetailPage() {
         </div>
       )}
 
+      {actionNotice && (
+        <div
+          role="status"
+          className="flex items-start justify-between gap-2 rounded-row bg-peach p-3 text-body"
+        >
+          <span className="pt-2">{actionNotice}</span>
+          <button
+            type="button"
+            aria-label="Dismiss message"
+            onClick={() => setActionNotice(null)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn"
+          >
+            <X aria-hidden className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           {pendingClaims.length > 0 && (
@@ -427,9 +694,11 @@ export default function InvoiceDetailPage() {
               <div>
                 <h2 className="text-heading">payments waiting for you</h2>
                 <p className="text-body text-text-soft">
-                  Your client says they paid. Check your bank or mobile money account before you confirm.
+                  Your client says they paid. Check your bank or mobile money
+                  account before you confirm.
                 </p>
               </div>
+
               <ul className="space-y-2">
                 {pendingClaims.map((claim) => (
                   <li
@@ -437,18 +706,24 @@ export default function InvoiceDetailPage() {
                     className="flex flex-col gap-3 rounded-row border border-line-subtle bg-surface p-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div>
-                      <Money amountMinor={claim.amount_minor} currency={invoice.currency} className="text-amount-s" />
+                      <Money
+                        amountMinor={claim.amount_minor}
+                        currency={invoice.currency}
+                        className="text-amount-s"
+                      />
                       <p className="text-caption text-text-muted">
                         Claimed {formatDate(claim.payment_date)}
                         {claim.reference ? ` · Ref ${claim.reference}` : ''}
                       </p>
                     </div>
+
                     <Button
                       zone="calm"
                       loading={confirmingClaimId === claim.id}
-                      onClick={() => handleConfirmClaim(claim)}
+                      onClick={() => void handleConfirmClaim(claim)}
                     >
-                      <CheckCircle2 aria-hidden className="h-4 w-4" /> Confirm funds received
+                      <CheckCircle2 aria-hidden className="h-4 w-4" />
+                      Confirm funds received
                     </Button>
                   </li>
                 ))}
@@ -475,9 +750,14 @@ export default function InvoiceDetailPage() {
           {invoice.latest_receipt?.share_token && (
             <Link
               href={`/r/${invoice.latest_receipt.share_token}`}
-              className={buttonStyles({ variant: 'outline', zone: 'calm', fullWidth: true })}
+              className={buttonStyles({
+                variant: 'outline',
+                zone: 'calm',
+                fullWidth: true,
+              })}
             >
-              <FileText aria-hidden className="h-4 w-4" /> Official receipt
+              <FileText aria-hidden className="h-4 w-4" />
+              Official receipt
             </Link>
           )}
 
@@ -486,22 +766,37 @@ export default function InvoiceDetailPage() {
             <dl className="space-y-2 text-body">
               <div className="flex justify-between gap-3">
                 <dt className="text-text-soft">Issued</dt>
-                <dd className="font-medium">{formatDate(invoice.issue_date)}</dd>
+                <dd className="font-medium">
+                  {formatDate(invoice.issue_date)}
+                </dd>
               </div>
+
               <div className="flex justify-between gap-3">
                 <dt className="text-text-soft">Due</dt>
-                <dd className="font-medium">{formatDate(invoice.due_date)}</dd>
+                <dd className="font-medium">
+                  {formatDate(invoice.due_date)}
+                </dd>
               </div>
+
               <div className="flex justify-between gap-3">
                 <dt className="text-text-soft">Paid</dt>
                 <dd>
-                  <Money amountMinor={invoice.amount_paid_minor} currency={invoice.currency} hideCurrencyCode />
+                  <Money
+                    amountMinor={invoice.amount_paid_minor}
+                    currency={invoice.currency}
+                    hideCurrencyCode
+                  />
                 </dd>
               </div>
+
               <div className="flex justify-between gap-3 border-t border-line pt-2">
                 <dt className="font-extrabold">Outstanding</dt>
                 <dd>
-                  <Money amountMinor={balanceMinor} currency={invoice.currency} hideCurrencyCode />
+                  <Money
+                    amountMinor={balanceMinor}
+                    currency={invoice.currency}
+                    hideCurrencyCode
+                  />
                 </dd>
               </div>
             </dl>
@@ -510,35 +805,121 @@ export default function InvoiceDetailPage() {
       </div>
 
       <Dialog
+        open={showDeliveryDialog}
+        onClose={closeDeliveryDialog}
+        title={`Send invoice ${invoice.invoice_number}`}
+        className="max-h-[90dvh] overflow-y-auto"
+      >
+        <div className="space-y-4">
+          <p className="text-body text-text-soft">
+            Choose how to share this issued invoice with{' '}
+            <strong>{invoice.client_name || 'your client'}</strong>. Issuing
+            an invoice does not send it automatically.
+          </p>
+
+          <Field
+            label="Client email"
+            hint={
+              deliveryEmail.trim()
+                ? 'A changed address will be saved to the client record before sending.'
+                : 'No email address is recorded. Enter one here or use WhatsApp.'
+            }
+          >
+            {(fieldProps) => (
+              <Input
+                type="email"
+                autoComplete="email"
+                placeholder="client@example.com"
+                value={deliveryEmail}
+                onChange={(event) => setDeliveryEmail(event.target.value)}
+                {...fieldProps}
+              />
+            )}
+          </Field>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              zone="calm"
+              disabled={sendingInvoice}
+              onClick={closeDeliveryDialog}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              zone="calm"
+              loading={sendingInvoice}
+              disabled={!deliveryEmail.trim()}
+              onClick={() => void handleDeliverInvoice('email')}
+            >
+              Send by email
+            </Button>
+
+            <Button
+              zone="calm"
+              variant="outline"
+              loading={sendingInvoice}
+              onClick={() => void handleDeliverInvoice('whatsapp')}
+            >
+              Share via WhatsApp
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
         open={showReceiptModal}
-        onClose={() => setShowReceiptModal(false)}
+        onClose={() => {
+          if (!saving) setShowReceiptModal(false);
+        }}
         title="record a payment you received"
         className="max-h-[90dvh] overflow-y-auto"
       >
         <form onSubmit={handleRecordPayment} className="space-y-4">
           <p className="text-body text-text-soft">
-            Only record this after the funds have arrived. It issues an official receipt and updates the invoice.
+            Only record this after the funds have arrived. It issues an
+            official receipt and updates the invoice.
           </p>
 
           <MoneyInput
             label="Amount received"
             currency={invoice.currency}
             value={amount}
-            onChange={(v) => setAmount(cleanAmount(v, amount))}
-            hint={`Outstanding balance: ${(balanceMinor / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${invoice.currency}`}
+            onChange={(value) =>
+              setAmount(cleanAmount(value, amount))
+            }
+            hint={`Outstanding balance: ${(balanceMinor / 100).toLocaleString(
+              'en-US',
+              { minimumFractionDigits: 2 },
+            )} ${invoice.currency}`}
             required
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Payment date">
-              {(a) => <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} required {...a} />}
+              {(fieldProps) => (
+                <Input
+                  type="date"
+                  value={paymentDate}
+                  onChange={(event) => setPaymentDate(event.target.value)}
+                  required
+                  {...fieldProps}
+                />
+              )}
             </Field>
+
             <Field label="Method">
-              {(a) => (
-                <select className={inputStyles} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} {...a}>
-                  {PAYMENT_METHODS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
+              {(fieldProps) => (
+                <select
+                  className={inputStyles}
+                  value={paymentMethod}
+                  onChange={(event) => setPaymentMethod(event.target.value)}
+                  {...fieldProps}
+                >
+                  {PAYMENT_METHODS.map((method) => (
+                    <option key={method.value} value={method.value}>
+                      {method.label}
                     </option>
                   ))}
                 </select>
@@ -546,30 +927,51 @@ export default function InvoiceDetailPage() {
             </Field>
           </div>
 
-          <Field label="Reference (optional)" hint="Bank session ID or transfer reference.">
-            {(a) => <Input type="text" value={reference} onChange={(e) => setReference(e.target.value)} {...a} />}
+          <Field
+            label="Reference (optional)"
+            hint="Bank session ID or transfer reference."
+          >
+            {(fieldProps) => (
+              <Input
+                type="text"
+                value={reference}
+                onChange={(event) => setReference(event.target.value)}
+                {...fieldProps}
+              />
+            )}
           </Field>
 
           <label className="flex min-h-11 items-start gap-3 rounded-row bg-peach p-3 text-body">
             <input
               type="checkbox"
               checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
+              onChange={(event) => setConfirmed(event.target.checked)}
               className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--bagg-mango)]"
             />
-            <span>I have checked that these funds arrived in my account.</span>
+            <span>
+              I have checked that these funds arrived in my account.
+            </span>
           </label>
 
           {formError && (
-            <p role="alert" className="text-body font-medium text-danger dark:text-[#FFB3A8]">
+            <p
+              role="alert"
+              className="text-body font-medium text-danger dark:text-[#FFB3A8]"
+            >
               {formError}
             </p>
           )}
 
           <div className="flex justify-between gap-3">
-            <Button variant="outline" zone="calm" onClick={() => setShowReceiptModal(false)}>
+            <Button
+              variant="outline"
+              zone="calm"
+              disabled={saving}
+              onClick={() => setShowReceiptModal(false)}
+            >
               Cancel
             </Button>
+
             <Button type="submit" zone="calm" loading={saving}>
               Confirm payment received
             </Button>

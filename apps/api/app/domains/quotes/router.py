@@ -135,7 +135,10 @@ async def send_quote(
     if outcome.email_sent:
         message = f"Quote {quote_obj.quote_number} emailed successfully."
     elif send_email and not outcome.recipient_email:
-        message = "Quote marked sent. Add a client email or share the link directly."
+        message = (
+            "Quote status updated, but no email was sent because the client "
+            "has no email address on record. Add an email or share via WhatsApp."
+        )
     elif send_email:
         message = "Quote marked sent, but email delivery failed. Share the link instead."
     else:

@@ -154,7 +154,10 @@ async def send_invoice(
     if outcome.email_sent:
         message = f"Invoice {invoice.invoice_number} emailed successfully."
     elif send_email and not outcome.recipient_email:
-        message = "Invoice marked sent. Add a client email or share the link directly."
+        message = (
+            "Invoice status updated, but no email was sent because the client "
+            "has no email address on record. Add an email or share via WhatsApp."
+        )
     elif send_email:
         message = "Invoice marked sent, but email delivery failed. Share the link instead."
     else:
