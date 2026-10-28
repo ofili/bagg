@@ -1,10 +1,13 @@
 from app.domains.documents.builders.invoices import build_invoice_document
+from app.domains.documents.builders.quotes import build_quote_document
 from app.domains.documents.builders.receipts import build_receipt_document
 from app.domains.documents.renderers.html import (
     render_invoice_document_html,
+    render_quote_document_html,
     render_receipt_document_html,
 )
 from app.domains.invoices.models import Invoice
+from app.domains.quotes.models import Quote
 from app.domains.receipts.models import Receipt
 
 
@@ -36,3 +39,22 @@ def render_receipt_html(
         invoice_number=invoice_number,
     )
     return render_receipt_document_html(document)
+
+
+def render_quote_html(
+    quote: Quote,
+    *,
+    business_name: str,
+    client_name: str | None,
+    business_address: str | None = None,
+    business_tax_id: str | None = None,
+) -> str:
+    """Render an already-authorized quote as HTML."""
+    document = build_quote_document(
+        quote,
+        business_name=business_name,
+        client_name=client_name,
+        business_address=business_address,
+        business_tax_id=business_tax_id,
+    )
+    return render_quote_document_html(document)

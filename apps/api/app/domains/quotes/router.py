@@ -2,12 +2,14 @@ from datetime import date
 from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.domains.auth.models import User
+from app.domains.documents.service import render_quote_html
 from app.domains.invoices.presenter import map_invoice_to_response
 from app.domains.invoices.schemas import InvoiceResponse
 from app.domains.quotes import service
@@ -86,6 +88,38 @@ async def get_quote(
 ):
     quote_obj = await service.get_quote(db, workspace, id)
     return _map(quote_obj, workspace)
+
+
+@router.get("/{id}/pdf")
+async def get_quote_pdf(
+    id: str,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the quote's HTML document.
+
+    The route name is retained for API convention and compatibility.
+    This endpoint does not claim to generate a binary PDF.
+    """
+    quote_obj = await service.get_quote(db, workspace, id)
+
+    client = quote_obj.client
+    html_content = render_quote_html(
+        quote_obj,
+        business_name=workspace.business_name,
+        client_name=client.name if client else None,
+        business_address=workspace.address,
+        business_tax_id=workspace.tax_id,
+    )
+
+    return HTMLResponse(
+        content=html_content,
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="Quote-{quote_obj.quote_number}.html"'
+            )
+        },
+    )
 
 
 @router.get("/{id}/revisions", response_model=List[QuoteRevisionResponse])

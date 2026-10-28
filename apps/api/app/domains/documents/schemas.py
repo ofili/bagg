@@ -89,3 +89,68 @@ class ReceiptDocument(BaseModel):
     formatted_payment_date: str
     formatted_amount_paid: str
     formatted_balance_remaining: str
+
+
+class QuoteDocumentLineItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    description: str
+    quantity: int = Field(ge=1)
+    unit_price_minor: int
+    total_minor: int
+    formatted_unit_price: str
+    formatted_total: str
+
+
+class QuoteDocument(BaseModel):
+    """Presentation-only representation of an existing quote.
+
+    The Quotes domain remains authoritative for status, terms and totals.
+    This schema must never recalculate commercial values.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    document_type: Literal["quote"] = "quote"
+    source_id: str
+    workspace_id: str
+    quote_number: str
+    version: int = Field(ge=1)
+    status: str
+
+    currency: str
+    issue_date: date
+    expires_at: date
+
+    business_name: str
+    business_address: str | None = None
+    business_tax_id: str | None = None
+    client_name: str
+
+    items: list[QuoteDocumentLineItem]
+
+    subtotal_minor: int
+    discount_minor: int
+    tax_rate_percent: float
+    tax_minor: int
+    total_minor: int
+    wht_rate_percent: float
+    wht_minor: int
+    net_payable_minor: int
+
+    deposit_percentage: float | None = None
+    deposit_amount_minor: int | None = None
+    notes: str | None = None
+
+    formatted_issue_date: str
+    formatted_expires_at: str
+    formatted_subtotal: str
+    formatted_discount: str
+    formatted_tax: str
+    formatted_total: str
+    formatted_wht: str
+    formatted_net_payable: str
+    formatted_deposit: str | None = None
+    formatted_tax_rate: str
+    formatted_wht_rate: str
+    formatted_deposit_percentage: str | None = None

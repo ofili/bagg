@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quote {{ quote_number }}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #171717;
+      margin: 40px auto;
+      padding: 0 24px;
+      max-width: 900px;
+      line-height: 1.5;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      border-bottom: 2px solid #e5e5e5;
+      padding-bottom: 24px;
+    }
+    .title { font-size: 28px; font-weight: 750; }
+    .muted { color: #666; }
+    .meta { margin-top: 8px; }
+    .parties {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin: 28px 0;
+    }
+    .label {
+      color: #666;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .party-name { font-size: 17px; font-weight: 700; margin-top: 5px; }
+    .table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+    .table th, .table td {
+      text-align: left;
+      padding: 12px 8px;
+      border-bottom: 1px solid #e5e5e5;
+      vertical-align: top;
+    }
+    .table th { background: #f7f7f7; font-size: 12px; }
+    .number { text-align: right !important; white-space: nowrap; }
+    .totals { margin: 24px 0 0 auto; max-width: 380px; }
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 7px 0;
+    }
+    .grand-total {
+      border-top: 2px solid #171717;
+      margin-top: 8px;
+      padding-top: 14px;
+      font-size: 20px;
+      font-weight: 750;
+    }
+    .terms {
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e5e5;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .footer { margin-top: 40px; color: #666; font-size: 12px; }
+    @media print {
+      body { margin: 0; padding: 0; }
+      .table thead { display: table-header-group; }
+      tr { break-inside: avoid; }
+    }
+    @media (max-width: 600px) {
+      body { margin: 20px auto; padding: 0 12px; }
+      .header, .parties { grid-template-columns: 1fr; display: grid; }
+      .table { font-size: 13px; }
+      .table th, .table td { padding: 8px 4px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div>
+      <div class="title">{{ business_name }}</div>
+      {% if business_address %}
+      <div class="muted">{{ business_address }}</div>
+      {% endif %}
+      {% if business_tax_id %}
+      <div class="muted">Tax ID: {{ business_tax_id }}</div>
+      {% endif %}
+    </div>
+    <div>
+      <div class="title">QUOTE</div>
+      <div><strong>{{ quote_number }}</strong></div>
+      <div class="muted">Version {{ version }}</div>
+      <div class="meta">Issued: {{ issue_date }}</div>
+      <div>Valid until: {{ expires_at }}</div>
+      <div class="meta">Status: {{ status|replace("_", " ")|title }}</div>
+    </div>
+  </header>
+
+  <section class="parties">
+    <div>
+      <div class="label">Prepared for</div>
+      <div class="party-name">{{ client_name }}</div>
+    </div>
+    <div>
+      <div class="label">Prepared by</div>
+      <div class="party-name">{{ business_name }}</div>
+    </div>
+  </section>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th class="number">Qty</th>
+        <th class="number">Unit price</th>
+        <th class="number">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.description }}</td>
+        <td class="number">{{ item.quantity }}</td>
+        <td class="number">{{ item.formatted_unit_price }}</td>
+        <td class="number">{{ item.formatted_total }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <section class="totals">
+    <div class="total-row">
+      <span>Subtotal</span>
+      <span>{{ formatted_subtotal }}</span>
+    </div>
+    {% if formatted_discount and formatted_discount != "0" %}
+    <div class="total-row">
+      <span>Discount</span>
+      <span>-{{ formatted_discount }}</span>
+    </div>
+    {% endif %}
+    <div class="total-row">
+      <span>Tax ({{ formatted_tax_rate }})</span>
+      <span>{{ formatted_tax }}</span>
+    </div>
+    <div class="total-row grand-total">
+      <span>Total</span>
+      <span>{{ formatted_total }}</span>
+    </div>
+    {% if formatted_wht_rate != "0%" and formatted_wht_rate != "—" %}
+    <div class="total-row">
+      <span>WHT ({{ formatted_wht_rate }})</span>
+      <span>{{ formatted_wht }}</span>
+    </div>
+    <div class="total-row">
+      <strong>Net payable</strong>
+      <strong>{{ formatted_net_payable }}</strong>
+    </div>
+    {% endif %}
+    {% if formatted_deposit %}
+    <div class="total-row">
+      <span>
+        Deposit{% if formatted_deposit_percentage %} ({{ formatted_deposit_percentage }}){% endif %}
+      </span>
+      <span>{{ formatted_deposit }}</span>
+    </div>
+    {% elif formatted_deposit_percentage %}
+    <div class="total-row">
+      <span>Deposit ({{ formatted_deposit_percentage }})</span>
+    </div>
+    {% endif %}
+  </section>
+
+  {% if notes %}
+  <section class="terms">
+    <div class="label">Notes and terms</div>
+    <div>{{ notes }}</div>
+  </section>
+  {% endif %}
+
+  <footer class="footer">
+    This quote is valid until {{ expires_at }}. Please contact {{ business_name }}
+    with any questions or requested changes.
+  </footer>
+</body>
+</html>

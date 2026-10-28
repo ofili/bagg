@@ -2,6 +2,8 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from app.domains.documents.schemas import QuoteDocument
+
 # html.py -> renderers -> documents -> domains -> app
 APP_DIR = Path(__file__).resolve().parents[3]
 TEMPLATES_DIR = APP_DIR / "templates"
@@ -62,3 +64,40 @@ def render_receipt_document_html(document) -> str:
         "confirmation_disclaimer": document.confirmation_disclaimer,
     }
     return render_html_template("receipts/receipt.html", context)
+
+
+def render_quote_document_html(document: QuoteDocument) -> str:
+    """Render a QuoteDocument through the shared autoescaping environment."""
+    context = {
+        "quote_number": document.quote_number,
+        "version": document.version,
+        "status": document.status,
+        "issue_date": document.formatted_issue_date,
+        "expires_at": document.formatted_expires_at,
+        "business_name": document.business_name,
+        "business_address": document.business_address,
+        "business_tax_id": document.business_tax_id,
+        "client_name": document.client_name,
+        "items": [
+            {
+                "description": item.description,
+                "quantity": item.quantity,
+                "formatted_unit_price": item.formatted_unit_price,
+                "formatted_total": item.formatted_total,
+            }
+            for item in document.items
+        ],
+        "formatted_subtotal": document.formatted_subtotal,
+        "formatted_discount": document.formatted_discount,
+        "formatted_tax": document.formatted_tax,
+        "formatted_tax_rate": document.formatted_tax_rate,
+        "formatted_total": document.formatted_total,
+        "formatted_wht": document.formatted_wht,
+        "formatted_wht_rate": document.formatted_wht_rate,
+        "formatted_net_payable": document.formatted_net_payable,
+        "formatted_deposit": document.formatted_deposit,
+        "formatted_deposit_percentage": (document.formatted_deposit_percentage),
+        "notes": document.notes,
+    }
+
+    return render_html_template("quotes/quote.html", context)
