@@ -90,6 +90,14 @@ async def test_receipts_full_lifecycle():
         assert rcp1["balance_remaining_minor"] == inv1_total - 250_000_00
         assert rcp1["client_name"] == "Abuja Holdings Inc"
         assert rcp1["invoice_number"].startswith("INV-")
+        # After recording the first receipt:
+        assert rcp1["bagg_reference"]
+
+        # After listing receipts:
+        assert all(item["bagg_reference"] for item in receipts)
+
+        # After retrieving receipt detail:
+        assert detail_res.json()["bagg_reference"] == rcp1["bagg_reference"]
 
         # Invoice should now be partially_paid
         inv1_check = await client.get(f"/invoices/{inv1_id}")

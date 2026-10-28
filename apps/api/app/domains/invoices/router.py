@@ -276,9 +276,7 @@ async def confirm_payment_claim(
         invoice_id,
         claim_id,
         payload,
-        confirmed_by_user_id=(
-            auth_data[0].id if auth_data else workspace.owner_id
-        ),
+        confirmed_by_user_id=auth_data[0].id,
     )
 
 

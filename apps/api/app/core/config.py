@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     API_BASE_URL: str = "http://localhost:8000"
     WEB_BASE_URL: str = "http://localhost:3000"
 
+    # Internal scheduled jobs / worker endpoints
+    INTERNAL_JOB_TOKEN: Optional[str] = None
+
     # Email
     SENDLY_API_KEY: Optional[str] = None
     SENDLY_FROM_EMAIL: Optional[str] = None
@@ -61,6 +64,10 @@ class Settings(BaseSettings):
         ):
             raise ValueError(
                 "S3_SECRET_ACCESS_KEY must be set to a non-default value in production"
+            )
+        if not self.INTERNAL_JOB_TOKEN or not self.INTERNAL_JOB_TOKEN.strip():
+            raise ValueError(
+                "INTERNAL_JOB_TOKEN must be set in production"
             )
         return self
 

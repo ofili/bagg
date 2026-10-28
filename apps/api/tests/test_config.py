@@ -55,3 +55,17 @@ def test_production_accepts_non_default_secrets():
     )
 
     assert settings.ENVIRONMENT == "Production"
+
+
+def test_production_rejects_missing_internal_job_token():
+    with pytest.raises(
+        ValidationError,
+        match="INTERNAL_JOB_TOKEN must be set",
+    ):
+        Settings(
+            _env_file=None,
+            ENVIRONMENT="production",
+            SECRET_KEY="a" * 48,
+            S3_SECRET_ACCESS_KEY="production-minio-secret",
+            INTERNAL_JOB_TOKEN=None,
+        )

@@ -5,6 +5,18 @@ from urllib.parse import quote
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import secrets
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    status,
+)
+from app.core.config import settings
+
 from app.core.database import get_db
 from app.core.money import format_money
 from app.domains.workspaces.models import Workspace
@@ -42,14 +54,40 @@ async def get_reminder_settings(
 
 @router.post("/process", response_model=ReminderProcessResult)
 async def trigger_process_reminders(
+    request: Request,
     limit: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Triggers reliable job claiming via PostgreSQL SKIP LOCKED (US-REM-03).
-    Can be invoked by cron runners, background queue workers, or manual triggers.
-    """
+    """Process due reminder jobs using an internal service credential."""
+
+    configured_token = settings.INTERNAL_JOB_TOKEN
+
+    # Fail closed, including if production secrets are misconfigured.
+    if not configured_token or not configured_token.strip():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Reminder processing is not configured.",
+        )
+
+    authorization = request.headers.get("Authorization", "")
+    supplied_token = (
+        authorization.removeprefix("Bearer ").strip()
+        if authorization.startswith("Bearer ")
+        else ""
+    )
+
+    if not supplied_token or not secrets.compare_digest(
+        supplied_token,
+        configured_token,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Valid internal service credentials are required.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     count = await process_due_reminders(db=db, limit=limit)
+
     return ReminderProcessResult(
         processed_count=count,
         message=f"Successfully processed {count} due reminder job(s).",

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query, status
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, and_
 from typing import List, Optional
@@ -189,16 +190,13 @@ async def delete_payment_profile(
     return None
 
 
-@router.post("/claims", response_model=PaymentClaimResponse, status_code=status.HTTP_201_CREATED)
-async def submit_payment_claim(payload: PaymentClaimCreate):
-    """Called when client clicks 'I have paid' to submit proof of payment."""
-    return PaymentClaimResponse(
-        id="claim_demo_new",
-        invoice_id=payload.invoice_id,
-        amount_minor=payload.amount_minor,
-        payment_date=payload.payment_date,
-        reference=payload.reference,
-        proof_file_url=payload.proof_file_url,
-        status="pending",
-        created_at=datetime.now(timezone.utc)
+@router.post("/claims", status_code=status.HTTP_410_GONE)
+async def submit_payment_claim():
+    """Retired endpoint; claims must be submitted through a public invoice link."""
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail=(
+            "This endpoint is retired. Submit payment claims through "
+            "the invoice's public sharing link."
+        ),
     )
