@@ -82,6 +82,7 @@ def map_receipt_to_response(
 
     return ReceiptResponse(
         id=rcp.id,
+        bagg_reference=rcp.bagg_reference,
         workspace_id=rcp.workspace_id,
         client_id=rcp.client_id,
         client_name=c_name,

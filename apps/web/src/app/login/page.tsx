@@ -20,7 +20,7 @@ type WorkspaceResponse = {
 
 type AuthResponse = {
   detail?: string;
-  dev_code?: string;
+  message?: string;
   workspace?: WorkspaceResponse;
 };
 
@@ -75,7 +75,6 @@ function LoginPageContent() {
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [devCode, setDevCode] = useState<string | null>(null);
 
   const handleSendCode = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -108,13 +107,7 @@ function LoginPageContent() {
 
       setEmail(normalizedEmail);
 
-      if (data.dev_code) {
-        setDevCode(data.dev_code);
-        setCode(data.dev_code);
-      } else {
-        setDevCode(null);
-        setCode('');
-      }
+      setCode('');
 
       setStep('code');
     } catch (err) {
@@ -334,26 +327,11 @@ function LoginPageContent() {
                 />
               </div>
 
-              {devCode && (
-                <div className="flex items-center justify-between gap-3 rounded-input bg-peach-chip px-3 py-2 text-caption text-ink-soft">
-                  <span>
-                    Dev code:{' '}
-                    <strong className="font-mono text-ink">
-                      {devCode}
-                    </strong>
-                  </span>
-
-                  <span className="rounded-full bg-surface px-2 py-0.5 font-extrabold text-ink-soft">
-                    auto-filled
-                  </span>
-                </div>
-              )}
-
               <button
-  type="submit"
-  disabled={loading || code.trim().length !== 6}
-  className={`${buttonStyles()} w-full`}
->
+                type="submit"
+                disabled={loading || code.trim().length !== 6}
+                className={`${buttonStyles()} w-full`}
+              >
                 
                 {loading ? (
                   <>
@@ -375,7 +353,6 @@ function LoginPageContent() {
                   setStep('email');
                   setError(null);
                   setCode('');
-                  setDevCode(null);
                 }}
                 className="inline-flex w-full items-center justify-center gap-1 text-label font-bold text-link hover:underline disabled:opacity-60"
               >

@@ -1,80 +1,54 @@
-from fastapi import (
-    APIRouter,
-    Depends,
-    Response,
-    Request,
-    HTTPException,
-    status,
-)
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
+from app.core.config import settings
 from app.core.database import get_db
-from app.core.errors import BadRequestException
-from app.domains.auth.schemas import MagicLinkRequest, VerifyCodeRequest, AuthResponse, UserResponse
+from app.domains.auth.schemas import (
+    AuthResponse,
+    MagicLinkRequest,
+    UserResponse,
+    VerifyCodeRequest,
+)
 from app.domains.auth.service import AuthService
 from app.domains.workspaces.schemas import WorkspaceResponse
+from fastapi import Request
+from app.core.rate_limit import enforce_rate_limit
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 SESSION_COOKIE_NAME = "bagg_session"
+SESSION_MAX_AGE = 30 * 24 * 60 * 60
+COOKIE_SECURE = settings.ENVIRONMENT.strip().lower() == "production"
+
+
+def get_session_token(request: Request) -> str | None:
+    """Read the session cookie or an explicitly supplied Bearer token."""
+    authorization = request.headers.get("Authorization", "")
+    if authorization.startswith("Bearer "):
+        token = authorization.removeprefix("Bearer ").strip()
+        return token or None
+
+    return request.cookies.get(SESSION_COOKIE_NAME)
 
 
 async def get_current_user_and_workspace(
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    session_token = request.cookies.get(SESSION_COOKIE_NAME)
-    # Also support Authorization Bearer token for API / Mobile
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        session_token = auth_header.replace("Bearer ", "").strip()
-
-    if not session_token:
-        # For dev bootstrapping if no session is set, return a demo fallback
+    token = get_session_token(request)
+    if not token:
         return None
 
-    service = AuthService(db)
-    result = await service.get_user_from_session(session_token)
-    return result
+    return await AuthService(db).get_user_from_session(token)
 
 
-@router.post("/magic-link", status_code=status.HTTP_200_OK)
-async def request_magic_link(
-    payload: MagicLinkRequest,
-    db: AsyncSession = Depends(get_db)
-):
-    """Sends a 6-digit login code and magic link to the user's email."""
-    service = AuthService(db)
-    code = await service.request_magic_code(payload.email)
-    return {
-        "message": f"Login code sent to {payload.email}",
-        "dev_code": code  # visible in local dev response for testing convenience
-    }
-
-
-@router.post("/verify", response_model=AuthResponse)
-async def verify_code(
-    payload: VerifyCodeRequest,
-    response: Response,
-    db: AsyncSession = Depends(get_db)
-):
-    """Verifies login code, onboards new user + workspace, and sets httpOnly session cookie."""
-    service = AuthService(db)
-    user, workspace, session_token = await service.verify_login(payload.email, payload.code)
-
-    # Set secure httpOnly cookie
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=session_token,
-        httponly=True,
-        max_age=30 * 24 * 60 * 60,  # 30 days
-        samesite="lax",
-        secure=False  # True in production HTTPS
-    )
-
+def build_auth_response(user, workspace) -> AuthResponse:
     return AuthResponse(
-        user=UserResponse(id=user.id, email=user.email, is_active=user.is_active),
+        user=UserResponse(
+            id=user.id,
+            email=user.email,
+            is_active=user.is_active,
+        ),
         workspace=WorkspaceResponse(
             id=workspace.id,
             owner_id=workspace.owner_id,
@@ -93,12 +67,96 @@ async def verify_code(
     )
 
 
+@router.post("/magic-link", status_code=status.HTTP_200_OK)
+async def request_magic_link(
+    payload: MagicLinkRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Request a one-time sign-in code without returning the code to the client."""
+
+    client_ip = request.client.host if request.client else "unknown"
+    email = str(payload.email).lower().strip()
+
+    await enforce_rate_limit(
+        action="otp-request-email",
+        identity=email,
+        limit=3,
+        window_seconds=900,
+    )
+    await enforce_rate_limit(
+        action="otp-request-ip",
+        identity=client_ip,
+        limit=10,
+        window_seconds=900,
+    )
+
+    service = AuthService(db)
+
+    try:
+        await service.request_magic_code(str(payload.email))
+    except RuntimeError:
+        # Do not disclose the code or provider-specific delivery details.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="We could not send your sign-in email. Please try again shortly.",
+        ) from None
+
+    return {
+        "message": (
+            "If this address can be used to sign in, "
+            "a verification email will be sent."
+        )
+    }
+
+
+@router.post("/verify", response_model=AuthResponse)
+async def verify_code(
+    payload: VerifyCodeRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    service = AuthService(db)
+
+    client_ip = request.client.host if request.client else "unknown"
+    email = str(payload.email).lower().strip()
+
+    await enforce_rate_limit(
+        action="otp-verify-email",
+        identity=email,
+        limit=10,
+        window_seconds=900,
+    )
+    await enforce_rate_limit(
+        action="otp-verify-ip",
+        identity=client_ip,
+        limit=30,
+        window_seconds=900,
+    )
+
+    user, workspace, session_token = await service.verify_login(
+        str(payload.email),
+        payload.code,
+    )
+
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=session_token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+        max_age=SESSION_MAX_AGE,
+        path="/",
+    )
+
+    return build_auth_response(user, workspace)
+
+
 @router.get("/me", response_model=AuthResponse)
 async def get_current_user_profile(
-    auth_data = Depends(get_current_user_and_workspace),
-    db: AsyncSession = Depends(get_db)
+    auth_data=Depends(get_current_user_and_workspace),
 ):
-    """Returns profile and active workspace of currently authenticated session."""
     if not auth_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -107,27 +165,26 @@ async def get_current_user_profile(
         )
 
     user, workspace = auth_data
-    return AuthResponse(
-        user=UserResponse(id=user.id, email=user.email, is_active=user.is_active),
-        workspace=WorkspaceResponse(
-            id=workspace.id,
-            owner_id=workspace.owner_id,
-            name=workspace.name,
-            business_name=workspace.business_name,
-            brand_color=workspace.brand_color,
-            country=workspace.country,
-            default_currency=workspace.default_currency,
-            tax_id=workspace.tax_id,
-            address=workspace.address,
-            logo_url=workspace.logo_url,
-            invoice_prefix=workspace.invoice_prefix,
-            onboarding_completed=workspace.onboarding_completed,
-        ),
-    )
+    return build_auth_response(user, workspace)
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-async def logout(response: Response):
-    """Clears the session cookie."""
-    response.delete_cookie(SESSION_COOKIE_NAME)
+async def logout(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    token = get_session_token(request)
+
+    if token:
+        await AuthService(db).revoke_session(token)
+
+    response.delete_cookie(
+        key=SESSION_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+    )
+
     return {"message": "Logged out successfully"}
