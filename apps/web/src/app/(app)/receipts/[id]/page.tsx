@@ -23,7 +23,7 @@ import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  '/api';
 
 interface ReceiptDetail {
    id: string;
@@ -197,8 +197,9 @@ export default function ReceiptDetailPage() {
           </p>
           <Link
             href="/receipts"
-            className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+            className={buttonStyles({ variant: 'outline' })}
           >
+            <ArrowLeft aria-hidden className="h-4 w-4" />
             Back to receipts
           </Link>
         </Card>
@@ -212,7 +213,7 @@ export default function ReceiptDetailPage() {
         <div className="space-y-3">
           <Link
             href="/receipts"
-            className={buttonStyles({ variant: 'link' })}
+            className={buttonStyles({ variant: 'outline' })}
           >
             <ArrowLeft aria-hidden className="h-4 w-4" />
             All receipts

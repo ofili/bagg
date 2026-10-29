@@ -1,4 +1,5 @@
-
+import { DocumentComments } from "@/components/comments/DocumentComments";
+﻿
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -26,19 +27,19 @@ import {
   type StatusEvent,
 } from '@/components/status';
 import {
+  BaggSelect,
   Button,
   Card,
   Dialog,
   Field,
   Input,
   buttonStyles,
-  inputStyles,
 } from '@/components/ui';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import { cleanAmount, toMinor } from '@/lib/amount';
 import { formatDate } from '@/lib/date';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = '/api';
 
 interface PaymentClaim {
   id: string;
@@ -227,13 +228,35 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
         claimsRes.ok ? ((await claimsRes.json()) as PaymentClaim[]) : [],
       );
 
+      
       if (receiptsRes.ok) {
-        setReceipts((await receiptsRes.json()) as InvoiceReceipt[]);
-        setReceiptsError(null);
+        try {
+          const receiptsData: unknown = await receiptsRes.json();
+
+          const receiptItems = Array.isArray(receiptsData)
+            ? receiptsData
+            : receiptsData !== null &&
+                typeof receiptsData === 'object' &&
+                'items' in receiptsData &&
+                Array.isArray(receiptsData.items)
+              ? receiptsData.items
+              : null;
+
+          if (receiptItems === null) {
+            throw new Error('Unexpected receipts API response.');
+          }
+
+          setReceipts(receiptItems as InvoiceReceipt[]);
+          setReceiptsError(null);
+        } catch {
+          setReceipts([]);
+          setReceiptsError('Receipt history could not be loaded.');
+        }
       } else {
         setReceipts([]);
         setReceiptsError('Receipt history could not be loaded.');
       }
+
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -574,8 +597,9 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
           </p>
           <Link
             href="/invoices"
-            className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+            className={buttonStyles({ variant: 'outline' })}
           >
+            <ArrowLeft aria-hidden className="h-4 w-4" />
             Back to invoices
           </Link>
         </Card>
@@ -603,8 +627,9 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
-          <Link href="/invoices" className={buttonStyles({ variant: 'link' })}>
-            <ArrowLeft aria-hidden className="h-4 w-4" /> All invoices
+          <Link href="/invoices" className={buttonStyles({ variant: 'outline' })}>
+            <ArrowLeft aria-hidden className="h-4 w-4" />
+            All invoices
           </Link>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -885,6 +910,12 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
               </ul>
             )}
           </Card>
+
+          <DocumentComments
+            documentType="invoice"
+            documentId={invoice.id}
+            documentNumber={invoice.invoice_number}
+          />
         </div>
 
         <aside className="space-y-6">
@@ -1055,22 +1086,13 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
               )}
             </Field>
 
-            <Field label="Method">
-              {(fieldProps) => (
-                <select
-                  className={inputStyles}
-                  value={paymentMethod}
-                  onChange={(event) => setPaymentMethod(event.target.value)}
-                  {...fieldProps}
-                >
-                  {PAYMENT_METHODS.map((method) => (
-                    <option key={method.value} value={method.value}>
-                      {method.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
+            <BaggSelect
+              label="Method"
+              className="w-full"
+              value={paymentMethod}
+              onChange={setPaymentMethod}
+              options={PAYMENT_METHODS}
+            />
           </div>
 
           <Field

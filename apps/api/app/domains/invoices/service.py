@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import and_, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -104,7 +104,12 @@ async def list_invoices(
     client_id: Optional[str] = None,
     status_filter: Optional[str] = None,
     currency: Optional[str] = None,
-) -> list[Invoice]:
+    search: Optional[str] = None,
+    sort_by: str = "sequence_number",
+    sort_order: str = "desc",
+    page: int = 1,
+    per_page: int = 20,
+) -> tuple[list[Invoice], int]:
     conditions = [Invoice.workspace_id == workspace.id]
     if client_id:
         conditions.append(Invoice.client_id == client_id)
@@ -131,12 +136,52 @@ async def list_invoices(
     if currency:
         conditions.append(Invoice.currency == currency.upper().strip())
 
-    stmt = (
+    if search:
+        conditions.append(
+            or_(
+                Invoice.invoice_number.ilike(f"%{search}%"),
+                Client.name.ilike(f"%{search}%"),
+            )
+        )
+
+    SORT_COLUMNS = {
+        "sequence_number": Invoice.sequence_number,
+        "issue_date": Invoice.issue_date,
+        "due_date": Invoice.due_date,
+        "total_minor": Invoice.total_minor,
+        "status": Invoice.status,
+        "created_at": Invoice.created_at,
+    }
+    sort_col = SORT_COLUMNS.get(sort_by, Invoice.sequence_number)
+    order_expr = asc(sort_col) if sort_order == "asc" else desc(sort_col)
+
+    base_stmt = (
         select(Invoice)
+        .outerjoin(Client, Client.id == Invoice.client_id)
         .where(and_(*conditions))
-        .order_by(desc(Invoice.sequence_number), desc(Invoice.created_at))
     )
-    return list((await db.execute(stmt)).scalars().all())
+
+    count_stmt = (
+        select(func.count())
+        .select_from(Invoice)
+        .outerjoin(Client, Client.id == Invoice.client_id)
+        .where(and_(*conditions))
+    )
+    total = (await db.execute(count_stmt)).scalar_one()
+
+    order_clauses = [order_expr]
+    if sort_by != "created_at":
+        order_clauses.append(desc(Invoice.created_at))
+
+    items_stmt = (
+        base_stmt
+        .order_by(*order_clauses)
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+    )
+    items = list((await db.execute(items_stmt)).scalars().all())
+
+    return (items, total)
 
 
 async def get_invoice(

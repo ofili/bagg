@@ -239,7 +239,7 @@ async def test_fast_follows_direct_checkout_milestones_and_wht():
         # ===================================================================
         list_res = await client.get("/invoices")
         assert list_res.status_code == 200
-        inv_list = list_res.json()
+        inv_list = list_res.json()["items"]
         assert len(inv_list) >= 3
 
         # Every invoice should have the new fields

@@ -8,17 +8,18 @@ import {
   ArrowLeft,
   Building2,
   Check,
-  ChevronDown,
   LoaderCircle,
   Mail,
   Phone,
   UserRound,
 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonStyles } from '@/components/ui/button';
+import { BaggSelect } from '@/components/ui';
+import { cn } from '@/lib/cn';
 
 const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+  '/api'
 ).replace(/\/$/, '');
 
 const inputClass =
@@ -186,6 +187,14 @@ export default function NewContactPage() {
 
   return (
     <div className="w-full max-w-3xl space-y-6 px-4 pb-12 pt-4 sm:px-6 sm:pt-6 lg:px-8">
+      <Link
+        href="/clients/contacts"
+        className={buttonStyles({ variant: 'outline' })}
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        Back to contacts
+      </Link>
+
       <header>
         <h1 className="text-title-l text-ink">Add contact</h1>
         <p className="mt-1 text-body text-ink-soft">
@@ -224,9 +233,7 @@ export default function NewContactPage() {
             return here to add the person.
           </p>
 
-          <Button asChild className="mt-5">
-            <Link href="/clients/new">Create client</Link>
-          </Button>
+          <Link href="/clients/new" className={cn(buttonStyles(), "mt-5")}>Create client</Link>
         </section>
       )}
 
@@ -242,41 +249,18 @@ export default function NewContactPage() {
 
             <div className="space-y-5 p-5 sm:p-6">
               <div>
-                <label htmlFor="contact-client" className={labelClass}>
-                  Associated client <span className="text-late-text">*</span>
-                </label>
-
-                <div className="relative">
-                  <Building2
-                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
-                    aria-hidden="true"
-                  />
-                  <select
-                    id="contact-client"
-                    name="client_id"
-                    required
-                    value={clientId}
-                    onChange={(event) => setClientId(event.target.value)}
-                    disabled={clientsLoading || clients.length === 0 || saving}
-                    className={`${inputClass} appearance-none pl-10 pr-10`}
-                  >
-                    <option value="">
-                      {clientsLoading ? 'Loading clients…' : 'Choose a client'}
-                    </option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.name}
-                        {client.client_type === 'BUSINESS'
-                          ? ' · Business'
-                          : ' · Individual'}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
-                    aria-hidden="true"
-                  />
-                </div>
+                <BaggSelect
+                  label="Associated client *"
+                  className="w-full"
+                  value={clientId}
+                  onChange={setClientId}
+                  disabled={clientsLoading || clients.length === 0 || saving}
+                  placeholder={clientsLoading ? 'Loading clients…' : 'Choose a client'}
+                  options={clients.map((client) => ({
+                    value: client.id,
+                    label: `${client.name} · ${client.client_type === 'BUSINESS' ? 'Business' : 'Individual'}`,
+                  }))}
+                />
 
                 {selectedClient && (
                   <p className="mt-2 text-caption text-ink-muted">
@@ -412,9 +396,12 @@ export default function NewContactPage() {
           )}
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" disabled={saving} asChild>
-              <Link href="/clients/contacts">Cancel</Link>
-            </Button>
+            <Link
+              href="/clients/contacts"
+              className={buttonStyles({ variant: "outline", zone: "calm" })}
+            >
+              Cancel
+            </Link>
 
             <Button
               type="submit"

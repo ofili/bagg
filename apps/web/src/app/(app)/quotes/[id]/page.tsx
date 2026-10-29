@@ -1,9 +1,10 @@
+import { DocumentComments } from "@/components/comments/DocumentComments";
 
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   AlertCircle,
   ArrowLeft,
@@ -20,11 +21,22 @@ import {
 } from 'lucide-react';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
-import { Button, Card, Field, Input, buttonStyles } from '@/components/ui';
+import { BaggSelect, Button, Card, Dialog, Field, Input, buttonStyles } from '@/components/ui';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import { formatDate } from '@/lib/date';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = '/api';
+
+const SUPPORTED_CURRENCIES = [
+  { code: 'NGN', label: 'NGN · Nigerian naira' },
+  { code: 'USD', label: 'USD · US dollar' },
+  { code: 'GBP', label: 'GBP · British pound' },
+  { code: 'EUR', label: 'EUR · Euro' },
+  { code: 'GHS', label: 'GHS · Ghanaian cedi' },
+  { code: 'KES', label: 'KES · Kenyan shilling' },
+  { code: 'ZAR', label: 'ZAR · South African rand' },
+];
+
 
 type QuoteLineItem = {
   id: string;
@@ -107,6 +119,7 @@ type Revision = {
 };
 
 type DraftItem = {
+  _key: string;
   description: string;
   quantity: string;
   unit_price: string;
@@ -162,6 +175,47 @@ export default function QuoteDetailPage() {
   const [saving, setSaving] = useState(false);
   const [issuing, setIssuing] = useState(false);
   const [sending, setSending] = useState(false);
+
+  const router = useRouter();
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/clients`, { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: Array<{ id: string; name: string }>) => setClients(data))
+      .catch(() => {});
+  }, []);
+
+  const handleConvert = async () => {
+    if (!quote) return;
+    try {
+      setConverting(true);
+      setNotice(null);
+      const response = await fetch(`${API_BASE}/quotes/${quote.id}/convert`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw await readError(response, 'Could not convert this quote to an invoice.');
+      }
+      const invoice = await response.json();
+      setNotice({
+        kind: 'success',
+        message: `Quote ${quote.quote_number} converted to invoice ${invoice.invoice_number}.`,
+      });
+      router.push(`/invoices/${invoice.id}`);
+    } catch (error: unknown) {
+      setNotice({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Could not convert quote.',
+      });
+    } finally {
+      setConverting(false);
+    }
+  };
+
   const [revisionReason, setRevisionReason] = useState(
     'Scope or pricing adjustment',
   );
@@ -199,6 +253,7 @@ export default function QuoteDetailPage() {
     setNotes(data.notes || '');
     setItems(
       data.items.map((item) => ({
+        _key: item.id || Math.random().toString(36).slice(2, 9),
         description: item.description,
         quantity: String(item.quantity),
         unit_price: fromMinor(item.unit_price_minor),
@@ -272,7 +327,7 @@ export default function QuoteDetailPage() {
   const addItem = () => {
     setItems((current) => [
       ...current,
-      { description: '', quantity: '1', unit_price: '0.00' },
+      { _key: Math.random().toString(36).slice(2, 9), description: '', quantity: '1', unit_price: '0.00' },
     ]);
   };
 
@@ -543,15 +598,20 @@ export default function QuoteDetailPage() {
             </Button>
           )}
           {editable && !editing && (
-            <Button zone="calm" loading={issuing} onClick={() => void handleIssue()}>
+            <Button zone="calm" onClick={() => setShowApproveDialog(true)}>
               <CheckCircle2 aria-hidden className="h-4 w-4" />
-              Issue quote
+              Approve & issue
             </Button>
           )}
           {['issued', 'sent', 'viewed', 'review_requested'].includes(quote.status) && (
             <Button zone="calm" loading={sending} onClick={() => void handleSend()}>
               <Send aria-hidden className="h-4 w-4" />
               Copy share link
+            </Button>
+          )}
+          {quote.status === 'accepted' && !editing && (
+            <Button zone="calm" loading={converting} onClick={() => void handleConvert()}>
+              Convert to invoice
             </Button>
           )}
         </div>
@@ -619,16 +679,20 @@ export default function QuoteDetailPage() {
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Client ID" hint="The quote's current client ID is prefilled.">
-              {(fieldProps) => (
-                <Input value={clientId} onChange={(event) => setClientId(event.target.value)} {...fieldProps} />
-              )}
-            </Field>
-            <Field label="Currency">
-              {(fieldProps) => (
-                <Input value={currency} maxLength={3} onChange={(event) => setCurrency(event.target.value)} {...fieldProps} />
-              )}
-            </Field>
+            <BaggSelect
+              label="Client"
+              className="w-full"
+              value={clientId}
+              onChange={setClientId}
+              options={clients.map((c) => ({ value: c.id, label: c.name }))}
+            />
+            <BaggSelect
+              label="Currency"
+              className="w-full"
+              value={currency}
+              onChange={setCurrency}
+              options={SUPPORTED_CURRENCIES.map((c) => ({ value: c.code, label: c.label }))}
+            />
             <Field label="Issue date">
               {(fieldProps) => (
                 <Input type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} {...fieldProps} />
@@ -670,7 +734,7 @@ export default function QuoteDetailPage() {
               </Button>
             </div>
             {items.map((item, index) => (
-              <div key={`${index}-${item.description}`} className="grid gap-3 rounded-card border border-border p-3 sm:grid-cols-[minmax(0,1fr)_100px_150px_auto]">
+              <div key={item._key} className="grid gap-3 rounded-card border border-border p-3 sm:grid-cols-[minmax(0,1fr)_100px_150px_auto]">
                 <Field label={`Description ${index + 1}`}>
                   {(fieldProps) => (
                     <Input value={item.description} onChange={(event) => updateItem(index, 'description', event.target.value)} {...fieldProps} />
@@ -842,6 +906,12 @@ export default function QuoteDetailPage() {
                 </ol>
               )}
             </Card>
+
+            <DocumentComments
+              documentType="quote"
+              documentId={quote.id}
+              documentNumber={quote.quote_number}
+            />
           </div>
 
           <aside className="space-y-6">
@@ -963,6 +1033,65 @@ export default function QuoteDetailPage() {
           </aside>
         </div>
       )}
+
+      {quote && (
+        <Dialog
+          open={showApproveDialog}
+          onClose={() => !issuing && setShowApproveDialog(false)}
+          title="Approve and issue quote"
+          description="Once approved and issued, this quote is finalized and ready to be shared with your client. Direct edits will be locked."
+        >
+          <div className="space-y-4">
+            <div className="space-y-1 rounded-row bg-surface-sunken p-3 text-body">
+              <div className="flex justify-between">
+                <span className="text-text-soft">Quote:</span>
+                <span className="font-bold">{quote.quote_number}</span>
+              </div>
+              {quote.client_name && (
+                <div className="flex justify-between">
+                  <span className="text-text-soft">Client:</span>
+                  <span className="font-bold">{quote.client_name}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-text-soft">Net payable:</span>
+                <Money
+                  amountMinor={quote.net_payable_minor}
+                  currency={quote.currency}
+                  variant="inherit"
+                  className="font-extrabold text-text"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                zone="calm"
+                size="lg"
+                disabled={issuing}
+                onClick={() => setShowApproveDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                zone="calm"
+                size="lg"
+                loading={issuing}
+                onClick={async () => {
+                  await handleIssue();
+                  setShowApproveDialog(false);
+                }}
+              >
+                Confirm & issue
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </main>
+
   );
 }

@@ -1,4 +1,4 @@
-'use client';
+﻿﻿﻿'use client';
 
 import { useEffect, useState } from 'react';
 import {
@@ -23,11 +23,12 @@ import {
 } from 'lucide-react';
 import { BagCharacter } from '@/components/brand';
 import { Button } from '@/components/ui/button';
+import { BaggSelect } from '@/components/ui';
 import { Sheet, SheetContent, SheetFooter } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { formatMoney } from '@/lib/money';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = '/api';
 
 interface PaymentProfile {
   id: string;
@@ -68,6 +69,15 @@ interface CreditsData {
 type ChannelType = 'bank' | 'digital' | 'mobile_money';
 
 const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'KES', 'ZAR'];
+const CURRENCY_OPTIONS = [
+  { value: 'NGN', label: 'NGN · Nigerian naira' },
+  { value: 'USD', label: 'USD · US dollar' },
+  { value: 'GBP', label: 'GBP · British pound' },
+  { value: 'EUR', label: 'EUR · Euro' },
+  { value: 'GHS', label: 'GHS · Ghanaian cedi' },
+  { value: 'KES', label: 'KES · Kenyan shilling' },
+  { value: 'ZAR', label: 'ZAR · South African rand' },
+];
 
 const inputClass =
   'min-h-11 w-full rounded-input border border-line bg-surface px-3 py-2 text-body text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-cocoa focus:ring-2 focus:ring-cocoa/20';
@@ -454,21 +464,13 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label htmlFor="business-currency" className={labelClass}>
-                default currency
-              </label>
-              <select
-                id="business-currency"
+              <BaggSelect
+                label="default currency"
+                className="w-full"
                 value={defaultCurrency}
-                onChange={(e) => setDefaultCurrency(e.target.value)}
-                className={inputClass}
-              >
-                {CURRENCIES.map((code) => (
-                  <option key={code} value={code}>
-                    {code}
-                  </option>
-                ))}
-              </select>
+                onChange={setDefaultCurrency}
+                options={CURRENCY_OPTIONS}
+              />
             </div>
             <div>
               <label htmlFor="business-country" className={labelClass}>
@@ -845,21 +847,13 @@ export default function SettingsPage() {
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="profile-currency" className={labelClass}>
-                    currency
-                  </label>
-                  <select
-                    id="profile-currency"
+                  <BaggSelect
+                    label="currency"
+                    className="w-full"
                     value={newCurrency}
-                    onChange={(e) => setNewCurrency(e.target.value)}
-                    className={inputClass}
-                  >
-                    {CURRENCIES.map((code) => (
-                      <option key={code} value={code}>
-                        {code}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setNewCurrency}
+                    options={CURRENCY_OPTIONS}
+                  />
                 </div>
                 <div>
                   <span className={labelClass}>how clients pay</span>

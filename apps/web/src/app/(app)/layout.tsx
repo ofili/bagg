@@ -8,6 +8,7 @@ import { BaggCoin, Wordmark } from '@/components/brand/Logo';
 import { BottomNav } from '@/components/mobile/BottomNav';
 import { ClientOnly } from '@/components/mobile/ClientOnly';
 import { HeaderMenu } from '@/components/mobile/HeaderMenu';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { NAV_ITEMS } from '@/components/mobile/navItems';
 import { buttonStyles } from '@/components/ui';
 import { cn } from '@/lib/cn';
@@ -17,7 +18,7 @@ import { AppBreadcrumbs } from '@/components/navigation/AppBreadcrumbs';
 
 const SHOW_DEV_BADGE = process.env.NODE_ENV !== 'production';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = '/api';
 
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -30,7 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     async function checkSession() {
       try {
         const apiBase =
-          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+          '/api';
 
         const response = await fetch(`${apiBase}/auth/me`, {
           credentials: 'include',
@@ -159,13 +160,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <main className="relative flex min-w-0 flex-1 flex-col overflow-y-auto">
         {/* Tablet and desktop header. Settings opens from the avatar. */}
-        <header className="hidden h-16 shrink-0 items-center border-b-brut border-ink bg-surface px-8 sm:flex">
+        <header className="hidden h-16 shrink-0 items-center justify-between border-b-brut border-ink bg-surface px-8 sm:flex">
           <p
             className="truncate text-sm font-extrabold text-ink"
             title={businessName || undefined}
           >
             {businessName || 'Your business'}
           </p>
+
+          <ClientOnly>
+            <NotificationCenter />
+          </ClientOnly>
         </header>
 
         {/* Phone header */}
@@ -173,9 +178,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Link href="/dashboard" aria-label="bagg home">
             <Wordmark />
           </Link>
-          <ClientOnly>
-            <HeaderMenu />
-          </ClientOnly>
+          <div className="flex items-center gap-2">
+            <ClientOnly>
+              <NotificationCenter />
+              <HeaderMenu />
+            </ClientOnly>
+          </div>
         </header>
 
         {/* Pages own their padding. The bottom padding keeps content clear of the fixed tab bar on phones. */}

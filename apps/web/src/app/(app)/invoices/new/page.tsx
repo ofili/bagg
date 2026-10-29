@@ -7,11 +7,11 @@ import { ArrowLeft, CreditCard, X } from 'lucide-react';
 import { InvoiceDocument, LineItemsEditor, lineTotalMinor, newLineItem, type LineItem } from '@/components/invoice';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { Money } from '@/components/money/Money';
-import { Button, Card, Dialog, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
+import { BaggSelect, Button, Card, Dialog, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
 import { cleanAmount, toMinor } from '@/lib/amount';
 import { cn } from '@/lib/cn';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = '/api';
 
 interface Client {
   id: string;
@@ -188,8 +188,9 @@ export default function NewInvoicePage() {
   return (
     <div className="w-full max-w-3xl space-y-6 p-4 pb-24 sm:p-6 sm:pb-16 lg:p-8">
       <div className="space-y-2">
-        <Link href="/invoices" className={buttonStyles({ variant: 'link' })}>
-          <ArrowLeft aria-hidden className="h-4 w-4" /> Back to invoices
+        <Link href="/invoices" className={buttonStyles({ variant: 'outline' })}>
+          <ArrowLeft aria-hidden className="h-4 w-4" />
+          Back to invoices
         </Link>
         <h1 className="text-title-l sm:text-display">new invoice</h1>
       </div>
@@ -227,22 +228,16 @@ export default function NewInvoicePage() {
       {/* Client, currency, dates */}
       <Card zone="calm" className="grid gap-4 p-5 sm:grid-cols-2">
         {clients.length > 0 ? (
-          <Field label="Client">
-            {(a) => (
-              <select
-                className={inputStyles}
-                value={selectedClientId}
-                onChange={(e) => handleClientChange(e.target.value)}
-                {...a}
-              >
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.preferred_currency})
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
+          <BaggSelect
+            label="Client"
+            className="w-full"
+            value={selectedClientId}
+            onChange={handleClientChange}
+            options={clients.map((c) => ({
+              value: c.id,
+              label: `${c.name} (${c.preferred_currency})`,
+            }))}
+          />
         ) : (
           <div className="space-y-1.5">
             <p className="text-body font-medium">Client</p>
@@ -255,17 +250,16 @@ export default function NewInvoicePage() {
           </div>
         )}
 
-        <Field label="Currency">
-          {(a) => (
-            <select className={inputStyles} value={currency} onChange={(e) => setCurrency(e.target.value)} {...a}>
-              {SUPPORTED_CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
+        <BaggSelect
+          label="Currency"
+          className="w-full"
+          value={currency}
+          onChange={setCurrency}
+          options={SUPPORTED_CURRENCIES.map((c) => ({
+            value: c.code,
+            label: c.label,
+          }))}
+        />
 
         <Field label="Issue date">
           {(a) => (

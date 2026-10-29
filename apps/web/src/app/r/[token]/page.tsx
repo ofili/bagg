@@ -10,7 +10,7 @@ import { ConfirmationProvenance } from '@/components/status';
 import { Button, Card, buttonStyles } from '@/components/ui';
 import { formatDate } from '@/lib/date';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = '/api';
 
 interface PublicReceiptData {
   id: string;

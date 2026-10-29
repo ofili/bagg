@@ -1,6 +1,11 @@
+from app.domains.notifications.service import NotificationService
+from app.domains.workspaces.models import Workspace
 import uuid
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+import logging
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+
+logger = logging.getLogger(__name__)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc
 from datetime import datetime, timezone, date
@@ -20,9 +25,10 @@ from app.domains.sharing.schemas import (
 from app.domains.sharing.models import InvoiceComment
 from app.domains.invoices.models import Invoice
 from app.domains.invoices.presenter import map_invoice_to_response
+from app.domains.invoices.schemas import InvoiceReceiptSummary
 from app.domains.clients.models import Client
-from app.domains.workspaces.models import Workspace
 from app.domains.payments.models import PaymentProfile, PaymentClaim
+from app.domains.receipts.models import Receipt
 from app.domains.payments.schemas import (
     PaymentProfileResponse,
     PaymentClaimResponse,
@@ -35,6 +41,8 @@ from app.domains.lifecycle.service import (
 )
 from app.domains.compliance.models import AbuseReport
 from app.domains.compliance.schemas import AbuseReportCreate, AbuseReportResponse
+from app.core.proxy import get_client_ip
+from app.core.rate_limit import enforce_rate_limit
 
 router = APIRouter(prefix="/share", tags=["Sharing"])
 
@@ -81,6 +89,22 @@ async def get_public_invoice(
             actor_type="client",
             source="client_view",
         )
+        if workspace and workspace.owner_id:
+            try:
+                await NotificationService.create_notification(
+                    db,
+                    workspace_id=workspace.id,
+                    recipient_user_id=workspace.owner_id,
+                    type="invoice_viewed",
+                    title=f"Invoice {invoice.invoice_number} was viewed",
+                    body=f"{client_name or 'Client'} opened and viewed the invoice.",
+                    document_type="invoice",
+                    document_id=invoice.id,
+                    document_number=invoice.invoice_number,
+                    link_url=f"/invoices/{invoice.id}",
+                )
+            except Exception as e:
+                logger.warning(f"Failed to create invoice viewed notification: {e}")
         await db.commit()
         await db.refresh(invoice)
 
@@ -141,6 +165,15 @@ async def get_public_invoice(
     latest_claim = claim_res.scalars().first()
     latest_claim_resp = PaymentClaimResponse.model_validate(latest_claim) if latest_claim else None
 
+    # Query latest receipt (US-REC-01)
+    rcp_stmt = select(Receipt).where(Receipt.invoice_id == invoice.id).order_by(Receipt.created_at.desc()).limit(1)
+    rcp_res = await db.execute(rcp_stmt)
+    latest_rcp = rcp_res.scalars().first()
+    latest_receipt_resp = InvoiceReceiptSummary.model_validate(latest_rcp) if latest_rcp else None
+
+    invoice_resp.latest_claim = latest_claim_resp
+    invoice_resp.latest_receipt = latest_receipt_resp
+
     is_revised = invoice.version > 1
     banner = None
     if is_revised:
@@ -166,8 +199,15 @@ async def get_public_invoice(
 async def submit_payment_claim(
     token: str,
     payload: PaymentClaimCreate,
-    db: AsyncSession = Depends(get_db)
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
+    await enforce_rate_limit(
+        action="client-claim",
+        identity=get_client_ip(request),
+        limit=5,
+        window_seconds=3600,
+    )
     """
     Client submits an 'I Have Paid' claim with reference and optional proof (US-CLM-01).
     Transitions invoice status to 'payment_claimed'.
@@ -197,6 +237,17 @@ async def submit_payment_claim(
             detail="Payment claim amount exceeds the outstanding invoice balance",
         )
 
+    # Cancel or supersede any existing pending claims for this invoice to prevent duplicates
+    prev_stmt = select(PaymentClaim).where(
+        and_(
+            PaymentClaim.invoice_id == invoice.id,
+            PaymentClaim.status == "pending",
+        )
+    )
+    prev_res = await db.execute(prev_stmt)
+    for prev_claim in prev_res.scalars().all():
+        prev_claim.status = "superseded"
+
     claim = PaymentClaim(
         invoice_id=invoice.id,
         amount_minor=payload.amount_minor,
@@ -224,6 +275,29 @@ async def submit_payment_claim(
     await db.commit()
     await db.refresh(claim)
 
+    # Dispatch in-app notification to workspace owner
+    ws_stmt = select(Workspace).where(Workspace.id == invoice.workspace_id)
+    ws_res = await db.execute(ws_stmt)
+    workspace = ws_res.scalar_one_or_none()
+    if workspace and workspace.owner_id:
+        try:
+            formatted_amt = format_money(payload.amount_minor, invoice.currency)
+            ref_info = f" (Ref: {payload.reference})" if payload.reference else ""
+            await NotificationService.create_notification(
+                db,
+                workspace_id=workspace.id,
+                recipient_user_id=workspace.owner_id,
+                type="payment_claimed",
+                title=f"Payment claimed on invoice {invoice.invoice_number}",
+                body=f"Client submitted payment claim of {formatted_amt}{ref_info}.",
+                document_type="invoice",
+                document_id=invoice.id,
+                document_number=invoice.invoice_number,
+                link_url=f"/invoices/{invoice.id}",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to create payment claim notification: {e}")
+
     return PaymentClaimResponse.model_validate(claim)
 
 
@@ -231,8 +305,15 @@ async def submit_payment_claim(
 async def post_comment(
     token: str,
     payload: CommentCreate,
-    db: AsyncSession = Depends(get_db)
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
+    await enforce_rate_limit(
+        action="client-comment",
+        identity=get_client_ip(request),
+        limit=20,
+        window_seconds=3600,
+    )
     """
     Client or payer leaves a question/comment on a line item or overall invoice (US-CLV-03).
     """
@@ -252,6 +333,25 @@ async def post_comment(
     db.add(comment)
     await db.commit()
     await db.refresh(comment)
+
+    # Dispatch in-app notification
+    ws_stmt = select(Workspace).where(Workspace.id == invoice.workspace_id)
+    ws_res = await db.execute(ws_stmt)
+    workspace = ws_res.scalar_one_or_none()
+    if workspace and workspace.owner_id:
+        await NotificationService.create_notification(
+            db,
+            workspace_id=workspace.id,
+            recipient_user_id=workspace.owner_id,
+            type="client_comment",
+            title=f"New question on invoice {invoice.invoice_number}",
+            body=f"{comment.author_name}: {comment.message[:150]}",
+            document_type="invoice",
+            document_id=invoice.id,
+            document_number=invoice.invoice_number,
+            link_url=f"/invoices/{invoice.id}#comments",
+            comment_id=comment.id,
+        )
 
     return CommentResponse(
         id=comment.id,

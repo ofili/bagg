@@ -1,4 +1,7 @@
+import logging
 from datetime import datetime, date, timezone
+
+logger = logging.getLogger(__name__)
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -178,6 +181,37 @@ async def confirm_payment(
 
     if invoice.status == "paid":
         await cancel_invoice_reminders(invoice.id, db, commit=False)
+
+    # Dispatch in-app notification when client pays or payment is confirmed
+    if workspace.owner_id and confirmed_by_user_id != workspace.owner_id:
+        try:
+            from app.domains.notifications.service import NotificationService
+            formatted_amt = format_money(amount_paid_minor, invoice.currency)
+            is_full = invoice.status == "paid"
+            title = (
+                f"Invoice {invoice.invoice_number} is fully paid!"
+                if is_full
+                else f"Payment received for invoice {invoice.invoice_number}"
+            )
+            body = (
+                f"Payment of {formatted_amt} received ({receipt.receipt_number})."
+                if is_full
+                else f"Partial payment of {formatted_amt} received ({receipt.receipt_number}). Balance remaining: {format_money(balance_remaining_minor, invoice.currency)}."
+            )
+            await NotificationService.create_notification(
+                db,
+                workspace_id=workspace.id,
+                recipient_user_id=workspace.owner_id,
+                type="invoice_paid" if is_full else "payment_received",
+                title=title,
+                body=body,
+                document_type="invoice",
+                document_id=invoice.id,
+                document_number=invoice.invoice_number,
+                link_url=f"/invoices/{invoice.id}",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to create payment notification: {e}")
 
     return receipt
 

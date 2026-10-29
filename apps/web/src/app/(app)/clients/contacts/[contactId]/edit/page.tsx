@@ -14,10 +14,11 @@ import {
   UserRound,
 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonStyles } from '@/components/ui/button';
+import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 
 const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+  '/api'
 ).replace(/\/$/, '');
 
 const inputClass =
@@ -52,6 +53,7 @@ interface PageProps {
 export default function EditContactPage({ params }: PageProps) {
   const { contactId } = use(params);
   const router = useRouter();
+  const { setCurrentLabel } = useCurrentBreadcrumb();
 
   const [contact, setContact] = useState<Contact | null>(null);
   const [clientName, setClientName] = useState('');
@@ -59,6 +61,13 @@ export default function EditContactPage({ params }: PageProps) {
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (contact?.name) {
+      setCurrentLabel(contact.name);
+    }
+    return () => setCurrentLabel(null);
+  }, [contact?.name, setCurrentLabel]);
 
   const [name, setName] = useState('');
   const [jobTitle, setJobTitle] = useState('');
@@ -203,34 +212,24 @@ export default function EditContactPage({ params }: PageProps) {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 pb-12">
-      <div className="flex items-center gap-3">
+      <div className="space-y-3">
         <Link
           href="/clients/contacts"
-          aria-label="Back to contacts"
-          className="flex size-10 shrink-0 items-center justify-center rounded-input border border-line bg-surface text-ink-soft transition-colors hover:bg-surface-muted hover:text-ink"
+          className={buttonStyles({ variant: 'outline' })}
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to contacts
         </Link>
 
         <div>
-          <p className="text-sm text-ink-muted">
-            <Link href="/clients" className="hover:text-ink">
-              Clients
-            </Link>
-            <span className="mx-2">/</span>
-            <Link href="/clients/contacts" className="hover:text-ink">
-              Contacts
-            </Link>
-            <span className="mx-2">/</span>
-            Edit
-          </p>
-
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink">
-            Edit contact
+          <h1 className="text-title-l text-ink">
+            {contact?.name ? `Edit ${contact.name}` : 'Edit contact'}
           </h1>
 
-          <p className="mt-1 text-sm text-ink-muted">
-            Update this person’s contact details.
+          <p className="mt-1 text-body text-text-soft">
+            {clientName && clientName !== 'Unknown client'
+              ? `Update contact details for ${clientName}.`
+              : 'Update this person’s contact details.'}
           </p>
         </div>
       </div>
@@ -251,9 +250,12 @@ export default function EditContactPage({ params }: PageProps) {
           <p className="mt-2 text-sm text-ink-muted">{loadError}</p>
 
           <div className="mt-5 flex flex-wrap gap-3">
-            <Button type="button" variant="outline" asChild>
-              <Link href="/clients/contacts">Back to contacts</Link>
-            </Button>
+            <Link
+              href="/clients/contacts"
+              className={buttonStyles({ variant: "outline", zone: "calm" })}
+            >
+              Back to contacts
+            </Link>
 
             <Button
               type="button"
@@ -432,9 +434,12 @@ export default function EditContactPage({ params }: PageProps) {
           )}
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" disabled={saving} asChild>
-              <Link href="/clients/contacts">Cancel</Link>
-            </Button>
+            <Link
+              href="/clients/contacts"
+              className={buttonStyles({ variant: "outline", zone: "calm" })}
+            >
+              Cancel
+            </Link>
 
             <Button type="submit" disabled={saving}>
               {saving ? (

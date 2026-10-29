@@ -1,0 +1,834 @@
+I checked the current Bagg repository before writing the implementation. The existing email integration is `apps/api/app/integrations/email.py`, and the frontend design tokens establish the brand palette:
+
+- Mango: `#FF7A1A`
+- Ink: `#2B1405`
+- Warm background: `#FFF8EE`
+- Surface: `#FFFFFF`
+- Primary text: `#3A1F0A`
+- Secondary text: `#6B5642`
+- Borders: `#E3D6C4`
+- Green: `#1FA971`
+
+The existing integration contains five email methods: invoice delivery, quote delivery, a question on a quote, invoice reminders, and sign-in codes. The implementation below keeps those method signatures intact, so existing callers should not need to change.
+
+The important change is that all five email types use the same shared Bagg layout, with their own message content and action. The SMTP path will send both HTML and plain-text alternatives. The Sendly path will receive both formats as well.
+
+## 1. Replace `apps/api/app/integrations/email.py`
+
+Complete replacement. Uses inline CSS and table-based email layout for compatibility with major email clients.
+
+```
+
+import logging
+import re
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from html import escape
+from typing import Optional
+from urllib.parse import urlsplit
+
+import httpx
+
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+SENDLY_API_URL = "https://api.sendlyai.com/v1/messages"
+
+# Keep these aligned with apps/web/src/app/globals.css.
+BRAND = {
+    "mango": "#FF7A1A",
+    "ink": "#2B1405",
+    "background": "#FFF8EE",
+    "surface": "#FFFFFF",
+    "surface_sunken": "#FBF1E2",
+    "border": "#E3D6C4",
+    "text": "#3A1F0A",
+    "text_soft": "#6B5642",
+    "text_muted": "#8A6A50",
+    "link": "#8A3D0C",
+    "green": "#1FA971",
+}
+
+
+def _escape(value: object) -> str:
+    """Escape dynamic values before inserting them into HTML."""
+    return escape(str(value), quote=True)
+
+
+def _safe_url(value: str) -> str:
+    """Allow only absolute HTTP(S) links in email actions."""
+    try:
+        parsed = urlsplit(value)
+    except (TypeError, ValueError):
+        return "#"
+
+    if parsed.scheme not in {"https", "http"} or not parsed.netloc:
+        return "#"
+
+    return escape(value, quote=True)
+
+
+def _safe_subject(value: str) -> str:
+    """Prevent user-controlled values from injecting email headers."""
+    return re.sub(r"[\r\n]+", " ", str(value)).strip()
+
+
+def _email_html(
+    *,
+    category: str,
+    title: str,
+    preheader: str,
+    content_html: str,
+    cta_label: Optional[str] = None,
+    cta_url: Optional[str] = None,
+    note: Optional[str] = None,
+) -> str:
+    """Render the shared, email-client-safe Bagg email shell."""
+    cta_html = ""
+
+    if cta_label and cta_url:
+        safe_href = _safe_url(cta_url)
+        cta_html = f"""
+        <tr>
+          <td style="padding: 8px 28px 28px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td bgcolor="{BRAND['mango']}"
+                    style="border: 2px solid {BRAND['ink']};">
+                  <a href="{safe_href}"
+                     style="display:inline-block;padding:14px 20px;
+                            color:{BRAND['ink']};font-family:Arial,Helvetica,sans-serif;
+                            font-size:15px;font-weight:700;line-height:20px;
+                            text-decoration:none;">
+                    {_escape(cta_label)}
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:14px 0 0;color:{BRAND['text_soft']};
+                      font-family:Arial,Helvetica,sans-serif;font-size:12px;
+                      line-height:18px;word-break:break-word;">
+              If the button does not work, copy this link:<br>
+              <a href="{safe_href}" style="color:{BRAND['link']};">
+                {_escape(cta_url)}
+              </a>
+            </p>
+          </td>
+        </tr>
+        """
+
+    note_html = ""
+    if note:
+        note_html = f"""
+        <tr>
+          <td style="padding:0 28px 24px;">
+            <p style="margin:0;color:{BRAND['text_soft']};
+                      font-family:Arial,Helvetica,sans-serif;font-size:13px;
+                      line-height:20px;">
+              {_escape(note)}
+            </p>
+          </td>
+        </tr>
+        """
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>{_escape(title)}</title>
+</head>
+<body style="margin:0;padding:0;background:{BRAND['background']};
+             color:{BRAND['text']};">
+  <div style="display:none!important;visibility:hidden;opacity:0;
+              color:transparent;height:0;width:0;overflow:hidden;
+              mso-hide:all;">
+    {_escape(preheader)}
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+         border="0" bgcolor="{BRAND['background']}">
+    <tr>
+      <td align="center" style="padding:28px 12px 36px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+               border="0" style="max-width:560px;width:100%;">
+
+          <!-- Brand header -->
+          <tr>
+            <td style="padding:0 2px 18px;">
+              <table role="presentation" width="100%" cellspacing="0"
+                     cellpadding="0" border="0">
+                <tr>
+                  <td style="font-family:Arial,Helvetica,sans-serif;
+                             font-size:29px;font-weight:900;letter-spacing:-1.5px;
+                             line-height:34px;color:{BRAND['ink']};">
+                    bagg<span style="color:{BRAND['mango']};">.</span>
+                  </td>
+                  <td align="right" valign="middle"
+                      style="font-family:Arial,Helvetica,sans-serif;
+                             font-size:10px;font-weight:700;letter-spacing:1px;
+                             line-height:15px;color:{BRAND['text_soft']};">
+                    BUSINESS, HANDLED.
+                  </td>
+                </tr>
+              </table>
+              <div style="height:3px;background:{BRAND['ink']};
+                          margin-top:14px;font-size:0;line-height:0;">
+                &nbsp;
+              </div>
+            </td>
+          </tr>
+
+          <!-- Main content card -->
+          <tr>
+            <td bgcolor="{BRAND['surface']}"
+                style="background:{BRAND['surface']};
+                       border:2px solid {BRAND['ink']};">
+              <table role="presentation" width="100%" cellspacing="0"
+                     cellpadding="0" border="0">
+
+                <tr>
+                  <td style="padding:28px 28px 10px;">
+                    <p style="margin:0 0 12px;color:{BRAND['link']};
+                              font-family:Arial,Helvetica,sans-serif;
+                              font-size:11px;font-weight:800;
+                              letter-spacing:1.2px;line-height:16px;">
+                      {_escape(category.upper())}
+                    </p>
+                    <h1 style="margin:0;color:{BRAND['ink']};
+                               font-family:Arial,Helvetica,sans-serif;
+                               font-size:27px;font-weight:800;
+                               letter-spacing:-0.6px;line-height:34px;">
+                      {_escape(title)}
+                    </h1>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:8px 28px 20px;
+                             color:{BRAND['text']};
+                             font-family:Arial,Helvetica,sans-serif;
+                             font-size:15px;line-height:24px;">
+                    {content_html}
+                  </td>
+                </tr>
+
+                {cta_html}
+                {note_html}
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 4px 0;">
+              <p style="margin:0 0 6px;color:{BRAND['text_soft']};
+                        font-family:Arial,Helvetica,sans-serif;
+                        font-size:12px;font-weight:700;line-height:18px;">
+                Bagg · Invoice like a pro. Get paid without chasing.
+              </p>
+              <p style="margin:0;color:{BRAND['text_muted']};
+                        font-family:Arial,Helvetica,sans-serif;
+                        font-size:11px;line-height:17px;">
+                This is a service email related to your Bagg activity.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+
+def _plain_text(
+    *,
+    title: str,
+    content: str,
+    cta_label: Optional[str] = None,
+    cta_url: Optional[str] = None,
+    note: Optional[str] = None,
+) -> str:
+    """Produce a readable plain-text alternative for the HTML template."""
+    parts = [
+        "BAGG",
+        "Invoice like a pro. Get paid without chasing.",
+        "",
+        title,
+        "",
+        content.strip(),
+    ]
+
+    if cta_label and cta_url:
+        parts.extend(["", f"{cta_label}: {cta_url}"])
+
+    if note:
+        parts.extend(["", note.strip()])
+
+    parts.extend(["", "Bagg · Business, handled."])
+    return "\n".join(parts)
+
+
+class EmailSender:
+    def _sendly_from(self) -> str:
+        address = settings.SENDLY_FROM_EMAIL or settings.DEFAULT_FROM_EMAIL
+        if settings.SENDLY_FROM_NAME:
+            return f"{settings.SENDLY_FROM_NAME} <{address}>"
+        return address
+
+    async def _send_via_sendly(
+        self,
+        to_email: str,
+        subject: str,
+        html: str,
+        text: str,
+    ) -> bool:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    SENDLY_API_URL,
+                    headers={
+                        "Authorization": f"Bearer {settings.SENDLY_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "channel": "email",
+                        "to": to_email,
+                        "from": self._sendly_from(),
+                        "subject": _safe_subject(subject),
+                        "html": html,
+                        "text": text,
+                    },
+                )
+
+            if 200 <= response.status_code < 300:
+                logger.info("Email accepted by SendlyAI for %s", to_email)
+                return True
+
+            logger.warning(
+                "SendlyAI rejected email to %s: %s",
+                to_email,
+                response.status_code,
+            )
+            return False
+        except Exception:
+       	    # Avoid logging message bodies, codes, or provider credentials.
+            logger.exception("SendlyAI email delivery failed for %s", to_email)
+            return False
+
+    def _send_via_smtp(
+        self,
+        to_email: str,
+        subject: str,
+        html: str,
+        text: str,
+    ) -> bool:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = _safe_subject(subject)
+        msg["From"] = self._sendly_from()
+        msg["To"] = to_email
+
+        # Plain text first, HTML second: standard multipart/alternative order.
+        msg.attach(MIMEText(text, "plain", "utf-8"))
+        msg.attach(MIMEText(html, "html", "utf-8"))
+
+        try:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                if settings.SMTP_USER and settings.SMTP_PASSWORD:
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.sendmail(msg["From"], [to_email], msg.as_string())
+
+            logger.info("Email accepted by SMTP for %s", to_email)
+            return True
+        except Exception:
+            if settings.ENVIRONMENT.strip().lower() == "production":
+                logger.exception("SMTP email delivery failed for %s", to_email)
+                return False
+
+            logger.info("SMTP unavailable in development; email not delivered")
+            return True
+
+    async def _deliver(
+        self,
+        to_email: str,
+        subject: str,
+        html: str,
+        text: str,
+    ) -> bool:
+        if settings.SENDLY_API_KEY:
+            return await self._send_via_sendly(to_email, subject, html, text)
+        return self._send_via_smtp(to_email, subject, html, text)
+
+    async def send_invoice_email(
+        self,
+        to_email: str,
+        invoice_number: str,
+        share_url: str,
+    ) -> bool:
+        title = f"Invoice {invoice_number}"
+        content_html = (
+            "<p style='margin:0;'>You have received invoice "
+            f"<strong>{_escape(invoice_number)}</strong>.</p>"
+            "<p style='margin:14px 0 0;'>Open the invoice to review the "
+            "details and payment instructions.</p>"
+        )
+        text = (
+            f"You have received invoice {invoice_number}.\n"
+            "Open the invoice to review the details and payment instructions."
+        )
+        html = _email_html(
+            category="Invoice",
+            title=title,
+            preheader=f"Invoice {invoice_number} is ready to review.",
+            content_html=content_html,
+            cta_label="View invoice",
+            cta_url=share_url,
+        )
+        text = _plain_text(
+            title=title,
+            content=text,
+            cta_label="View invoice",
+            cta_url=share_url,
+        )
+        return await self._deliver(
+            to_email,
+            f"Invoice {invoice_number} from Bagg",
+            html,
+            text,
+        )
+
+    async def send_quote_email(
+        self,
+        to_email: str,
+        quote_number: str,
+        share_url: str,
+        business_name: str,
+        client_name: Optional[str],
+        formatted_total: str,
+        expires_at: str,
+    ) -> bool:
+        greeting = (
+            f"Hi {_escape(client_name)},"
+            if client_name
+            else "Hello,"
+        )
+        title = f"Quote {quote_number}"
+        content_html = (
+            f"<p style='margin:0 0 14px;'>{greeting}</p>"
+            f"<p style='margin:0 0 14px;'><strong>{_escape(business_name)}</strong> "
+            f"sent you quote <strong>{_escape(quote_number)}</strong>.</p>"
+            f"<table role='presentation' width='100%' cellspacing='0' "
+            f"cellpadding='0' border='0' style='margin:18px 0;"
+            f"border:1px solid {BRAND['border']};'>"
+            f"<tr><td style='padding:14px;background:{BRAND['surface_sunken']};'>"
+            f"<p style='margin:0 0 4px;font-size:11px;font-weight:700;"
+            f"letter-spacing:1px;color:{BRAND['text_soft']};'>QUOTE TOTAL</p>"
+            f"<p style='margin:0;font-size:24px;font-weight:800;"
+            f"line-height:30px;color:{BRAND['ink']};'>"
+            f"{_escape(formatted_total)}</p>"
+            f"</td></tr></table>"
+            f"<p style='margin:0;'>This quote is valid until "
+            f"<strong>{_escape(expires_at)}</strong>.</p>"
+        )
+        text = (
+            f"{client_name or 'Hello'},\n\n"
+            f"{business_name} sent you quote {quote_number}.\n"
+            f"Total: {formatted_total}\n"
+            f"Valid until: {expires_at}"
+        )
+        html = _email_html(
+            category="Quote",
+            title=title,
+            preheader=f"{business_name} sent you quote {quote_number}.",
+            content_html=content_html,
+            cta_label="Review quote",
+            cta_url=share_url,
+        )
+        text = _plain_text(
+            title=title,
+            content=text,
+            cta_label="Review quote",
+            cta_url=share_url,
+        )
+        return await self._deliver(
+            to_email,
+            f"Quote {quote_number} from {business_name}",
+            html,
+            text,
+        )
+
+    async def send_issuer_question_email(
+        self,
+        to_email: str,
+        business_name: str,
+        quote_number: str,
+        author_name: str,
+        message: str,
+        share_url: str,
+        item_description: Optional[str] = None,
+    ) -> bool:
+        item_html = ""
+        item_text = ""
+
+        if item_description:
+            item_html = (
+                f"<p style='margin:0 0 12px;font-size:13px;"
+                f"color:{BRAND['text_soft']};'><strong>About:</strong> "
+                f"{_escape(item_description)}</p>"
+            )
+            item_text = f"About: {item_description}\n\n"
+
+        title = "A question needs your attention"
+        content_html = (
+            f"<p style='margin:0 0 14px;'><strong>{_escape(author_name)}</strong> "
+            f"asked a question about quote <strong>{_escape(quote_number)}</strong> "
+            f"from { _escape(business_name) }.</p>"
+            f"{item_html}"
+            f"<table role='presentation' width='100%' cellspacing='0' "
+            f"cellpadding='0' border='0' style='border:1px solid "
+            f"{BRAND['border']};border-left:4px solid {BRAND['mango']};'>"
+            f"<tr><td style='padding:16px;background:{BRAND['background']};"
+            f"font-size:14px;line-height:22px;'>"
+            f"{_escape(message)}</td></tr></table>"
+        )
+        text = (
+            f"{author_name} asked a question about quote {quote_number} "
+            f"from {business_name}.\n\n"
+            f"{item_text}{message}"
+        )
+        html = _email_html(
+            category="Quote discussion",
+            title=title,
+            preheader=f"New question on quote {quote_number}.",
+            content_html=content_html,
+            cta_label="Open quote",
+            cta_url=share_url,
+        )
+        text = _plain_text(
+            title=title,
+            content=text,
+            cta_label="Open quote",
+            cta_url=share_url,
+        )
+        return await self._deliver(
+            to_email,
+            f"New question on {quote_number}",
+            html,
+            text,
+        )
+
+    async def send_reminder_email(
+        self,
+        to_email: str,
+        client_name: str,
+        invoice_number: str,
+        formatted_total: str,
+        due_date: str,
+        share_url: str,
+        reminder_type: str,
+    ) -> bool:
+        subject_map = {
+            "upcoming_3d": f"Upcoming: Invoice {invoice_number} is due in 3 days",
+            "due_today": f"Payment due today: Invoice {invoice_number}",
+            "overdue_3d": f"Follow-up: Invoice {invoice_number} was due 3 days ago",
+            "overdue_7d": f"Reminder: Invoice {invoice_number} is overdue",
+        }
+        subject = subject_map.get(
+            reminder_type,
+            f"Payment reminder: Invoice {invoice_number}",
+        )
+
+        if reminder_type == "upcoming_3d":
+            title = "Payment is coming up"
+            intro = "A quick reminder that the invoice below is due soon."
+        elif reminder_type == "due_today":
+            title = "Payment is due today"
+            intro = "This invoice is due today. Please review the details below."
+        elif reminder_type in {"overdue_3d", "overdue_7d"}:
+            title = "A payment reminder"
+            intro = "Our records show that this invoice may still be outstanding."
+        else:
+            title = "Invoice payment reminder"
+            intro = "Please review the invoice and its payment details."
+
+        content_html = (
+            f"<p style='margin:0 0 16px;'>Dear {_escape(client_name)},</p>"
+            f"<p style='margin:0 0 18px;'>{intro}</p>"
+            f"<table role='presentation' width='100%' cellspacing='0' "
+            f"cellpadding='0' border='0' style='border:1px solid "
+            f"{BRAND['border']};'>"
+            f"<tr><td style='padding:14px;background:{BRAND['surface_sunken']};'>"
+            f"<p style='margin:0 0 5px;font-size:11px;font-weight:700;"
+            f"letter-spacing:1px;color:{BRAND['text_soft']};'>INVOICE</p>"
+            f"<p style='margin:0 0 12px;font-weight:700;"
+            f"color:{BRAND['ink']};'>{_escape(invoice_number)}</p>"
+            f"<p style='margin:0 0 5px;font-size:11px;font-weight:700;"
+            f"letter-spacing:1px;color:{BRAND['text_soft']};'>AMOUNT DUE</p>"
+            f"<p style='margin:0 0 12px;font-size:24px;font-weight:800;"
+            f"line-height:30px;color:{BRAND['ink']};'>"
+            f"{_escape(formatted_total)}</p>"
+            f"<p style='margin:0;font-size:13px;color:{BRAND['text_soft']};'>"
+            f"Due date: <strong>{_escape(due_date)}</strong></p>"
+            f"</td></tr></table>"
+            f"<p style='margin:16px 0 0;'>If you have already paid, you can "
+            f"open the invoice and submit your payment confirmation.</p>"
+        )
+        text = (
+            f"Dear {client_name},\n\n{intro}\n\n"
+            f"Invoice: {invoice_number}\n"
+            f"Amount due: {formatted_total}\n"
+            f"Due date: {due_date}\n\n"
+            "If you have already paid, open the invoice and submit your "
+            "payment confirmation."
+        )
+        html = _email_html(
+            category="Payment reminder",
+            title=title,
+            preheader=f"Reminder about invoice {invoice_number}.",
+            content_html=content_html,
+            cta_label="View invoice",
+            cta_url=share_url,
+            note="If you have already paid, thank you. Your invoice status may take time to update.",
+        )
+        text = _plain_text(
+            title=title,
+            content=text,
+            cta_label="View invoice",
+            cta_url=share_url,
+            note=(
+                "If you have already paid, thank you. Your invoice status "
+                "may take time to update."
+            ),
+        )
+        return await self._deliver(to_email, subject, html, text)
+
+    async def send_login_code_email(
+        self,
+        to_email: str,
+        code: str,
+        expires_in_minutes: int = 10,
+    ) -> bool:
+        title = "Sign in to Bagg"
+        content_html = (
+            "<p style='margin:0 0 8px;'>Use this one-time code to sign in "
+            "to your Bagg account:</p>"
+            f"<table role='presentation' cellspacing='0' cellpadding='0' "
+            f"border='0' style='margin:20px 0;border:2px solid {BRAND['ink']};'>"
+            f"<tr><td align='center' style='padding:18px 22px;"
+            f"background:{BRAND['surface_sunken']};'>"
+            f"<span style='font-family:Arial,Helvetica,sans-serif;"
+            f"font-size:30px;font-weight:800;letter-spacing:7px;"
+            f"line-height:38px;color:{BRAND['ink']};'>"
+            f"{_escape(code)}</span>"
+            f"</td></tr></table>"
+            f"<p style='margin:0 0 12px;'>This code expires in "
+            f"<strong>{int(expires_in_minutes)} minutes</strong>.</p>"
+            "<p style='margin:0;'>If you did not request this code, you can "
+            "ignore this email. Never share your code with anyone.</p>"
+        )
+        text = (
+            "Use this one-time code to sign in to your Bagg account:\n\n"
+            f"{code}\n\n"
+            f"This code expires in {int(expires_in_minutes)} minutes.\n\n"
+            "If you did not request this code, you can ignore this email. "
+            "Never share your code with anyone."
+        )
+        html = _email_html(
+            category="Account access",
+            title=title,
+            preheader="Your one-time Bagg sign-in code.",
+            content_html=content_html,
+        )
+        text = _plain_text(title=title, content=text)
+        return await self._deliver(
+            to_email,
+            "Your Bagg sign-in code",
+            html,
+            text,
+        )
+
+
+email_sender = EmailSender()
+
+```
+
+## 2. Add `apps/api/tests/test_email_templates.py`
+
+These tests cover the shared layout, Bagg brand tokens, HTML escaping, link validation, subject-header safety, and the plain-text alternative.
+
+```
+
+from app.integrations.email import (
+    BRAND,
+    _email_html,
+    _plain_text,
+    _safe_subject,
+    _safe_url,
+)
+
+
+def test_shared_email_layout_uses_bagg_brand_tokens():
+    html = _email_html(
+        category="Invoice",
+        title="Invoice ready",
+        preheader="Your invoice is ready.",
+        content_html="<p>Review the invoice details.</p>",
+        cta_label="View invoice",
+        cta_url="https://example.com/invoice/abc",
+    )
+
+    assert "bagg" in html
+    assert BRAND["mango"] in html
+    assert BRAND["ink"] in html
+    assert BRAND["background"] in html
+    assert "Invoice ready" in html
+    assert "Your invoice is ready." in html
+    assert "View invoice" in html
+    assert "https://example.com/invoice/abc" in html
+    assert "<table" in html
+    assert "viewport" in html
+
+
+def test_email_html_escapes_dynamic_heading_and_category():
+    html = _email_html(
+        category="<script>alert(1)</script>",
+        title='<img src=x onerror="alert(1)">',
+        preheader="Test",
+        content_html="<p>Trusted template markup</p>",
+    )
+
+    assert "<script>" not in html
+    assert "<img src=x" not in html
+    assert "&lt;script&gt;" in html
+    assert "&lt;img" in html
+    assert "<p>Trusted template markup</p>" in html
+
+
+def test_email_link_rejects_non_http_schemes():
+    assert _safe_url("javascript:alert(1)") == "#"
+    assert _safe_url("data:text/html,hello") == "#"
+    assert _safe_url("//example.com/path") == "#"
+
+
+def test_email_link_allows_https():
+    assert (
+        _safe_url("https://example.com/invoice/123")
+        == "https://example.com/invoice/123"
+    )
+
+
+def test_email_subject_strips_newlines():
+    assert _safe_subject("Invoice 123\r\nBcc: attacker@example.com") == (
+        "Invoice 123 Bcc: attacker@example.com"
+    )
+
+
+def test_plain_text_template_contains_action_and_url():
+    text = _plain_text(
+        title="Invoice ready",
+        content="Your invoice is ready to review.",
+        cta_label="View invoice",
+        cta_url="https://example.com/invoice/123",
+    )
+
+    assert "Invoice ready" in text
+    assert "Your invoice is ready to review." in text
+    assert "View invoice: https://example.com/invoice/123" in text
+    assert "BAGG" in text
+
+
+def test_email_without_action_does_not_render_button():
+    html = _email_html(
+        category="Account access",
+        title="Sign in to Bagg",
+        preheader="Your one-time sign-in code.",
+        content_html="<p>Use your code below.</p>",
+    )
+
+    assert "Sign in to Bagg" in html
+    assert "<a href=" not in html
+
+```
+
+Run the focused tests from `apps/api`:
+
+```
+uv run pytest tests/test_email_templates.py -q
+```
+
+These are proposed tests; I have not executed them against your checkout.
+
+## 3. What the templates look like in practice
+
+Invoice delivery
+
+Document
+
+Subject: Invoice INV-0001 from Bagg
+
+## Invoice INV-0001
+
+You have received invoice INV-0001. Open it to review the details and payment instructions.
+
+View invoice
+
+Quote delivery
+
+Commercial
+
+Subject: Quote QT-0001 from Studio Example
+
+## Quote QT-0001
+
+Studio Example sent you a quote.
+
+QUOTE TOTAL
+
+# ₦250,000.00
+
+Valid until 30 November 2026
+
+Review quote
+
+Sign-in code
+
+Security
+
+Subject: Your Bagg sign-in code
+
+## Sign in to Bagg
+
+Use this one-time code to sign in to your Bagg account.
+
+# 123456
+
+Example code only · Expires in 10 minutes
+
+If you did not request this code, ignore this email. Never share it with anyone.
+
+These are layout previews, not screenshots rendered by an email client.
+
+## 4. Two integration details to verify before deploying
+
+1. Sendly payload compatibility. The existing integration sends `html`; the replacement also sends `text`. Verify that Sendly accepts the additional field. SMTP already uses standard `multipart/alternative` with both formats.
+2. Development delivery semantics. The existing implementation treats unavailable local SMTP as successful in non-production. The replacement preserves that return behaviour, but logs that the email was not delivered. Do not interpret a `True` result in that development fallback as proof that an email reached a mailbox.
+
+One small correction to the replacement code above: in `_send_via_sendly`, make sure the comment under `except Exception:` uses ordinary spaces for indentation:
+
+```
+        except Exception:
+            # Avoid logging message bodies, codes, or provider credentials.
+            logger.exception(
+                "SendlyAI email delivery failed for %s",
+                to_email,
+            )
+            return False
+```
+
+The implementation deliberately preserves the existing five email methods and their parameters. I have not committed or applied these changes to GitHub, and the tests remain unrun.

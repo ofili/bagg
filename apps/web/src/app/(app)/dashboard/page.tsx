@@ -7,7 +7,7 @@ import { BaggCoin } from '@/components/brand/Logo';
 import { Money } from '@/components/money/Money';
 import { Button, Card, buttonStyles, chipStyles } from '@/components/ui';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = '/api';
 
 interface CurrencyMetrics {
   currency: string;

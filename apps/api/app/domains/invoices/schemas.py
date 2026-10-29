@@ -177,6 +177,7 @@ class InvoiceResponse(BaseModel):
     version: int = 1
     last_revised_at: Optional[datetime] = None
     whatsapp_share_url: Optional[str] = None
+    comment_count: int = 0
     latest_claim: Optional[PaymentClaimResponse] = None
     latest_receipt: Optional[InvoiceReceiptSummary] = None
     created_at: datetime

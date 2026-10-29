@@ -1,18 +1,18 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, Check, CheckCircle2, Clock, Loader2, Sparkles, XCircle } from 'lucide-react';
 import { BaggCoin } from '@/components/brand/Logo';
+import { DocumentComments } from "@/components/comments/DocumentComments";
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
-import { Button, Card, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
-import { Sheet, SheetClose, SheetContent } from '@/components/ui/sheet';
+import { Button, Card, Dialog, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = '/api';
 
 interface LineItem {
   id: string;
@@ -70,13 +70,13 @@ export default function PublicQuotePage() {
   const [error, setError] = useState<string | null>(null);
 
   // Accept Bottom Sheet State
-  const [showAcceptSheet, setShowAcceptSheet] = useState(false);
+  const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [acceptName, setAcceptName] = useState('');
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
 
   // Decline Bottom Sheet State
-  const [showDeclineSheet, setShowDeclineSheet] = useState(false);
+  const [showDeclineDialog, setShowDeclineDialog] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
   const [declining, setDeclining] = useState(false);
   const [declineError, setDeclineError] = useState<string | null>(null);
@@ -143,7 +143,7 @@ export default function PublicQuotePage() {
 
       const updated = await res.json();
       setQuote(updated);
-      setShowAcceptSheet(false);
+      setShowAcceptDialog(false);
     } catch {
       setAcceptError('Network error while submitting acceptance.');
     } finally {
@@ -168,7 +168,7 @@ export default function PublicQuotePage() {
       }
       const updated = await res.json();
       setQuote(updated);
-      setShowDeclineSheet(false);
+      setShowDeclineDialog(false);
     } catch {
       setDeclineError('Network error while declining quote.');
     } finally {
@@ -400,10 +400,10 @@ export default function PublicQuotePage() {
             {canRespond && (
               <div className="space-y-3 border-t border-line pt-5">
                 <p className="text-body text-text-soft">Happy with the scope and price? Accept to get started.</p>
-                <Button zone="calm" size="lg" fullWidth onClick={() => setShowAcceptSheet(true)}>
+                <Button zone="calm" size="lg" fullWidth onClick={() => setShowAcceptDialog(true)}>
                   <Check aria-hidden className="h-4 w-4" /> Accept quote
                 </Button>
-                <Button variant="outline" zone="calm" size="lg" fullWidth onClick={() => setShowDeclineSheet(true)}>
+                <Button variant="outline" zone="calm" size="lg" fullWidth onClick={() => setShowDeclineDialog(true)}>
                   Decline
                 </Button>
                 <div className="text-center">
@@ -421,6 +421,14 @@ export default function PublicQuotePage() {
           </div>
         </article>
 
+        <DocumentComments
+          documentType="quote"
+          documentId={quote.id}
+          isPublicView={true}
+          shareToken={token}
+          documentNumber={quote.quote_number}
+        />
+
         {quote.show_badge && (
           <div className="text-center">
             <Link
@@ -435,96 +443,115 @@ export default function PublicQuotePage() {
         )}
       </div>
 
-      {/* Accept sheet */}
-      <Sheet open={showAcceptSheet} onOpenChange={setShowAcceptSheet}>
-        <SheetContent title="Accept this quote" className="overflow-y-auto">
-          <form onSubmit={handleAcceptQuote} className="space-y-4 p-5 pb-8">
-            <div className="space-y-1">
-              <h2 className="text-title">accept this quote</h2>
-              <p className="text-body text-text-soft">
-                {quote.quote_number} ·{' '}
-                <Money amountMinor={quote.net_payable_minor} currency={quote.currency} variant="inherit" className="font-extrabold text-text" />
-              </p>
-            </div>
+      {/* Accept dialog */}
+      <Dialog
+        open={showAcceptDialog}
+        onClose={() => !accepting && setShowAcceptDialog(false)}
+        title="Accept this quote"
+        description="By confirming, you approve the scope, pricing and commercial terms in this quote."
+        className="max-h-[92dvh] overflow-y-auto"
+      >
+        <form onSubmit={handleAcceptQuote} className="space-y-4">
+          <div className="rounded-row bg-surface-sunken p-3 text-body">
+            <span className="text-text-soft">{quote.quote_number} · Net payable: </span>
+            <Money
+              amountMinor={quote.net_payable_minor}
+              currency={quote.currency}
+              variant="inherit"
+              className="font-extrabold text-text"
+            />
+          </div>
 
-            <Field label="Your full name or authorised signatory">
-              {(a) => (
-                <Input
-                  type="text"
-                  required
-                  placeholder="e.g. Amara Okonkwo"
-                  value={acceptName}
-                  onChange={(e) => setAcceptName(e.target.value)}
-                  {...a}
-                />
-              )}
-            </Field>
-
-            {acceptError && (
-              <p role="alert" className="rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]">
-                {acceptError}
-              </p>
+          <Field label="Your full name or authorised signatory">
+            {(a) => (
+              <Input
+                type="text"
+                required
+                placeholder="e.g. Amara Okonkwo"
+                value={acceptName}
+                onChange={(e) => setAcceptName(e.target.value)}
+                {...a}
+              />
             )}
+          </Field>
 
-            <p className="text-body text-text-soft">
-              By confirming, you approve the scope, pricing and terms in this quote.
-            </p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <SheetClose asChild>
-                <Button variant="outline" zone="calm" size="lg" disabled={accepting}>
-                  Cancel
-                </Button>
-              </SheetClose>
-              <Button type="submit" zone="calm" size="lg" loading={accepting}>
-                Confirm
-              </Button>
+          {acceptError && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-row border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+            >
+              <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+              <span>{acceptError}</span>
             </div>
-          </form>
-        </SheetContent>
-      </Sheet>
+          )}
 
-      {/* Decline sheet */}
-      <Sheet open={showDeclineSheet} onOpenChange={setShowDeclineSheet}>
-        <SheetContent title="Decline this quote" className="overflow-y-auto">
-          <form onSubmit={handleDeclineQuote} className="space-y-4 p-5 pb-8">
-            <div className="space-y-1">
-              <h2 className="text-title">decline this quote</h2>
-              <p className="text-body text-text-soft">Tell them why it did not fit. It helps them improve the next one.</p>
-            </div>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              zone="calm"
+              size="lg"
+              disabled={accepting}
+              onClick={() => setShowAcceptDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" zone="calm" size="lg" loading={accepting}>
+              Confirm & accept
+            </Button>
+          </div>
+        </form>
+      </Dialog>
 
-            <Field label="Reason (optional)">
-              {(a) => (
-                <textarea
-                  rows={4}
-                  placeholder="For example: budget changed, timeline too tight, or the scope changed."
-                  value={declineReason}
-                  onChange={(e) => setDeclineReason(e.target.value)}
-                  className={cn(inputStyles, 'min-h-28 py-2')}
-                  {...a}
-                />
-              )}
-            </Field>
-
-            {declineError && (
-              <p role="alert" className="rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]">
-                {declineError}
-              </p>
+      {/* Decline dialog */}
+      <Dialog
+        open={showDeclineDialog}
+        onClose={() => !declining && setShowDeclineDialog(false)}
+        title="Decline this quote"
+        description="Tell them why it did not fit so they can adjust the proposal."
+        className="max-h-[92dvh] overflow-y-auto"
+      >
+        <form onSubmit={handleDeclineQuote} className="space-y-4">
+          <Field label="Reason (optional)">
+            {(a) => (
+              <textarea
+                rows={4}
+                placeholder="For example: budget changed, timeline too tight, or the scope changed."
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                className={cn(inputStyles, 'min-h-28 py-2')}
+                {...a}
+              />
             )}
+          </Field>
 
-            <div className="grid grid-cols-2 gap-3">
-              <SheetClose asChild>
-                <Button variant="outline" zone="calm" size="lg" disabled={declining}>
-                  Cancel
-                </Button>
-              </SheetClose>
-              <Button type="submit" variant="danger" zone="calm" size="lg" loading={declining}>
-                Decline quote
-              </Button>
+          {declineError && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-row border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+            >
+              <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+              <span>{declineError}</span>
             </div>
-          </form>
-        </SheetContent>
-      </Sheet>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              zone="calm"
+              size="lg"
+              disabled={declining}
+              onClick={() => setShowDeclineDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="danger" zone="calm" size="lg" loading={declining}>
+              Decline quote
+            </Button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 }

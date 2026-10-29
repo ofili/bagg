@@ -12,6 +12,7 @@ from app.domains.auth.schemas import (
 from app.domains.auth.service import AuthService
 from app.domains.workspaces.schemas import WorkspaceResponse
 from fastapi import Request
+from app.core.proxy import get_client_ip
 from app.core.rate_limit import enforce_rate_limit
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -75,7 +76,7 @@ async def request_magic_link(
 ):
     """Request a one-time sign-in code without returning the code to the client."""
 
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_client_ip(request)
     email = str(payload.email).lower().strip()
 
     await enforce_rate_limit(
@@ -119,7 +120,7 @@ async def verify_code(
 ):
     service = AuthService(db)
 
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_client_ip(request)
     email = str(payload.email).lower().strip()
 
     await enforce_rate_limit(

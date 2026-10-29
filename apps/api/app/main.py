@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.core.middleware import RequestTracingMiddleware, SecurityHeadersMiddleware
 from app.core.money import CURRENCY_SPECS
 from app.domains.auth.router import router as auth_router
 from app.domains.workspaces.router import router as workspaces_router
@@ -15,6 +16,7 @@ from app.domains.webhooks.invoice_payments import router as invoice_payment_webh
 from app.domains.compliance.router import router as compliance_router
 from app.domains.quotes.router import router as quotes_router
 from app.domains.receipts.router import router as receipts_router
+from app.domains.notifications.router import router as notifications_router
 
 app = FastAPI(
     title="Bagg API",
@@ -25,14 +27,15 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Security & Observability Middlewares
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestTracingMiddleware)
+
 # Cross-Origin Resource Sharing
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        settings.WEB_BASE_URL
-    ],
+    allow_origins=settings.cors_origins,
+
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,6 +55,7 @@ app.include_router(webhooks_router)
 app.include_router(invoice_payment_webhooks_router)
 app.include_router(compliance_router)
 app.include_router(receipts_router)
+app.include_router(notifications_router)
 
 
 @app.get("/health", tags=["System"])

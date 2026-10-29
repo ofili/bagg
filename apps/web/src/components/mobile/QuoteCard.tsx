@@ -8,6 +8,7 @@ import {
   Clock,
   Copy,
   ExternalLink,
+  MessageSquare,
   MoreHorizontal,
   Share2,
 } from 'lucide-react';
@@ -36,6 +37,7 @@ export interface QuoteCardData {
   whatsapp_share_url?: string | null;
   invoice_id?: string | null;
   invoice_number?: string | null;
+  comment_count?: number;
 }
 
 interface QuoteCardProps {
@@ -52,7 +54,6 @@ const menuItemClass =
 
 export function QuoteCard({
   quote: q,
-  onFinalize,
   onSend,
   onConvert,
   sending = false,
@@ -87,6 +88,15 @@ export function QuoteCard({
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-baseline gap-2">
             <h3 className="text-body-l font-extrabold">{q.quote_number}</h3>
+            {(q.comment_count ?? 0) > 0 && (
+              <span
+                title={`${q.comment_count} comment${(q.comment_count ?? 0) > 1 ? 's' : ''}`}
+                className="inline-flex items-center gap-1 rounded border border-border bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
+              >
+                <MessageSquare className="h-3 w-3 text-ink-muted" />
+                <span>{q.comment_count}</span>
+              </span>
+            )}
             {isExpired && (
               <span className="rounded-full bg-[#FFB3B3] px-2 py-0.5 text-caption font-extrabold text-[#5A1010]">
                 Expired
@@ -184,17 +194,15 @@ export function QuoteCard({
         )}
       </div>
 
-      {/* Issuing a quote and delivering a quote are separate actions. */}
-      {q.status === 'draft' && onFinalize && (
-        <Button
-          zone="calm"
-          fullWidth
-          className="mt-4"
-          loading={sending}
-          onClick={onFinalize}
+      {/* Draft quotes must be reviewed on the detail page before issuing. */}
+      {q.status === 'draft' && (
+        <Link
+          href={`/quotes/${q.id}`}
+          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-btn border border-line bg-surface text-body font-bold hover:bg-surface-tint"
         >
-          Approve & issue quote
-        </Button>
+          View &amp; issue quote
+          <ArrowRight aria-hidden className="h-4 w-4" />
+        </Link>
       )}
 
       {['issued', 'sent', 'viewed'].includes(q.status) && onSend && (

@@ -111,13 +111,13 @@ async def test_invoice_drafting_and_sequential_numbering_lifecycle():
         # 4. List and filter invoices
         list_res = await client.get("/invoices")
         assert list_res.status_code == 200
-        all_invoices = list_res.json()
+        all_invoices = list_res.json()["items"]
         assert len(all_invoices) == 2
         assert all_invoices[0]["invoice_number"] == "INV-0002"  # ordered desc
 
         filter_client = await client.get(f"/invoices?client_id={client_id}")
         assert filter_client.status_code == 200
-        assert len(filter_client.json()) == 2
+        assert len(filter_client.json()["items"]) == 2
 
         # 5. Delete draft invoice
         del_res = await client.delete(f"/invoices/{inv2['id']}")
@@ -125,4 +125,4 @@ async def test_invoice_drafting_and_sequential_numbering_lifecycle():
 
         # Verify list now has 1 invoice
         list_after = await client.get("/invoices")
-        assert len(list_after.json()) == 1
+        assert len(list_after.json()["items"]) == 1

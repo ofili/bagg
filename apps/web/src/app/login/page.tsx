@@ -11,7 +11,7 @@ import { BagCharacter, CoinLogo, Wordmark } from '@/components/brand';
 import { buttonStyles } from '@/components/ui/button';
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  '/api';
 
 type WorkspaceResponse = {
   business_name?: string | null;

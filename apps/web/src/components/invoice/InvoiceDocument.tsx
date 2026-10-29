@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CheckCircle2, ExternalLink, ReceiptText, ShieldCheck } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock3, ExternalLink, ReceiptText, ShieldCheck } from 'lucide-react';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
 import { Button, Card, buttonStyles } from '@/components/ui';
@@ -37,8 +37,10 @@ interface InvoicePaymentClaim {
   amount_minor?: number;
   payment_date?: string;
   reference?: string | null;
+  proof_file_url?: string | null;
   status?: string;
   rejection_reason?: string | null;
+  created_at?: string;
 }
 
 interface InvoiceDocumentProps {
@@ -147,8 +149,9 @@ export function InvoiceDocument({
   const isPaid = status === 'paid' || user_facing_status === 'Paid';
   const isOverdue = user_facing_status === 'Overdue';
   const isClaimed = status === 'payment_claimed' || latest_claim?.status === 'pending';
+  const isClaimRejected = !isPaid && !isClaimed && latest_claim?.status === 'rejected';
   const isPartiallyPaid = status === 'partially_paid' || (amount_paid_minor > 0 && !isPaid);
-  const displayStatus = user_facing_status || status;
+  const displayStatus = isClaimed && variant === 'public' ? 'Payment claimed' : (user_facing_status || status);
   const paidPercent = Math.min(100, Math.round((amount_paid_minor / Math.max(netPayable, 1)) * 100));
 
   const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -156,7 +159,7 @@ export function InvoiceDocument({
     `Hi ${client_name || 'there'}, here is invoice ${invoice_number}: ${shareUrl}/i/${share_token}`,
   );
 
-  const claimLabel = isPartiallyPaid ? "I've paid the rest" : "I've paid by bank transfer";
+  const claimLabel = isPartiallyPaid ? "I've paid the rest" : "I've paid";
 
   return (
     <div className={cn('space-y-6 text-text', className)}>
@@ -235,12 +238,66 @@ export function InvoiceDocument({
         )}
 
         {isClaimed && (
-          <p className="flex items-start gap-2 rounded-row bg-peach p-3 text-body">
-            <CheckCircle2 aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-            {variant === 'issuer'
-              ? 'Payment claim received. Confirm the funds before this becomes a receipt.'
-              : 'Payment claim sent. You will get a receipt once the funds are confirmed.'}
-          </p>
+          <div className="space-y-2 rounded-row border border-amber-300 bg-amber-50 p-3.5 text-body text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+            <div className="flex items-center gap-2 font-bold text-amber-900 dark:text-amber-100">
+              <Clock3 aria-hidden className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>{variant === 'issuer' ? 'Payment claim awaiting confirmation' : 'Payment reported · Awaiting confirmation'}</span>
+            </div>
+            <p className="text-caption text-amber-800 dark:text-amber-300">
+              {variant === 'issuer'
+                ? 'Your client has reported a payment. Confirm the funds in your account to generate the official receipt.'
+                : 'You reported this payment. Once your freelancer confirms the funds in their bank account, your receipt will be available here automatically.'}
+            </p>
+            {latest_claim && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-amber-200/60 pt-2 text-caption dark:border-amber-800/40">
+                <span>
+                  <strong className="text-amber-950 dark:text-amber-100">Amount:</strong>{' '}
+                  <Money amountMinor={latest_claim.amount_minor || 0} currency={currency} hideCurrencyCode variant="inherit" />
+                </span>
+                {latest_claim.payment_date && (
+                  <span>
+                    <strong className="text-amber-950 dark:text-amber-100">Date:</strong>{' '}
+                    {formatDate(latest_claim.payment_date)}
+                  </span>
+                )}
+                {latest_claim.reference && (
+                  <span>
+                    <strong className="text-amber-950 dark:text-amber-100">Reference:</strong>{' '}
+                    {latest_claim.reference}
+                  </span>
+                )}
+                {latest_claim.proof_file_url && (
+                  <a
+                    href={latest_claim.proof_file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-amber-900 underline dark:text-amber-100"
+                  >
+                    View proof document <ExternalLink aria-hidden className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {isClaimRejected && (
+          <div className="space-y-2 rounded-row border border-red-300 bg-red-50 p-3.5 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
+            <div className="flex items-center gap-2 font-bold text-red-900 dark:text-red-100">
+              <AlertCircle aria-hidden className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+              <span>Previous payment could not be verified</span>
+            </div>
+            <p className="text-caption text-red-800 dark:text-red-300">
+              {variant === 'issuer'
+                ? 'You rejected this payment claim.'
+                : 'Your freelancer was unable to confirm the previously reported payment.'}
+              {latest_claim?.rejection_reason && (
+                <span className="mt-1 block font-medium">
+                  Reason provided: &ldquo;{latest_claim.rejection_reason}&rdquo;
+                </span>
+              )}
+            </p>
+          </div>
         )}
       </Card>
 
@@ -252,7 +309,7 @@ export function InvoiceDocument({
           </h2>
           {share_token && (
             <Link
-              href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/invoices/${invoice.id}/pdf`}
+              href={`${'/api'}/invoices/${invoice.id}/pdf`}
               target="_blank"
               rel="noopener noreferrer"
               className={buttonStyles({ variant: 'link' })}
@@ -381,23 +438,40 @@ export function InvoiceDocument({
         <div className="space-y-3 border-t border-line pt-5">
           {!isPaid && (
             <>
-              {onPay ? (
-                <>
-                  <Button zone="calm" size="lg" fullWidth onClick={onPay}>
-                    Pay <Money amountMinor={remaining} currency={currency} variant="inherit" hideCurrencyCode />
+              {onPay && (
+                <Button zone="calm" size="lg" fullWidth onClick={onPay}>
+                  Pay <Money amountMinor={remaining} currency={currency} variant="inherit" hideCurrencyCode />
+                </Button>
+              )}
+              {isClaimed ? (
+                <div className="space-y-2 text-center">
+                  <Button
+                    variant="outline"
+                    zone="calm"
+                    size="lg"
+                    fullWidth
+                    onClick={onClaimPaid}
+                  >
+                    Update payment details
                   </Button>
-                  {!isClaimed && (
-                    <Button variant="outline" zone="calm" size="lg" fullWidth onClick={onClaimPaid}>
-                      {claimLabel}
-                    </Button>
-                  )}
-                </>
+                  <p className="text-caption text-text-muted">
+                    Need to correct the reference, date, or amount you reported?
+                  </p>
+                </div>
+              ) : isClaimRejected ? (
+                <Button
+                  zone="calm"
+                  size="lg"
+                  fullWidth
+                  onClick={onClaimPaid}
+                  className="bg-danger text-white hover:bg-danger/90"
+                >
+                  Submit payment details again
+                </Button>
               ) : (
-                !isClaimed && (
-                  <Button zone="calm" size="lg" fullWidth onClick={onClaimPaid}>
-                    {claimLabel}
-                  </Button>
-                )
+                <Button zone="calm" size="lg" fullWidth onClick={onClaimPaid}>
+                  {claimLabel}
+                </Button>
               )}
               <div className="text-center">
                 <a

@@ -10,3 +10,12 @@ export type { ToggleProps } from './Toggle';
 export { Dialog } from './Dialog';
 export type { DialogProps } from './Dialog';
 export { Sheet, SheetTrigger, SheetContent, SheetClose, SheetFooter } from './sheet';
+export { BaggSelect } from './BaggSelect';
+export type { BaggSelectOption } from './BaggSelect';
+export { SearchInput } from './SearchInput';
+export { DataTable } from './DataTable';
+export type { ColumnDef } from './DataTable';
+export { Pagination } from './Pagination';
+export { TableToolbar } from './TableToolbar';
+export type { FilterConfig } from './TableToolbar';
+

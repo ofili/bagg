@@ -154,6 +154,11 @@ class AuthService:
         if session is None:
             return None
 
+        # Sliding session window: extend active sessions when less than 7 days remain
+        if session.expires_at - now < timedelta(days=7):
+            session.expires_at = now + timedelta(days=self.SESSION_DAYS)
+            await self.db.commit()
+
         user_result = await self.db.execute(
             select(User).where(User.id == session.user_id)
         )

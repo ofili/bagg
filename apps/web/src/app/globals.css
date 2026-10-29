@@ -146,9 +146,9 @@ textarea {
 }
 
 .bagg-select__label {
-  color: var(--text-soft);
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
   line-height: 1.4;
 }
 
@@ -159,12 +159,12 @@ textarea {
   gap: 12px;
 
   width: 100%;
-  min-height: 42px;
+  min-height: 44px;
   padding: 9px 12px;
 
   color: var(--text);
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: 10px;
 
   font: inherit;

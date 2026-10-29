@@ -2,7 +2,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc
+from sqlalchemy import select, and_, desc, asc, func, or_
 from typing import List, Optional
 from datetime import date, datetime, timezone
 from urllib.parse import quote
@@ -10,6 +10,7 @@ from jinja2 import Template
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.pagination import PaginatedResponse
 from app.core.errors import NotFoundException, BadRequestException
 from app.core.money import format_money
 from app.domains.workspaces.models import Workspace
@@ -114,8 +115,13 @@ def map_receipt_to_response(
     )
 
 
-@router.get("", response_model=List[ReceiptResponse])
+@router.get("", response_model=PaginatedResponse[ReceiptResponse])
 async def list_receipts(
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search by receipt number, invoice number, or client name"),
+    sort_by: str = Query("created_at", description="Column to sort by"),
+    sort_order: str = Query("desc", description="Sort order: asc or desc"),
     client_id: Optional[str] = Query(None, description="Filter by client ID"),
     invoice_id: Optional[str] = Query(None, description="Filter by invoice ID"),
     currency: Optional[str] = Query(None, description="Filter by currency"),
@@ -123,25 +129,58 @@ async def list_receipts(
     db: AsyncSession = Depends(get_db),
 ):
     """Lists issued receipts for the active workspace."""
+    conditions = [Receipt.workspace_id == workspace.id]
+
+    if client_id:
+        conditions.append(Receipt.client_id == client_id)
+    if invoice_id:
+        conditions.append(Receipt.invoice_id == invoice_id)
+    if currency:
+        conditions.append(Receipt.currency == currency.upper())
+    if search:
+        conditions.append(
+            or_(
+                Receipt.receipt_number.ilike(f"%{search}%"),
+                Invoice.invoice_number.ilike(f"%{search}%"),
+                Client.name.ilike(f"%{search}%"),
+            )
+        )
+
+    SORT_COLUMNS = {
+        "created_at": Receipt.created_at,
+        "amount_minor": Receipt.amount_paid_minor,
+        "receipt_number": Receipt.receipt_number,
+    }
+    sort_col = SORT_COLUMNS.get(sort_by, Receipt.created_at)
+    order_expr = asc(sort_col) if sort_order == "asc" else desc(sort_col)
+
+    count_stmt = (
+        select(func.count())
+        .select_from(Receipt)
+        .join(Client, Receipt.client_id == Client.id, isouter=True)
+        .join(Invoice, Receipt.invoice_id == Invoice.id)
+        .where(and_(*conditions))
+    )
+    total = (await db.execute(count_stmt)).scalar_one()
+
+    order_clauses = [order_expr]
+    if sort_by != "created_at":
+        order_clauses.append(desc(Receipt.created_at))
+
     stmt = (
         select(Receipt, Client.name.label("client_name"), Client.phone.label("client_phone"), Invoice.invoice_number)
         .join(Client, Receipt.client_id == Client.id, isouter=True)
         .join(Invoice, Receipt.invoice_id == Invoice.id)
-        .where(Receipt.workspace_id == workspace.id)
+        .where(and_(*conditions))
+        .order_by(*order_clauses)
+        .offset((page - 1) * per_page)
+        .limit(per_page)
     )
 
-    if client_id:
-        stmt = stmt.where(Receipt.client_id == client_id)
-    if invoice_id:
-        stmt = stmt.where(Receipt.invoice_id == invoice_id)
-    if currency:
-        stmt = stmt.where(Receipt.currency == currency.upper())
-
-    stmt = stmt.order_by(desc(Receipt.created_at))
     res = await db.execute(stmt)
     rows = res.all()
 
-    return [
+    items = [
         map_receipt_to_response(
             rcp,
             client_name=c_name,
@@ -150,6 +189,12 @@ async def list_receipts(
         )
         for rcp, c_name, c_phone, _ in rows
     ]
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        per_page=per_page,
+    )
 
 
 @router.post("/invoice/{invoice_id}", response_model=ReceiptResponse, status_code=status.HTTP_201_CREATED)

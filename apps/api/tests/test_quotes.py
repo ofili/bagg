@@ -115,13 +115,13 @@ async def test_quotes_full_lifecycle():
         # --- 7. List Quotes with Filters ---
         list_res = await client.get("/quotes?status=sent")
         assert list_res.status_code == 200
-        sent_quotes = list_res.json()
+        sent_quotes = list_res.json()["items"]
         assert len(sent_quotes) == 1
         assert sent_quotes[0]["id"] == q1["id"]
 
         list_all = await client.get("/quotes")
         assert list_all.status_code == 200
-        assert len(list_all.json()) == 2
+        assert len(list_all.json()["items"]) == 2
 
         # --- 8. US-QOT-02: Public Portal View (Zero-Account Payer) ---
         # An unauthenticated client views the quote

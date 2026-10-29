@@ -1,13 +1,18 @@
+from app.domains.notifications.service import NotificationService
+from app.domains.notifications.router import require_auth
 from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.proxy import get_client_ip
+from app.core.rate_limit import enforce_rate_limit
+from app.core.pagination import PaginatedResponse
 from app.domains.auth.models import User
 from app.domains.documents.service import render_quote_html
 from app.domains.invoices.presenter import map_invoice_to_response
@@ -48,8 +53,13 @@ def _map(quote_obj, workspace: Workspace) -> QuoteResponse:
     )
 
 
-@router.get("", response_model=List[QuoteResponse])
+@router.get("", response_model=PaginatedResponse[QuoteResponse])
 async def list_quotes(
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search by quote number or client name"),
+    sort_by: str = Query("sequence_number", description="Column to sort by"),
+    sort_order: str = Query("desc", description="Sort order: asc or desc"),
     client_id: Optional[str] = Query(None, description="Filter by client ID"),
     status_filter: Optional[str] = Query(
         None,
@@ -60,14 +70,25 @@ async def list_quotes(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    quotes = await service.list_quotes(
+    quotes, total = await service.list_quotes(
         db,
         workspace,
         client_id=client_id,
         status_filter=status_filter,
         currency=currency,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        per_page=per_page,
     )
-    return [_map(q, workspace) for q in quotes]
+    items = [_map(q, workspace) for q in quotes]
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        per_page=per_page,
+    )
 
 
 @router.post("", response_model=QuoteResponse, status_code=status.HTTP_201_CREATED)
@@ -207,6 +228,30 @@ async def list_quote_comments(
     comments = await service.list_quote_comments(db, workspace, id)
     return [QuoteCommentResponse.model_validate(comment) for comment in comments]
 
+@router.post("/{id}/comments", response_model=QuoteCommentResponse, status_code=status.HTTP_201_CREATED)
+async def post_quote_comment(
+    id: str,
+    payload: QuoteCommentCreate,
+    auth=Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.domains.quotes.models import QuoteComment
+    user, workspace = auth
+    quote_obj = await service._get_quote_or_404(db, workspace, id)
+    author_name = payload.author_name.strip() if payload.author_name and payload.author_name.strip() else (workspace.business_name or "Business")
+    comment = QuoteComment(
+        quote_id=quote_obj.id,
+        line_item_id=payload.line_item_id,
+        author_name=author_name,
+        message=payload.message.strip(),
+        is_from_client=False,
+    )
+    db.add(comment)
+    await db.commit()
+    await db.refresh(comment)
+    return QuoteCommentResponse.model_validate(comment)
+
+
 
 @router.post("/{id}/convert", response_model=InvoiceResponse)
 async def convert_quote_to_invoice(
@@ -240,11 +285,31 @@ async def get_public_quote(
 async def accept_public_quote(
     token: str,
     payload: QuoteAcceptRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_rate_limit(
+        action="client-quote-accept",
+        identity=get_client_ip(request),
+        limit=10,
+        window_seconds=3600,
+    )
     quote_obj, client_name, workspace = await service.accept_public_quote(
         db, token, payload
     )
+    if workspace and workspace.owner_id:
+        await NotificationService.create_notification(
+            db,
+            workspace_id=workspace.id,
+            recipient_user_id=workspace.owner_id,
+            type="quote_accepted",
+            title=f"Quote {quote_obj.quote_number} was accepted!",
+            body=f"{payload.accepted_by_name} accepted the quote.",
+            document_type="quote",
+            document_id=quote_obj.id,
+            document_number=quote_obj.quote_number,
+            link_url=f"/quotes/{quote_obj.id}",
+        )
     return map_public_quote_view(
         quote_obj,
         client_name,
@@ -259,11 +324,32 @@ async def accept_public_quote(
 async def decline_public_quote(
     token: str,
     payload: QuoteDeclineRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_rate_limit(
+        action="client-quote-decline",
+        identity=get_client_ip(request),
+        limit=10,
+        window_seconds=3600,
+    )
     quote_obj, client_name, workspace = await service.decline_public_quote(
         db, token, payload
     )
+    if workspace and workspace.owner_id:
+        reason_suffix = f": \"{payload.decline_reason}\"" if payload.decline_reason else "."
+        await NotificationService.create_notification(
+            db,
+            workspace_id=workspace.id,
+            recipient_user_id=workspace.owner_id,
+            type="quote_declined",
+            title=f"Quote {quote_obj.quote_number} was declined",
+            body=f"{client_name or 'Client'} declined the quote{reason_suffix}",
+            document_type="quote",
+            document_id=quote_obj.id,
+            document_number=quote_obj.quote_number,
+            link_url=f"/quotes/{quote_obj.id}",
+        )
     return map_public_quote_view(
         quote_obj,
         client_name,
@@ -272,6 +358,7 @@ async def decline_public_quote(
         is_expired=quote_obj.expires_at < date.today(),
         effective_status=quote_obj.status,
     )
+
 
 @router.post("/share/{token}/request-review", response_model=PublicQuoteView)
 async def request_public_quote_review(
@@ -282,6 +369,19 @@ async def request_public_quote_review(
     quote_obj, client_name, workspace = await service.request_quote_review(
         db, token, payload
     )
+    if workspace and workspace.owner_id:
+        await NotificationService.create_notification(
+            db,
+            workspace_id=workspace.id,
+            recipient_user_id=workspace.owner_id,
+            type="quote_review_requested",
+            title=f"Changes requested on quote {quote_obj.quote_number}",
+            body=f"{client_name or 'Client'} requested review: \"{payload.review_reason}\"",
+            document_type="quote",
+            document_id=quote_obj.id,
+            document_number=quote_obj.quote_number,
+            link_url=f"/quotes/{quote_obj.id}",
+        )
     return map_public_quote_view(
         quote_obj,
         client_name,
@@ -313,11 +413,33 @@ async def post_public_quote_comment(
     token: str,
     payload: QuoteCommentCreate,
     background_tasks: BackgroundTasks,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_rate_limit(
+        action="client-quote-comment",
+        identity=get_client_ip(request),
+        limit=20,
+        window_seconds=3600,
+    )
     comment, quote_obj, workspace, item_description = (
         await service.post_public_quote_comment(db, token, payload)
     )
+
+    if workspace and workspace.owner_id:
+        await NotificationService.create_notification(
+            db,
+            workspace_id=workspace.id,
+            recipient_user_id=workspace.owner_id,
+            type="client_comment",
+            title=f"New question on quote {quote_obj.quote_number}",
+            body=f"{comment.author_name}: {comment.message[:150]}",
+            document_type="quote",
+            document_id=quote_obj.id,
+            document_number=quote_obj.quote_number,
+            link_url=f"/quotes/{quote_obj.id}#comments",
+            comment_id=comment.id,
+        )
 
     owner_email = (
         await db.execute(select(User.email).where(User.id == workspace.owner_id))

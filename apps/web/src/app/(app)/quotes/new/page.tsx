@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -7,11 +7,11 @@ import { ArrowLeft, X } from 'lucide-react';
 import { LineItemsEditor, lineTotalMinor, newLineItem, type LineItem } from '@/components/invoice';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { Money } from '@/components/money/Money';
-import { Button, Card, Chip, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
+import { BaggSelect, Button, Card, Chip, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
 import { cleanAmount, toMinor } from '@/lib/amount';
 import { cn } from '@/lib/cn';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = '/api';
 
 interface ClientItem {
   id: string;
@@ -19,7 +19,15 @@ interface ClientItem {
   preferred_currency: string;
 }
 
-const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'KES', 'ZAR'];
+const SUPPORTED_CURRENCIES = [
+  { code: 'NGN', label: 'NGN · Nigerian naira' },
+  { code: 'USD', label: 'USD · US dollar' },
+  { code: 'GBP', label: 'GBP · British pound' },
+  { code: 'EUR', label: 'EUR · Euro' },
+  { code: 'GHS', label: 'GHS · Ghanaian cedi' },
+  { code: 'KES', label: 'KES · Kenyan shilling' },
+  { code: 'ZAR', label: 'ZAR · South African rand' },
+];
 const VALIDITY_OPTIONS = [7, 14, 30];
 
 export default function NewQuotePage() {
@@ -123,7 +131,8 @@ export default function NewQuotePage() {
         setErrorMsg(err.detail || 'Failed to create the quote.');
         return;
       }
-      router.push('/quotes');
+      const newQuote = await res.json();
+      router.push(`/quotes/${newQuote.id}`);
     } catch {
       setErrorMsg('Network error while creating the quote.');
     } finally {
@@ -134,8 +143,9 @@ export default function NewQuotePage() {
   return (
     <div className="w-full max-w-3xl space-y-6 p-4 pb-24 sm:p-6 sm:pb-16 lg:p-8">
       <div className="space-y-2">
-        <Link href="/quotes" className={buttonStyles({ variant: 'link' })}>
-          <ArrowLeft aria-hidden className="h-4 w-4" /> Back to quotes
+        <Link href="/quotes" className={buttonStyles({ variant: 'outline' })}>
+          <ArrowLeft aria-hidden className="h-4 w-4" />
+          Back to quotes
         </Link>
         <h1 className="text-title-l sm:text-display">new quote</h1>
         <p className="text-body text-text-soft">An estimate with an expiry date. Convert it to an invoice once it is accepted.</p>
@@ -157,17 +167,16 @@ export default function NewQuotePage() {
 
       <Card zone="calm" className="grid gap-4 p-5 sm:grid-cols-2">
         {clients.length > 0 ? (
-          <Field label="Client">
-            {(a) => (
-              <select className={inputStyles} value={selectedClientId} onChange={(e) => handleClientChange(e.target.value)} {...a}>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.preferred_currency})
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
+          <BaggSelect
+            label="Client"
+            className="w-full"
+            value={selectedClientId}
+            onChange={handleClientChange}
+            options={clients.map((c) => ({
+              value: c.id,
+              label: `${c.name} (${c.preferred_currency})`,
+            }))}
+          />
         ) : (
           <div className="space-y-1.5">
             <p className="text-body font-medium">Client</p>
@@ -180,17 +189,16 @@ export default function NewQuotePage() {
           </div>
         )}
 
-        <Field label="Currency">
-          {(a) => (
-            <select className={inputStyles} value={currency} onChange={(e) => setCurrency(e.target.value)} {...a}>
-              {CURRENCIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
+        <BaggSelect
+          label="Currency"
+          className="w-full"
+          value={currency}
+          onChange={setCurrency}
+          options={SUPPORTED_CURRENCIES.map((c) => ({
+            value: c.code,
+            label: c.label,
+          }))}
+        />
 
         <div className="space-y-1.5 sm:col-span-2">
           <p id="validity-label" className="text-body font-medium">

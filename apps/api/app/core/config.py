@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     PAYSTACK_PUBLIC_KEY: Optional[str] = None
     PAYSTACK_INVOICE_WEBHOOK_SECRET: Optional[str] = None
 
+    # Trusted reverse proxy hop count for X-Forwarded-For stripping.
+    # Set to 1 for a single Nginx/Caddy/CF layer in production.
+    TRUSTED_PROXY_HOPS: int = 1
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -70,6 +74,27 @@ class Settings(BaseSettings):
                 "INTERNAL_JOB_TOKEN must be set in production"
             )
         return self
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.strip().lower() == "production"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """All allowed CORS origins including the proxy-rewrite same-origin path."""
+        origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            self.WEB_BASE_URL,
+        ]
+        # Deduplicate while preserving order
+        seen = set()
+        result = []
+        for o in origins:
+            if o not in seen:
+                seen.add(o)
+                result.append(o)
+        return result
 
 
 settings = Settings()

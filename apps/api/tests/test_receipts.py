@@ -126,13 +126,13 @@ async def test_receipts_full_lifecycle():
         # --- 7. List Receipts ---
         list_res = await client.get("/receipts")
         assert list_res.status_code == 200
-        receipts = list_res.json()
+        receipts = list_res.json()["items"]
         assert len(receipts) == 2
 
         # Filter by invoice
         filter_res = await client.get(f"/receipts?invoice_id={inv1_id}")
         assert filter_res.status_code == 200
-        assert len(filter_res.json()) == 2
+        assert len(filter_res.json()["items"]) == 2
 
         # --- 8. Get Single Receipt Detail ---
         detail_res = await client.get(f"/receipts/{rcp1['id']}")

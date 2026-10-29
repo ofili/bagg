@@ -136,7 +136,7 @@ async def test_data_rights_compliance_and_security_lifecycle():
         # No invoices should exist
         inv_list = await client.get("/invoices")
         assert inv_list.status_code == 200
-        assert len(inv_list.json()) == 0
+        assert len(inv_list.json()["items"]) == 0
 
         # No clients should exist
         cl_list = await client.get("/clients")

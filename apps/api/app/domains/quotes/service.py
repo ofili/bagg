@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, cast
 
-from sqlalchemy import and_, desc, select
+from sqlalchemy import and_, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -84,29 +84,78 @@ async def list_quotes(
     client_id: Optional[str] = None,
     status_filter: Optional[str] = None,
     currency: Optional[str] = None,
-) -> list[Quote]:
-    stmt = select(Quote).where(Quote.workspace_id == workspace.id)
+    search: Optional[str] = None,
+    sort_by: str = "sequence_number",
+    sort_order: str = "desc",
+    page: int = 1,
+    per_page: int = 20,
+) -> tuple[list[Quote], int]:
+    conditions = [Quote.workspace_id == workspace.id]
 
     if client_id:
-        stmt = stmt.where(Quote.client_id == client_id)
+        conditions.append(Quote.client_id == client_id)
 
     if currency:
-        stmt = stmt.where(Quote.currency == currency.upper())
+        conditions.append(Quote.currency == currency.upper())
 
     if status_filter:
-        stat = status_filter.lower()
+        stat = status_filter.lower().strip()
         if stat == "expired":
-            stmt = stmt.where(
+            conditions.append(
                 and_(
                     Quote.expires_at < date.today(),
                     Quote.status.notin_(["accepted", "converted"]),
                 )
             )
         else:
-            stmt = stmt.where(Quote.status == stat)
+            conditions.append(Quote.status == stat)
 
-    stmt = stmt.order_by(desc(Quote.created_at))
-    return list((await db.execute(stmt)).scalars().all())
+    if search:
+        conditions.append(
+            or_(
+                Quote.quote_number.ilike(f"%{search}%"),
+                Client.name.ilike(f"%{search}%"),
+            )
+        )
+
+    SORT_COLUMNS = {
+        "sequence_number": Quote.sequence_number,
+        "issue_date": Quote.issue_date,
+        "expires_at": Quote.expires_at,
+        "total_minor": Quote.total_minor,
+        "status": Quote.status,
+        "created_at": Quote.created_at,
+    }
+    sort_col = SORT_COLUMNS.get(sort_by, Quote.sequence_number)
+    order_expr = asc(sort_col) if sort_order == "asc" else desc(sort_col)
+
+    base_stmt = (
+        select(Quote)
+        .outerjoin(Client, Client.id == Quote.client_id)
+        .where(and_(*conditions))
+    )
+
+    count_stmt = (
+        select(func.count())
+        .select_from(Quote)
+        .outerjoin(Client, Client.id == Quote.client_id)
+        .where(and_(*conditions))
+    )
+    total = (await db.execute(count_stmt)).scalar_one()
+
+    order_clauses = [order_expr]
+    if sort_by != "created_at":
+        order_clauses.append(desc(Quote.created_at))
+
+    items_stmt = (
+        base_stmt
+        .order_by(*order_clauses)
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+    )
+    items = list((await db.execute(items_stmt)).scalars().all())
+
+    return (items, total)
 
 
 async def get_quote(db: AsyncSession, workspace: Workspace, quote_id: str) -> Quote:
@@ -694,6 +743,23 @@ async def view_public_quote(
             actor_type="client",
             source="client_view",
         )
+        if workspace and workspace.owner_id:
+            try:
+                from app.domains.notifications.service import NotificationService
+                await NotificationService.create_notification(
+                    db,
+                    workspace_id=workspace.id,
+                    recipient_user_id=workspace.owner_id,
+                    type="quote_viewed",
+                    title=f"Quote {quote_obj.quote_number} was viewed",
+                    body=f"{client_name or 'Client'} opened and viewed the quote.",
+                    document_type="quote",
+                    document_id=quote_obj.id,
+                    document_number=quote_obj.quote_number,
+                    link_url=f"/quotes/{quote_obj.id}",
+                )
+            except Exception as e:
+                logger.warning(f"Failed to create quote viewed notification: {e}")
         await db.commit()
         await db.refresh(quote_obj)
 

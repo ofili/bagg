@@ -1,23 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   AlertCircle,
   ArrowUpRight,
   FileText,
-  Loader2,
   ReceiptText,
-  Search,
 } from 'lucide-react';
-
-import { Card, Button, buttonStyles, inputStyles } from '@/components/ui';
+import {
+  Card,
+  buttonStyles,
+  DataTable,
+  type ColumnDef,
+  Pagination,
+  TableToolbar,
+} from '@/components/ui';
 import { Money } from '@/components/money/Money';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { useDataTable } from '@/hooks/useDataTable';
 
 interface ReceiptRecord {
   id: string;
@@ -41,14 +42,6 @@ interface ReceiptRecord {
   created_at: string;
 }
 
-async function readError(
-  response: Response,
-  fallback: string,
-): Promise<Error> {
-  const body = await response.json().catch(() => ({}));
-  return new Error(body.detail || body.message || fallback);
-}
-
 function paymentMethodLabel(value: string): string {
   return value
     .split('_')
@@ -56,71 +49,200 @@ function paymentMethodLabel(value: string): string {
     .join(' ');
 }
 
+const CURRENCY_OPTIONS = [
+  { value: '', label: 'All currencies' },
+  { value: 'NGN', label: 'NGN (₦)' },
+  { value: 'USD', label: 'USD ($)' },
+  { value: 'GBP', label: 'GBP (£)' },
+  { value: 'EUR', label: 'EUR (€)' },
+  { value: 'GHS', label: 'GHS (GH₵)' },
+  { value: 'KES', label: 'KES (KSh)' },
+  { value: 'ZAR', label: 'ZAR (R)' },
+];
+
 export default function ReceiptsPage() {
-  const [receipts, setReceipts] = useState<ReceiptRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [currencyFilter, setCurrencyFilter] = useState('');
+  const table = useDataTable<ReceiptRecord>({
+    endpoint: '/receipts',
+    defaultSortBy: 'created_at',
+    defaultSortOrder: 'desc',
+    defaultPerPage: 20,
+  });
 
-  const loadReceipts = useCallback(async () => {
-    try {
-      setLoading(true);
-      setLoadError(null);
+  const receipts = table.data?.items ?? [];
+  const totalReceipts = table.data?.total ?? 0;
 
-      const response = await fetch(`${API_BASE}/receipts`, {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+  const columns: ColumnDef<ReceiptRecord>[] = [
+    {
+      key: 'receipt_number',
+      header: 'Receipt',
+      align: 'left',
+      sortable: true,
+      render: (receipt) => (
+        <Link
+          href={`/receipts/${encodeURIComponent(receipt.id)}`}
+          className="font-bold underline-offset-4 hover:underline"
+        >
+          {receipt.receipt_number}
+        </Link>
+      ),
+    },
+    {
+      key: 'client_name',
+      header: 'Customer',
+      align: 'left',
+      render: (receipt) => receipt.client_name || receipt.payer_name || 'Customer',
+    },
+    {
+      key: 'invoice_number',
+      header: 'Invoice',
+      align: 'left',
+      render: (receipt) => (
+        <Link
+          href={`/invoices/${encodeURIComponent(receipt.invoice_id)}`}
+          className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+        >
+          {receipt.invoice_number}
+          <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
+        </Link>
+      ),
+    },
+    {
+      key: 'payment_date',
+      header: 'Payment date',
+      align: 'right',
+      sortable: true,
+      cellClassName: 'whitespace-nowrap',
+      render: (receipt) => formatDate(receipt.payment_date),
+    },
+    {
+      key: 'amount_paid_minor',
+      header: 'Amount',
+      align: 'right',
+      sortable: true,
+      cellClassName: 'whitespace-nowrap font-semibold',
+      render: (receipt) => (
+        <Money
+          amountMinor={receipt.amount_paid_minor}
+          currency={receipt.currency}
+          hideCurrencyCode
+        />
+      ),
+    },
+    {
+      key: 'payment_method',
+      header: 'Method',
+      align: 'left',
+      render: (receipt) => paymentMethodLabel(receipt.payment_method),
+    },
+    {
+      key: 'verification',
+      header: 'Verification',
+      align: 'left',
+      render: (receipt) => (
+        <span
+          className={cn(
+            'inline-flex rounded-full px-2.5 py-1 text-caption font-bold',
+            receipt.is_verified
+              ? 'bg-leaf text-[#052E1B]'
+              : 'bg-sun text-[#4A3200]',
+          )}
+        >
+          {receipt.is_verified ? 'Verified' : 'Unverified'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'center',
+      render: (receipt) => (
+        <div className="flex items-center justify-center gap-2">
+          <Link
+            href={`/receipts/${encodeURIComponent(receipt.id)}`}
+            className={buttonStyles({
+              variant: 'outline',
+              zone: 'calm',
+            })}
+          >
+            View
+          </Link>
+        </div>
+      ),
+    },
+  ];
 
-      if (!response.ok) {
-        throw await readError(response, 'Could not load receipts.');
-      }
-
-      const data = (await response.json()) as ReceiptRecord[];
-      setReceipts(data);
-    } catch (error: unknown) {
-      setLoadError(
-        error instanceof Error ? error.message : 'Could not load receipts.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadReceipts();
-  }, [loadReceipts]);
-
-  const currencies = useMemo(
-    () => [...new Set(receipts.map((receipt) => receipt.currency))].sort(),
-    [receipts],
+  const emptyState = (
+    <Card zone="calm" className="space-y-3 p-8 text-center">
+      <ReceiptText aria-hidden className="mx-auto h-10 w-10 text-text-muted" />
+      <h2 className="text-title">no receipts found</h2>
+      <p className="mx-auto max-w-md text-body text-text-soft">
+        {totalReceipts === 0 && !table.search.trim() && !table.filters['currency']
+          ? 'Issued receipts will appear here when payments are recorded.'
+          : 'Try a different search or currency filter.'}
+      </p>
+    </Card>
   );
 
-  const visibleReceipts = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  const renderMobileCard = (receipt: ReceiptRecord) => (
+    <Card zone="calm" className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link
+            href={`/receipts/${encodeURIComponent(receipt.id)}`}
+            className="font-bold underline-offset-4 hover:underline"
+          >
+            {receipt.receipt_number}
+          </Link>
+          <p className="mt-1 truncate text-body text-text-soft">
+            {receipt.client_name || receipt.payer_name || 'Customer'}
+          </p>
+        </div>
+        <Money
+          amountMinor={receipt.amount_paid_minor}
+          currency={receipt.currency}
+          className="shrink-0 font-bold"
+          hideCurrencyCode
+        />
+      </div>
 
-    return receipts.filter((receipt) => {
-      if (currencyFilter && receipt.currency !== currencyFilter) {
-        return false;
-      }
+      <dl className="grid grid-cols-2 gap-3 text-body">
+        <div>
+          <dt className="text-caption text-text-muted">Invoice</dt>
+          <dd>
+            <Link
+              href={`/invoices/${encodeURIComponent(receipt.invoice_id)}`}
+              className="underline-offset-4 hover:underline"
+            >
+              {receipt.invoice_number}
+            </Link>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-caption text-text-muted">Payment date</dt>
+          <dd>{formatDate(receipt.payment_date)}</dd>
+        </div>
+        <div>
+          <dt className="text-caption text-text-muted">Method</dt>
+          <dd>{paymentMethodLabel(receipt.payment_method)}</dd>
+        </div>
+        <div>
+          <dt className="text-caption text-text-muted">Verification</dt>
+          <dd>{receipt.is_verified ? 'Verified' : 'Unverified'}</dd>
+        </div>
+      </dl>
 
-      if (!query) return true;
-
-      return [
-        receipt.receipt_number,
-        receipt.invoice_number,
-        receipt.client_name,
-        receipt.payer_name,
-        receipt.reference,
-        receipt.payment_method,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
-    });
-  }, [receipts, search, currencyFilter]);
-
-  const totalReceipts = visibleReceipts.length;
+      <Link
+        href={`/receipts/${encodeURIComponent(receipt.id)}`}
+        className={buttonStyles({
+          variant: 'outline',
+          zone: 'calm',
+          fullWidth: true,
+        })}
+      >
+        View receipt
+      </Link>
+    </Card>
+  );
 
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
@@ -140,7 +262,7 @@ export default function ReceiptsPage() {
           </div>
           <div>
             <p className="text-caption text-text-soft">
-              {currencyFilter ? `${currencyFilter} receipts` : 'Receipts'}
+              {table.filters['currency'] ? `${table.filters['currency']} receipts` : 'Total receipts'}
             </p>
             <p className="text-title">{totalReceipts}</p>
           </div>
@@ -151,217 +273,72 @@ export default function ReceiptsPage() {
             <FileText aria-hidden className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-caption text-text-soft">Currencies represented</p>
+            <p className="text-caption text-text-soft">Current currency filter</p>
             <p className="text-title">
-              {currencyFilter ? 1 : currencies.length}
+              {table.filters['currency'] || 'All'}
             </p>
           </div>
         </Card>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <label className="relative min-w-0 flex-1">
-          <span className="sr-only">
-            Search receipts, invoices, customers or payment references
-          </span>
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
-          />
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search receipt, invoice, customer or reference"
-            className={cn(inputStyles, 'w-full pl-10')}
-          />
-        </label>
+      {/* Unified Toolbar: Search + Currency dropdown */}
+      <TableToolbar
+        search={table.search}
+        onSearchChange={table.setSearch}
+        searchPlaceholder="Search receipt, invoice, customer or reference"
+        filters={[
+          {
+            key: 'currency',
+            label: 'Currency',
+            value: table.filters['currency'] || '',
+            onChange: (v) => table.setFilter('currency', v),
+            options: CURRENCY_OPTIONS,
+          },
+        ]}
+      />
 
-        <label className="sm:w-48">
-          <span className="sr-only">Filter by currency</span>
-          <select
-            value={currencyFilter}
-            onChange={(event) => setCurrencyFilter(event.target.value)}
-            className={cn(inputStyles, 'w-full')}
-          >
-            <option value="">All currencies</option>
-            {currencies.map((currency) => (
-              <option key={currency} value={currency}>
-                {currency}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {loading ? (
-        <div
-          role="status"
-          className="flex justify-center py-16 text-text-muted"
-        >
-          <Loader2 aria-hidden className="h-6 w-6 animate-spin" />
-          <span className="sr-only">Loading receipts</span>
-        </div>
-      ) : loadError ? (
+      {table.error && (
         <Card zone="calm" className="space-y-3 p-6">
-          <AlertCircle aria-hidden className="h-6 w-6" />
+          <AlertCircle aria-hidden className="h-6 w-6 text-danger" />
           <h2 className="text-heading">we couldn’t load your receipts</h2>
           <p role="alert" className="text-body text-text-soft">
-            {loadError}
+            {table.error}
           </p>
-          <Button variant="outline" zone="calm" onClick={() => void loadReceipts()}>
+          <button
+            type="button"
+            className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+            onClick={() => table.reload()}
+          >
             Try again
-          </Button>
+          </button>
         </Card>
-      ) : visibleReceipts.length === 0 ? (
-        <Card zone="calm" className="space-y-3 p-8 text-center">
-          <ReceiptText aria-hidden className="mx-auto h-10 w-10" />
-          <h2 className="text-title">no receipts found</h2>
-          <p className="mx-auto max-w-md text-body text-text-soft">
-            {receipts.length === 0
-              ? 'Issued receipts will appear here when payments are recorded.'
-              : 'Try a different search or currency filter.'}
-          </p>
-        </Card>
-      ) : (
-        <>
-          {/* Desktop and tablet list */}
-          <div className="hidden overflow-x-auto rounded-row border border-line-subtle md:block">
-            <table className="w-full min-w-[850px] text-left text-body">
-              <thead className="bg-surface-tint text-caption text-text-soft">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Receipt</th>
-                  <th className="px-4 py-3 font-semibold">Customer</th>
-                  <th className="px-4 py-3 font-semibold">Invoice</th>
-                  <th className="px-4 py-3 font-semibold">Payment date</th>
-                  <th className="px-4 py-3 text-right font-semibold">Amount</th>
-                  <th className="px-4 py-3 font-semibold">Method</th>
-                  <th className="px-4 py-3 font-semibold">Verification</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleReceipts.map((receipt) => (
-                  <tr
-                    key={receipt.id}
-                    className="border-t border-line-subtle transition-colors hover:bg-surface-tint"
-                  >
-                    <td className="px-4 py-4">
-                      <Link
-                        href={`/receipts/${encodeURIComponent(receipt.id)}`}
-                        className="font-bold underline-offset-4 hover:underline"
-                      >
-                        {receipt.receipt_number}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-4">
-                      {receipt.client_name || receipt.payer_name || 'Customer'}
-                    </td>
-                    <td className="px-4 py-4">
-                      <Link
-                        href={`/invoices/${encodeURIComponent(receipt.invoice_id)}`}
-                        className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                      >
-                        {receipt.invoice_number}
-                        <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
-                      </Link>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      {formatDate(receipt.payment_date)}
-                    </td>
-                    <td className="px-4 py-4 text-right whitespace-nowrap font-semibold">
-                      <Money
-                        amountMinor={receipt.amount_paid_minor}
-                        currency={receipt.currency}
-                        hideCurrencyCode
-                      />
-                    </td>
-                    <td className="px-4 py-4">
-                      {paymentMethodLabel(receipt.payment_method)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={cn(
-                          'inline-flex rounded-full px-2.5 py-1 text-caption font-bold',
-                          receipt.is_verified
-                            ? 'bg-leaf text-[#052E1B]'
-                            : 'bg-sun text-[#4A3200]',
-                        )}
-                      >
-                        {receipt.is_verified ? 'Verified' : 'Unverified'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      )}
 
-          {/* Mobile list */}
-          <ul className="space-y-3 md:hidden">
-            {visibleReceipts.map((receipt) => (
-              <li key={receipt.id}>
-                <Card zone="calm" className="space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <Link
-                        href={`/receipts/${encodeURIComponent(receipt.id)}`}
-                        className="font-bold underline-offset-4 hover:underline"
-                      >
-                        {receipt.receipt_number}
-                      </Link>
-                      <p className="mt-1 truncate text-body text-text-soft">
-                        {receipt.client_name || receipt.payer_name || 'Customer'}
-                      </p>
-                    </div>
-                    <Money
-                      amountMinor={receipt.amount_paid_minor}
-                      currency={receipt.currency}
-                      className="shrink-0 font-bold"
-                      hideCurrencyCode
-                    />
-                  </div>
+      {/* DataTable */}
+      <DataTable
+        columns={columns}
+        rows={receipts}
+        getRowKey={(receipt) => receipt.id}
+        loading={table.loading}
+        emptyState={emptyState}
+        sortBy={table.sortBy}
+        sortOrder={table.sortOrder}
+        onSort={table.toggleSort}
+        renderMobileCard={renderMobileCard}
+        tableClassName="min-w-[850px]"
+        caption="Receipts table"
+      />
 
-                  <dl className="grid grid-cols-2 gap-3 text-body">
-                    <div>
-                      <dt className="text-caption text-text-muted">Invoice</dt>
-                      <dd>
-                        <Link
-                          href={`/invoices/${encodeURIComponent(receipt.invoice_id)}`}
-                          className="underline-offset-4 hover:underline"
-                        >
-                          {receipt.invoice_number}
-                        </Link>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-caption text-text-muted">Payment date</dt>
-                      <dd>{formatDate(receipt.payment_date)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-caption text-text-muted">Method</dt>
-                      <dd>{paymentMethodLabel(receipt.payment_method)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-caption text-text-muted">Verification</dt>
-                      <dd>{receipt.is_verified ? 'Verified' : 'Unverified'}</dd>
-                    </div>
-                  </dl>
-
-                  <Link
-                    href={`/receipts/${encodeURIComponent(receipt.id)}`}
-                    className={buttonStyles({
-                      variant: 'outline',
-                      zone: 'calm',
-                      fullWidth: true,
-                    })}
-                  >
-                    View receipt
-                  </Link>
-                </Card>
-              </li>
-            ))}
-          </ul>
-        </>
+      {/* Pagination */}
+      {table.data && (
+        <Pagination
+          page={table.page}
+          totalPages={table.data.total_pages}
+          total={table.data.total}
+          perPage={table.perPage}
+          onPageChange={table.setPage}
+          onPerPageChange={table.setPerPage}
+        />
       )}
     </div>
   );

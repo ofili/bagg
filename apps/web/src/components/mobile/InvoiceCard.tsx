@@ -10,7 +10,7 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/s
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = '/api';
 
 interface InvoiceCardProps {
   id: string;

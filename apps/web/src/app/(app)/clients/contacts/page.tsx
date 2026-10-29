@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -15,16 +14,20 @@ import {
   MessageCircle,
   Phone,
   Plus,
-  Search,
   Trash2,
   UserRound,
   Users,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import {
+  buttonStyles,
+  DataTable,
+  type ColumnDef,
+  SearchInput,
+} from '@/components/ui';
 import { cn } from '@/lib/cn';
 
 const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  '/api'
 ).replace(/\/$/, '');
 
 type ClientType = 'PERSON' | 'BUSINESS';
@@ -50,38 +53,14 @@ interface Contact {
   client_name?: string | null;
 }
 
-const inputClass =
-  'min-h-12 w-full rounded-input border border-line bg-surface px-3 py-2 text-body text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-cocoa focus:ring-2 focus:ring-cocoa/20';
-
 function responseError(data: unknown, fallback: string): string {
   if (
     typeof data === 'object' &&
     data !== null &&
-    'detail' in data
+    'detail' in data &&
+    typeof data.detail === 'string'
   ) {
-    const detail = data.detail;
-
-    if (typeof detail === 'string') {
-      return detail;
-    }
-
-    if (Array.isArray(detail)) {
-      return detail
-        .map((item) => {
-          if (
-            typeof item === 'object' &&
-            item !== null &&
-            'msg' in item &&
-            typeof item.msg === 'string'
-          ) {
-            return item.msg;
-          }
-
-          return '';
-        })
-        .filter(Boolean)
-        .join(' ');
-    }
+    return data.detail;
   }
 
   return fallback;
@@ -94,59 +73,58 @@ function normalisePhone(phone?: string | null) {
 export default function ContactsPage() {
   const router = useRouter();
 
-  const [contacts, setContacts] = useState<Contact[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [contacts, setContacts] = useState<Contact[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [deletingContactId, setDeletingContactId] = useState<string | null>(
-    null,
-  );
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
+
+  const [sortBy, setSortBy] = useState<'name' | 'client_name'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const clientById = useMemo(() => {
+    const map = new Map<string, Client>();
+    for (const client of clients) {
+      map.set(client.id, client);
+    }
+    return map;
+  }, [clients]);
+
+  const showSuccess = (msg: string) => {
+    setSuccessMessage(msg);
+    window.setTimeout(() => setSuccessMessage(null), 3000);
+  };
 
   const fetchDirectory = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-
     try {
-      const [contactsResponse, clientsResponse] = await Promise.all([
-        fetch(`${API_BASE}/clients/contacts`, {
-          credentials: 'include',
-        }),
-        fetch(`${API_BASE}/clients`, {
-          credentials: 'include',
-        }),
+      setLoading(true);
+      setLoadError(null);
+
+      const [clientsRes, contactsRes] = await Promise.all([
+        fetch(`${API_BASE}/clients`, { credentials: 'include' }),
+        fetch(`${API_BASE}/clients/contacts`, { credentials: 'include' }),
       ]);
 
-      if (!contactsResponse.ok) {
-        const data = await contactsResponse.json().catch(() => ({}));
-
-        throw new Error(
-          responseError(data, 'We could not load your contacts. Try again.'),
-        );
+      if (!clientsRes.ok || !contactsRes.ok) {
+        throw new Error('Could not load contacts directory.');
       }
 
-      if (!clientsResponse.ok) {
-        const data = await clientsResponse.json().catch(() => ({}));
+      const [clientsData, contactsData] = (await Promise.all([
+        clientsRes.json(),
+        contactsRes.json(),
+      ])) as [Client[], Contact[]];
 
-        throw new Error(
-          responseError(data, 'We could not load your clients. Try again.'),
-        );
-      }
-
-      const [contactsData, clientsData] = await Promise.all([
-        contactsResponse.json() as Promise<Contact[]>,
-        clientsResponse.json() as Promise<Client[]>,
-      ]);
-
-      setContacts(contactsData);
       setClients(clientsData);
-    } catch (error) {
+      setContacts(contactsData);
+    } catch (err: unknown) {
       setLoadError(
-        error instanceof Error
-          ? error.message
-          : 'We could not load your contacts. Please try again.',
+        err instanceof Error
+          ? err.message
+          : 'Could not load contacts directory.',
       );
     } finally {
       setLoading(false);
@@ -157,21 +135,48 @@ export default function ContactsPage() {
     void fetchDirectory();
   }, [fetchDirectory]);
 
-  const clientById = useMemo(
-    () => new Map(clients.map((client) => [client.id, client])),
-    [clients],
-  );
+  const handleDeleteContact = async (contact: Contact) => {
+    if (!window.confirm(`Delete contact ${contact.name}?`)) return;
+
+    try {
+      setDeletingContactId(contact.id);
+
+      const res = await fetch(
+        `${API_BASE}/clients/contacts/${encodeURIComponent(contact.id)}`,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+        },
+      );
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(
+          responseError(data, 'Could not delete this contact.'),
+        );
+      }
+
+      showSuccess('Contact deleted.');
+      await fetchDirectory();
+    } catch (err: unknown) {
+      setLoadError(
+        err instanceof Error
+          ? err.message
+          : 'Could not delete this contact.',
+      );
+    } finally {
+      setDeletingContactId(null);
+    }
+  };
 
   const filteredContacts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    if (!query) return contacts;
-
     return contacts.filter((contact) => {
-      const clientName =
-        contact.client_name ??
-        clientById.get(contact.client_id)?.name ??
-        '';
+      if (!query) return true;
+
+      const client = clientById.get(contact.client_id);
+      const clientName = contact.client_name ?? client?.name ?? '';
 
       return (
         contact.name.toLowerCase().includes(query) ||
@@ -181,56 +186,305 @@ export default function ContactsPage() {
         clientName.toLowerCase().includes(query)
       );
     });
-  }, [contacts, searchQuery, clientById]);
+  }, [contacts, clientById, searchQuery]);
 
-  const showSuccess = (message: string) => {
-    setSuccessMessage(message);
-    window.setTimeout(() => setSuccessMessage(null), 3500);
-  };
-
-  const handleDeleteContact = async (contact: Contact) => {
-    const confirmed = window.confirm(
-      `Delete ${contact.name}? This removes the contact record. A business must retain at least one contact.`,
-    );
-
-    if (!confirmed) return;
-
-    setDeletingContactId(contact.id);
-    setLoadError(null);
-    setSuccessMessage(null);
-
-    try {
-      const response = await fetch(
-        `${API_BASE}/clients/contacts/${encodeURIComponent(contact.id)}`,
-        {
-          method: 'DELETE',
-          credentials: 'include',
-        },
-      );
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-
-        throw new Error(
-          responseError(data, 'We could not delete this contact. Try again.'),
-        );
-      }
-
-      setContacts((current) =>
-        current.filter((item) => item.id !== contact.id),
-      );
-
-      showSuccess(`${contact.name} deleted.`);
-    } catch (error) {
-      setLoadError(
-        error instanceof Error
-          ? error.message
-          : 'We could not delete this contact. Please try again.',
-      );
-    } finally {
-      setDeletingContactId(null);
+  const toggleSort = (key: string) => {
+    if (key !== 'name' && key !== 'client_name') return;
+    if (sortBy !== key) {
+      setSortBy(key);
+      setSortOrder('asc');
+    } else {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     }
   };
+
+  const sortedContacts = useMemo(() => {
+    return [...filteredContacts].sort((a, b) => {
+      let aVal = '';
+      let bVal = '';
+      if (sortBy === 'client_name') {
+        const aClient = a.client_name ?? clientById.get(a.client_id)?.name ?? '';
+        const bClient = b.client_name ?? clientById.get(b.client_id)?.name ?? '';
+        aVal = aClient.toLowerCase();
+        bVal = bClient.toLowerCase();
+      } else {
+        aVal = a.name.toLowerCase();
+        bVal = b.name.toLowerCase();
+      }
+      const cmp = aVal.localeCompare(bVal);
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+  }, [filteredContacts, clientById, sortBy, sortOrder]);
+
+  const columns: ColumnDef<Contact>[] = [
+    {
+      key: 'name',
+      header: 'Contact',
+      align: 'left',
+      sortable: true,
+      render: (contact) => (
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">
+            <UserRound className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-ink">{contact.name}</span>
+              {contact.is_primary && (
+                <span className="rounded-full bg-surface-tint px-2 py-0.5 text-caption font-bold text-text-soft">
+                  Primary
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'client_name',
+      header: 'Client',
+      align: 'left',
+      sortable: true,
+      render: (contact) => {
+        const client = clientById.get(contact.client_id);
+        const clientName = contact.client_name ?? client?.name ?? 'Client';
+        return (
+          <Link
+            href={`/clients/${encodeURIComponent(contact.client_id)}`}
+            className="inline-flex items-center gap-1.5 font-semibold text-link underline-offset-4 hover:underline"
+          >
+            {client?.client_type === 'BUSINESS' ? (
+              <Building2 className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+            ) : (
+              <Users className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+            )}
+            {clientName}
+          </Link>
+        );
+      },
+    },
+    {
+      key: 'job_title',
+      header: 'Role',
+      align: 'left',
+      render: (contact) => (
+        <span className="text-body text-text-soft">
+          {contact.job_title || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      align: 'left',
+      render: (contact) =>
+        contact.email ? (
+          <a
+            href={`mailto:${contact.email}`}
+            className="inline-flex items-center gap-1.5 text-body text-text-soft hover:text-ink hover:underline"
+          >
+            <Mail className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+            <span className="truncate">{contact.email}</span>
+          </a>
+        ) : (
+          <span className="text-caption text-text-muted">—</span>
+        ),
+    },
+    {
+      key: 'phone',
+      header: 'Phone / WhatsApp',
+      align: 'left',
+      render: (contact) => {
+        const cleanPhone = normalisePhone(contact.phone);
+        if (!contact.phone) return <span className="text-caption text-text-muted">—</span>;
+        return (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-body text-text-soft">
+              <Phone className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
+              {contact.phone}
+            </span>
+            {cleanPhone && (
+              <a
+                href={`https://wa.me/${cleanPhone.replace(/\+/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-caption font-bold text-link hover:underline"
+              >
+                <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                WhatsApp
+              </a>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'center',
+      render: (contact) => (
+        <div className="flex items-center justify-center gap-1">
+          <Link
+            href={`/clients/contacts/${encodeURIComponent(contact.id)}/edit`}
+            aria-label={`Edit ${contact.name}`}
+            title="Edit contact"
+            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
+          >
+            <Edit2 className="h-4 w-4" aria-hidden="true" />
+          </Link>
+          <button
+            type="button"
+            onClick={() => void handleDeleteContact(contact)}
+            disabled={deletingContactId === contact.id}
+            aria-label={`Delete ${contact.name}`}
+            title="Delete contact"
+            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-[#FFB3B3] hover:text-[#5A1010] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deletingContactId === contact.id ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  const renderMobileCard = (contact: Contact) => {
+    const client = clientById.get(contact.client_id);
+    const clientName = contact.client_name ?? client?.name ?? 'Client';
+    const cleanPhone = normalisePhone(contact.phone);
+
+    return (
+      <article className="flex flex-col gap-4 rounded-card border border-line-subtle bg-surface p-4 sm:p-5">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">
+            <UserRound className="h-5 w-5" aria-hidden="true" />
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-heading text-ink">{contact.name}</h2>
+              {contact.is_primary && (
+                <span className="rounded-full bg-surface-tint px-2 py-0.5 text-caption font-bold text-text-soft">
+                  Primary contact
+                </span>
+              )}
+            </div>
+
+            {contact.job_title && (
+              <p className="mt-0.5 text-body text-text-soft">
+                {contact.job_title}
+              </p>
+            )}
+
+            <Link
+              href="/clients"
+              className="mt-1 inline-flex items-center gap-1.5 text-caption font-bold text-text-muted transition-colors hover:text-ink"
+            >
+              {client?.client_type === 'BUSINESS' ? (
+                <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <Users className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              {clientName}
+            </Link>
+
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-caption text-text-soft">
+              {contact.email && (
+                <a
+                  href={`mailto:${contact.email}`}
+                  className="inline-flex items-center gap-1.5 transition-colors hover:text-ink"
+                >
+                  <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="break-all">{contact.email}</span>
+                </a>
+              )}
+
+              {contact.phone && (
+                <a
+                  href={`tel:${contact.phone}`}
+                  className="inline-flex items-center gap-1.5 transition-colors hover:text-ink"
+                >
+                  <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                  {contact.phone}
+                </a>
+              )}
+
+              {cleanPhone && (
+                <a
+                  href={`https://wa.me/${cleanPhone.replace(/\+/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 font-bold text-link hover:underline"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                  WhatsApp
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-1 border-t border-line-subtle pt-3">
+          <Link
+            href={`/clients/contacts/${encodeURIComponent(contact.id)}/edit`}
+            aria-label={`Edit ${contact.name}`}
+            title="Edit contact"
+            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
+          >
+            <Edit2 className="h-4 w-4" aria-hidden="true" />
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => void handleDeleteContact(contact)}
+            disabled={deletingContactId === contact.id}
+            aria-label={`Delete ${contact.name}`}
+            title="Delete contact"
+            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-[#FFB3B3] hover:text-[#5A1010] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deletingContactId === contact.id ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
+        </div>
+      </article>
+    );
+  };
+
+  const emptyState = (
+    <div className="rounded-card border border-line-subtle bg-surface px-6 py-12 text-center">
+      <ContactRound
+        className="mx-auto h-10 w-10 text-text-muted"
+        aria-hidden="true"
+      />
+
+      <h2 className="mt-4 text-heading text-ink">
+        {searchQuery ? 'No contacts match that search' : 'No contacts yet'}
+      </h2>
+
+      <p className="mx-auto mt-1 max-w-md text-body text-text-soft">
+        {searchQuery
+          ? 'Try searching for a different contact name, role, email address or client.'
+          : 'Add contacts to keep track of the people you communicate with at each client business.'}
+      </p>
+
+      {!searchQuery && (
+        <button
+          type="button"
+          onClick={() => router.push('/clients/contacts/new')}
+          className={cn(buttonStyles({ variant: 'primary' }), 'mt-5 inline-flex')}
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Add your first contact
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <main className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
@@ -238,34 +492,34 @@ export default function ContactsPage() {
         <div className="space-y-3">
           <Link
             href="/clients"
-            className="inline-flex items-center gap-2 text-body font-bold text-ink-soft transition-colors hover:text-ink"
+            className={buttonStyles({ variant: 'outline' })}
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to clients
           </Link>
 
           <div>
-            <h1 className="text-title-l text-ink">Contacts</h1>
-            <p className="mt-1 text-body text-ink-soft">
+            <h1 className="text-title-l sm:text-display text-ink">contacts</h1>
+            <p className="mt-1 text-body text-text-soft">
               Manage the people you work with across your clients and businesses.
             </p>
           </div>
         </div>
 
-        <Button
+        <button
           type="button"
           onClick={() => router.push('/clients/contacts/new')}
-          className="w-fit"
+          className={buttonStyles({ variant: 'accent' })}
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           Add contact
-        </Button>
+        </button>
       </header>
 
       {successMessage && (
         <div
           role="status"
-          className="rounded-input bg-pill-paid/20 px-3 py-2 text-body text-paid-text"
+          className="rounded-row bg-leaf/20 px-3 py-2 text-body text-[#052E1B]"
         >
           {successMessage}
         </div>
@@ -274,13 +528,10 @@ export default function ContactsPage() {
       {loadError && (
         <div
           role="alert"
-          className="flex flex-col gap-3 rounded-input bg-pill-late/40 px-3 py-3 text-body text-late-text sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-3 rounded-row bg-[#FFB3B3] px-3 py-3 text-body text-[#5A1010] sm:flex-row sm:items-center sm:justify-between"
         >
           <span className="flex items-start gap-2">
-            <AlertCircle
-              className="mt-0.5 h-4 w-4 shrink-0"
-              aria-hidden="true"
-            />
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             {loadError}
           </span>
 
@@ -296,10 +547,10 @@ export default function ContactsPage() {
 
       <section className="space-y-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/clients"
-              className="inline-flex min-h-10 items-center gap-2 rounded-input border border-line bg-surface px-3 text-body font-bold text-ink-soft transition-colors hover:bg-tint hover:text-ink"
+              className="inline-flex min-h-10 items-center gap-2 rounded-btn border border-line-subtle bg-surface px-4 text-body font-bold text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
             >
               <Users className="h-4 w-4" aria-hidden="true" />
               Clients
@@ -307,206 +558,37 @@ export default function ContactsPage() {
 
             <span
               aria-current="page"
-              className="inline-flex min-h-10 items-center gap-2 rounded-input border border-cocoa bg-peach-chip px-3 text-body font-bold text-ink"
+              className="inline-flex min-h-10 items-center gap-2 rounded-btn border border-line-subtle bg-peach-chip px-4 text-body font-bold text-ink"
             >
               <ContactRound className="h-4 w-4" aria-hidden="true" />
               Contacts
-              <span className="rounded-full bg-surface px-2 py-0.5 text-caption">
+              <span className="rounded-full bg-surface px-2 py-0.5 text-caption font-bold">
                 {contacts.length}
               </span>
             </span>
           </div>
 
-          <div className="relative w-full sm:max-w-md">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              aria-label="Search contacts"
-              placeholder="Search by name, role, email or client"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              className={cn(inputClass, 'pl-9')}
-            />
-          </div>
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search by name, role, email or client"
+            className="w-full sm:max-w-md"
+          />
         </div>
 
-        {loading ? (
-          <div
-            className="space-y-3"
-            aria-label="Loading contacts"
-            role="status"
-          >
-            {[0, 1, 2].map((item) => (
-              <div
-                key={item}
-                className="h-28 animate-pulse rounded-card bg-tint"
-              />
-            ))}
-          </div>
-        ) : filteredContacts.length === 0 ? (
-          <div className="rounded-card border border-line-subtle bg-surface px-6 py-12 text-center">
-            <ContactRound
-              className="mx-auto h-10 w-10 text-ink-muted"
-              aria-hidden="true"
-            />
-
-            <h2 className="mt-4 text-heading text-ink">
-              {searchQuery ? 'No contacts match that search' : 'No contacts yet'}
-            </h2>
-
-            <p className="mx-auto mt-1 max-w-md text-body text-ink-soft">
-              {searchQuery
-                ? 'Try searching for a different contact name, role, email address or client.'
-                : 'Add contacts to keep track of the people you communicate with at each client business.'}
-            </p>
-
-            {!searchQuery && (
-              <Button
-                type="button"
-                onClick={() => router.push('/clients/contacts/new')}
-                className="mt-5"
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Add your first contact
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredContacts.map((contact) => {
-              const client = clientById.get(contact.client_id);
-              const clientName =
-                contact.client_name ?? client?.name ?? 'Client';
-              const cleanPhone = normalisePhone(contact.phone);
-
-              return (
-                <article
-                  key={contact.id}
-                  className="flex flex-col gap-4 rounded-card border border-line-subtle bg-surface p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5"
-                >
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">
-                      <UserRound className="h-5 w-5" aria-hidden="true" />
-                    </span>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-heading text-ink">
-                          {contact.name}
-                        </h2>
-
-                        {contact.is_primary && (
-                          <span className="rounded-full bg-tint px-2 py-0.5 text-caption font-bold text-ink-soft">
-                            Primary contact
-                          </span>
-                        )}
-                      </div>
-
-                      {contact.job_title && (
-                        <p className="mt-0.5 text-body text-ink-soft">
-                          {contact.job_title}
-                        </p>
-                      )}
-
-                      <Link
-                        href="/clients"
-                        className="mt-1 inline-flex items-center gap-1.5 text-caption font-bold text-ink-muted transition-colors hover:text-ink"
-                      >
-                        {client?.client_type === 'BUSINESS' ? (
-                          <Building2
-                            className="h-3.5 w-3.5"
-                            aria-hidden="true"
-                          />
-                        ) : (
-                          <Users
-                            className="h-3.5 w-3.5"
-                            aria-hidden="true"
-                          />
-                        )}
-                        {clientName}
-                      </Link>
-
-                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-caption text-ink-soft">
-                        {contact.email && (
-                          <a
-                            href={`mailto:${contact.email}`}
-                            className="inline-flex items-center gap-1.5 transition-colors hover:text-ink"
-                          >
-                            <Mail
-                              className="h-3.5 w-3.5"
-                              aria-hidden="true"
-                            />
-                            <span className="break-all">{contact.email}</span>
-                          </a>
-                        )}
-
-                        {contact.phone && (
-                          <a
-                            href={`tel:${contact.phone}`}
-                            className="inline-flex items-center gap-1.5 transition-colors hover:text-ink"
-                          >
-                            <Phone
-                              className="h-3.5 w-3.5"
-                              aria-hidden="true"
-                            />
-                            {contact.phone}
-                          </a>
-                        )}
-
-                        {cleanPhone && (
-                          <a
-                            href={`https://wa.me/${cleanPhone.replace(/\+/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 font-bold text-link hover:underline"
-                          >
-                            <MessageCircle
-                              className="h-3.5 w-3.5"
-                              aria-hidden="true"
-                            />
-                            WhatsApp
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex shrink-0 items-center justify-end gap-1 self-end sm:self-start">
-                    <Link
-                      href={`/clients/contacts/${encodeURIComponent(contact.id)}/edit`}
-                      aria-label={`Edit ${contact.name}`}
-                      title="Edit contact"
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-tint hover:text-ink"
-                    >
-                      <Edit2 className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteContact(contact)}
-                      disabled={deletingContactId === contact.id}
-                      aria-label={`Delete ${contact.name}`}
-                      title="Delete contact"
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-pill-late/40 hover:text-late-text disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {deletingContactId === contact.id ? (
-                        <Loader2
-                          className="h-4 w-4 animate-spin"
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
+        <DataTable
+          columns={columns}
+          rows={sortedContacts}
+          getRowKey={(contact) => contact.id}
+          loading={loading}
+          emptyState={emptyState}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSort={toggleSort}
+          renderMobileCard={renderMobileCard}
+          tableClassName="min-w-[800px]"
+          caption="Contacts table"
+        />
       </section>
     </main>
   );

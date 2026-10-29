@@ -1,4 +1,4 @@
-
+﻿﻿﻿
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,9 +7,10 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { BagCharacter, CoinLogo, Wordmark } from '@/components/brand';
 import { buttonStyles } from '@/components/ui/button';
+import { BaggSelect } from '@/components/ui';
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  '/api';
 
 const inputClass =
   'min-h-12 w-full rounded-input border border-line bg-surface px-3 py-2.5 text-body text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-cocoa focus:ring-2 focus:ring-cocoa/20';
@@ -212,59 +213,43 @@ export default function OnboardingPage() {
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="country" className={labelClass}>
-                    Country
-                  </label>
-                  <select
-                    id="country"
-                    value={country}
-                    onChange={(e) => {
-                      const next = e.target.value;
-                      setCountry(next);
+                <BaggSelect
+                  label="Country"
+                  className="w-full"
+                  value={country}
+                  onChange={(next) => {
+                    setCountry(next);
+                    const defaults: Record<string, string> = {
+                      NG: 'NGN', GH: 'GHS', KE: 'KES', ZA: 'ZAR', GB: 'GBP', US: 'USD',
+                    };
+                    if (defaults[next]) setCurrency(defaults[next]);
+                  }}
+                  options={[
+                    { value: 'NG', label: 'Nigeria' },
+                    { value: 'GH', label: 'Ghana' },
+                    { value: 'KE', label: 'Kenya' },
+                    { value: 'ZA', label: 'South Africa' },
+                    { value: 'GB', label: 'United Kingdom' },
+                    { value: 'US', label: 'United States' },
+                    { value: 'OTHER', label: 'Other' },
+                  ]}
+                />
 
-                      const defaults: Record<string, string> = {
-                        NG: 'NGN',
-                        GH: 'GHS',
-                        KE: 'KES',
-                        ZA: 'ZAR',
-                        GB: 'GBP',
-                        US: 'USD',
-                      };
-
-                      if (defaults[next]) setCurrency(defaults[next]);
-                    }}
-                    className={inputClass}
-                  >
-                    <option value="NG">Nigeria</option>
-                    <option value="GH">Ghana</option>
-                    <option value="KE">Kenya</option>
-                    <option value="ZA">South Africa</option>
-                    <option value="GB">United Kingdom</option>
-                    <option value="US">United States</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="currency" className={labelClass}>
-                    Default currency
-                  </label>
-                  <select
-                    id="currency"
-                    value={currency}
-                    onChange={(e) => setCurrency(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="NGN">NGN — Nigerian naira</option>
-                    <option value="USD">USD — US dollar</option>
-                    <option value="GBP">GBP — British pound</option>
-                    <option value="EUR">EUR — Euro</option>
-                    <option value="GHS">GHS — Ghanaian cedi</option>
-                    <option value="KES">KES — Kenyan shilling</option>
-                    <option value="ZAR">ZAR — South African rand</option>
-                  </select>
-                </div>
+                <BaggSelect
+                  label="Default currency"
+                  className="w-full"
+                  value={currency}
+                  onChange={setCurrency}
+                  options={[
+                    { value: 'NGN', label: 'NGN · Nigerian naira' },
+                    { value: 'USD', label: 'USD · US dollar' },
+                    { value: 'GBP', label: 'GBP · British pound' },
+                    { value: 'EUR', label: 'EUR · Euro' },
+                    { value: 'GHS', label: 'GHS · Ghanaian cedi' },
+                    { value: 'KES', label: 'KES · Kenyan shilling' },
+                    { value: 'ZAR', label: 'ZAR · South African rand' },
+                  ]}
+                />
               </div>
 
               <div>

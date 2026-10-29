@@ -1,4 +1,4 @@
-
+﻿
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
@@ -9,11 +9,13 @@ import {
   Loader2,
   Save,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonStyles } from '@/components/ui/button';
+import { BaggSelect } from '@/components/ui';
+import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import { cn } from '@/lib/cn';
 
 const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  '/api'
 ).replace(/\/$/, '');
 
 type ClientType = 'PERSON' | 'BUSINESS';
@@ -34,13 +36,13 @@ interface Client {
 }
 
 const SUPPORTED_CURRENCIES = [
-  'NGN',
-  'USD',
-  'GBP',
-  'EUR',
-  'GHS',
-  'KES',
-  'ZAR',
+  { code: 'NGN', label: 'NGN · Nigerian naira' },
+  { code: 'USD', label: 'USD · US dollar' },
+  { code: 'GBP', label: 'GBP · British pound' },
+  { code: 'EUR', label: 'EUR · Euro' },
+  { code: 'GHS', label: 'GHS · Ghanaian cedi' },
+  { code: 'KES', label: 'KES · Kenyan shilling' },
+  { code: 'ZAR', label: 'ZAR · South African rand' },
 ];
 
 const inputClass =
@@ -88,6 +90,14 @@ export default function EditClientPage() {
   const router = useRouter();
 
   const [client, setClient] = useState<Client | null>(null);
+  const { setCurrentLabel } = useCurrentBreadcrumb();
+
+  useEffect(() => {
+    if (client?.name) {
+      setCurrentLabel(client.name);
+    }
+    return () => setCurrentLabel(null);
+  }, [client?.name, setCurrentLabel]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -227,7 +237,7 @@ export default function EditClientPage() {
       <main className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
         <Link
           href="/clients"
-          className="inline-flex items-center gap-2 text-body font-bold text-ink-soft transition-colors hover:text-ink"
+          className={buttonStyles({ variant: 'outline' })}
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to clients
@@ -253,7 +263,7 @@ export default function EditClientPage() {
       <main className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
         <Link
           href="/clients"
-          className="inline-flex items-center gap-2 text-body font-bold text-ink-soft transition-colors hover:text-ink"
+          className={buttonStyles({ variant: 'outline' })}
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to clients
@@ -298,7 +308,7 @@ export default function EditClientPage() {
         <div className="space-y-3">
           <Link
             href="/clients"
-            className="inline-flex items-center gap-2 text-body font-bold text-ink-soft transition-colors hover:text-ink"
+            className={buttonStyles({ variant: 'outline' })}
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to clients
@@ -437,45 +447,27 @@ export default function EditClientPage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="client-currency" className={labelClass}>
-                Invoicing currency
-              </label>
-              <select
-                id="client-currency"
-                value={preferredCurrency}
-                onChange={(event) =>
-                  setPreferredCurrency(event.target.value)
-                }
-                className={inputClass}
-              >
-                {SUPPORTED_CURRENCIES.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <BaggSelect
+              label="Invoicing currency"
+              className="w-full"
+              value={preferredCurrency}
+              onChange={setPreferredCurrency}
+              options={SUPPORTED_CURRENCIES.map((c) => ({ value: c.code, label: c.label }))}
+            />
 
-            <div>
-              <label htmlFor="client-terms" className={labelClass}>
-                Payment terms
-              </label>
-              <select
-                id="client-terms"
-                value={paymentTerms}
-                onChange={(event) =>
-                  setPaymentTerms(Number(event.target.value))
-                }
-                className={inputClass}
-              >
-                <option value={0}>Due on receipt</option>
-                <option value={7}>Net 7 days</option>
-                <option value={14}>Net 14 days</option>
-                <option value={30}>Net 30 days</option>
-                <option value={60}>Net 60 days</option>
-              </select>
-            </div>
+            <BaggSelect
+              label="Payment terms"
+              className="w-full"
+              value={String(paymentTerms)}
+              onChange={(v) => setPaymentTerms(Number(v))}
+              options={[
+                { value: '0', label: 'Due on receipt' },
+                { value: '7', label: 'Net 7 days' },
+                { value: '14', label: 'Net 14 days' },
+                { value: '30', label: 'Net 30 days' },
+                { value: '60', label: 'Net 60 days' },
+              ]}
+            />
           </div>
 
           <div>

@@ -151,6 +151,7 @@ def map_invoice_to_response(
         version=inv.version,
         last_revised_at=inv.last_revised_at,
         whatsapp_share_url=wa_url,
+        comment_count=len(inv.comments) if ("comments" in inv.__dict__ and inv.comments) else 0,
         latest_claim=latest_claim,
         latest_receipt=latest_receipt,
         created_at=inv.created_at,

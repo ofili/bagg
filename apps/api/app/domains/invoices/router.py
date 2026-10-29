@@ -1,3 +1,7 @@
+from sqlalchemy import select
+from app.domains.sharing.models import InvoiceComment
+from app.domains.sharing.schemas import CommentCreate, CommentResponse
+from app.domains.notifications.router import require_auth
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query, status
@@ -7,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.money import format_money
+from app.core.pagination import PaginatedResponse
 from app.domains.auth.router import get_current_user_and_workspace
 from app.domains.invoices import service
 from app.domains.invoices.presenter import (
@@ -37,8 +42,13 @@ from app.domains.workspaces.router import resolve_active_workspace
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
 
-@router.get("", response_model=List[InvoiceResponse])
+@router.get("", response_model=PaginatedResponse[InvoiceResponse])
 async def list_invoices(
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search by invoice number or client name"),
+    sort_by: str = Query("sequence_number", description="Column to sort by"),
+    sort_order: str = Query("desc", description="Sort order: asc or desc"),
     client_id: Optional[str] = Query(None, description="Filter by client ID"),
     status_filter: Optional[str] = Query(
         None,
@@ -49,17 +59,28 @@ async def list_invoices(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    invoices = await service.list_invoices(
+    invoices, total = await service.list_invoices(
         db,
         workspace,
         client_id=client_id,
         status_filter=status_filter,
         currency=currency,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        per_page=per_page,
     )
-    return [
+    items = [
         map_invoice_to_response(inv, business_name=workspace.business_name)
         for inv in invoices
     ]
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        per_page=per_page,
+    )
 
 
 @router.get("/metrics", response_model=List[CurrencyMetricsResponse])
@@ -307,3 +328,62 @@ async def update_wht_credit_note(
         db, workspace, invoice_id, payload
     )
     return map_invoice_to_response(invoice, business_name=workspace.business_name)
+
+
+@router.get("/{id}/comments", response_model=List[CommentResponse])
+async def list_invoice_comments(
+    id: str,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    inv = await service._get_invoice_or_404(db, workspace, id)
+    stmt = (
+        select(InvoiceComment)
+        .where(InvoiceComment.invoice_id == inv.id)
+        .order_by(InvoiceComment.created_at.asc())
+    )
+    res = await db.execute(stmt)
+    comments = res.scalars().all()
+    return [
+        CommentResponse(
+            id=comment.id,
+            invoice_id=comment.invoice_id,
+            line_item_id=comment.line_item_id,
+            author_name=comment.author_name,
+            message=comment.message,
+            is_from_client=comment.is_from_client,
+            created_at=comment.created_at,
+        )
+        for comment in comments
+    ]
+
+
+@router.post("/{id}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
+async def post_invoice_comment(
+    id: str,
+    payload: CommentCreate,
+    auth=Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    user, workspace = auth
+    inv = await service._get_invoice_or_404(db, workspace, id)
+    author_name = payload.author_name.strip() if payload.author_name and payload.author_name.strip() else (workspace.business_name or "Business")
+    comment = InvoiceComment(
+        invoice_id=inv.id,
+        line_item_id=payload.line_item_id,
+        author_name=author_name,
+        message=payload.message.strip(),
+        is_from_client=False,
+    )
+    db.add(comment)
+    await db.commit()
+    await db.refresh(comment)
+    return CommentResponse(
+        id=comment.id,
+        invoice_id=comment.invoice_id,
+        line_item_id=comment.line_item_id,
+        author_name=comment.author_name,
+        message=comment.message,
+        is_from_client=comment.is_from_client,
+        created_at=comment.created_at,
+    )

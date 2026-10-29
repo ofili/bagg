@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -14,18 +13,22 @@ import {
   MessageCircle,
   Phone,
   Plus,
-  Search,
   Trash2,
   UserRound,
   Users,
 } from 'lucide-react';
 import { BagCharacter } from '@/components/brand';
 import { Money } from '@/components/money/Money';
-import { Button } from '@/components/ui/button';
+import {
+  buttonStyles,
+  DataTable,
+  type ColumnDef,
+  SearchInput,
+} from '@/components/ui';
 import { cn } from '@/lib/cn';
 
 const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  '/api'
 ).replace(/\/$/, '');
 
 type ClientType = 'PERSON' | 'BUSINESS';
@@ -68,9 +71,6 @@ interface Contact {
   client_name?: string | null;
 }
 
-const inputClass =
-  'min-h-12 w-full rounded-input border border-line bg-surface px-3 py-2 text-body text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-cocoa focus:ring-2 focus:ring-cocoa/20';
-
 function errorText(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
 }
@@ -100,99 +100,101 @@ export default function ClientsPage() {
   const [contactsLoading, setContactsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<DirectoryTab>('clients');
 
-  const fetchClients = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
+  const [contactSortBy, setContactSortBy] = useState<'name' | 'client_name'>('name');
+  const [contactSortOrder, setContactSortOrder] = useState<'asc' | 'desc'>('asc');
 
+  const showSuccess = (msg: string) => {
+    setSuccessMessage(msg);
+    window.setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  const fetchClients = useCallback(async (query = '') => {
     try {
-      const params = new URLSearchParams();
+      setLoading(true);
+      setLoadError(null);
 
-      if (searchQuery.trim()) {
-        params.set('q', searchQuery.trim());
-      }
-
-      const url = `${API_BASE}/clients${
-        params.toString() ? `?${params.toString()}` : ''
-      }`;
-
-      const res = await fetch(url, { credentials: 'include' });
+      const qs = query ? `?q=${encodeURIComponent(query)}` : '';
+      const res = await fetch(`${API_BASE}/clients${qs}`, {
+        credentials: 'include',
+      });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(
-          responseError(data, 'We could not load your clients. Try again.'),
+          responseError(data, 'Could not load your client directory.'),
         );
       }
 
-      const data: Client[] = await res.json();
+      const data = (await res.json()) as Client[];
       setClients(data);
     } catch (err) {
       setLoadError(
-        errorText(err, 'We could not load your clients. Try again.'),
+        errorText(err, 'We could not reach your client records.'),
       );
     } finally {
       setLoading(false);
     }
-  }, [searchQuery]);
+  }, []);
 
-  const fetchContacts = useCallback(async () => {
-    setContactsLoading(true);
-
+  const fetchContacts = useCallback(async (query = '') => {
     try {
-      const params = new URLSearchParams();
+      setContactsLoading(true);
 
-      if (searchQuery.trim()) {
-        params.set('q', searchQuery.trim());
-      }
-
-      const url = `${API_BASE}/clients/contacts${
-        params.toString() ? `?${params.toString()}` : ''
-      }`;
-
-      const res = await fetch(url, { credentials: 'include' });
+      const qs = query ? `?q=${encodeURIComponent(query)}` : '';
+      const res = await fetch(`${API_BASE}/clients/contacts${qs}`, {
+        credentials: 'include',
+      });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(
-          responseError(data, 'We could not load your contacts. Try again.'),
+          responseError(data, 'Could not load your contacts.'),
         );
       }
 
-      const data: Contact[] = await res.json();
+      const data = (await res.json()) as Contact[];
       setContacts(data);
     } catch (err) {
       setLoadError(
-        errorText(err, 'We could not load your contacts. Try again.'),
+        errorText(err, 'We could not reach your contacts directory.'),
       );
     } finally {
       setContactsLoading(false);
     }
-  }, [searchQuery]);
+  }, []);
 
   const refreshDirectory = useCallback(async () => {
-    await Promise.all([fetchClients(), fetchContacts()]);
+    await Promise.all([fetchClients(searchQuery), fetchContacts(searchQuery)]);
+  }, [fetchClients, fetchContacts, searchQuery]);
+
+  useEffect(() => {
+    void fetchClients();
+    void fetchContacts();
   }, [fetchClients, fetchContacts]);
 
   useEffect(() => {
-    void refreshDirectory();
-  }, [refreshDirectory]);
+    const handle = window.setTimeout(() => {
+      if (activeTab === 'clients') {
+        void fetchClients(searchQuery);
+      } else {
+        void fetchContacts(searchQuery);
+      }
+    }, 250);
 
-  const showSuccess = (message: string) => {
-    setSuccessMessage(message);
-    window.setTimeout(() => setSuccessMessage(null), 3500);
-  };
+    return () => window.clearTimeout(handle);
+  }, [searchQuery, activeTab, fetchClients, fetchContacts]);
 
   const handleDeleteClient = async (client: Client) => {
-    const confirmed = window.confirm(
-      `Delete ${client.name}? Their invoices may remain in your workspace. This cannot be undone.`,
-    );
+    const promptMessage =
+      client.invoice_count > 0
+        ? `Delete ${client.name}? They have ${client.invoice_count} existing invoices. Are you sure?`
+        : `Delete ${client.name}? This will remove this client and their associated contacts.`;
 
-    if (!confirmed) return;
-
-    setLoadError(null);
+    if (!window.confirm(promptMessage)) return;
 
     try {
       const res = await fetch(`${API_BASE}/clients/${client.id}`, {
@@ -203,29 +205,21 @@ export default function ClientsPage() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(
-          responseError(data, 'We could not delete this client. Try again.'),
+          responseError(data, 'We could not delete this client.'),
         );
       }
 
-      showSuccess(`${client.name} deleted.`);
+      showSuccess('Client removed.');
       await refreshDirectory();
     } catch (err) {
       setLoadError(
-        errorText(err, 'We could not delete this client. Try again.'),
+        errorText(err, 'We could not delete this client right now.'),
       );
     }
   };
 
   const handleDeleteContact = async (contact: Contact) => {
-    if (
-      !window.confirm(
-        `Delete ${contact.name}? This removes the contact record.`,
-      )
-    ) {
-      return;
-    }
-
-    setLoadError(null);
+    if (!window.confirm(`Delete contact ${contact.name}?`)) return;
 
     try {
       const res = await fetch(
@@ -289,37 +283,308 @@ export default function ClientsPage() {
     clients.find((client) => client.id === contact.client_id)?.name ??
     'Client';
 
+  const toggleContactSort = (key: string) => {
+    if (key !== 'name' && key !== 'client_name') return;
+    if (contactSortBy !== key) {
+      setContactSortBy(key);
+      setContactSortOrder('asc');
+    } else {
+      setContactSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    }
+  };
+
+  const sortedContacts = [...filteredContacts].sort((a, b) => {
+    let aVal = '';
+    let bVal = '';
+    if (contactSortBy === 'client_name') {
+      aVal = getContactClientName(a).toLowerCase();
+      bVal = getContactClientName(b).toLowerCase();
+    } else {
+      aVal = a.name.toLowerCase();
+      bVal = b.name.toLowerCase();
+    }
+    const cmp = aVal.localeCompare(bVal);
+    return contactSortOrder === 'asc' ? cmp : -cmp;
+  });
+
+  const contactColumns: ColumnDef<Contact>[] = [
+    {
+      key: 'name',
+      header: 'Contact',
+      align: 'left',
+      sortable: true,
+      render: (contact) => (
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">
+            <UserRound className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-ink">{contact.name}</span>
+              {contact.is_primary && (
+                <span className="rounded-full bg-surface-tint px-2 py-0.5 text-caption font-bold text-text-soft">
+                  Primary
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'client_name',
+      header: 'Client',
+      align: 'left',
+      sortable: true,
+      render: (contact) => (
+        <Link
+          href={`/clients/${contact.client_id}`}
+          className="font-semibold text-link underline-offset-4 hover:underline"
+        >
+          {getContactClientName(contact)}
+        </Link>
+      ),
+    },
+    {
+      key: 'job_title',
+      header: 'Role',
+      align: 'left',
+      render: (contact) => (
+        <span className="text-body text-text-soft">
+          {contact.job_title || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      align: 'left',
+      render: (contact) =>
+        contact.email ? (
+          <a
+            href={`mailto:${contact.email}`}
+            className="inline-flex items-center gap-1.5 text-body text-text-soft hover:text-ink hover:underline"
+          >
+            <Mail className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+            <span className="truncate">{contact.email}</span>
+          </a>
+        ) : (
+          <span className="text-caption text-text-muted">—</span>
+        ),
+    },
+    {
+      key: 'phone',
+      header: 'Phone / WhatsApp',
+      align: 'left',
+      render: (contact) => {
+        const cleanPhone = normalisePhone(contact.phone);
+        if (!contact.phone) return <span className="text-caption text-text-muted">—</span>;
+        return (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-body text-text-soft">
+              <Phone className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
+              {contact.phone}
+            </span>
+            {cleanPhone && (
+              <a
+                href={`https://wa.me/${cleanPhone.replace(/\+/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-caption font-bold text-link hover:underline"
+              >
+                <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                WhatsApp
+              </a>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'center',
+      render: (contact) => (
+        <div className="flex items-center justify-center gap-1">
+          <Link
+            href={`/clients/contacts/${contact.id}/edit`}
+            aria-label={`Edit ${contact.name}`}
+            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
+          >
+            <Edit2 className="h-4 w-4" aria-hidden="true" />
+          </Link>
+          <button
+            type="button"
+            onClick={() => void handleDeleteContact(contact)}
+            aria-label={`Delete ${contact.name}`}
+            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-[#FFB3B3] hover:text-[#5A1010]"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  const renderMobileContactCard = (contact: Contact) => {
+    const cleanPhone = normalisePhone(contact.phone);
+
+    return (
+      <article className="flex flex-col gap-3 rounded-card border border-line-subtle bg-surface p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">
+              <UserRound className="h-5 w-5" aria-hidden="true" />
+            </span>
+
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-heading text-ink">{contact.name}</h3>
+                {contact.is_primary && (
+                  <span className="rounded-full bg-surface-tint px-2 py-0.5 text-caption font-bold text-text-soft">
+                    Primary
+                  </span>
+                )}
+              </div>
+
+              {contact.job_title && (
+                <p className="mt-0.5 text-body text-text-soft">
+                  {contact.job_title}
+                </p>
+              )}
+
+              <p className="mt-1 text-caption font-bold text-text-muted">
+                Client: {getContactClientName(contact)}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <Link
+              href={`/clients/contacts/${contact.id}/edit`}
+              aria-label={`Edit ${contact.name}`}
+              className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft hover:bg-surface-tint hover:text-ink"
+            >
+              <Edit2 className="h-4 w-4" aria-hidden="true" />
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => void handleDeleteContact(contact)}
+              aria-label={`Delete ${contact.name}`}
+              className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft hover:bg-[#FFB3B3] hover:text-[#5A1010]"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-line-subtle pt-3 text-caption text-text-soft">
+          {contact.email && (
+            <a
+              href={`mailto:${contact.email}`}
+              className="inline-flex items-center gap-1.5 hover:text-ink"
+            >
+              <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+              {contact.email}
+            </a>
+          )}
+
+          {contact.phone && (
+            <span className="inline-flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+              {contact.phone}
+            </span>
+          )}
+
+          {cleanPhone && (
+            <a
+              href={`https://wa.me/${cleanPhone.replace(/\+/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 font-bold text-link hover:underline"
+            >
+              <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+              WhatsApp
+            </a>
+          )}
+        </div>
+      </article>
+    );
+  };
+
+  const emptyContactsState = (
+    <div className="rounded-card border border-line-subtle bg-surface px-6 py-10 text-center">
+      <ContactRound
+        className="mx-auto h-10 w-10 text-text-muted"
+        aria-hidden="true"
+      />
+      <h3 className="mt-3 text-heading text-ink">
+        {searchQuery
+          ? 'No contacts match that search'
+          : 'No contacts yet'}
+      </h3>
+      <p className="mt-1 text-body text-text-soft">
+        {searchQuery
+          ? 'Try searching by contact name, role, email or client.'
+          : 'Add a contact to an existing client using the Add contact action.'}
+      </p>
+
+      {!searchQuery && clients.length > 0 && (
+        <Link
+          href="/clients/contacts/new"
+          className={cn(buttonStyles({ variant: 'primary' }), 'mt-4 inline-flex')}
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Add your first contact
+        </Link>
+      )}
+
+      {!searchQuery && clients.length === 0 && (
+        <Link
+          href="/clients/new"
+          className={cn(buttonStyles({ variant: 'primary' }), 'mt-4 inline-flex')}
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Create a client first
+        </Link>
+      )}
+    </div>
+  );
+
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-title-l text-ink">Clients &amp; contacts</h1>
-          <p className="mt-1 text-body text-ink-soft">
+          <h1 className="text-title-l sm:text-display text-ink">clients &amp; contacts</h1>
+          <p className="mt-1 text-body text-text-soft">
             Keep client details and the people you work with in one place.
           </p>
         </div>
 
         {activeTab === 'clients' ? (
-          <Button asChild className="w-fit">
-            <Link href="/clients/new">
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Add client
-            </Link>
-          </Button>
+          <Link
+            href="/clients/new"
+            className={buttonStyles({ variant: 'accent' })}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Add client
+          </Link>
         ) : (
-          <Button asChild className="w-fit">
-            <Link href="/clients/contacts/new">
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Add contact
-            </Link>
-          </Button>
+          <Link
+            href="/clients/contacts/new"
+            className={buttonStyles({ variant: 'accent' })}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Add contact
+          </Link>
         )}
       </header>
 
       {successMessage && (
         <div
           role="status"
-          className="flex items-center gap-2 rounded-input bg-pill-paid/20 px-3 py-2 text-body text-paid-text"
+          className="flex items-center gap-2 rounded-row bg-leaf/20 px-3 py-2 text-body text-[#052E1B]"
         >
           <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
           {successMessage}
@@ -329,13 +594,10 @@ export default function ClientsPage() {
       {loadError && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text"
+          className="flex items-center justify-between gap-3 rounded-row bg-[#FFB3B3] px-3 py-2 text-body text-[#5A1010]"
         >
           <span className="flex items-center gap-2">
-            <AlertCircle
-              className="h-4 w-4 shrink-0"
-              aria-hidden="true"
-            />
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             {loadError}
           </span>
 
@@ -353,7 +615,7 @@ export default function ClientsPage() {
         <div
           role="tablist"
           aria-label="Client directory"
-          className="inline-flex w-fit rounded-input border border-line bg-tint p-1"
+          className="inline-flex w-fit rounded-row border border-line-subtle bg-surface-tint p-1"
         >
           <button
             id="clients-tab"
@@ -363,15 +625,15 @@ export default function ClientsPage() {
             aria-controls="clients-panel"
             onClick={() => setActiveTab('clients')}
             className={cn(
-              'inline-flex min-h-10 items-center gap-2 rounded-input px-4 text-body font-bold transition-colors',
+              'inline-flex min-h-10 items-center gap-2 rounded-btn px-4 text-body font-bold transition-colors',
               activeTab === 'clients'
                 ? 'bg-surface text-ink shadow-sm'
-                : 'text-ink-soft hover:text-ink',
+                : 'text-text-soft hover:text-ink',
             )}
           >
             <Users className="h-4 w-4" aria-hidden="true" />
             Clients
-            <span className="rounded-full bg-tint px-2 py-0.5 text-caption">
+            <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-caption font-bold">
               {clients.length}
             </span>
           </button>
@@ -384,38 +646,30 @@ export default function ClientsPage() {
             aria-controls="contacts-panel"
             onClick={() => setActiveTab('contacts')}
             className={cn(
-              'inline-flex min-h-10 items-center gap-2 rounded-input px-4 text-body font-bold transition-colors',
+              'inline-flex min-h-10 items-center gap-2 rounded-btn px-4 text-body font-bold transition-colors',
               activeTab === 'contacts'
                 ? 'bg-surface text-ink shadow-sm'
-                : 'text-ink-soft hover:text-ink',
+                : 'text-text-soft hover:text-ink',
             )}
           >
             <ContactRound className="h-4 w-4" aria-hidden="true" />
             Contacts
-            <span className="rounded-full bg-tint px-2 py-0.5 text-caption">
+            <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-caption font-bold">
               {contacts.length}
             </span>
           </button>
         </div>
 
-        <div className="relative w-full sm:max-w-md">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            aria-label={`Search ${activeTab}`}
-            placeholder={
-              activeTab === 'clients'
-                ? 'Search clients by name, email or phone'
-                : 'Search contacts or client names'
-            }
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={cn(inputClass, 'pl-9')}
-          />
-        </div>
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder={
+            activeTab === 'clients'
+              ? 'Search clients by name, email or phone'
+              : 'Search contacts or client names'
+          }
+          className="w-full sm:max-w-md"
+        />
       </div>
 
       {activeTab === 'clients' ? (
@@ -433,7 +687,7 @@ export default function ClientsPage() {
               {[0, 1, 2].map((item) => (
                 <div
                   key={item}
-                  className="h-56 animate-pulse rounded-card bg-tint"
+                  className="h-56 animate-pulse rounded-card bg-surface-tint"
                 />
               ))}
             </div>
@@ -445,19 +699,20 @@ export default function ClientsPage() {
                 {searchQuery ? 'No clients match that search' : 'No clients yet'}
               </h2>
 
-              <p className="mx-auto mt-1 max-w-sm text-body text-ink-soft">
+              <p className="mx-auto mt-1 max-w-sm text-body text-text-soft">
                 {searchQuery
                   ? 'Try a different name, email, phone number or reference.'
                   : 'Save a client once, then draft their next invoice in under a minute.'}
               </p>
 
               {!searchQuery && (
-                <Button asChild className="mt-5">
-                  <Link href="/clients/new">
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    Add your first client
-                  </Link>
-                </Button>
+                <Link
+                  href="/clients/new"
+                  className={cn(buttonStyles({ variant: 'primary' }), 'mt-5 inline-flex')}
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Add your first client
+                </Link>
               )}
             </div>
           ) : (
@@ -471,7 +726,7 @@ export default function ClientsPage() {
                 return (
                   <article
                     key={client.id}
-                    className="flex flex-col rounded-card border border-line-subtle bg-surface p-4"
+                    className="flex flex-col rounded-card border border-line-subtle bg-surface p-4 shadow-sm"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-3">
@@ -496,8 +751,8 @@ export default function ClientsPage() {
                             {client.name}
                           </h2>
 
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-caption text-ink-muted">
-                            <span className="rounded-full bg-tint px-2 py-0.5 font-extrabold text-ink-soft">
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-caption text-text-soft">
+                            <span className="rounded-full bg-surface-tint px-2 py-0.5 font-extrabold text-text-soft">
                               {client.client_type === 'BUSINESS'
                                 ? 'Business'
                                 : 'Individual'}
@@ -514,7 +769,7 @@ export default function ClientsPage() {
                         <Link
                           href={`/clients/${client.id}`}
                           aria-label={`Edit ${client.name}`}
-                          className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-tint hover:text-ink"
+                          className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
                         >
                           <Edit2 className="h-4 w-4" aria-hidden="true" />
                         </Link>
@@ -523,42 +778,42 @@ export default function ClientsPage() {
                           type="button"
                           onClick={() => void handleDeleteClient(client)}
                           aria-label={`Delete ${client.name}`}
-                          className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-pill-late/40 hover:text-late-text"
+                          className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-[#FFB3B3] hover:text-[#5A1010]"
                         >
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </div>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-caption text-ink-muted">
-                      <span className="rounded-full bg-tint px-2 py-1 font-bold text-ink-soft">
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-caption text-text-soft">
+                      <span className="rounded-full bg-surface-tint px-2 py-1 font-bold text-text-soft">
                         {client.preferred_currency}
                       </span>
 
                       <span>Net {client.default_payment_terms_days} days</span>
 
                       {client.client_type === 'BUSINESS' && (
-                        <span className="rounded-full bg-tint px-2 py-1">
+                        <span className="rounded-full bg-surface-tint px-2 py-1">
                           {clientContacts.length}{' '}
                           {clientContacts.length === 1 ? 'contact' : 'contacts'}
                         </span>
                       )}
                     </div>
 
-                    <div className="mt-4 min-h-14 space-y-1.5 text-body text-ink-soft">
+                    <div className="mt-4 min-h-14 space-y-1.5 text-body text-text-soft">
                       {client.email ? (
                         <a
                           href={`mailto:${client.email}`}
                           className="flex items-center gap-2 hover:text-ink"
                         >
                           <Mail
-                            className="h-3.5 w-3.5 shrink-0 text-ink-muted"
+                            className="h-3.5 w-3.5 shrink-0 text-text-muted"
                             aria-hidden="true"
                           />
                           <span className="truncate">{client.email}</span>
                         </a>
                       ) : (
-                        <p className="text-caption font-bold text-ink-muted">
+                        <p className="text-caption font-bold text-text-muted">
                           No billing email
                         </p>
                       )}
@@ -567,7 +822,7 @@ export default function ClientsPage() {
                         <div className="flex items-center justify-between gap-2">
                           <span className="flex min-w-0 items-center gap-2">
                             <Phone
-                              className="h-3.5 w-3.5 shrink-0 text-ink-muted"
+                              className="h-3.5 w-3.5 shrink-0 text-text-muted"
                               aria-hidden="true"
                             />
                             <span className="truncate">{client.phone}</span>
@@ -591,7 +846,7 @@ export default function ClientsPage() {
                       )}
 
                       {client.address && (
-                        <p className="flex items-start gap-2 text-caption text-ink-muted">
+                        <p className="flex items-start gap-2 text-caption text-text-muted">
                           <MapPin
                             className="mt-0.5 h-3.5 w-3.5 shrink-0"
                             aria-hidden="true"
@@ -603,8 +858,8 @@ export default function ClientsPage() {
 
                     {client.client_type === 'BUSINESS' &&
                       clientContacts.length > 0 && (
-                        <div className="mt-3 space-y-2 rounded-input bg-tint p-3">
-                          <p className="text-caption font-extrabold uppercase tracking-wide text-ink-muted">
+                        <div className="mt-3 space-y-2 rounded-row bg-surface-tint p-3">
+                          <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
                             {clientContacts.length === 1
                               ? 'Primary contact'
                               : 'Contacts'}
@@ -618,14 +873,14 @@ export default function ClientsPage() {
                                 </span>
 
                                 {contact.is_primary && (
-                                  <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-caption text-ink-soft">
+                                  <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-caption font-bold text-text-soft">
                                     Primary
                                   </span>
                                 )}
                               </div>
 
                               {contact.job_title && (
-                                <p className="text-caption text-ink-muted">
+                                <p className="text-caption text-text-muted">
                                   {contact.job_title}
                                 </p>
                               )}
@@ -633,7 +888,7 @@ export default function ClientsPage() {
                           ))}
 
                           {clientContacts.length > 2 && (
-                            <p className="text-caption text-ink-muted">
+                            <p className="text-caption text-text-muted">
                               +{clientContacts.length - 2} more
                             </p>
                           )}
@@ -642,7 +897,7 @@ export default function ClientsPage() {
 
                     <dl className="mt-auto grid grid-cols-3 gap-2 border-t border-line-subtle pt-3">
                       <div>
-                        <dt className="text-caption text-ink-muted">
+                        <dt className="text-caption text-text-muted">
                           Invoiced
                         </dt>
                         <dd className="mt-0.5 text-caption font-extrabold text-ink">
@@ -655,8 +910,8 @@ export default function ClientsPage() {
                       </div>
 
                       <div>
-                        <dt className="text-caption text-ink-muted">Paid</dt>
-                        <dd className="mt-0.5 text-caption font-extrabold text-paid-text">
+                        <dt className="text-caption text-text-muted">Paid</dt>
+                        <dd className="mt-0.5 text-caption font-extrabold text-leaf">
                           <Money
                             amountMinor={client.total_paid_minor}
                             currency={client.preferred_currency}
@@ -666,7 +921,7 @@ export default function ClientsPage() {
                       </div>
 
                       <div className="text-right">
-                        <dt className="text-caption text-ink-muted">
+                        <dt className="text-caption text-text-muted">
                           Outstanding
                         </dt>
                         <dd className="mt-0.5 text-caption font-extrabold text-ink">
@@ -695,163 +950,24 @@ export default function ClientsPage() {
             <h2 className="text-heading text-ink">
               People and business contacts
             </h2>
-            <p className="mt-1 text-body text-ink-soft">
+            <p className="mt-1 text-body text-text-soft">
               Contacts belong to a client. A business can have several contacts.
             </p>
           </div>
 
-          {contactsLoading ? (
-            <div className="space-y-3" aria-label="Loading contacts">
-              {[0, 1, 2].map((item) => (
-                <div
-                  key={item}
-                  className="h-24 animate-pulse rounded-card bg-tint"
-                />
-              ))}
-            </div>
-          ) : filteredContacts.length === 0 ? (
-            <div className="rounded-card border border-line-subtle bg-surface px-6 py-10 text-center">
-              <ContactRound
-                className="mx-auto h-10 w-10 text-ink-muted"
-                aria-hidden="true"
-              />
-
-              <h3 className="mt-3 text-heading text-ink">
-                {searchQuery
-                  ? 'No contacts match that search'
-                  : 'No contacts yet'}
-              </h3>
-
-              <p className="mt-1 text-body text-ink-soft">
-                {searchQuery
-                  ? 'Try searching by contact name, role, email or client.'
-                  : 'Add a contact to an existing client using the Add contact action.'}
-              </p>
-
-              {!searchQuery && clients.length > 0 && (
-                <Button asChild className="mt-4">
-                  <Link href="/clients/contacts/new">
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    Add your first contact
-                  </Link>
-                </Button>
-              )}
-
-              {!searchQuery && clients.length === 0 && (
-                <Button asChild className="mt-4">
-                  <Link href="/clients/new">
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    Create a client first
-                  </Link>
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredContacts.map((contact) => {
-                const cleanPhone = normalisePhone(contact.phone);
-
-                return (
-                  <article
-                    key={contact.id}
-                    className="flex flex-col gap-3 rounded-card border border-line-subtle bg-surface p-4 sm:flex-row sm:items-start sm:justify-between"
-                  >
-                    <div className="flex min-w-0 items-start gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">
-                        <UserRound
-                          className="h-5 w-5"
-                          aria-hidden="true"
-                        />
-                      </span>
-
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-heading text-ink">
-                            {contact.name}
-                          </h3>
-
-                          {contact.is_primary && (
-                            <span className="rounded-full bg-tint px-2 py-0.5 text-caption font-bold text-ink-soft">
-                              Primary
-                            </span>
-                          )}
-                        </div>
-
-                        {contact.job_title && (
-                          <p className="mt-0.5 text-body text-ink-soft">
-                            {contact.job_title}
-                          </p>
-                        )}
-
-                        <p className="mt-1 text-caption font-bold text-ink-muted">
-                          Client: {getContactClientName(contact)}
-                        </p>
-
-                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-caption text-ink-soft">
-                          {contact.email && (
-                            <a
-                              href={`mailto:${contact.email}`}
-                              className="inline-flex items-center gap-1.5 hover:text-ink"
-                            >
-                              <Mail
-                                className="h-3.5 w-3.5"
-                                aria-hidden="true"
-                              />
-                              {contact.email}
-                            </a>
-                          )}
-
-                          {contact.phone && (
-                            <span className="inline-flex items-center gap-1.5">
-                              <Phone
-                                className="h-3.5 w-3.5"
-                                aria-hidden="true"
-                              />
-                              {contact.phone}
-                            </span>
-                          )}
-
-                          {cleanPhone && (
-                            <a
-                              href={`https://wa.me/${cleanPhone.replace(/\+/g, '')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 font-bold text-link hover:underline"
-                            >
-                              <MessageCircle
-                                className="h-3.5 w-3.5"
-                                aria-hidden="true"
-                              />
-                              WhatsApp
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
-                      <Link
-                        href={`/clients/contacts/${contact.id}/edit`}
-                        aria-label={`Edit ${contact.name}`}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-tint hover:text-ink"
-                      >
-                        <Edit2 className="h-4 w-4" aria-hidden="true" />
-                      </Link>
-
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteContact(contact)}
-                        aria-label={`Delete ${contact.name}`}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-pill-late/40 hover:text-late-text"
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
+          <DataTable
+            columns={contactColumns}
+            rows={sortedContacts}
+            getRowKey={(contact) => contact.id}
+            loading={contactsLoading}
+            emptyState={emptyContactsState}
+            sortBy={contactSortBy}
+            sortOrder={contactSortOrder}
+            onSort={toggleContactSort}
+            renderMobileCard={renderMobileContactCard}
+            caption="Contacts directory"
+            tableClassName="min-w-[800px]"
+          />
         </section>
       )}
     </div>
