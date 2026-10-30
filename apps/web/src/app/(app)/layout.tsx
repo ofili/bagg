@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ChevronRight, Plus, Settings } from 'lucide-react';
-import { BaggCoin, Wordmark } from '@/components/brand/Logo';
+import { BagCharacter, Wordmark } from '@/components/brand';
 import { BottomNav } from '@/components/mobile/BottomNav';
 import { ClientOnly } from '@/components/mobile/ClientOnly';
 import { HeaderMenu } from '@/components/mobile/HeaderMenu';
@@ -92,7 +92,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <aside className="hidden w-[72px] shrink-0 flex-col border-r-brut border-ink bg-surface sm:flex lg:w-64">
         <div className="flex h-16 items-center justify-center border-b-brut border-ink px-3 lg:justify-between lg:px-5">
           <Link href="/dashboard" aria-label="bagg home" className="flex items-center">
-            <BaggCoin className="lg:hidden" />
+            <BagCharacter size={32} className="lg:hidden" decorative />
             <Wordmark className="hidden lg:inline-flex" />
           </Link>
           {SHOW_DEV_BADGE && (

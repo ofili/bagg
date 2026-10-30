@@ -11,15 +11,15 @@ export default function NotFound() {
         </Link>
       </div>
       <div className="flex flex-1 flex-col items-center justify-center px-4 pb-24 text-center">
-        <BagCharacter mood="sleepy" size={96} />
+        <BagCharacter mood="confused" size={96} />
         <p className="mt-2 text-heading text-link">404</p>
         <h1 className="mt-1 text-title-l text-ink">this page took the day off</h1>
         <p className="mt-2 max-w-sm text-body text-ink-soft">
           The link may be old or mistyped. Your invoices are safe.
         </p>
         <Link href="/" className={`${buttonStyles()} mt-6`}>
-  Take me home
-</Link>
+          Take me home
+        </Link>
       </div>
     </main>
   );

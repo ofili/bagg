@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { BagCharacter, CoinLogo, Wordmark } from '@/components/brand';
+import { BagCharacter, Wordmark } from '@/components/brand';
 import { buttonStyles } from '@/components/ui/button';
 import { BaggSelect } from '@/components/ui';
 
@@ -152,7 +152,7 @@ export default function OnboardingPage() {
           aria-label="Bagg home"
           className="inline-flex items-center gap-2"
         >
-          <CoinLogo size={32} />
+          <BagCharacter size={32} decorative />
           <Wordmark />
         </Link>
       </header>

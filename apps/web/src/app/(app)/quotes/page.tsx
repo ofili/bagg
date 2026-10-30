@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2, MessageSquare, Plus } from 'lucide-react';
-import { BaggCoin } from '@/components/brand/Logo';
+import { BagCharacter } from '@/components/brand';
 import { type QuoteCardData } from '@/components/mobile/QuoteCard';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
@@ -329,7 +329,7 @@ export default function QuotesPage() {
 
   const emptyState = (
     <Card tone="peach" className="space-y-4 p-8 text-center">
-      <BaggCoin size={48} className="mx-auto" />
+      <BagCharacter size={48} mood="happy" className="mx-auto" decorative />
       <h2 className="text-title">no quotes here</h2>
       <p className="mx-auto max-w-sm text-body text-text-soft">
         {table.search.trim() || table.filters['status']
