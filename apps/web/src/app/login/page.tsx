@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Loader2, Mail } from 'lucide-react';
 
-import { BagCharacter, CoinLogo, Wordmark } from '@/components/brand';
+import { BagCharacter, Wordmark } from '@/components/brand';
 import { buttonStyles } from '@/components/ui/button';
 
 const API_BASE =
@@ -184,7 +184,7 @@ function LoginPageContent() {
           aria-label="Bagg home"
           className="inline-flex items-center gap-2"
         >
-          <CoinLogo size={32} />
+          <BagCharacter size={32} decorative />
           <Wordmark />
         </Link>
 

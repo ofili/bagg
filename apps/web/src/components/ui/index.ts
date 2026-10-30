@@ -19,3 +19,5 @@ export { Pagination } from './Pagination';
 export { TableToolbar } from './TableToolbar';
 export type { FilterConfig } from './TableToolbar';
 
+export { EmptyState, emptyStates } from './EmptyState';
+export type { EmptyStateProps } from './EmptyState';

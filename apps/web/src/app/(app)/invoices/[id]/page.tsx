@@ -1,5 +1,3 @@
-import { DocumentComments } from "@/components/comments/DocumentComments";
-﻿
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -20,6 +18,7 @@ import {
 } from 'lucide-react';
 import { InvoiceDocument } from '@/components/invoice';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
+import { DocumentComments } from "@/components/comments/DocumentComments";
 import { Money } from '@/components/money/Money';
 import {
   StatusPill,

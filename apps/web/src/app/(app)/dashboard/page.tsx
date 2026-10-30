@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, Loader2, Plus } from 'lucide-react';
-import { BaggCoin } from '@/components/brand/Logo';
+import { BagCharacter } from '@/components/brand';
 import { Money } from '@/components/money/Money';
 import { Button, Card, buttonStyles, chipStyles } from '@/components/ui';
 
@@ -85,7 +85,7 @@ export default function DashboardPage() {
 
       {isEmpty && (
         <Card tone="peach" className="space-y-4 p-8 text-center">
-          <BaggCoin size={56} className="mx-auto" />
+          <BagCharacter size={56} mood="happy" className="mx-auto" decorative />
           <h2 className="text-title">no invoices yet</h2>
           <p className="mx-auto max-w-sm text-body text-text-soft">
             Send your first invoice in about two minutes. We&rsquo;ll track what&rsquo;s waiting and what&rsquo;s paid.

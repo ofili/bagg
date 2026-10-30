@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, Check, CheckCircle2, Copy, FileText, Loader2, ShieldCheck } from 'lucide-react';
-import { BaggCoin } from '@/components/brand/Logo';
+import { BagCharacter } from '@/components/brand';
 import { Money } from '@/components/money/Money';
 import { ConfirmationProvenance } from '@/components/status';
 import { Button, Card, buttonStyles } from '@/components/ui';
@@ -253,7 +253,7 @@ export default function PublicReceiptPage() {
               target="_blank"
               className="inline-flex min-h-11 items-center gap-2 text-caption text-text-muted hover:text-text"
             >
-              <BaggCoin size={20} />
+              <BagCharacter size={20} decorative />
               <span>Sent with bagg. Instant receipts for African freelancers.</span>
             </Link>
           </div>

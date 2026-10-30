@@ -2,9 +2,23 @@
 
 import { useState } from 'react';
 import { notFound } from 'next/navigation';
-import { Button, Card, Chip, Dialog, TextField, Toggle } from '@/components/ui';
+import { Button, Card, Chip, Dialog, TextField, Toggle, EmptyState, emptyStates } from '@/components/ui';
 import { StatusPill } from '@/components/status';
 import { Money } from '@/components/money/Money';
+import { BagCharacter, BAG_MOODS, type BagMood } from '@/components/brand';
+
+const MOOD_MOMENTS: Record<BagMood, { moment: string; note?: string }> = {
+  happy: { moment: 'Payment confirmed, empty lists, normal states' },
+  sleepy: { moment: 'Waiting on client approval or feedback, offline' },
+  excited: { moment: 'Welcome, first client added' },
+  superExcited: { moment: 'Milestones (10th invoice, files released)' },
+  sad: { moment: 'Payment failed, retry button (provider only)' },
+  confused: { moment: '404 page, dead or expired links, no search matches' },
+  worried: { moment: 'Invoice overdue, server error 500 (provider only)' },
+  thinking: { moment: 'Payment pending verification, loading/generating PDF' },
+  locked: { moment: 'Protected files locked until conditions are met' },
+  celebrating: { moment: 'Big milestones (first payment received)' },
+};
 
 // Dev-only review page for the neo-brutalist primitives. Hidden in production.
 export default function StyleguidePage() {
@@ -14,11 +28,16 @@ export default function StyleguidePage() {
   const [reminders, setReminders] = useState(true);
   const [open, setOpen] = useState(false);
   const [dark, setDark] = useState(false);
+  const [activeMood, setActiveMood] = useState<BagMood>('happy');
+  const [compactEmpty, setCompactEmpty] = useState(false);
 
   return (
-    <main className="mx-auto max-w-3xl space-y-10 p-6 safe-bottom">
-      <header className="flex items-center justify-between">
-        <h1 className="text-display">styleguide</h1>
+    <main className="mx-auto max-w-4xl space-y-12 p-6 safe-bottom">
+      <header className="flex items-center justify-between border-b border-ink/10 pb-5">
+        <div>
+          <h1 className="text-display">styleguide</h1>
+          <p className="mt-1 text-body text-text-soft">Neo-brutalist design tokens, character moods and UI components</p>
+        </div>
         <Toggle
           label="Dark mode"
           checked={dark}
@@ -28,6 +47,98 @@ export default function StyleguidePage() {
           }}
         />
       </header>
+
+      {/* Bag Character Moods */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-title">bag character moods</h2>
+          <p className="text-caption text-text-muted">
+            10 product moods. Keeps calm and joyful. Never show sad or worried in client-facing views.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+          {BAG_MOODS.map((mood) => {
+            const info = MOOD_MOMENTS[mood];
+            return (
+              <div
+                key={mood}
+                className="flex flex-col items-center justify-between rounded-card border-brut border-ink bg-surface p-4 text-center shadow-brut"
+              >
+                <div className="flex h-24 items-center justify-center">
+                  <BagCharacter mood={mood} size={72} />
+                </div>
+                <div className="mt-2 w-full border-t border-ink/10 pt-2">
+                  <p className="font-extrabold text-ink">{mood}</p>
+                  <p className="mt-1 text-[11px] leading-tight text-text-muted">{info.moment}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* EmptyState Component */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-title">empty state component</h2>
+            <p className="text-caption text-text-muted">
+              Reusable empty states with preset messaging, link/button actions, and compact mode.
+            </p>
+          </div>
+          <Toggle
+            label="Compact mode"
+            checked={compactEmpty}
+            onChange={setCompactEmpty}
+          />
+        </div>
+
+        {/* Live Interactive Preset Tester */}
+        <div className="rounded-card border-brut border-ink bg-surface p-6 shadow-brut">
+          <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-ink/10 pb-4">
+            <span className="text-caption font-extrabold text-ink">Presets:</span>
+            {(['invoicesFirst', 'quotesFirst', 'clientsFirst', 'noMatches', 'allPaid', 'nothingToDo', 'filesLocked', 'firstPayment'] as const).map((key) => (
+              <Chip
+                key={key}
+                selected={activeMood === emptyStates[key].mood}
+                onClick={() => setActiveMood(emptyStates[key].mood)}
+              >
+                {key}
+              </Chip>
+            ))}
+          </div>
+
+          <div className="rounded-card border border-ink/15 bg-canvas/40">
+            <EmptyState
+              mood={activeMood}
+              title={`Demo: ${activeMood} empty state`}
+              body={MOOD_MOMENTS[activeMood].moment}
+              action={{ label: 'Primary action', href: '#' }}
+              compact={compactEmpty}
+            />
+          </div>
+        </div>
+
+        {/* Showcase of real presets */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-card border-brut border-ink bg-surface p-4 shadow-brut">
+            <span className="text-caption font-bold text-text-muted">emptyStates.invoicesFirst</span>
+            <EmptyState {...emptyStates.invoicesFirst} compact />
+          </div>
+          <div className="rounded-card border-brut border-ink bg-surface p-4 shadow-brut">
+            <span className="text-caption font-bold text-text-muted">emptyStates.noMatches</span>
+            <EmptyState {...emptyStates.noMatches} action={{ label: 'Clear filters', onClick: () => {} }} compact />
+          </div>
+          <div className="rounded-card border-brut border-ink bg-surface p-4 shadow-brut">
+            <span className="text-caption font-bold text-text-muted">emptyStates.filesLocked</span>
+            <EmptyState {...emptyStates.filesLocked} compact />
+          </div>
+          <div className="rounded-card border-brut border-ink bg-surface p-4 shadow-brut">
+            <span className="text-caption font-bold text-text-muted">emptyStates.allPaid</span>
+            <EmptyState {...emptyStates.allPaid} compact />
+          </div>
+        </div>
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-title">buttons</h2>

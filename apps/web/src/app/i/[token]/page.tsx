@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, Check, Info, Loader2, MessageSquare, Send } from 'lucide-react';
-import { BaggCoin } from '@/components/brand/Logo';
+import { BagCharacter } from '@/components/brand';
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { InvoiceDocument, PaymentDetails } from '@/components/invoice';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
@@ -396,7 +396,7 @@ export default function PublicClientInvoiceView() {
               rel="noopener noreferrer"
               className="inline-flex min-h-11 items-center gap-2 text-caption text-text-muted hover:text-text"
             >
-              <BaggCoin size={20} />
+              <BagCharacter size={20} decorative />
               <span>Sent with bagg. Invoicing for African creators.</span>
             </Link>
           </div>

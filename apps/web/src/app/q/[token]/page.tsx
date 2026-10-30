@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, Check, CheckCircle2, Clock, Loader2, Sparkles, XCircle } from 'lucide-react';
-import { BaggCoin } from '@/components/brand/Logo';
+import { BagCharacter } from '@/components/brand';
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
@@ -436,7 +436,7 @@ export default function PublicQuotePage() {
               target="_blank"
               className="inline-flex min-h-11 items-center gap-2 text-caption text-text-muted hover:text-text"
             >
-              <BaggCoin size={20} />
+              <BagCharacter size={20} decorative />
               <span>Sent with bagg. Free invoices and quotes for African freelancers.</span>
             </Link>
           </div>

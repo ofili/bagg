@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Wallet,
 } from 'lucide-react';
-import { CoinLogo, PaidStamp } from '@/components/brand';
+import { BagCharacter, PaidStamp } from '@/components/brand';
 import { Container } from '@/components/marketing/container';
 import { CtaBand } from '@/components/marketing/cta-band';
 import { FaqList } from '@/components/marketing/faq-list';
@@ -269,7 +269,7 @@ export default function MarketingPage() {
           <div className="rounded-card border border-line-subtle bg-surface p-5 sm:p-6">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <CoinLogo size={26} />
+                <BagCharacter size={26} decorative />
                 <span className="text-label font-extrabold text-ink">a reminder from you</span>
               </div>
               <span className="rounded-full bg-pill-due px-2 py-0.5 text-caption font-extrabold text-pill-due-fg">
