@@ -16,6 +16,7 @@ import {
   Share2,
   X,
 } from 'lucide-react';
+import { DocumentComments } from "@/components/comments/DocumentComments";
 import { InvoiceDocument } from '@/components/invoice';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { DocumentComments } from "@/components/comments/DocumentComments";

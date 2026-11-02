@@ -9,7 +9,7 @@ import pytest
 from datetime import date, timedelta
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from tests.helpers import create_sent_invoice
+from tests.helpers import create_sent_invoice, login_code_for
 
 
 @pytest.mark.asyncio
@@ -19,7 +19,7 @@ async def test_data_rights_compliance_and_security_lifecycle():
         # --- Auth ---
         test_email = f"compliance-{uuid.uuid4().hex[:6]}@studio.ng"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 
@@ -129,7 +129,7 @@ async def test_data_rights_compliance_and_security_lifecycle():
 
         # Re-login with same email should create a fresh account
         req2 = await client.post("/auth/magic-link", json={"email": test_email})
-        code2 = req2.json()["dev_code"]
+        code2 = login_code_for(test_email)
         verify2 = await client.post("/auth/verify", json={"email": test_email, "code": code2})
         client.cookies.set("bagg_session", verify2.cookies["bagg_session"])
 

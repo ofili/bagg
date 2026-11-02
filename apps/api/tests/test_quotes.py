@@ -9,7 +9,7 @@ import pytest
 from datetime import date, timedelta
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from tests.helpers import create_sent_quote
+from tests.helpers import create_sent_quote, login_code_for
 from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
@@ -22,7 +22,7 @@ async def test_quotes_full_lifecycle():
         # --- 1. Authenticate Freelancer ---
         test_email = f"quotes-{uuid.uuid4().hex[:6]}@studio.ng"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 
@@ -204,7 +204,7 @@ async def test_quote_decline_and_expiration():
         # Auth
         test_email = f"quotes2-{uuid.uuid4().hex[:6]}@studio.ng"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 
@@ -310,7 +310,7 @@ async def test_invoice_send_requires_finalize():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         test_email = f"invguard-{uuid.uuid4().hex[:6]}@studio.ng"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 
@@ -348,7 +348,7 @@ async def test_quote_send_requires_finalize():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         test_email = f"qguard-{uuid.uuid4().hex[:6]}@studio.ng"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 
@@ -384,7 +384,7 @@ async def test_accept_version_mismatch_rejected():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         test_email = f"ver-{uuid.uuid4().hex[:6]}@studio.ng"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 
@@ -425,7 +425,7 @@ async def test_accept_idempotent_one_invoice():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         test_email = f"idem-{uuid.uuid4().hex[:6]}@studio.ng"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 
@@ -467,7 +467,7 @@ async def test_quote_revise_bumps_version():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         test_email = f"rev-{uuid.uuid4().hex[:6]}@studio.ng"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 
@@ -549,7 +549,7 @@ async def test_quote_revision_preserves_terms_and_accepts_only_current_version()
             "/auth/verify",
             json={
                 "email": email,
-                "code": request.json()["dev_code"],
+                "code": login_code_for(email),
             },
         )
         assert verification.status_code == 200

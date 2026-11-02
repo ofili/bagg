@@ -99,6 +99,24 @@ async def test_magic_link_onboarding_lifecycle(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_new_magic_code_invalidates_previous_code(monkeypatch):
+    delivered_codes: list[str] = []  # --check-untyped-defs
+
+    async def fake_send_login_code_email(
+            self,
+            to_email: str,
+            code: str,
+            expires_in_minutes: int = 10,
+    ) -> bool:
+        delivered_codes.append(code)
+        return True
+
+    monkeypatch.setattr(
+        "app.domains.auth.service"
+    )
+
+
+@pytest.mark.asyncio
 async def test_workspace_routes_require_authentication():
     transport = ASGITransport(app=app)
 

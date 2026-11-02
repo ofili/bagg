@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, cast
@@ -10,6 +14,7 @@ from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals, format_money
 from app.core.security import generate_share_token
 from app.domains.billing.service import (
+    add_credits,
     check_delivery_quota,
     consume_delivery_send,
 )
@@ -269,6 +274,11 @@ async def finalize_quote(
 
     old_status = quote_obj.status
     quote_obj.status = "issued"
+    if not quote_obj.quote_number:
+        seq = workspace.next_quote_number
+        workspace.next_quote_number = seq + 1
+        quote_obj.quote_number = f"{workspace.quote_prefix}{seq:04d}"
+        quote_obj.sequence_number = seq
     _ensure_share_token(quote_obj)
 
     record_status_event(
@@ -612,9 +622,18 @@ async def send_quote(
     share_url = f"{settings.WEB_BASE_URL}/q/{quote_obj.share_token}"
 
     email_sent = False
+    dispatched = False
+    is_first_dispatch = quote_obj.sent_at is None
+
     if send_email:
         if recipient_email:
-            await check_delivery_quota(workspace, db)
+            deduct_credit = False
+            if is_first_dispatch:
+                deduct_credit = await check_delivery_quota(workspace, db)
+                if deduct_credit:
+                    await consume_delivery_send(
+                        workspace, db, deduct_credit=True, commit=False
+                    )
             email_sent = await EmailSender().send_quote_email(
                 to_email=recipient_email,
                 quote_number=quote_obj.quote_number,
@@ -624,18 +643,40 @@ async def send_quote(
                 formatted_total=format_money(quote_obj.total_minor, quote_obj.currency),
                 expires_at=quote_obj.expires_at.strftime("%d %b %Y"),
             )
+            dispatched = email_sent
             if email_sent:
                 quote_obj.email_delivery_status = "delivered"
-                await consume_delivery_send(workspace, db)
             else:
                 quote_obj.email_delivery_status = "failed"
+                if deduct_credit:
+                    await add_credits(
+                        workspace_id=workspace.id,
+                        amount=1,
+                        reason="send_refund",
+                        description="Refund for failed quote email delivery",
+                        reference=None,
+                        db=db,
+                        commit=False,
+                    )
         else:
             quote_obj.email_delivery_status = "no_email"
+    else:
+        # An explicit link/WhatsApp handoff is a real dispatch: the share URL is
+        # generated and returned to the issuer for delivery.
+        if is_first_dispatch:
+            deduct_credit = await check_delivery_quota(workspace, db)
+            if deduct_credit:
+                await consume_delivery_send(
+                    workspace, db, deduct_credit=True, commit=False
+                )
+        dispatched = True
 
     old_status = quote_obj.status
-    if quote_obj.status in {"issued", "sent"}:
-        quote_obj.status = "sent"
-    quote_obj.sent_at = datetime.now(timezone.utc)
+    if dispatched:
+        if quote_obj.status in {"issued", "sent"}:
+            quote_obj.status = "sent"
+        if quote_obj.sent_at is None:
+            quote_obj.sent_at = datetime.now(timezone.utc)
 
     if old_status != quote_obj.status:
         record_status_event(

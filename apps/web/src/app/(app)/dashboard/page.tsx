@@ -48,7 +48,10 @@ export default function DashboardPage() {
     load();
   }, [load]);
 
-  const isEmpty = !loading && !failed && metrics.length === 0;
+  const isEmpty =
+    !loading &&
+    !failed &&
+    (metrics.length === 0 || metrics.every((m) => (m.invoices_count ?? 0) === 0));
 
   return (
     <div className="w-full space-y-8 p-4 sm:p-6 lg:p-8">

@@ -12,7 +12,7 @@ from httpx import ASGITransport, AsyncClient
 from app.core.config import settings
 from app.domains.sharing import router as sharing_router
 from app.main import app
-from tests.helpers import create_sent_invoice
+from tests.helpers import create_sent_invoice, login_code_for
 
 WEBHOOK_SECRET = "sk_test_invoice_webhook_secret"
 
@@ -133,7 +133,7 @@ async def test_invoice_payment_webhook_confirms_once(monkeypatch):
         email = f"webhook-{uuid.uuid4().hex[:8]}@studio.ng"
         req = await client.post("/auth/magic-link", json={"email": email})
         verify = await client.post(
-            "/auth/verify", json={"email": email, "code": req.json()["dev_code"]}
+            "/auth/verify", json={"email": email, "code": login_code_for(email)}
         )
         client.cookies.set("bagg_session", verify.cookies["bagg_session"])
 
@@ -272,7 +272,7 @@ async def test_invoice_payment_webhook_rejects_reference_for_another_checkout(mo
         email = f"webhook-ref-{uuid.uuid4().hex[:8]}@studio.ng"
         req = await client.post("/auth/magic-link", json={"email": email})
         verify = await client.post(
-            "/auth/verify", json={"email": email, "code": req.json()["dev_code"]}
+            "/auth/verify", json={"email": email, "code": login_code_for(email)}
         )
         client.cookies.set("bagg_session", verify.cookies["bagg_session"])
 

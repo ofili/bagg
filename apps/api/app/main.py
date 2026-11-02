@@ -17,6 +17,7 @@ from app.domains.compliance.router import router as compliance_router
 from app.domains.quotes.router import router as quotes_router
 from app.domains.receipts.router import router as receipts_router
 from app.domains.notifications.router import router as notifications_router
+from app.domains.security.router import router as security_router
 
 app = FastAPI(
     title="Bagg API",
@@ -56,6 +57,7 @@ app.include_router(invoice_payment_webhooks_router)
 app.include_router(compliance_router)
 app.include_router(receipts_router)
 app.include_router(notifications_router)
+app.include_router(security_router)
 
 
 @app.get("/health", tags=["System"])

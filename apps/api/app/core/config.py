@@ -1,3 +1,6 @@
+import base64
+import binascii
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
@@ -17,7 +20,14 @@ class Settings(BaseSettings):
     WEB_BASE_URL: str = "http://localhost:3000"
 
     # Internal scheduled jobs / worker endpoints
-    INTERNAL_JOB_TOKEN: Optional[str] = None
+    INTERNAL_JOB_TOKEN: str | None = None
+    EMAIL_ENCRYPTION_KEY: str | None = (
+        "ohKzOI-31q3_qLngQKYj2WCvWme5Se_voNA41VtBl2nRAz6tna0FeQyaIvg45vTE"
+    )
+    EMAIL_WORKER_POLL_SECONDS: int = 2
+    EMAIL_WORKER_BATCH_SIZE: int = 10
+    EMAIL_WORKER_LEASE_SECONDS: int = 120
+    EMAIL_MAX_ATTEMPTS: int = 5
 
     # Email
     SENDLY_API_KEY: Optional[str] = None
@@ -31,6 +41,12 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     DEFAULT_FROM_EMAIL: str = "invoices@bagg.app"
 
+    # Dedicated secret for keyed OTP hashing.
+    # Must be supplied through deployment secrets in production.
+    OTP_HASH_SECRET: Optional[str] = (
+        "ohKzOI-31q3_qLngQKYj2WCvWme5Se_voNA41VtBl2nRAz6tna0FeQyaIvg45vTE"
+    )
+
     # Storage
     S3_ENDPOINT_URL: str = "http://localhost:9000"
     S3_ACCESS_KEY_ID: str = "minioadmin"
@@ -42,6 +58,17 @@ class Settings(BaseSettings):
     PAYSTACK_SECRET_KEY: Optional[str] = None
     PAYSTACK_PUBLIC_KEY: Optional[str] = None
     PAYSTACK_INVOICE_WEBHOOK_SECRET: Optional[str] = None
+
+    # Explicit trusted reverse-proxy addresses or CIDR ranges.
+    # Examples:
+    #   10.0.0.10
+    #   10.0.0.0/8
+    #   172.16.0.0/12
+    # Multiple entries are comma-separated.
+    TRUSTED_PROXY_IPS: str = ""
+
+    # TODO: Add the actual ingress or reverse-proxy IP ranges to the production environment
+    # TRUSTED_PROXY_IPS=10.0.0.0/8,172.16.0.0/12
 
     # Trusted reverse proxy hop count for X-Forwarded-For stripping.
     # Set to 1 for a single Nginx/Caddy/CF layer in production.
@@ -73,7 +100,33 @@ class Settings(BaseSettings):
             raise ValueError(
                 "INTERNAL_JOB_TOKEN must be set in production"
             )
+        if not self.OTP_HASH_SECRET or len(self.OTP_HASH_SECRET) < 32:
+            raise ValueError(
+                "OTP_HASH_SECRET must contain at least 32 characters in production"
+            )
+
+        if self.OTP_HASH_SECRET == self.SECRET_KEY:
+            raise ValueError(
+                "OTP_HASH_SECRET must be different from SECRET_KEY"
+            )
+        if not self.EMAIL_ENCRYPTION_KEY:
+            raise ValueError(
+                "EMAIL_ENCRYPTION_KEY must be configured in production"
+            )
         return self
+
+    @staticmethod
+    def validate_email_encryption_key(value: str | None) -> None:
+        if not value:
+            return
+
+        try:
+            decoded = base64.urlsafe_b64decode(value.encode("ascii"))
+        except (ValueError, UnicodeError, binascii.Error) as exc:
+            raise ValueError("EMAIL_ENCRYPTION_KEY must be URL-safe base64") from exc
+
+        if len(decoded) != 32:
+            raise ValueError("EMAIL_ENCRYPTION_KEY must decode to exactly 32 bytes")
 
     @property
     def is_production(self) -> bool:
@@ -90,10 +143,10 @@ class Settings(BaseSettings):
         # Deduplicate while preserving order
         seen = set()
         result = []
-        for o in origins:
-            if o not in seen:
-                seen.add(o)
-                result.append(o)
+        for origin in origins:
+            if origin not in seen:
+                seen.add(origin)
+                result.append(origin)
         return result
 
 

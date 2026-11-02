@@ -2,7 +2,7 @@ import uuid
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from tests.helpers import create_sent_invoice
+from tests.helpers import create_sent_invoice, login_code_for
 
 
 @pytest.mark.asyncio
@@ -13,7 +13,7 @@ async def test_client_portal_lifecycle():
         test_email = f"creator-{uuid.uuid4().hex[:6]}@portal.design"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
         assert req_res.status_code == 200
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 

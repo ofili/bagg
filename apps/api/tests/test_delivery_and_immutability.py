@@ -2,6 +2,7 @@ import uuid
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.helpers import login_code_for
 
 
 @pytest.mark.asyncio
@@ -11,7 +12,7 @@ async def test_delivery_and_immutability_lifecycle():
         # Step 0: Auth
         test_email = f"creator-{uuid.uuid4().hex[:6]}@lagos.media"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 

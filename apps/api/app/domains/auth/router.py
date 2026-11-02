@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.proxy import get_client_ip
+from app.core.rate_limit import enforce_rate_limit
 from app.domains.auth.schemas import (
     AuthResponse,
     MagicLinkRequest,
@@ -11,14 +13,12 @@ from app.domains.auth.schemas import (
 )
 from app.domains.auth.service import AuthService
 from app.domains.workspaces.schemas import WorkspaceResponse
-from fastapi import Request
-from app.core.proxy import get_client_ip
-from app.core.rate_limit import enforce_rate_limit
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
+
 SESSION_COOKIE_NAME = "bagg_session"
-SESSION_MAX_AGE = 30 * 24 * 60 * 60
+SESSION_MAX_AGE = AuthService.SESSION_DAYS * 24 * 60 * 60
 COOKIE_SECURE = settings.ENVIRONMENT.strip().lower() == "production"
 
 
@@ -43,7 +43,7 @@ async def get_current_user_and_workspace(
     return await AuthService(db).get_user_from_session(token)
 
 
-def build_auth_response(user, workspace) -> AuthResponse:
+def build_auth_response(user, workspace, is_new_user: bool = False) -> AuthResponse:
     return AuthResponse(
         user=UserResponse(
             id=user.id,
@@ -136,11 +136,11 @@ async def verify_code(
         window_seconds=900,
     )
 
-    user, workspace, session_token = await service.verify_login(
+    user, workspace, session_token, is_new_user = await service.verify_login(
         str(payload.email),
         payload.code,
     )
-
+    
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=session_token,
@@ -150,14 +150,19 @@ async def verify_code(
         max_age=SESSION_MAX_AGE,
         path="/",
     )
+    response.headers["Cache-Control"] = "no-store"
 
-    return build_auth_response(user, workspace)
+
+    return build_auth_response(user, workspace, is_new_user)
 
 
 @router.get("/me", response_model=AuthResponse)
 async def get_current_user_profile(
+    response: Response,
     auth_data=Depends(get_current_user_and_workspace),
 ):
+    response.headers["Cache-Control"] = "no-store"
+
     if not auth_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -187,5 +192,37 @@ async def logout(
         secure=COOKIE_SECURE,
         samesite="lax",
     )
+    response.headers["Cache-Control"] = "no-store"
 
     return {"message": "Logged out successfully"}
+
+
+@router.post("/logout-all", status_code=status.HTTP_200_OK)
+async def logout_all(
+    request: Request,
+    response: Response,
+    auth_data=Depends(get_current_user_and_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    if not auth_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Please sign in.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user, _workspace = auth_data
+    revoked_count = await AuthService(db).revoke_all_sessions(user.id)
+
+    response.delete_cookie(
+        key=SESSION_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+    )
+    response.headers["Cache-Control"] = "no-store"
+
+    return {
+        "message": "All sessions have been revoked.", "revoked_sessions": revoked_count
+    }

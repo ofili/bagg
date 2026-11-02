@@ -1,5 +1,3 @@
-import { DocumentComments } from "@/components/comments/DocumentComments";
-
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -19,6 +17,7 @@ import {
   RotateCcw,
   Send,
 } from 'lucide-react';
+import { DocumentComments } from "@/components/comments/DocumentComments";
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
 import { BaggSelect, Button, Card, Dialog, Field, Input, buttonStyles } from '@/components/ui';

@@ -9,7 +9,11 @@ from app.core.config import settings
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals
 from app.core.security import generate_share_token
-from app.domains.billing.service import check_delivery_quota, consume_delivery_send
+from app.domains.billing.service import (
+    add_credits,
+    check_delivery_quota,
+    consume_delivery_send,
+)
 from app.domains.clients.models import Client
 from app.domains.invoices.models import Invoice, InvoiceLineItem, InvoiceRevision
 from app.domains.invoices.schemas import InvoiceCreate, InvoiceReviseRequest, InvoiceUpdate
@@ -505,13 +509,13 @@ async def finalize_invoice(
         invoice.due_date = issue_date + timedelta(days=terms_days)
     invoice.issue_date = issue_date
 
-    seq = workspace.next_invoice_number
-    workspace.next_invoice_number = seq + 1
-
     old_status = invoice.status
     invoice.status = "issued"
-    invoice.invoice_number = f"{workspace.invoice_prefix}{seq:04d}"
-    invoice.sequence_number = seq
+    if not invoice.invoice_number:
+        seq = workspace.next_invoice_number
+        workspace.next_invoice_number = seq + 1
+        invoice.invoice_number = f"{workspace.invoice_prefix}{seq:04d}"
+        invoice.sequence_number = seq
     _ensure_share_token(invoice)
 
     record_status_event(
@@ -595,26 +599,57 @@ async def send_invoice(
 
     recipient_email = client.email
     email_sent = False
+    dispatched = False
+    is_first_dispatch = invoice.sent_at is None
+
     if send_email:
         if recipient_email:
-            await check_delivery_quota(workspace, db)
+            deduct_credit = False
+            if is_first_dispatch:
+                deduct_credit = await check_delivery_quota(workspace, db)
+                if deduct_credit:
+                    await consume_delivery_send(
+                        workspace, db, deduct_credit=True, commit=False
+                    )
             email_sent = await EmailSender().send_invoice_email(
                 to_email=recipient_email,
                 invoice_number=invoice.invoice_number,
                 share_url=share_url,
             )
+            dispatched = email_sent
             if email_sent:
                 invoice.email_delivery_status = "delivered"
-                await consume_delivery_send(workspace, db)
             else:
                 invoice.email_delivery_status = "failed"
+                if deduct_credit:
+                    await add_credits(
+                        workspace_id=workspace.id,
+                        amount=1,
+                        reason="send_refund",
+                        description="Refund for failed invoice email delivery",
+                        reference=None,
+                        db=db,
+                        commit=False,
+                    )
         else:
             invoice.email_delivery_status = "no_email"
+    else:
+        # An explicit link/WhatsApp handoff is a real dispatch: the share URL is
+        # generated and returned to the issuer for delivery.
+        if is_first_dispatch:
+            deduct_credit = await check_delivery_quota(workspace, db)
+            if deduct_credit:
+                await consume_delivery_send(
+                    workspace, db, deduct_credit=True, commit=False
+                )
+        dispatched = True
 
     old_status = invoice.status
-    if invoice.status in {"issued", "sent"}:
-        invoice.status = "sent"
-    invoice.sent_at = datetime.now(timezone.utc)
+    if dispatched:
+        if invoice.status in {"issued", "sent"}:
+            invoice.status = "sent"
+        if invoice.sent_at is None:
+            invoice.sent_at = datetime.now(timezone.utc)
 
     if old_status != invoice.status:
         record_status_event(
@@ -631,7 +666,8 @@ async def send_invoice(
 
     await db.commit()
     await db.refresh(invoice)
-    await schedule_invoice_reminders(invoice, db)
+    if dispatched:
+        await schedule_invoice_reminders(invoice, db)
 
     return SendInvoiceOutcome(
         invoice=invoice,

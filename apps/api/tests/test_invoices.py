@@ -3,6 +3,7 @@ import pytest
 from datetime import date, timedelta
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.helpers import login_code_for
 
 
 @pytest.mark.asyncio
@@ -12,7 +13,7 @@ async def test_invoice_drafting_and_sequential_numbering_lifecycle():
         # Step 0: Auth - login
         test_email = f"creator-{uuid.uuid4().hex[:6]}@lagos.agency"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 

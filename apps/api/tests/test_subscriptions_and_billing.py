@@ -4,7 +4,7 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 from app.core.config import settings
 from app.main import app
-from tests.helpers import sign_paystack
+from tests.helpers import login_code_for, sign_paystack
 
 WEBHOOK_SECRET = "sk_test_subscription_webhook_secret"
 
@@ -30,7 +30,7 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
         test_email = f"creator-{uuid.uuid4().hex[:6]}@monetization.africa"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
         assert req_res.status_code == 200
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 

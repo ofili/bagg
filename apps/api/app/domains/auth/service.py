@@ -1,19 +1,50 @@
 import hashlib
+import hmac
+import re
 import secrets
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta, timezone
 
-from sqlalchemy import and_, select, update
+from sqlalchemy import and_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.errors import BadRequestException
 from app.domains.auth.models import MagicLoginCode, User, UserSession
 from app.domains.workspaces.models import Workspace
-from app.integrations.email import EmailSender
+from app.integrations.email_outbox import (
+    enqueue_email,
+    acquire_email_issuance_lock,
+    invalidate_previous_otp_messages,
+)
+
+OPT_PATTERN = re.compile(r"^[0-9]{6}$")
+
+def hash_code(code: str, secret: str | None = None) -> str:
+    """
+    Return a keyed HMAC-SHA256 hash of an OTP.
+
+    Production must provide OTP_HASH_SECRET.
+    Development falls back to SECRET_KEY.
+    """
+
+    signing_secret = secret or settings.OTP_HASH_SECRET or settings.SECRET_KEY
+
+    return hmac.new(
+        signing_secret.encode("utf-8"),
+        code.strip().encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
 
 
-def hash_code(code: str) -> str:
-    return hashlib.sha256(code.strip().encode("utf-8")).hexdigest()
+def hash_session_token(token: str) -> str:
+    """
+    Hash a high-entropy session token for database storage.
+
+    Session tokens have substantially more entropy than six-digit OTPs,
+    so SHA-256 remains appropriate here.
+    """
+
+    return hashlib.sha256(token.strip().encode("utf-8")).hexdigest()
 
 
 class AuthService:
@@ -22,47 +53,94 @@ class AuthService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.email_sender = EmailSender()
 
     async def request_magic_code(self, email: str) -> None:
         clean_email = email.lower().strip()
+
+        if not clean_email:
+            raise BadRequestException("Invalid email address")
+
         code = f"{secrets.randbelow(900000) + 100000}"
         token = secrets.token_urlsafe(32)
         now = datetime.now(timezone.utc)
 
-        entry = MagicLoginCode(
-            email=clean_email,
-            code_hash=hash_code(code),
-            token=token,
-            expires_at=now + timedelta(minutes=self.OTP_MINUTES),
-        )
-        self.db.add(entry)
-        await self.db.commit()
+        if settings.ENVIRONMENT == "development":
+            print(f"Login code, dev only: {code}")
 
-        delivered = await self.email_sender.send_login_code_email(
-            to_email=clean_email,
-            code=code,
-            expires_in_minutes=self.OTP_MINUTES,
-        )
-
-        if not delivered:
-            # Invalidate the code if delivery failed; never leave a usable code
-            # that the user was not actually sent.
-            await self.db.execute(
-                update(MagicLoginCode)
-                .where(MagicLoginCode.id == entry.id)
-                .values(used_at=datetime.now(timezone.utc))
+        async with self.db.begin():
+            # Serialize OTP issuance for this email address.
+            await acquire_email_issuance_lock(
+                self.db,
+                clean_email,
             )
-            await self.db.commit()
-            raise RuntimeError("Unable to deliver sign-in email")
+
+            # Find all existing unused challenges.
+            existing_result = await self.db.execute(
+                select(MagicLoginCode)
+                .where(
+                    MagicLoginCode.email == clean_email,
+                    MagicLoginCode.used_at.is_(None),
+                )
+                .with_for_update()
+            )
+
+            existing = existing_result.scalars().all()
+
+            existing_ids = [entry.id for entry in existing]
+
+            # Invalidate existing challenges.
+            for old_entry in existing:
+                old_entry.used_at = now
+
+            # Invalidate their undelivered emails.
+            await invalidate_previous_otp_messages(
+                self.db,
+                existing_ids,
+            )
+
+            # Create the new challenge.
+            entry = MagicLoginCode(
+                email=clean_email,
+                code_hash=hash_code(code),
+                token=token,
+                expires_at=now + timedelta(minutes=self.OTP_MINUTES),
+            )
+
+            self.db.add(entry)
+
+            # Flush to obtain the generated challenge ID.
+            await self.db.flush()
+
+            # Build the existing Bagg OTP email template.
+            email_html = self.email_sender.build_login_code_email(
+                code=code,
+                expires_in_minutes=self.OTP_MINUTES,
+            )
+
+            # Persist encrypted delivery request in the same transaction.
+            enqueue_email(
+                self.db,
+                message_type="login_otp",
+                aggregate_id=entry.id,
+                payload={
+                    "to_email": clean_email,
+                    "subject": "Your Bagg sign-in code",
+                    "html": email_html,
+                },
+            )
+
+            # No provider call here.
+            # The transaction has committed both records.
+            return None
 
     async def verify_login(
         self,
         email: str,
         code: str,
     ) -> tuple[User, Workspace, str]:
+
         clean_email = email.lower().strip()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         stmt = (
             select(MagicLoginCode)
@@ -78,72 +156,95 @@ class AuthService:
             .with_for_update()
         )
 
-        result = await self.db.execute(stmt)
-        entry = result.scalars().first()
-
-        if entry is None:
-            raise BadRequestException("Invalid or expired login code")
-
-        # Consume the code while holding the row lock. Concurrent verification
-        # requests will re-check the row after the first transaction commits.
-        entry.used_at = now
-
-        user_result = await self.db.execute(
-            select(User).where(User.email == clean_email)
-        )
-        user = user_result.scalars().first()
-
-        if user and not user.is_active:
-            await self.db.commit()
-            raise BadRequestException("This account is inactive")
-
-        if user is None:
-            user = User(email=clean_email, is_active=True)
-            self.db.add(user)
-            await self.db.flush()
-
-        workspace_result = await self.db.execute(
-            select(Workspace)
-            .where(Workspace.owner_id == user.id)
-            .order_by(Workspace.created_at.asc())
-        )
-        workspace = workspace_result.scalars().first()
-
-        if workspace is None:
-            workspace = Workspace(
-                owner_id=user.id,
-                name="My Workspace",
-                business_name="My Business",
-                brand_color="#10B981",
-                country="NG",
-                default_currency="NGN",
+        try:
+            await acquire_email_issuance_lock(
+                self.db,
+                clean_email,
             )
-            self.db.add(workspace)
-            await self.db.flush()
+            
+            result = await self.db.execute(stmt)
+            entry = result.scalars().first()
 
-        raw_session_token = secrets.token_urlsafe(32)
-        session = UserSession(
-            id=hash_code(raw_session_token),
-            user_id=user.id,
-            expires_at=now + timedelta(days=self.SESSION_DAYS),
-        )
-        self.db.add(session)
-        await self.db.commit()
+            if entry is None:
+                raise BadRequestException("Invalid or expired login code")
 
-        return user, workspace, raw_session_token
+            # Consume challenge inside the transaction.
+            entry.used_at = now
+
+            user_result = await self.db.execute(
+                select(User).where(User.email == clean_email)
+            )
+
+            user = user_result.scalars().first()
+
+            if user and not user.is_active:
+                await self.db.commit()
+
+                raise BadRequestException("This account is inactive")
+
+            if user is None:
+                user = User(
+                    email=clean_email,
+                    is_active=True,
+                )
+
+                self.db.add(user)
+                await self.db.flush()
+
+            workspace_result = await self.db.execute(
+                select(Workspace)
+                .where(Workspace.owner_id == user.id)
+                .order_by(Workspace.created_at.asc())
+            )
+
+            workspace = workspace_result.scalars().first()
+
+            if workspace is None:
+                workspace = Workspace(
+                    owner_id=user.id,
+                    name="My Workspace",
+                    business_name="My Business",
+                    brand_color="#10B981",
+                    country="NG",
+                    default_currency="NGN",
+                )
+
+                self.db.add(workspace)
+                await self.db.flush()
+
+            raw_session_token = secrets.token_urlsafe(32)
+
+            session = UserSession(
+                id=hash_session_token(raw_session_token),
+                user_id=user.id,
+                expires_at=now + timedelta(days=self.SESSION_DAYS),
+            )
+
+            self.db.add(session)
+
+            # Challenge consumption, account/workspace creation
+            # and session creation commit together.
+            await self.db.commit()
+
+            return user, workspace, raw_session_token
+
+        except Exception:
+            await self.db.rollback()
+            raise
 
     async def get_user_from_session(
         self,
         raw_session_token: str,
-    ) -> Optional[tuple[User, Workspace]]:
+    ) -> tuple[User, Workspace] | None:
         if not raw_session_token:
             return None
 
         now = datetime.now(timezone.utc)
+
         session_result = await self.db.execute(
             select(UserSession).where(
                 and_(
-                    UserSession.id == hash_code(raw_session_token),
+                    UserSession.id == hash_session_token(raw_session_token),
                     UserSession.expires_at > now,
                     UserSession.revoked_at.is_(None),
                 )
@@ -154,16 +255,20 @@ class AuthService:
         if session is None:
             return None
 
-        # Sliding session window: extend active sessions when less than 7 days remain
-        if session.expires_at - now < timedelta(days=7):
-            session.expires_at = now + timedelta(days=self.SESSION_DAYS)
-            await self.db.commit()
-
         user_result = await self.db.execute(
             select(User).where(User.id == session.user_id)
         )
         user = user_result.scalars().first()
 
+        if user is None or not user.is_active:
+            return None
+
+        # Absolute expiry: never extend a session during normal use.
+        user_result = await self.db.execute(
+            select(User).where(User.id == session.user_id)
+        )
+
+        user = user_result.scalars().first()
         if user is None or not user.is_active:
             return None
 
@@ -189,6 +294,24 @@ class AuthService:
                 UserSession.id == hash_code(raw_session_token),
                 UserSession.revoked_at.is_(None),
             )
-            .values(revoked_at=datetime.now(timezone.utc))
+            .values(revoked_at=datetime.now(UTC))
         )
         await self.db.commit()
+
+    async def revoke_all_sessions(self, user_id: str) -> int:
+        """Revoke every active session belonging to a user.
+
+        Returns the number of sessions revoked.
+        """
+        now = datetime.now(timezone.utc)
+
+        result = await self.db.execute(
+            update(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=datetime.now)
+        )
+        await self.db.commit()
+        return result.fetchall() or 0

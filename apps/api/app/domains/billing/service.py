@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, timedelta, date
 from typing import Optional, List
-from sqlalchemy import select, and_, func, desc
+from sqlalchemy import select, and_, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
@@ -27,7 +27,11 @@ async def get_credit_balance(workspace_id: str, db: AsyncSession) -> int:
 
 
 async def get_free_sends_used_this_month(workspace_id: str, db: AsyncSession) -> int:
-    """Calculates invoice and quote delivery sends dispatched this calendar month."""
+    """Counts documents dispatched this calendar month, across all channels.
+
+    Link/WhatsApp handoffs have no email status, so NULL is treated as a valid
+    dispatch. Failed email attempts are not metered.
+    """
     today = date.today()
     start_of_month = datetime(today.year, today.month, 1, tzinfo=timezone.utc)
 
@@ -35,14 +39,20 @@ async def get_free_sends_used_this_month(workspace_id: str, db: AsyncSession) ->
         and_(
             Invoice.workspace_id == workspace_id,
             Invoice.sent_at >= start_of_month,
-            Invoice.email_delivery_status.in_(["delivered", "opened", "bounced"]),
+            or_(
+                Invoice.email_delivery_status.is_(None),
+                Invoice.email_delivery_status != "failed",
+            ),
         )
     )
     quote_stmt = select(func.count(Quote.id)).where(
         and_(
             Quote.workspace_id == workspace_id,
             Quote.sent_at >= start_of_month,
-            Quote.email_delivery_status.in_(["delivered", "opened", "bounced"]),
+            or_(
+                Quote.email_delivery_status.is_(None),
+                Quote.email_delivery_status != "failed",
+            ),
         )
     )
     invoice_count = (await db.execute(invoice_stmt)).scalar() or 0
@@ -56,13 +66,24 @@ async def check_delivery_quota(workspace: Workspace, db: AsyncSession) -> bool:
     - Pro & Professional tiers have unlimited sends.
     - Free tier has 3 free sends per calendar month.
     - 4th+ send requires paid credits or Creator Pro upgrade.
+
+    Returns True if a credit must be deducted before delivery,
+    False if covered by the free tier or a paid tier.
+    Raises HTTPException(402) if the free allowance is exhausted and credit balance < 1.
+
+    The workspace row is locked for free-tier checks so concurrent sends cannot
+    both consume the last free slot or the last credit.
     """
     if workspace.tier in ["creator_pro", "professional"]:
-        return True
+        return False
+
+    await db.execute(
+        select(Workspace.id).where(Workspace.id == workspace.id).with_for_update()
+    )
 
     used = await get_free_sends_used_this_month(workspace.id, db)
     if used < FREE_TIER_MONTHLY_SENDS_LIMIT:
-        return True
+        return False
 
     balance = await get_credit_balance(workspace.id, db)
     if balance >= 1:
@@ -77,24 +98,33 @@ async def check_delivery_quota(workspace: Workspace, db: AsyncSession) -> bool:
     )
 
 
-async def consume_delivery_send(workspace: Workspace, db: AsyncSession):
+async def consume_delivery_send(
+    workspace: Workspace,
+    db: AsyncSession,
+    deduct_credit: bool = False,
+    *,
+    commit: bool = True,
+) -> None:
     """
-    Consumes a delivery send. If free tier limit is reached, deducts 1 credit from the ledger (US-SUB-06).
+    Reserves a delivery send credit before dispatch (US-SUB-06).
+
+    Deducts 1 credit only when deduct_credit is True, meaning the pre-send quota
+    check already confirmed a credit is available. Callers that pass
+    commit=False keep the ledger entry in their transaction so the debit and the
+    document state commit atomically.
     """
-    if workspace.tier in ["creator_pro", "professional"]:
+    if not deduct_credit or workspace.tier in ["creator_pro", "professional"]:
         return
 
-    used = await get_free_sends_used_this_month(workspace.id, db)
-    # If this send is beyond the free quota, deduct 1 credit
-    if used >= FREE_TIER_MONTHLY_SENDS_LIMIT:
-        await add_credits(
-            workspace_id=workspace.id,
-            amount=-1,
-            reason="send_deduction",
-            description="Metered invoice delivery send deduction",
-            reference=None,
-            db=db,
-        )
+    await add_credits(
+        workspace_id=workspace.id,
+        amount=-1,
+        reason="send_deduction",
+        description="Metered invoice delivery send deduction",
+        reference=None,
+        db=db,
+        commit=commit,
+    )
 
 
 async def add_credits(
@@ -104,11 +134,20 @@ async def add_credits(
     description: Optional[str],
     reference: Optional[str],
     db: AsyncSession,
+    *,
+    commit: bool = True,
 ) -> int:
     """
     Appends an entry to the append-only credit ledger (US-SUB-06).
-    All deductions and additions lock rows for transaction safety.
+
+    Serializes balance changes on the workspace row so concurrent deductions
+    cannot both read the same balance. Pass commit=False to join the caller's
+    transaction.
     """
+    await db.execute(
+        select(Workspace.id).where(Workspace.id == workspace_id).with_for_update()
+    )
+
     current_balance = await get_credit_balance(workspace_id, db)
     new_balance = current_balance + amount
     if new_balance < 0:
@@ -126,8 +165,11 @@ async def add_credits(
         reference=reference,
     )
     db.add(entry)
-    await db.commit()
-    await db.refresh(entry)
+    if commit:
+        await db.commit()
+        await db.refresh(entry)
+    else:
+        await db.flush()
     return new_balance
 
 

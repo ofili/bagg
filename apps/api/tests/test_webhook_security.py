@@ -14,7 +14,7 @@ from app.domains.webhooks.security import (
     verify_paystack_signature,
 )
 from app.main import app
-from tests.helpers import sign_paystack
+from tests.helpers import login_code_for, sign_paystack
 
 WEBHOOK_SECRET = "sk_test_webhook_security_secret"
 
@@ -24,7 +24,7 @@ async def authenticated_client() -> tuple[AsyncClient, str]:
     email = f"webhook-security-{uuid.uuid4().hex[:8]}@studio.ng"
     request = await client.post("/auth/magic-link", json={"email": email})
     verify = await client.post(
-        "/auth/verify", json={"email": email, "code": request.json()["dev_code"]}
+        "/auth/verify", json={"email": email, "code": login_code_for(email)}
     )
     client.cookies.set("bagg_session", verify.cookies["bagg_session"])
     workspace = await client.get("/workspaces/current")

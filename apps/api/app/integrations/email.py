@@ -8,6 +8,10 @@ from typing import Optional
 import httpx
 
 from app.core.config import settings
+from app.integrations.email_delivery import (
+    deliver_email,
+    DeliveryOutcome,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,10 +89,36 @@ class EmailSender:
             logger.info("SMTP unavailable (%s); treating local email as delivered", exc)
             return True
 
-    async def _deliver(self, to_email: str, subject: str, html: str) -> bool:
-        if settings.SENDLY_API_KEY:
-            return await self._send_via_sendly(to_email, subject, html)
-        return self._send_via_smtp(to_email, subject, html)
+    async def _deliver(
+    self,
+    to_email: str,
+    subject: str,
+    html: str,
+    ) -> bool:
+
+        result = await deliver_email(
+            to_email=to_email,
+            subject=subject,
+            html=html,
+        )
+
+        if result.outcome == DeliveryOutcome.ACCEPTED:
+            logger.info(
+                "Email provider accepted message",
+                extra={"provider": result.provider},
+            )
+            return True
+
+        logger.warning(
+            "Email delivery unsuccessful",
+            extra={
+                "provider": result.provider,
+                "outcome": result.outcome.value,
+                "error_code": result.error_code,
+            },
+        )
+
+        return False
 
     async def send_invoice_email(
         self, to_email: str, invoice_number: str, share_url: str

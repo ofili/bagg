@@ -2,6 +2,7 @@ import uuid
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.helpers import login_code_for
 
 
 @pytest.mark.asyncio
@@ -11,7 +12,7 @@ async def test_payment_profiles_lifecycle():
         # Step 0: Login to obtain a clean authenticated session
         test_email = f"finances-{uuid.uuid4().hex[:6]}@creator.africa"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = req_res.json()["dev_code"]
+        code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 

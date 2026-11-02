@@ -2,7 +2,7 @@ import uuid
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from tests.helpers import create_sent_invoice
+from tests.helpers import create_sent_invoice, login_code_for
 
 
 async def setup_claimable_invoice(amount_minor: int = 50_000_00):
@@ -11,7 +11,7 @@ async def setup_claimable_invoice(amount_minor: int = 50_000_00):
     email = f"claims-{uuid.uuid4().hex[:8]}@studio.ng"
     req = await client.post("/auth/magic-link", json={"email": email})
     verify = await client.post(
-        "/auth/verify", json={"email": email, "code": req.json()["dev_code"]}
+        "/auth/verify", json={"email": email, "code": login_code_for(email)}
     )
     client.cookies.set("bagg_session", verify.cookies["bagg_session"])
     created_client = await client.post(
