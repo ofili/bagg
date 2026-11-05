@@ -4,26 +4,11 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
+from tests.helpers import login_code_for
 
 
 @pytest.mark.asyncio
-async def test_magic_link_onboarding_lifecycle(monkeypatch):
-    delivered_codes: dict[str, str] = {}
-
-    async def fake_send_login_code_email(
-        self,
-        to_email: str,
-        code: str,
-        expires_in_minutes: int = 10,
-    ) -> bool:
-        delivered_codes[to_email] = code
-        return True
-
-    monkeypatch.setattr(
-        "app.domains.auth.service.EmailSender.send_login_code_email",
-        fake_send_login_code_email,
-    )
-
+async def test_magic_link_onboarding_lifecycle():
     transport = ASGITransport(app=app)
     async with AsyncClient(
         transport=transport,
@@ -38,8 +23,7 @@ async def test_magic_link_onboarding_lifecycle(monkeypatch):
         )
         assert req_res.status_code == 200
         assert "dev_code" not in req_res.json()
-        assert test_email in delivered_codes
-        code = delivered_codes[test_email]
+        code = login_code_for(test_email)
         assert len(code) == 6
 
         # 2. An incorrect code must fail.
@@ -99,21 +83,42 @@ async def test_magic_link_onboarding_lifecycle(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_new_magic_code_invalidates_previous_code(monkeypatch):
-    delivered_codes: list[str] = []  # --check-untyped-defs
+async def test_new_magic_code_invalidates_previous_code():
+    transport = ASGITransport(app=app)
 
-    async def fake_send_login_code_email(
-            self,
-            to_email: str,
-            code: str,
-            expires_in_minutes: int = 10,
-    ) -> bool:
-        delivered_codes.append(code)
-        return True
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        test_email = f"creator-{uuid.uuid4().hex[:12]}@example.com"
 
-    monkeypatch.setattr(
-        "app.domains.auth.service"
-    )
+        first_req = await client.post(
+            "/auth/magic-link",
+            json={"email": test_email},
+        )
+        assert first_req.status_code == 200
+        first_code = login_code_for(test_email)
+
+        second_req = await client.post(
+            "/auth/magic-link",
+            json={"email": test_email},
+        )
+        assert second_req.status_code == 200
+        second_code = login_code_for(test_email)
+
+        assert first_code != second_code
+
+        stale_res = await client.post(
+            "/auth/verify",
+            json={"email": test_email, "code": first_code},
+        )
+        assert stale_res.status_code == 400
+
+        current_res = await client.post(
+            "/auth/verify",
+            json={"email": test_email, "code": second_code},
+        )
+        assert current_res.status_code == 200
 
 
 @pytest.mark.asyncio

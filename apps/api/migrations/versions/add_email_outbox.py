@@ -5,10 +5,8 @@ import sqlalchemy as sa
 
 revision = "email_outbox_001"
 
-# Set this to the verified migration head after inspecting
-# `uv run alembic heads`. If multiple heads remain, use a
-# deliberate merge revision before applying this migration.
-down_revision = None
+# The notifications migration is the merge head that this migration follows.
+down_revision = "add_notifications_001"
 
 branch_labels = None
 depends_on = None

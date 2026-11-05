@@ -13,6 +13,7 @@ from typing import Optional, List
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.money import format_money
 from app.domains.sharing.schemas import (
     PublicInvoiceView,
     CommentCreate,

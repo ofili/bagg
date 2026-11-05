@@ -337,7 +337,7 @@ async def decline_public_quote(
         db, token, payload
     )
     if workspace and workspace.owner_id:
-        reason_suffix = f": \"{payload.decline_reason}\"" if payload.decline_reason else "."
+        reason_suffix = f": \"{payload.reason}\"" if payload.reason else "."
         await NotificationService.create_notification(
             db,
             workspace_id=workspace.id,
@@ -376,7 +376,7 @@ async def request_public_quote_review(
             recipient_user_id=workspace.owner_id,
             type="quote_review_requested",
             title=f"Changes requested on quote {quote_obj.quote_number}",
-            body=f"{client_name or 'Client'} requested review: \"{payload.review_reason}\"",
+            body=f"{client_name or 'Client'} requested review: \"{payload.reason}\"",
             document_type="quote",
             document_id=quote_obj.id,
             document_number=quote_obj.quote_number,

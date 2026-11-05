@@ -45,7 +45,7 @@ def _local_increment(key: str, window_seconds: int) -> tuple[int, int]:
 
     if current is None or current[1] <= now:
         count = 1
-        expires_at = current[1]
+        expires_at = now + window_seconds
     else:
         count = current[0] + 1
         expires_at = current[1]
@@ -95,39 +95,41 @@ async def enforce_rate_limit(
 
     key = f"bagg:ratelimit:{action}:{_digest(identity)}"
     count = 1
+    ttl = window_seconds
 
-    try:
-        redis = Redis.from_url(
-            settings.REDIS_URL,
-            encoding="utf-8",
-            decode_responses=True,
-            socket_connect_timeout=2,
-            socket_timeout=2,
-        )
+    if settings.ENVIRONMENT.strip().lower() == "production":
         try:
-            
-            result = await redis.eval(
-                _REDIS_FIXED_WINDOW_SCRIPT,
-                1,
-                key,
-                window_seconds,
+            redis = Redis.from_url(
+                settings.REDIS_URL,
+                encoding="utf-8",
+                decode_responses=True,
+                socket_connect_timeout=2,
+                socket_timeout=2,
             )
-
-            count = int(result[0])
-            ttl = max(0, int(result[1]))
-
-        finally:
-            await redis.aclose()
-
-    except Exception as exc:
-        if settings.ENVIRONMENT.strip().lower() == "production":
-            logger.error("Rate-limit store unavailable in production: %s", type(exc).__name__)
+            try:
+                result = await redis.eval(
+                    _REDIS_FIXED_WINDOW_SCRIPT,
+                    1,
+                    key,
+                    window_seconds,
+                )
+                count = int(result[0])
+                ttl = max(0, int(result[1]))
+            finally:
+                await redis.aclose()
+        except Exception as exc:
+            logger.error(
+                "Rate-limit store unavailable in production: %s",
+                type(exc).__name__,
+            )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Service is temporarily unavailable. Please try again shortly.",
             ) from None
-
-    count, ttl = _local_increment(key, window_seconds)
+    else:
+        # Development and tests use the bounded in-process fallback so local
+        # runs do not depend on Redis being available.
+        count, ttl = _local_increment(key, window_seconds)
 
     remaining = max(0, limit - count)
     if response:
@@ -140,10 +142,10 @@ async def enforce_rate_limit(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many attempts. Please wait before trying again.",
             headers={
-                "Retry-After": str(window_seconds),
+                "Retry-After": str(ttl),
                 "X-RateLimit-Limit": str(limit),
                 "X-RateLimit-Remaining": "0",
-                "X-RateLimit-Reset": str(window_seconds),
+                "X-RateLimit-Reset": str(ttl),
             },
         )
 

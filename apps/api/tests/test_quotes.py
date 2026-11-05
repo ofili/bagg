@@ -336,8 +336,11 @@ async def test_invoice_send_requires_finalize():
         assert fin_res.json()["status"] == "issued"
         assert fin_res.json()["share_token"] is not None
 
-        # Send -> sent
-        send_res = await client.post(f"/invoices/{inv['id']}/send")
+        # Send -> sent (explicit link handoff is a real dispatch)
+        send_res = await client.post(
+            f"/invoices/{inv['id']}/send",
+            json={"send_email": False},
+        )
         assert send_res.status_code == 200
         assert send_res.json()["invoice"]["status"] == "sent"
 

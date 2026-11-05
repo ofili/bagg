@@ -49,6 +49,9 @@ def build_auth_response(user, workspace, is_new_user: bool = False) -> AuthRespo
             id=user.id,
             email=user.email,
             is_active=user.is_active,
+            full_name=user.full_name,
+            phone_number=user.phone,
+            avatar_url=user.avatar_url,
         ),
         workspace=WorkspaceResponse(
             id=workspace.id,
@@ -64,6 +67,7 @@ def build_auth_response(user, workspace, is_new_user: bool = False) -> AuthRespo
             invoice_prefix=workspace.invoice_prefix,
             onboarding_completed=workspace.onboarding_completed,
         ),
+        is_new_user=is_new_user,
         message="Successfully authenticated",
     )
 
@@ -102,6 +106,9 @@ async def request_magic_link(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="We could not send your sign-in email. Please try again shortly.",
         ) from None
+    else:
+        # Commit the challenge and the outbox message together.
+        await db.commit()
 
     return {
         "message": (
@@ -154,24 +161,6 @@ async def verify_code(
 
 
     return build_auth_response(user, workspace, is_new_user)
-
-
-@router.get("/me", response_model=AuthResponse)
-async def get_current_user_profile(
-    response: Response,
-    auth_data=Depends(get_current_user_and_workspace),
-):
-    response.headers["Cache-Control"] = "no-store"
-
-    if not auth_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required. Please sign in.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    user, workspace = auth_data
-    return build_auth_response(user, workspace)
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)

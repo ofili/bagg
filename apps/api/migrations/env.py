@@ -1,26 +1,15 @@
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
-from alembic import context
 
+from alembic import context
+from sqlalchemy import engine_from_config, pool
+
+import app.models  # noqa: F401
 from app.core.config import settings
 from app.core.database import Base
-
-# Import all models to ensure they are registered with Base.metadata
-import app.domains.auth.models  # noqa: F401
-import app.domains.clients.models  # noqa: F401
-import app.domains.workspaces.models  # noqa: F401
-import app.domains.payments.models  # noqa: F401
-import app.domains.clients.models  # noqa: F401
-import app.domains.invoices.models  # noqa: F401
-import app.domains.sharing.models  # noqa: F401
-import app.domains.reminders.models  # noqa: F401
-import app.domains.billing.models  # noqa: F401
-import app.domains.compliance.models  # noqa: F401
-import app.domains.quotes.models  # noqa: F401
-import app.domains.receipts.models  # noqa: F401
-import app.domains.lifecycle.models  # noqa: F401
-import app.integrations.email_models  # noqa: F401
-import app.domains.security.models  # noqa: F401
+from app.domains.security.email_change_models import (
+    EmailChangeRequest,
+    EmailChangeAuditEvent,
+)
 
 config = context.config
 

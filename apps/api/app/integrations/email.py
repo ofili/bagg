@@ -219,12 +219,11 @@ class EmailSender:
             _html_shell(f"Invoice {invoice_number}", body),
         )
 
-    async def send_login_code_email(
+    def build_login_code_email(
         self,
-        to_email: str,
         code: str,
         expires_in_minutes: int = 10,
-    ) -> bool:
+    ) -> str:
         body = (
             "<p>Use this one-time code to sign in to your Bagg account:</p>"
             '<p style="font-size: 32px; font-weight: 800; '
@@ -235,8 +234,16 @@ class EmailSender:
             "<p>For your security, do not share this code with anyone.</p>"
         )
 
+        return _html_shell("Sign in to Bagg", body)
+
+    async def send_login_code_email(
+        self,
+        to_email: str,
+        code: str,
+        expires_in_minutes: int = 10,
+    ) -> bool:
         return await self._deliver(
             to_email,
             "Your Bagg sign-in code",
-            _html_shell("Sign in to Bagg", body),
+            self.build_login_code_email(code, expires_in_minutes),
         )

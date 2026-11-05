@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import and_, or_, select, text
 
+import app.models  # noqa: F401  (registers every SQLAlchemy model)
+
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine
 from app.domains.auth.models import MagicLoginCode

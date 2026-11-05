@@ -71,19 +71,27 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
             inv_ids.append(inv["id"])
 
         # Send 1st (Free 1/3)
-        res1 = await client.post(f"/invoices/{inv_ids[0]}/send")
+        res1 = await client.post(
+            f"/invoices/{inv_ids[0]}/send", json={"send_email": False}
+        )
         assert res1.status_code == 200
 
         # Send 2nd (Free 2/3)
-        res2 = await client.post(f"/invoices/{inv_ids[1]}/send")
+        res2 = await client.post(
+            f"/invoices/{inv_ids[1]}/send", json={"send_email": False}
+        )
         assert res2.status_code == 200
 
         # Send 3rd (Free 3/3)
-        res3 = await client.post(f"/invoices/{inv_ids[2]}/send")
+        res3 = await client.post(
+            f"/invoices/{inv_ids[2]}/send", json={"send_email": False}
+        )
         assert res3.status_code == 200
 
         # Send 4th -> MUST fail with HTTP 402 Payment Required
-        res4 = await client.post(f"/invoices/{inv_ids[3]}/send")
+        res4 = await client.post(
+            f"/invoices/{inv_ids[3]}/send", json={"send_email": False}
+        )
         assert res4.status_code == 402
         assert "free delivery sends" in res4.json()["detail"]
 
@@ -137,7 +145,9 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
         assert credits_res.json()["balance"] == 200
 
         # Now send 4th invoice -> Should SUCCEED by deducting 1 credit
-        res4_retry = await client.post(f"/invoices/{inv_ids[3]}/send")
+        res4_retry = await client.post(
+            f"/invoices/{inv_ids[3]}/send", json={"send_email": False}
+        )
         assert res4_retry.status_code == 200
 
         # Verify credit balance decremented to 199

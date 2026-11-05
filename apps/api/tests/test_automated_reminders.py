@@ -10,7 +10,11 @@ from tests.helpers import create_sent_invoice, login_code_for
 
 
 @pytest.mark.asyncio
-async def test_automated_reminders_lifecycle():
+async def test_automated_reminders_lifecycle(monkeypatch):
+    monkeypatch.setattr(
+        "app.domains.reminders.router.settings.INTERNAL_JOB_TOKEN",
+        "test-internal-token",
+    )
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Step 0: Auth & Workspace Setup
@@ -77,7 +81,10 @@ async def test_automated_reminders_lifecycle():
             await session.commit()
 
         # Trigger worker process
-        proc_res = await client.post("/reminders/process?limit=100")
+        proc_res = await client.post(
+            "/reminders/process?limit=100",
+            headers={"Authorization": "Bearer test-internal-token"},
+        )
         assert proc_res.status_code == 200
         proc_data = proc_res.json()
         assert proc_data["processed_count"] >= 1

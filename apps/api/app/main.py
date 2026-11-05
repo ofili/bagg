@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+import app.models
+
 from app.core.config import settings
 from app.core.middleware import RequestTracingMiddleware, SecurityHeadersMiddleware
 from app.core.money import CURRENCY_SPECS
@@ -18,6 +21,10 @@ from app.domains.quotes.router import router as quotes_router
 from app.domains.receipts.router import router as receipts_router
 from app.domains.notifications.router import router as notifications_router
 from app.domains.security.router import router as security_router
+from app.domains.security.email_change_router import (
+    router as email_change_router,
+)
+from app.domains.users.router import router as users_router
 
 app = FastAPI(
     title="Bagg API",
@@ -58,6 +65,8 @@ app.include_router(compliance_router)
 app.include_router(receipts_router)
 app.include_router(notifications_router)
 app.include_router(security_router)
+app.include_router(email_change_router)
+app.include_router(users_router)
 
 
 @app.get("/health", tags=["System"])

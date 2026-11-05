@@ -56,6 +56,7 @@ def test_production_accepts_non_default_secrets():
         SECRET_KEY="a" * 48,
         S3_SECRET_ACCESS_KEY="production-minio-secret",
         INTERNAL_JOB_TOKEN="production-internal-job-token",
+        OTP_HASH_SECRET="production-otp-hash-secret-123456789",
     )
 
     assert settings.ENVIRONMENT == "Production"

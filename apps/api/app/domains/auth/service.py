@@ -10,9 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.errors import BadRequestException
 from app.domains.auth.models import MagicLoginCode, User, UserSession
+from app.domains.email.service import enqueue_login_code
 from app.domains.workspaces.models import Workspace
 from app.integrations.email_outbox import (
-    enqueue_email,
     acquire_email_issuance_lock,
     invalidate_previous_otp_messages,
 )
@@ -64,80 +64,75 @@ class AuthService:
         token = secrets.token_urlsafe(32)
         now = datetime.now(timezone.utc)
 
+        # Serialize OTP issuance for this email address. The advisory lock is
+        # transaction-scoped, so the caller controls when the challenge and
+        # outbox message become visible together.
+        await acquire_email_issuance_lock(
+            self.db,
+            clean_email,
+        )
+
+        # Find all existing unused challenges.
+        existing_result = await self.db.execute(
+            select(MagicLoginCode)
+            .where(
+                MagicLoginCode.email == clean_email,
+                MagicLoginCode.used_at.is_(None),
+            )
+            .with_for_update()
+        )
+
+        existing = existing_result.scalars().all()
+
+        existing_ids = [entry.id for entry in existing]
+
+        # Invalidate existing challenges.
+        for old_entry in existing:
+            old_entry.used_at = now
+
+        # Invalidate their undelivered emails.
+        await invalidate_previous_otp_messages(
+            self.db,
+            existing_ids,
+        )
+
+        # Create the new challenge.
+        entry = MagicLoginCode(
+            email=clean_email,
+            code_hash=hash_code(code),
+            token=token,
+            expires_at=now + timedelta(minutes=self.OTP_MINUTES),
+        )
+
+        self.db.add(entry)
+
         if settings.ENVIRONMENT == "development":
-            print(f"Login code, dev only: {code}")
+            print(f"Login Code: {code}")
 
-        async with self.db.begin():
-            # Serialize OTP issuance for this email address.
-            await acquire_email_issuance_lock(
-                self.db,
-                clean_email,
-            )
+        # Flush to obtain the generated challenge ID.
+        await self.db.flush()
 
-            # Find all existing unused challenges.
-            existing_result = await self.db.execute(
-                select(MagicLoginCode)
-                .where(
-                    MagicLoginCode.email == clean_email,
-                    MagicLoginCode.used_at.is_(None),
-                )
-                .with_for_update()
-            )
+        # Persist the encrypted delivery request in the same transaction.
+        enqueue_login_code(
+            self.db,
+            challenge_id=entry.id,
+            recipient=clean_email,
+            code=code,
+            expires_in_minutes=self.OTP_MINUTES,
+        )
 
-            existing = existing_result.scalars().all()
+        # Make the queued message visible to the caller's session. The caller
+        # still owns the commit, so both rows remain atomic.
+        await self.db.flush()
 
-            existing_ids = [entry.id for entry in existing]
-
-            # Invalidate existing challenges.
-            for old_entry in existing:
-                old_entry.used_at = now
-
-            # Invalidate their undelivered emails.
-            await invalidate_previous_otp_messages(
-                self.db,
-                existing_ids,
-            )
-
-            # Create the new challenge.
-            entry = MagicLoginCode(
-                email=clean_email,
-                code_hash=hash_code(code),
-                token=token,
-                expires_at=now + timedelta(minutes=self.OTP_MINUTES),
-            )
-
-            self.db.add(entry)
-
-            # Flush to obtain the generated challenge ID.
-            await self.db.flush()
-
-            # Build the existing Bagg OTP email template.
-            email_html = self.email_sender.build_login_code_email(
-                code=code,
-                expires_in_minutes=self.OTP_MINUTES,
-            )
-
-            # Persist encrypted delivery request in the same transaction.
-            enqueue_email(
-                self.db,
-                message_type="login_otp",
-                aggregate_id=entry.id,
-                payload={
-                    "to_email": clean_email,
-                    "subject": "Your Bagg sign-in code",
-                    "html": email_html,
-                },
-            )
-
-            # No provider call here.
-            # The transaction has committed both records.
-            return None
+        # No provider call here. The caller commits the challenge and the
+        # outbox message together.
 
     async def verify_login(
         self,
         email: str,
         code: str,
-    ) -> tuple[User, Workspace, str]:
+    ) -> tuple[User, Workspace, str, bool]:
 
         clean_email = email.lower().strip()
         now = datetime.now(UTC)
@@ -181,6 +176,8 @@ class AuthService:
                 await self.db.commit()
 
                 raise BadRequestException("This account is inactive")
+
+            is_new_user = user is None
 
             if user is None:
                 user = User(
@@ -226,7 +223,7 @@ class AuthService:
             # and session creation commit together.
             await self.db.commit()
 
-            return user, workspace, raw_session_token
+            return user, workspace, raw_session_token, is_new_user
 
         except Exception:
             await self.db.rollback()
@@ -291,7 +288,7 @@ class AuthService:
         await self.db.execute(
             update(UserSession)
             .where(
-                UserSession.id == hash_code(raw_session_token),
+                UserSession.id == hash_session_token(raw_session_token),
                 UserSession.revoked_at.is_(None),
             )
             .values(revoked_at=datetime.now(UTC))
@@ -311,7 +308,7 @@ class AuthService:
                 UserSession.user_id == user_id,
                 UserSession.revoked_at.is_(None),
             )
-            .values(revoked_at=datetime.now)
+            .values(revoked_at=now)
         )
         await self.db.commit()
-        return result.fetchall() or 0
+        return result.rowcount or 0

@@ -245,8 +245,9 @@ async def test_invoice_payment_webhook_confirms_once(monkeypatch):
 
         receipts = await client.get(f"/receipts?invoice_id={invoice_id}")
         assert receipts.status_code == 200
-        assert len(receipts.json()) == 1
-        assert receipts.json()[0]["provider_reference"] == reference
+        receipt_items = receipts.json()["items"]
+        assert len(receipt_items) == 1
+        assert receipt_items[0]["provider_reference"] == reference
 
         events = await client.get(f"/invoices/{invoice_id}/status-events")
         assert events.status_code == 200
@@ -255,7 +256,7 @@ async def test_invoice_payment_webhook_confirms_once(monkeypatch):
         duplicate = await post_webhook(client, payload, sign(payload))
         assert duplicate.status_code == 200
         assert duplicate.json()["status"] == "already_processed"
-        assert len((await client.get(f"/receipts?invoice_id={invoice_id}")).json()) == 1
+        assert len((await client.get(f"/receipts?invoice_id={invoice_id}")).json()["items"]) == 1
 
 
 @pytest.mark.asyncio

@@ -10,13 +10,15 @@ Two pieces of global state leak between tests otherwise:
 import pytest
 import redis as redis_lib
 
+import app.models  # noqa: F401  (registers every SQLAlchemy model)
+from app.core import rate_limit as rate_limit_module
 from app.core.config import settings
-from app.core.rate_limit import _local_hits
+from app.core.database import AsyncSessionLocal
 from tests.helpers import install_login_code_capture, reset_captured_login_codes
 
 
 def _clear_rate_limits() -> None:
-    _local_hits.clear()
+    rate_limit_module._local_windows.clear()
     try:
         client = redis_lib.Redis.from_url(
             settings.REDIS_URL,
@@ -43,3 +45,10 @@ def isolate_test_state(monkeypatch):
     _clear_rate_limits()
     yield
     _clear_rate_limits()
+
+
+@pytest.fixture
+async def db_session():
+    """Yields a database session that rolls back on close."""
+    async with AsyncSessionLocal() as session:
+        yield session

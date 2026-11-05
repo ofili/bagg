@@ -139,7 +139,7 @@ async def test_confirming_an_already_confirmed_claim_is_rejected():
         assert "already" in duplicate.json()["detail"].lower()
 
         receipts = await client.get(f"/receipts?invoice_id={invoice['id']}")
-        assert len(receipts.json()) == 1
+        assert len(receipts.json()["items"]) == 1
     finally:
         await client.aclose()
 
@@ -205,7 +205,7 @@ async def test_partial_then_final_claim_payments():
         assert paid.json()["amount_paid_minor"] == invoice["total_minor"]
 
         receipts = await client.get(f"/receipts?invoice_id={invoice['id']}")
-        assert len(receipts.json()) == 2
+        assert len(receipts.json()["items"]) == 2
     finally:
         await client.aclose()
 

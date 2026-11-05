@@ -3,7 +3,7 @@ from datetime import date, timedelta
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from tests.helpers import create_sent_invoice, login_code_for
+from tests.helpers import create_sent_invoice, login_code_for, set_workspace_tier
 
 
 @pytest.mark.asyncio
@@ -17,6 +17,11 @@ async def test_financial_dashboard_and_metrics_lifecycle():
         code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+
+        # This test is about dashboard metrics, not free-tier metering.
+        ws_res = await client.get("/workspaces/current")
+        assert ws_res.status_code == 200
+        await set_workspace_tier(ws_res.json()["id"])
 
         # Setup Client
         c_res = await client.post(
@@ -167,14 +172,14 @@ async def test_financial_dashboard_and_metrics_lifecycle():
         # Overdue filter
         overdue_res = await client.get("/invoices?status=overdue")
         assert overdue_res.status_code == 200
-        overdue_invoices = overdue_res.json()
+        overdue_invoices = overdue_res.json()["items"]
         assert len(overdue_invoices) == 1
         assert overdue_invoices[0]["id"] == inv_ngn_overdue["id"]
 
         # Paid filter
         paid_res = await client.get("/invoices?status=paid")
         assert paid_res.status_code == 200
-        paid_invoices = paid_res.json()
+        paid_invoices = paid_res.json()["items"]
         assert len(paid_invoices) == 2
         paid_ids = {inv["id"] for inv in paid_invoices}
         assert inv_ngn_paid["id"] in paid_ids
@@ -183,7 +188,7 @@ async def test_financial_dashboard_and_metrics_lifecycle():
         # Currency filter
         usd_filter_res = await client.get("/invoices?currency=USD")
         assert usd_filter_res.status_code == 200
-        usd_invoices = usd_filter_res.json()
+        usd_invoices = usd_filter_res.json()["items"]
         assert len(usd_invoices) == 2
         for inv in usd_invoices:
             assert inv["currency"] == "USD"

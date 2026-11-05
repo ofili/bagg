@@ -6,7 +6,7 @@ from tests.helpers import login_code_for
 
 
 @pytest.mark.asyncio
-async def test_delivery_and_immutability_lifecycle():
+async def test_delivery_and_immutability_lifecycle(monkeypatch):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Step 0: Auth
@@ -15,6 +15,15 @@ async def test_delivery_and_immutability_lifecycle():
         code = login_code_for(test_email)
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+
+        # Treat the provider as accepting the message so dispatch is real.
+        async def accept_email(self, **kwargs):
+            return True
+
+        monkeypatch.setattr(
+            "app.domains.invoices.service.EmailSender.send_invoice_email",
+            accept_email,
+        )
 
         # Create Client with phone (US-DEL-02)
         client_res = await client.post(

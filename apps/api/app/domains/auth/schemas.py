@@ -21,8 +21,13 @@ class UserResponse(BaseModel):
     id: str
     email: str
     is_active: bool
+    full_name: str | None = None
+    phone_number: str | None = None
+    avatar_url: str | None = None
+
 
 class AuthResponse(BaseModel):
     user: UserResponse
     workspace: WorkspaceResponse
+    is_new_user: bool = False
     message: str = "Authenticated successfully"

@@ -6,6 +6,7 @@ the three-step flow after draft-send was blocked.
 import hashlib
 import hmac
 import json
+import re
 from typing import Any, Dict
 
 from httpx import AsyncClient
@@ -20,6 +21,10 @@ def sign_paystack(payload: Dict[str, Any], secret: str) -> tuple[bytes, str]:
 
 _CAPTURED_LOGIN_CODES: dict[str, str] = {}
 
+_LOGIN_CODE_IN_HTML = re.compile(
+    r"letter-spacing:\s*8px;[^>]*>\s*(\d{6})\s*</p>"
+)
+
 
 def reset_captured_login_codes() -> None:
     """Clears codes captured from previous test cases."""
@@ -27,25 +32,31 @@ def reset_captured_login_codes() -> None:
 
 
 def install_login_code_capture(monkeypatch) -> dict[str, str]:
-    """Patch the auth email sender and return a map of email -> issued code.
+    """Capture OTP codes at the outbox boundary.
 
-    The API no longer exposes dev codes in HTTP responses, so tests capture the
-    code at the email boundary instead.
+    Auth no longer calls the email provider directly; it encrypts the message
+    into the outbox. The plaintext HTML still contains the code, so wrap the
+    enqueue call and record it while delegating to the real implementation.
     """
+    from app.domains.email import service as email_service
 
-    async def fake_send_login_code_email(
-        self,
-        to_email: str,
-        code: str,
-        expires_in_minutes: int = 10,
-    ) -> bool:
-        _CAPTURED_LOGIN_CODES[to_email.lower().strip()] = code
-        return True
+    original_enqueue = email_service.enqueue_email
 
-    monkeypatch.setattr(
-        "app.domains.auth.service.EmailSender.send_login_code_email",
-        fake_send_login_code_email,
-    )
+    def capturing_enqueue(db, *, message_type, aggregate_id, payload):
+        if message_type == "login_otp":
+            match = _LOGIN_CODE_IN_HTML.search(payload.get("html", ""))
+            if match:
+                _CAPTURED_LOGIN_CODES[
+                    payload["to_email"].lower().strip()
+                ] = match.group(1)
+        return original_enqueue(
+            db,
+            message_type=message_type,
+            aggregate_id=aggregate_id,
+            payload=payload,
+        )
+
+    monkeypatch.setattr(email_service, "enqueue_email", capturing_enqueue)
     return _CAPTURED_LOGIN_CODES
 
 
@@ -61,6 +72,20 @@ def login_code_for(email: str) -> str:
     if key not in _CAPTURED_LOGIN_CODES:
         raise AssertionError(f"No login code was captured for {email!r}")
     return _CAPTURED_LOGIN_CODES[key]
+
+
+async def set_workspace_tier(workspace_id: str, tier: str = "creator_pro") -> None:
+    """Sets a workspace tier directly for tests that are not about metering."""
+    from sqlalchemy import update
+
+    from app.core.database import AsyncSessionLocal
+    from app.domains.workspaces.models import Workspace
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            update(Workspace).where(Workspace.id == workspace_id).values(tier=tier)
+        )
+        await session.commit()
 
 
 async def create_sent_invoice(client: AsyncClient, payload: Dict[str, Any]) -> Dict[str, Any]:

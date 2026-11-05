@@ -1,7 +1,7 @@
 import base64
 import binascii
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Internal scheduled jobs / worker endpoints
     INTERNAL_JOB_TOKEN: str | None = None
     EMAIL_ENCRYPTION_KEY: str | None = (
-        "ohKzOI-31q3_qLngQKYj2WCvWme5Se_voNA41VtBl2nRAz6tna0FeQyaIvg45vTE"
+        "Jgmn1HnnF-Q0AYTcEplUDyoWZi_X_Vb6QhvaKmPNiLw="
     )
     EMAIL_WORKER_POLL_SECONDS: int = 2
     EMAIL_WORKER_BATCH_SIZE: int = 10
@@ -43,9 +43,8 @@ class Settings(BaseSettings):
 
     # Dedicated secret for keyed OTP hashing.
     # Must be supplied through deployment secrets in production.
-    OTP_HASH_SECRET: Optional[str] = (
-        "ohKzOI-31q3_qLngQKYj2WCvWme5Se_voNA41VtBl2nRAz6tna0FeQyaIvg45vTE"
-    )
+    # Development falls back to SECRET_KEY in hash_code().
+    OTP_HASH_SECRET: Optional[str] = None
 
     # Storage
     S3_ENDPOINT_URL: str = "http://localhost:9000"
@@ -100,14 +99,19 @@ class Settings(BaseSettings):
             raise ValueError(
                 "INTERNAL_JOB_TOKEN must be set in production"
             )
-        if not self.OTP_HASH_SECRET or len(self.OTP_HASH_SECRET) < 32:
+        if not self.OTP_HASH_SECRET:
             raise ValueError(
-                "OTP_HASH_SECRET must contain at least 32 characters in production"
+                "OTP_HASH_SECRET must be set in production"
             )
 
         if self.OTP_HASH_SECRET == self.SECRET_KEY:
             raise ValueError(
                 "OTP_HASH_SECRET must be different from SECRET_KEY"
+            )
+
+        if len(self.OTP_HASH_SECRET) < 32:
+            raise ValueError(
+                "OTP_HASH_SECRET must contain at least 32 characters in production"
             )
         if not self.EMAIL_ENCRYPTION_KEY:
             raise ValueError(
@@ -115,10 +119,11 @@ class Settings(BaseSettings):
             )
         return self
 
+    @field_validator("EMAIL_ENCRYPTION_KEY")
     @staticmethod
-    def validate_email_encryption_key(value: str | None) -> None:
+    def validate_email_encryption_key(value: str | None) -> str | None:
         if not value:
-            return
+            return value
 
         try:
             decoded = base64.urlsafe_b64decode(value.encode("ascii"))
@@ -127,6 +132,8 @@ class Settings(BaseSettings):
 
         if len(decoded) != 32:
             raise ValueError("EMAIL_ENCRYPTION_KEY must decode to exactly 32 bytes")
+
+        return value
 
     @property
     def is_production(self) -> bool:

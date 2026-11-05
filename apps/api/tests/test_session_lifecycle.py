@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -23,8 +24,9 @@ async def test_revoke_all_sessions_is_user_scoped(db_session):
     from app.domains.auth.models import User, UserSession
     from app.domains.auth.service import hash_session_token
 
-    user_a = User(email="session-a@example.com", is_active=True)
-    user_b = User(email="session-b@example.com", is_active=True)
+    suffix = uuid.uuid4().hex[:10]
+    user_a = User(email=f"session-a-{suffix}@example.com", is_active=True)
+    user_b = User(email=f"session-b-{suffix}@example.com", is_active=True)
 
     db_session.add_all([user_a, user_b])
     await db_session.flush()
@@ -32,17 +34,17 @@ async def test_revoke_all_sessions_is_user_scoped(db_session):
     now = datetime.now(timezone.utc)
 
     session_a1 = UserSession(
-        id=hash_session_token("session-a1"),
+        id=hash_session_token(f"session-a1-{suffix}"),
         user_id=user_a.id,
         expires_at=now + timedelta(days=30),
     )
     session_a2 = UserSession(
-        id=hash_session_token("session-a2"),
+        id=hash_session_token(f"session-a2-{suffix}"),
         user_id=user_a.id,
         expires_at=now + timedelta(days=30),
     )
     session_b1 = UserSession(
-        id=hash_session_token("session-b1"),
+        id=hash_session_token(f"session-b1-{suffix}"),
         user_id=user_b.id,
         expires_at=now + timedelta(days=30),
     )

@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    UniqueConstraint,
     func,
 )
 from app.core.database import Base
@@ -124,10 +125,9 @@ class EmailDeliveryAttempt(Base):
     )
 
     __table_args__ = (
-        Index(
-            "ix_email_attempt_outbox_number",
+        UniqueConstraint(
             "outbox_id",
             "attempt_number",
-            unique=True,
+            name="uq_email_attempt_outbox_number",
         ),
     )

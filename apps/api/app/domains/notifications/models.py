@@ -32,3 +32,11 @@ class Notification(Base):
 
     workspace = relationship("Workspace")
     recipient = relationship("User")
+
+    __table_args__ = (
+        Index(
+            "ix_notifications_recipient_read",
+            "recipient_user_id",
+            "read_at",
+        ),
+    )
