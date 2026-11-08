@@ -18,6 +18,7 @@ import {
   UserRound,
   Users,
 } from 'lucide-react';
+import { ContactRow } from '@/components/mobile/ContactRow';
 import {
   buttonStyles,
   DataTable,
@@ -351,110 +352,12 @@ export default function ContactsPage() {
     },
   ];
 
-  const renderMobileCard = (contact: Contact) => {
-    const client = clientById.get(contact.client_id);
-    const clientName = contact.client_name ?? client?.name ?? 'Client';
-    const cleanPhone = normalisePhone(contact.phone);
-
-    return (
-      <article className="flex flex-col gap-4 rounded-card border border-line-subtle bg-surface p-4 sm:p-5">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">
-            <UserRound className="h-5 w-5" aria-hidden="true" />
-          </span>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-heading text-ink">{contact.name}</h2>
-              {contact.is_primary && (
-                <span className="rounded-full bg-surface-tint px-2 py-0.5 text-caption font-bold text-text-soft">
-                  Primary contact
-                </span>
-              )}
-            </div>
-
-            {contact.job_title && (
-              <p className="mt-0.5 text-body text-text-soft">
-                {contact.job_title}
-              </p>
-            )}
-
-            <Link
-              href="/clients"
-              className="mt-1 inline-flex items-center gap-1.5 text-caption font-bold text-text-muted transition-colors hover:text-ink"
-            >
-              {client?.client_type === 'BUSINESS' ? (
-                <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
-              ) : (
-                <Users className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-              {clientName}
-            </Link>
-
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-caption text-text-soft">
-              {contact.email && (
-                <a
-                  href={`mailto:${contact.email}`}
-                  className="inline-flex items-center gap-1.5 transition-colors hover:text-ink"
-                >
-                  <Mail className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span className="break-all">{contact.email}</span>
-                </a>
-              )}
-
-              {contact.phone && (
-                <a
-                  href={`tel:${contact.phone}`}
-                  className="inline-flex items-center gap-1.5 transition-colors hover:text-ink"
-                >
-                  <Phone className="h-3.5 w-3.5" aria-hidden="true" />
-                  {contact.phone}
-                </a>
-              )}
-
-              {cleanPhone && (
-                <a
-                  href={`https://wa.me/${cleanPhone.replace(/\+/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 font-bold text-link hover:underline"
-                >
-                  <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                  WhatsApp
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex shrink-0 items-center justify-end gap-1 border-t border-line-subtle pt-3">
-          <Link
-            href={`/clients/contacts/${encodeURIComponent(contact.id)}/edit`}
-            aria-label={`Edit ${contact.name}`}
-            title="Edit contact"
-            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
-          >
-            <Edit2 className="h-4 w-4" aria-hidden="true" />
-          </Link>
-
-          <button
-            type="button"
-            onClick={() => void handleDeleteContact(contact)}
-            disabled={deletingContactId === contact.id}
-            aria-label={`Delete ${contact.name}`}
-            title="Delete contact"
-            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-[#FFB3B3] hover:text-[#5A1010] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {deletingContactId === contact.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-            )}
-          </button>
-        </div>
-      </article>
-    );
-  };
+  const renderMobileCard = (contact: Contact) => (
+      <ContactRow
+          contact={contact}
+          clientName={contact.client_name ?? clientById.get(contact.client_id)?.name ?? 'Client'}
+      />
+  );
 
   const emptyState = (
     <div className="rounded-card border border-line-subtle bg-surface px-6 py-12 text-center">
@@ -509,7 +412,7 @@ export default function ContactsPage() {
         <button
           type="button"
           onClick={() => router.push('/clients/contacts/new')}
-          className={buttonStyles({ variant: 'accent' })}
+          className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           Add contact

@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, Check, CheckCircle2, Clock, Loader2, Sparkles, XCircle } from 'lucide-react';
+import { AlertCircle, Check, Clock, Loader2, Sparkles, XCircle } from 'lucide-react';
 import { BagCharacter } from '@/components/brand';
 import { DocumentComments } from "@/components/comments/DocumentComments";
+import { QuoteRespondBar } from '@/components/mobile/QuoteRespondBar';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
 import { Button, Card, Dialog, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
@@ -92,14 +93,14 @@ export default function PublicQuotePage() {
           setError('Quote not found or link has expired.');
         } else {
           const errData = await res.json().catch(() => ({}));
-          setError(errData.detail || 'Unable to load quote details.');
+          setError(errData.detail || 'Unable to load quotes details.');
         }
         return;
       }
       const data: PublicQuoteData = await res.json();
       setQuote(data);
     } catch {
-      setError('Network error while loading quote. Please check your connection.');
+      setError('Network error while loading quotes. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -118,7 +119,7 @@ export default function PublicQuotePage() {
     }
 
     if (!acceptName.trim()) {
-      setAcceptError('Please enter your full name to accept this quote.');
+      setAcceptError('Please enter your full name to accept this quotes.');
       return;
     }
 
@@ -137,7 +138,7 @@ export default function PublicQuotePage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setAcceptError(err.detail || 'Failed to accept quote.');
+        setAcceptError(err.detail || 'Failed to accept quotes.');
         return;
       }
 
@@ -163,14 +164,14 @@ export default function PublicQuotePage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setDeclineError(err.detail || 'Failed to decline quote.');
+        setDeclineError(err.detail || 'Failed to decline quotes.');
         return;
       }
       const updated = await res.json();
       setQuote(updated);
       setShowDeclineDialog(false);
     } catch {
-      setDeclineError('Network error while declining quote.');
+      setDeclineError('Network error while declining quotes.');
     } finally {
       setDeclining(false);
     }
@@ -227,12 +228,12 @@ export default function PublicQuotePage() {
   );
 
   return (
-    <div className="min-h-dvh bg-cream p-4 sm:p-6 lg:p-8">
+      <div className={cn('min-h-dvh bg-cream p-4 sm:p-6 lg:p-8', canRespond && 'pb-40 sm:pb-6')}>
       <div className="mx-auto max-w-xl space-y-6">
-        {/* Where this quote stands */}
+        {/* Where this quotes stands */}
         {isAccepted && (
           <Card zone="calm" tone="peach" className="flex items-start gap-3">
-            <CheckCircle2 aria-hidden className="mt-0.5 h-5 w-5 shrink-0" />
+            <BagCharacter size={44} mood="celebrating" decorative />.
             <div>
               <p className="text-body font-extrabold">Quote accepted</p>
               <p className="text-body text-text-soft">
@@ -400,12 +401,14 @@ export default function PublicQuotePage() {
             {canRespond && (
               <div className="space-y-3 border-t border-line pt-5">
                 <p className="text-body text-text-soft">Happy with the scope and price? Accept to get started.</p>
-                <Button zone="calm" size="lg" fullWidth onClick={() => setShowAcceptDialog(true)}>
-                  <Check aria-hidden className="h-4 w-4" /> Accept quote
-                </Button>
-                <Button variant="outline" zone="calm" size="lg" fullWidth onClick={() => setShowDeclineDialog(true)}>
-                  Decline
-                </Button>
+                <div className="hidden space-y-3 sm:block">
+                  <Button zone="calm" size="lg" fullWidth onClick={() => setShowAcceptDialog(true)}>
+                    <Check aria-hidden className="h-4 w-4" /> Accept quote
+                  </Button>
+                  <Button variant="outline" zone="calm" size="lg" fullWidth onClick={() => setShowDeclineDialog(true)}>
+                    Decline
+                  </Button>
+                </div>
                 <div className="text-center">
                   <a
                     href={`https://wa.me/?text=${whatsappText}`}
@@ -443,7 +446,16 @@ export default function PublicQuotePage() {
         )}
       </div>
 
-      {/* Accept dialog */}
+        {canRespond && (
+            <QuoteRespondBar
+                netPayableMinor={quote.net_payable_minor}
+                currency={quote.currency}
+                onAccept={() => setShowAcceptDialog(true)}
+                onDecline={() => setShowDeclineDialog(true)}
+            />
+        )}
+
+        {/* Accept dialog */}
       <Dialog
         open={showAcceptDialog}
         onClose={() => !accepting && setShowAcceptDialog(false)}

@@ -18,8 +18,9 @@ import {
 } from 'lucide-react';
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { InvoiceDocument } from '@/components/invoice';
+import { InvoiceMobileSummary } from '@/components/mobile/InvoiceMobileSummary';
+import { InvoiceActionBar } from '@/components/mobile/InvoiceActionBar';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
-import { DocumentComments } from "@/components/comments/DocumentComments";
 import { Money } from '@/components/money/Money';
 import {
   StatusPill,
@@ -442,6 +443,16 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
     setShowDeliveryDialog(true);
   };
 
+  useEffect(() => {
+    if (!invoice) return;
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('send') === '1' && invoice.status === 'issued') {
+      openInvoiceDelivery();
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoice?.id, invoice?.status]);
+
   const closeDeliveryDialog = () => {
     if (sendingInvoice) return;
     setShowDeliveryDialog(false);
@@ -623,8 +634,19 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
       )}`
     : undefined;
 
+  const invoiceDoc = (
+      <InvoiceDocument
+          variant="issuer"
+          invoice={{
+            ...invoice,
+            tax_rate_percent: invoice.tax_rate_percent ?? 0,
+            remaining_minor: invoice.remaining_minor,
+          }}
+      />
+  );
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-5xl space-y-6 p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <Link href="/invoices" className={buttonStyles({ variant: 'outline' })}>
@@ -648,13 +670,13 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
             />
           </div>
 
-          <p className="text-body text-text-soft">
+          <p className="hidden text-body text-text-soft sm:block">
             {invoice.client_name || 'Client'} · Due{' '}
             {formatDate(invoice.due_date)}
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="hidden flex-wrap gap-3 sm:flex">
           {invoice.status === 'draft' && (
             <Button
               zone="calm"
@@ -768,12 +790,25 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <InvoiceMobileSummary
+            clientName={invoice.client_name}
+            dueDate={invoice.due_date}
+            currency={invoice.currency}
+            netPayableMinor={netPayable}
+            paidMinor={invoice.amount_paid_minor}
+            overdue={
+                balanceMinor > 0 &&
+                !['draft', 'paid', 'cancelled'].includes(invoice.status) &&
+                invoice.due_date < new Date().toISOString().split('T')[0]
+            }
+        />
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           {pendingClaims.length > 0 && (
             <Card zone="calm" tone="peach" className="space-y-3">
               <div>
-                <h2 className="text-heading">payments waiting for you</h2>
+                <h2 id="claims" className="scroll-mt-4 text-heading">payments waiting for you</h2>
                 <p className="text-body text-text-soft">
                   Your client says they paid. Check your bank or mobile money
                   account before you confirm.
@@ -812,14 +847,13 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
             </Card>
           )}
 
-          <InvoiceDocument
-            variant="issuer"
-            invoice={{
-              ...invoice,
-              tax_rate_percent: invoice.tax_rate_percent ?? 0,
-              remaining_minor: invoice.remaining_minor,
-            }}
-          />
+          <details className="rounded-card border-brut border-ink bg-surface sm:hidden">
+            <summary className="flex min-h-12 cursor-pointer items-center px-4 font-extrabold">
+              View full invoice
+            </summary>
+            <div className="p-3">{invoiceDoc}</div>
+          </details>
+          <div className="hidden sm:block">{invoiceDoc}</div>
 
           <Card zone="calm" className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -981,7 +1015,28 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
         </aside>
       </div>
 
-      <Dialog
+      <InvoiceActionBar
+            status={invoice.status}
+            pendingClaims={pendingClaims.length}
+            canRecordPayment={canRecordPayment}
+            busy={sendingInvoice}
+            onIssue={handleFinalizeInvoice}
+            onSend={openInvoiceDelivery}
+            onRecord={openReceiptModal}
+            onReviewClaims={() =>
+                document.getElementById('claims')?.scrollIntoView({
+                  behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                  block: 'start',
+                })
+            }
+            copied={copied}
+            onCopy={copyShareLink}
+            clientViewHref={invoice.share_token && invoice.status !== 'draft' ? `/i/${invoice.share_token}` : undefined}
+            whatsappHref={invoice.share_token && invoice.status !== 'draft' ? whatsappHref : undefined}
+            receiptHref={invoice.latest_receipt?.share_token ? `/r/${invoice.latest_receipt.share_token}` : undefined}
+      />
+
+        <Dialog
         open={showDeliveryDialog}
         onClose={closeDeliveryDialog}
         title={`Send invoice ${invoice.invoice_number}`}

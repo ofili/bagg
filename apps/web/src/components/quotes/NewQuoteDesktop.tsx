@@ -30,7 +30,7 @@ const SUPPORTED_CURRENCIES = [
 ];
 const VALIDITY_OPTIONS = [7, 14, 30];
 
-export default function NewQuotePage() {
+export function NewQuoteDesktop() {
   const router = useRouter();
 
   const [clients, setClients] = useState<ClientItem[]>([]);

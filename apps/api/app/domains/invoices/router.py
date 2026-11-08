@@ -1,7 +1,5 @@
-from sqlalchemy import select
-from app.domains.sharing.models import InvoiceComment
 from app.domains.sharing.schemas import CommentCreate, CommentResponse
-from app.domains.notifications.router import require_auth
+from app.domains.auth.dependencies import get_current_user_and_workspace, require_auth
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query, status
@@ -12,7 +10,6 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.money import format_money
 from app.core.pagination import PaginatedResponse
-from app.domains.auth.router import get_current_user_and_workspace
 from app.domains.invoices import service
 from app.domains.invoices.presenter import (
     generate_whatsapp_share_url,
@@ -25,6 +22,7 @@ from app.domains.invoices.schemas import (
     InvoiceCreate,
     InvoiceResponse,
     InvoiceReviseRequest,
+    InvoiceRecallRequest,
     InvoiceRevisionResponse,
     InvoiceSendRequest,
     InvoiceSendResponse,
@@ -37,7 +35,7 @@ from app.domains.payments.schemas import (
     PaymentClaimResponse,
 )
 from app.domains.workspaces.models import Workspace
-from app.domains.workspaces.router import resolve_active_workspace
+from app.domains.workspaces.dependencies import resolve_active_workspace
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
@@ -46,7 +44,9 @@ router = APIRouter(prefix="/invoices", tags=["Invoices"])
 async def list_invoices(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search by invoice number or client name"),
+    search: Optional[str] = Query(
+        None, description="Search by invoice number or client name"
+    ),
     sort_by: str = Query("sequence_number", description="Column to sort by"),
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
     client_id: Optional[str] = Query(None, description="Filter by client ID"),
@@ -180,7 +180,9 @@ async def send_invoice(
             "has no email address on record. Add an email or share via WhatsApp."
         )
     elif send_email:
-        message = "Invoice marked sent, but email delivery failed. Share the link instead."
+        message = (
+            "Invoice marked sent, but email delivery failed. Share the link instead."
+        )
     else:
         message = f"Invoice {invoice.invoice_number} is ready to share."
 
@@ -201,6 +203,24 @@ async def regenerate_share_link(
     db: AsyncSession = Depends(get_db),
 ):
     invoice = await service.regenerate_share_link(db, workspace, invoice_id)
+    return map_invoice_to_response(invoice, business_name=workspace.business_name)
+
+
+@router.post("/{invoice_id}/recall", response_model=InvoiceResponse)
+async def recall_invoice(
+    invoice_id: str,
+    payload: Optional[InvoiceRecallRequest] = None,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    auth_data=Depends(get_current_user_and_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    invoice = await service.recall_invoice(
+        db,
+        workspace,
+        invoice_id,
+        actor_user_id=auth_data[0].id,
+        reason=payload.reason if payload else None,
+    )
     return map_invoice_to_response(invoice, business_name=workspace.business_name)
 
 
@@ -324,9 +344,7 @@ async def update_wht_credit_note(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    invoice = await service.update_wht_credit_note(
-        db, workspace, invoice_id, payload
-    )
+    invoice = await service.update_wht_credit_note(db, workspace, invoice_id, payload)
     return map_invoice_to_response(invoice, business_name=workspace.business_name)
 
 
@@ -336,14 +354,7 @@ async def list_invoice_comments(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    inv = await service._get_invoice_or_404(db, workspace, id)
-    stmt = (
-        select(InvoiceComment)
-        .where(InvoiceComment.invoice_id == inv.id)
-        .order_by(InvoiceComment.created_at.asc())
-    )
-    res = await db.execute(stmt)
-    comments = res.scalars().all()
+    comments = await service.list_invoice_comments(db, workspace, id)
     return [
         CommentResponse(
             id=comment.id,
@@ -358,26 +369,19 @@ async def list_invoice_comments(
     ]
 
 
-@router.post("/{id}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{id}/comments",
+    response_model=CommentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def post_invoice_comment(
     id: str,
     payload: CommentCreate,
     auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    user, workspace = auth
-    inv = await service._get_invoice_or_404(db, workspace, id)
-    author_name = payload.author_name.strip() if payload.author_name and payload.author_name.strip() else (workspace.business_name or "Business")
-    comment = InvoiceComment(
-        invoice_id=inv.id,
-        line_item_id=payload.line_item_id,
-        author_name=author_name,
-        message=payload.message.strip(),
-        is_from_client=False,
-    )
-    db.add(comment)
-    await db.commit()
-    await db.refresh(comment)
+    _user, workspace = auth
+    comment = await service.create_invoice_comment(db, workspace, id, payload)
     return CommentResponse(
         id=comment.id,
         invoice_id=comment.invoice_id,

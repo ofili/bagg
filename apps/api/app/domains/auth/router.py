@@ -12,6 +12,10 @@ from app.domains.auth.schemas import (
     VerifyCodeRequest,
 )
 from app.domains.auth.service import AuthService
+from app.domains.auth.dependencies import (
+    get_current_user_and_workspace,
+    get_session_token,
+)
 from app.domains.workspaces.schemas import WorkspaceResponse
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -20,27 +24,6 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 SESSION_COOKIE_NAME = "bagg_session"
 SESSION_MAX_AGE = AuthService.SESSION_DAYS * 24 * 60 * 60
 COOKIE_SECURE = settings.ENVIRONMENT.strip().lower() == "production"
-
-
-def get_session_token(request: Request) -> str | None:
-    """Read the session cookie or an explicitly supplied Bearer token."""
-    authorization = request.headers.get("Authorization", "")
-    if authorization.startswith("Bearer "):
-        token = authorization.removeprefix("Bearer ").strip()
-        return token or None
-
-    return request.cookies.get(SESSION_COOKIE_NAME)
-
-
-async def get_current_user_and_workspace(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    token = get_session_token(request)
-    if not token:
-        return None
-
-    return await AuthService(db).get_user_from_session(token)
 
 
 def build_auth_response(user, workspace, is_new_user: bool = False) -> AuthResponse:
@@ -147,7 +130,7 @@ async def verify_code(
         str(payload.email),
         payload.code,
     )
-    
+
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=session_token,
@@ -158,7 +141,6 @@ async def verify_code(
         path="/",
     )
     response.headers["Cache-Control"] = "no-store"
-
 
     return build_auth_response(user, workspace, is_new_user)
 
@@ -213,5 +195,6 @@ async def logout_all(
     response.headers["Cache-Control"] = "no-store"
 
     return {
-        "message": "All sessions have been revoked.", "revoked_sessions": revoked_count
+        "message": "All sessions have been revoked.",
+        "revoked_sessions": revoked_count,
     }

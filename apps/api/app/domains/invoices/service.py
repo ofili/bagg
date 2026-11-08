@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import and_, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -16,9 +15,11 @@ from app.domains.billing.service import (
 )
 from app.domains.clients.models import Client
 from app.domains.invoices.models import Invoice, InvoiceLineItem, InvoiceRevision
+from app.domains.invoices.repository import InvoiceRepository
+from app.domains.invoices.recall_service import InvoiceRecallService
 from app.domains.invoices.schemas import InvoiceCreate, InvoiceReviseRequest, InvoiceUpdate
 from app.domains.lifecycle.service import list_status_events, record_status_event
-from app.domains.payments.models import PaymentClaim, PaymentProfile
+from app.domains.payments.models import PaymentClaim
 from app.domains.quotes.models import Quote
 from app.domains.receipts.service import confirm_payment
 from app.domains.reminders.service import schedule_invoice_reminders
@@ -38,11 +39,8 @@ class SendInvoiceOutcome:
 async def _get_invoice_or_404(
     db: AsyncSession, workspace: Workspace, invoice_id: str
 ) -> Invoice:
-    stmt = select(Invoice).where(
-        and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace.id)
-    )
-    invoice = (await db.execute(stmt)).scalar_one_or_none()
-    if not invoice:
+    invoice = await InvoiceRepository(db).get(workspace.id, invoice_id)
+    if invoice is None:
         raise NotFoundException(f"Invoice '{invoice_id}' not found")
     return invoice
 
@@ -50,11 +48,8 @@ async def _get_invoice_or_404(
 async def _get_claim_or_404(
     db: AsyncSession, invoice: Invoice, claim_id: str
 ) -> PaymentClaim:
-    stmt = select(PaymentClaim).where(
-        and_(PaymentClaim.id == claim_id, PaymentClaim.invoice_id == invoice.id)
-    )
-    claim = (await db.execute(stmt)).scalar_one_or_none()
-    if not claim:
+    claim = await InvoiceRepository(db).get_claim(invoice.id, claim_id)
+    if claim is None:
         raise NotFoundException(f"Payment claim '{claim_id}' not found")
     return claim
 
@@ -80,25 +75,19 @@ def _apply_totals(invoice: Invoice, totals: dict, *, discount, tax_rate, wht_rat
 
 
 async def _replace_items(db: AsyncSession, invoice: Invoice, items) -> None:
-    existing = (
-        await db.execute(
-            select(InvoiceLineItem).where(InvoiceLineItem.invoice_id == invoice.id)
+    repository = InvoiceRepository(db)
+    await repository.delete_items(invoice.id)
+    repository.add_all([
+        InvoiceLineItem(
+            invoice_id=invoice.id,
+            position=position,
+            description=item.description,
+            quantity=item.quantity,
+            unit_price_minor=item.unit_price_minor,
+            total_minor=item.quantity * item.unit_price_minor,
         )
-    ).scalars().all()
-    for item in existing:
-        await db.delete(item)
-
-    for i, it in enumerate(items):
-        db.add(
-            InvoiceLineItem(
-                invoice_id=invoice.id,
-                position=i,
-                description=it.description,
-                quantity=it.quantity,
-                unit_price_minor=it.unit_price_minor,
-                total_minor=it.quantity * it.unit_price_minor,
-            )
-        )
+        for position, item in enumerate(items)
+    ])
 
 
 async def list_invoices(
@@ -114,78 +103,11 @@ async def list_invoices(
     page: int = 1,
     per_page: int = 20,
 ) -> tuple[list[Invoice], int]:
-    conditions = [Invoice.workspace_id == workspace.id]
-    if client_id:
-        conditions.append(Invoice.client_id == client_id)
-
-    if status_filter:
-        status = status_filter.lower().strip()
-        if status == "overdue":
-            today = date.today()
-            payable = func.coalesce(
-                func.nullif(Invoice.net_payable_minor, 0), Invoice.total_minor
-            )
-            conditions.append(Invoice.due_date < today)
-            conditions.append(
-                Invoice.status.in_(
-                    ["sent", "viewed", "payment_claimed", "partially_paid"]
-                )
-            )
-            conditions.append(payable > func.coalesce(Invoice.amount_paid_minor, 0))
-        elif status == "void":
-            conditions.append(Invoice.status == "cancelled")
-        else:
-            conditions.append(Invoice.status == status)
-
-    if currency:
-        conditions.append(Invoice.currency == currency.upper().strip())
-
-    if search:
-        conditions.append(
-            or_(
-                Invoice.invoice_number.ilike(f"%{search}%"),
-                Client.name.ilike(f"%{search}%"),
-            )
-        )
-
-    SORT_COLUMNS = {
-        "sequence_number": Invoice.sequence_number,
-        "issue_date": Invoice.issue_date,
-        "due_date": Invoice.due_date,
-        "total_minor": Invoice.total_minor,
-        "status": Invoice.status,
-        "created_at": Invoice.created_at,
-    }
-    sort_col = SORT_COLUMNS.get(sort_by, Invoice.sequence_number)
-    order_expr = asc(sort_col) if sort_order == "asc" else desc(sort_col)
-
-    base_stmt = (
-        select(Invoice)
-        .outerjoin(Client, Client.id == Invoice.client_id)
-        .where(and_(*conditions))
+    return await InvoiceRepository(db).list_page(
+        workspace.id, client_id=client_id, status_filter=status_filter,
+        currency=currency, search=search, sort_by=sort_by,
+        sort_order=sort_order, page=page, per_page=per_page,
     )
-
-    count_stmt = (
-        select(func.count())
-        .select_from(Invoice)
-        .outerjoin(Client, Client.id == Invoice.client_id)
-        .where(and_(*conditions))
-    )
-    total = (await db.execute(count_stmt)).scalar_one()
-
-    order_clauses = [order_expr]
-    if sort_by != "created_at":
-        order_clauses.append(desc(Invoice.created_at))
-
-    items_stmt = (
-        base_stmt
-        .order_by(*order_clauses)
-        .offset((page - 1) * per_page)
-        .limit(per_page)
-    )
-    items = list((await db.execute(items_stmt)).scalars().all())
-
-    return (items, total)
 
 
 async def get_invoice(
@@ -197,9 +119,8 @@ async def get_invoice(
 async def get_currency_metrics(
     db: AsyncSession, workspace: Workspace
 ) -> list[dict]:
-    invoices = (
-        await db.execute(select(Invoice).where(Invoice.workspace_id == workspace.id))
-    ).scalars().all()
+    repository = InvoiceRepository(db)
+    invoices = await repository.list_for_metrics(workspace.id)
 
     today = date.today()
     first_of_month = date(today.year, today.month, 1)
@@ -248,28 +169,21 @@ async def get_currency_metrics(
         if status_count_key:
             metrics[status_count_key] += 1
 
-        if inv.status in ["sent", "viewed", "payment_claimed", "partially_paid"]:
+        if inv.status in ["issued", "sent", "viewed", "payment_claimed", "partially_paid"]:
             metrics["outstanding_minor"] += unpaid_balance
 
-        if inv.status in ["sent", "viewed"] and inv.due_date and inv.due_date < today:
+        if inv.status in ["issued", "sent", "viewed", "payment_claimed", "partially_paid"] and inv.due_date and inv.due_date < today:
             metrics["overdue_minor"] += unpaid_balance
             metrics["overdue_count"] += 1
 
-        if (inv.amount_paid_minor or 0) > 0 and inv.status in [
-            "partially_paid",
-            "paid",
-        ]:
-            invoice_date = inv.updated_at.date() if inv.updated_at else inv.issue_date
-            if invoice_date and invoice_date >= first_of_month:
-                metrics["paid_this_month_minor"] += inv.amount_paid_minor
+    paid_totals = await repository.get_paid_totals_by_currency_since(
+        workspace.id, first_of_month
+    )
+    for currency, amount_minor in paid_totals.items():
+        metrics_by_currency.setdefault(currency, empty_metrics(currency))
+        metrics_by_currency[currency]["paid_this_month_minor"] = amount_minor
 
-    profile_currencies = (
-        await db.execute(
-            select(PaymentProfile.currency)
-            .where(PaymentProfile.workspace_id == workspace.id)
-            .distinct()
-        )
-    ).scalars().all()
+    profile_currencies = await repository.list_profile_currencies(workspace.id)
     for currency in profile_currencies:
         metrics_by_currency.setdefault(currency, empty_metrics(currency))
 
@@ -280,37 +194,45 @@ async def get_currency_metrics(
 
 
 async def create_invoice(
-    db: AsyncSession, workspace: Workspace, payload: InvoiceCreate
+    db: AsyncSession,
+    workspace: Workspace,
+    payload: InvoiceCreate,
 ) -> Invoice:
-    client = (
-        await db.execute(
-            select(Client).where(
-                and_(
-                    Client.id == payload.client_id,
-                    Client.workspace_id == workspace.id,
-                )
-            )
-        )
-    ).scalar_one_or_none()
+    repository = InvoiceRepository(db)
+    client = await repository.get_client(workspace.id, payload.client_id)
+
     if not client:
         raise NotFoundException(
             f"Client '{payload.client_id}' not found in this workspace"
         )
 
-    seq = workspace.next_invoice_number
-    invoice_number = f"{workspace.invoice_prefix}{seq:04d}"
-    workspace.next_invoice_number = seq + 1
+    if payload.payment_profile_id:
+        profile = await repository.get_payment_profile(
+            workspace.id, payload.payment_profile_id
+        )
+        if profile is None:
+            raise NotFoundException("Payment profile not found in this workspace")
+        if profile.currency.upper() != payload.currency.upper():
+            raise BadRequestException(
+                "Payment profile currency must match the invoice currency."
+            )
 
     issue_date = payload.issue_date or date.today()
     due_date = payload.due_date
+
     if not due_date:
         terms_days = client.default_payment_terms_days or 14
         due_date = issue_date + timedelta(days=terms_days)
+    if due_date < issue_date:
+        raise BadRequestException("Invoice due date cannot be earlier than its issue date.")
 
     totals = calculate_invoice_totals(
         items=[
-            {"quantity": it.quantity, "unit_price_minor": it.unit_price_minor}
-            for it in payload.items
+            {
+                "quantity": item.quantity,
+                "unit_price_minor": item.unit_price_minor,
+            }
+            for item in payload.items
         ],
         discount_minor=payload.discount_minor,
         tax_percent=payload.tax_rate_percent,
@@ -320,51 +242,64 @@ async def create_invoice(
     )
 
     raw_token, token_hash = generate_share_token()
+
     invoice = Invoice(
         workspace_id=workspace.id,
         client_id=client.id,
-        invoice_number=invoice_number,
-        sequence_number=seq,
+
+        # Invoice numbers are allocated only when the invoice is issued.
+        invoice_number=None,
+        sequence_number=None,
+
         currency=payload.currency,
         status="draft",
         issue_date=issue_date,
         due_date=due_date,
+
         subtotal_minor=totals["subtotal_minor"],
         discount_minor=payload.discount_minor,
         tax_rate_percent=payload.tax_rate_percent,
         tax_minor=totals["tax_minor"],
         total_minor=totals["total_minor"],
+
         wht_rate_percent=payload.wht_rate_percent,
         wht_minor=totals["wht_minor"],
         net_payable_minor=totals["net_payable_minor"],
+
         deposit_percentage=payload.deposit_percentage,
         deposit_amount_minor=totals["deposit_amount_minor"],
         deposit_due_date=payload.deposit_due_date,
+
         direct_checkout_enabled=payload.direct_checkout_enabled,
         amount_paid_minor=0,
+
         payment_profile_id=payload.payment_profile_id,
         notes=payload.notes,
+
         share_token=raw_token,
         share_token_hash=token_hash,
+
         version=1,
     )
-    db.add(invoice)
-    await db.flush()
 
-    for i, it in enumerate(payload.items):
-        db.add(
+    repository.add(invoice)
+    await repository.flush()
+
+    repository.add_all([
             InvoiceLineItem(
                 invoice_id=invoice.id,
-                position=i,
-                description=it.description,
-                quantity=it.quantity,
-                unit_price_minor=it.unit_price_minor,
-                total_minor=it.quantity * it.unit_price_minor,
+                position=position,
+                description=item.description,
+                quantity=item.quantity,
+                unit_price_minor=item.unit_price_minor,
+                total_minor=item.quantity * item.unit_price_minor,
             )
-        )
+            for position, item in enumerate(payload.items)
+        ])
 
     await db.commit()
-    await db.refresh(invoice)
+    await repository.refresh(invoice)
+
     return invoice
 
 
@@ -374,7 +309,9 @@ async def update_draft_invoice(
     invoice_id: str,
     payload: InvoiceUpdate,
 ) -> Invoice:
-    invoice = await _get_invoice_or_404(db, workspace, invoice_id)
+    invoice = await InvoiceRepository(db).get_for_update(workspace.id, invoice_id)
+    if invoice is None:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
     if invoice.status != "draft":
         raise BadRequestException(
             f"Invoice '{invoice.invoice_number}' is '{invoice.status}' and cannot be directly modified. "
@@ -449,109 +386,154 @@ async def update_draft_invoice(
         invoice.deposit_due_date = payload.deposit_due_date
     if payload.direct_checkout_enabled is not None:
         invoice.direct_checkout_enabled = payload.direct_checkout_enabled
+    repository = InvoiceRepository(db)
     if payload.client_id:
-        invoice.client_id = payload.client_id
+        client = await repository.get_client(workspace.id, payload.client_id)
+        if client is None:
+            raise NotFoundException(
+                f"Client '{payload.client_id}' not found in this workspace"
+            )
+        invoice.client_id = client.id
+    effective_issue_date = payload.issue_date or invoice.issue_date
+    effective_due_date = payload.due_date or invoice.due_date
+    if effective_issue_date and effective_due_date and effective_due_date < effective_issue_date:
+        raise BadRequestException("Invoice due date cannot be earlier than its issue date.")
     if payload.issue_date:
         invoice.issue_date = payload.issue_date
     if payload.due_date:
         invoice.due_date = payload.due_date
     if payload.notes is not None:
         invoice.notes = payload.notes
-    if payload.payment_profile_id is not None:
-        invoice.payment_profile_id = payload.payment_profile_id
+    if "payment_profile_id" in payload.model_fields_set:
+        if payload.payment_profile_id is None:
+            invoice.payment_profile_id = None
+        else:
+            profile = await repository.get_payment_profile(
+                workspace.id, payload.payment_profile_id
+            )
+            if profile is None:
+                raise NotFoundException("Payment profile not found in this workspace")
+            if profile.currency.upper() != invoice.currency.upper():
+                raise BadRequestException(
+                    "Payment profile currency must match the invoice currency."
+                )
+            invoice.payment_profile_id = profile.id
 
     await db.commit()
-    await db.refresh(invoice)
+    await InvoiceRepository(db).refresh(invoice)
     return invoice
 
 
 async def finalize_invoice(
-    db: AsyncSession, workspace: Workspace, invoice_id: str
+    db: AsyncSession,
+    workspace: Workspace,
+    invoice_id: str,
 ) -> tuple[Invoice, Client]:
-    invoice = await _get_invoice_or_404(db, workspace, invoice_id)
+    invoice = await InvoiceRepository(db).get_for_update(workspace.id, invoice_id)
+    if invoice is None:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
+
     if invoice.status != "draft":
         raise BadRequestException(
-            f"Invoice '{invoice.invoice_number or invoice_id}' is '{invoice.status}' and cannot be finalized."
+            f"Invoice '{invoice.invoice_number or invoice_id}' "
+            f"is '{invoice.status}' and cannot be finalized."
         )
 
-    client = (
-        await db.execute(
-            select(Client).where(
-                and_(
-                    Client.id == invoice.client_id,
-                    Client.workspace_id == workspace.id,
-                )
-            )
-        )
-    ).scalar_one_or_none()
+    repository = InvoiceRepository(db)
+    client = await repository.get_client(workspace.id, invoice.client_id)
+
     if not client:
         raise NotFoundException(
             f"Client '{invoice.client_id}' not found in this workspace"
         )
 
-    items = (
-        await db.execute(
-            select(InvoiceLineItem).where(InvoiceLineItem.invoice_id == invoice.id)
-        )
-    ).scalars().all()
+    items = await repository.list_items(invoice.id)
+
     if not items:
         raise BadRequestException(
-            f"Invoice '{invoice.invoice_number or invoice_id}' must have at least one line item."
+            f"Invoice '{invoice.invoice_number or invoice_id}' "
+            "must have at least one line item."
         )
-    if sum(it.total_minor for it in items) <= 0:
+
+    if sum(item.total_minor for item in items) <= 0:
         raise BadRequestException(
-            f"Invoice '{invoice.invoice_number or invoice_id}' total must be greater than zero."
+            f"Invoice '{invoice.invoice_number or invoice_id}' "
+            "total must be greater than zero."
+        )
+
+    # Serialize invoice-number allocation across all issue operations
+    # within this workspace.
+    locked_workspace = await repository.get_workspace_for_update(workspace.id)
+
+    if not locked_workspace:
+        raise NotFoundException("Workspace not found")
+
+    # Recheck after acquiring the workspace lock. This protects against
+    # duplicate finalization attempts and stale invoice state.
+    await InvoiceRepository(db).refresh(invoice)
+
+    if invoice.status != "draft":
+        raise BadRequestException(
+            f"Invoice '{invoice.invoice_number or invoice_id}' "
+            f"is '{invoice.status}' and cannot be finalized."
         )
 
     issue_date = invoice.issue_date or date.today()
+
     if not invoice.due_date:
         terms_days = client.default_payment_terms_days or 14
         invoice.due_date = issue_date + timedelta(days=terms_days)
+
     invoice.issue_date = issue_date
 
+    if invoice.invoice_number and invoice.sequence_number is not None:
+        # Recall/reissue retains the original permanent document number.
+        invoice_number = invoice.invoice_number
+        sequence_number = invoice.sequence_number
+    else:
+        sequence_number = locked_workspace.next_invoice_number
+        invoice_number = (
+            f"{locked_workspace.invoice_prefix}{sequence_number:04d}"
+        )
+        locked_workspace.next_invoice_number = sequence_number + 1
+
     old_status = invoice.status
+
     invoice.status = "issued"
-    if not invoice.invoice_number:
-        seq = workspace.next_invoice_number
-        workspace.next_invoice_number = seq + 1
-        invoice.invoice_number = f"{workspace.invoice_prefix}{seq:04d}"
-        invoice.sequence_number = seq
+    invoice.invoice_number = invoice_number
+    invoice.sequence_number = sequence_number
+
     _ensure_share_token(invoice)
 
     record_status_event(
         db=db,
-        workspace_id=workspace.id,
+        workspace_id=locked_workspace.id,
         document_type="invoice",
         document_id=invoice.id,
         from_status=old_status,
-        to_status=invoice.status,
+        to_status="issued",
         actor_type="issuer",
-        actor_id=workspace.owner_id,
+        actor_id=locked_workspace.owner_id,
         source="issuer_finalize",
     )
 
     if invoice.quote_id:
-        quote_obj = (
-            await db.execute(
-                select(Quote).where(
-                    and_(
-                        Quote.id == invoice.quote_id,
-                        Quote.workspace_id == workspace.id,
-                    )
-                )
-            )
-        ).scalar_one_or_none()
+        quote_obj = await repository.get_quote(
+            locked_workspace.id, invoice.quote_id
+        )
+
         if quote_obj and quote_obj.status == "accepted":
             quote_obj.status = "converted"
+
             record_status_event(
                 db=db,
-                workspace_id=workspace.id,
+                workspace_id=locked_workspace.id,
                 document_type="quote",
                 document_id=quote_obj.id,
                 from_status="accepted",
                 to_status="converted",
                 actor_type="issuer",
-                actor_id=workspace.owner_id,
+                actor_id=locked_workspace.owner_id,
                 source="issuer_convert",
                 metadata={
                     "invoice_id": invoice.id,
@@ -559,8 +541,10 @@ async def finalize_invoice(
                 },
             )
 
+    await InvoiceRecallService.create_issued_snapshot(db, invoice)
     await db.commit()
-    await db.refresh(invoice)
+    await InvoiceRepository(db).refresh(invoice)
+
     return invoice, client
 
 
@@ -571,18 +555,11 @@ async def send_invoice(
     *,
     send_email: bool = True,
 ) -> SendInvoiceOutcome:
-    row = (
-        await db.execute(
-            select(Invoice, Client)
-            .join(Client, Invoice.client_id == Client.id)
-            .where(
-                and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace.id)
-            )
-        )
-    ).first()
-    if not row:
+    row = await InvoiceRepository(db).get_with_client_for_update(
+        workspace.id, invoice_id
+    )
+    if row is None:
         raise NotFoundException(f"Invoice '{invoice_id}' not found")
-
     invoice, client = row
     if invoice.status == "draft":
         raise BadRequestException(
@@ -643,6 +620,7 @@ async def send_invoice(
                     workspace, db, deduct_credit=True, commit=False
                 )
         dispatched = True
+        invoice.email_delivery_status = "link_shared"
 
     old_status = invoice.status
     if dispatched:
@@ -665,7 +643,7 @@ async def send_invoice(
         )
 
     await db.commit()
-    await db.refresh(invoice)
+    await InvoiceRepository(db).refresh(invoice)
     if dispatched:
         await schedule_invoice_reminders(invoice, db)
 
@@ -681,12 +659,14 @@ async def send_invoice(
 async def regenerate_share_link(
     db: AsyncSession, workspace: Workspace, invoice_id: str
 ) -> Invoice:
-    invoice = await _get_invoice_or_404(db, workspace, invoice_id)
+    invoice = await InvoiceRepository(db).get_for_update(workspace.id, invoice_id)
+    if invoice is None:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
     raw_token, token_hash = generate_share_token()
     invoice.share_token = raw_token
     invoice.share_token_hash = token_hash
     await db.commit()
-    await db.refresh(invoice)
+    await InvoiceRepository(db).refresh(invoice)
     return invoice
 
 
@@ -696,7 +676,30 @@ async def revise_invoice(
     invoice_id: str,
     payload: InvoiceReviseRequest,
 ) -> Invoice:
-    invoice = await _get_invoice_or_404(db, workspace, invoice_id)
+    invoice = await InvoiceRepository(db).get_for_update(workspace.id, invoice_id)
+    if invoice is None:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
+    if invoice.status == "draft":
+        raise BadRequestException(
+            "Draft invoices should be edited directly. Use PATCH /invoices/{id}."
+        )
+    if invoice.status not in {"issued", "sent", "viewed"}:
+        raise BadRequestException(
+            f"Invoice '{invoice.invoice_number or invoice_id}' cannot be revised "
+            f"while it is '{invoice.status}'. Resolve payment or lifecycle state first."
+        )
+
+    # A revision is a recall-and-reissue workflow, not an in-place mutation of
+    # an already issued financial document. Recall enforces the confirmed-
+    # payment, pending-claim and provider-processing invariants and invalidates
+    # open checkout attempts. It remains in this transaction so the revision
+    # and recall either commit together or roll back together.
+    invoice = await InvoiceRecallService.recall(
+        db, workspace.id, invoice.id,
+        actor_user_id=workspace.owner_id or "system",
+        reason=payload.reason,
+        commit=False,
+    )
 
     revision = InvoiceRevision(
         invoice_id=invoice.id,
@@ -722,7 +725,7 @@ async def revise_invoice(
         ],
         revised_reason=payload.reason,
     )
-    db.add(revision)
+    InvoiceRepository(db).add(revision)
 
     invoice.version += 1
     invoice.last_revised_at = datetime.now(timezone.utc)
@@ -778,31 +781,26 @@ async def revise_invoice(
         invoice.notes = payload.notes
 
     await db.commit()
-    await db.refresh(invoice)
+    await InvoiceRepository(db).refresh(invoice)
     return invoice
 
 
 async def list_invoice_revisions(
     db: AsyncSession, workspace: Workspace, invoice_id: str
 ) -> list[InvoiceRevision]:
-    stmt = (
-        select(InvoiceRevision)
-        .join(Invoice, InvoiceRevision.invoice_id == Invoice.id)
-        .where(
-            and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace.id)
-        )
-        .order_by(desc(InvoiceRevision.version))
-    )
-    return list((await db.execute(stmt)).scalars().all())
+    await _get_invoice_or_404(db, workspace, invoice_id)
+    return await InvoiceRepository(db).list_revisions(workspace.id, invoice_id)
 
 
 async def delete_draft_invoice(
     db: AsyncSession, workspace: Workspace, invoice_id: str
 ) -> None:
-    invoice = await _get_invoice_or_404(db, workspace, invoice_id)
+    invoice = await InvoiceRepository(db).get_for_update(workspace.id, invoice_id)
+    if invoice is None:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
     if invoice.status != "draft":
         raise BadRequestException("Cannot delete an invoice that has been sent or finalized.")
-    await db.delete(invoice)
+    await InvoiceRepository(db).delete(invoice)
     await db.commit()
 
 
@@ -817,12 +815,7 @@ async def list_invoice_claims(
     db: AsyncSession, workspace: Workspace, invoice_id: str
 ) -> list[PaymentClaim]:
     invoice = await _get_invoice_or_404(db, workspace, invoice_id)
-    stmt = (
-        select(PaymentClaim)
-        .where(PaymentClaim.invoice_id == invoice.id)
-        .order_by(PaymentClaim.created_at.desc())
-    )
-    return list((await db.execute(stmt)).scalars().all())
+    return await InvoiceRepository(db).list_claims(invoice.id)
 
 
 async def confirm_payment_claim(
@@ -836,38 +829,15 @@ async def confirm_payment_claim(
 ) -> PaymentClaim:
     # Lock the invoice first so all payment and claim-confirmation paths
     # serialize on the same financial record.
-    invoice = (
-        await db.execute(
-            select(Invoice)
-            .where(
-                and_(
-                    Invoice.id == invoice_id,
-                    Invoice.workspace_id == workspace.id,
-                )
-            )
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-    ).scalar_one_or_none()
+    repository = InvoiceRepository(db)
+    invoice = await repository.get_for_update(workspace.id, invoice_id)
 
     if not invoice:
         raise NotFoundException(f"Invoice '{invoice_id}' not found")
 
     # Reload claim status after acquiring the invoice lock. A concurrent
     # request may already have confirmed or rejected this claim.
-    claim = (
-        await db.execute(
-            select(PaymentClaim)
-            .where(
-                and_(
-                    PaymentClaim.id == claim_id,
-                    PaymentClaim.invoice_id == invoice.id,
-                )
-            )
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-    ).scalar_one_or_none()
+    claim = await repository.get_claim_for_update(invoice.id, claim_id)
 
     if not claim:
         raise NotFoundException(f"Payment claim '{claim_id}' not found")
@@ -901,7 +871,7 @@ async def confirm_payment_claim(
     claim.confirmed_at = datetime.now(timezone.utc)
 
     await db.commit()
-    await db.refresh(claim)
+    await InvoiceRepository(db).refresh(claim)
     return claim
 
 async def reject_payment_claim(
@@ -911,8 +881,13 @@ async def reject_payment_claim(
     claim_id: str,
     payload,
 ) -> PaymentClaim:
-    invoice = await _get_invoice_or_404(db, workspace, invoice_id)
-    claim = await _get_claim_or_404(db, invoice, claim_id)
+    repository = InvoiceRepository(db)
+    invoice = await repository.get_for_update(workspace.id, invoice_id)
+    if invoice is None:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
+    claim = await repository.get_claim_for_update(invoice.id, claim_id)
+    if claim is None:
+        raise NotFoundException(f"Payment claim '{claim_id}' not found")
     if claim.status != "pending":
         raise BadRequestException(
             f"Payment claim '{claim_id}' is already '{claim.status}'"
@@ -943,27 +918,26 @@ async def reject_payment_claim(
     )
 
     await db.commit()
-    await db.refresh(claim)
+    await InvoiceRepository(db).refresh(claim)
     return claim
 
 
 async def update_wht_credit_note(
     db: AsyncSession, workspace: Workspace, invoice_id: str, payload
 ) -> Invoice:
-    invoice = await _get_invoice_or_404(db, workspace, invoice_id)
+    invoice = await InvoiceRepository(db).get_for_update(workspace.id, invoice_id)
+    if invoice is None:
+        raise NotFoundException(f"Invoice '{invoice_id}' not found")
     invoice.wht_credit_note_number = payload.wht_credit_note_number.strip()
     await db.commit()
-    await db.refresh(invoice)
+    await InvoiceRepository(db).refresh(invoice)
     return invoice
 
 
 async def get_invoice_by_quote_id(
     db: AsyncSession, workspace: Workspace, quote_id: str
 ) -> Optional[Invoice]:
-    stmt = select(Invoice).where(
-        and_(Invoice.quote_id == quote_id, Invoice.workspace_id == workspace.id)
-    )
-    return (await db.execute(stmt)).scalar_one_or_none()
+    return await InvoiceRepository(db).get_by_quote(workspace.id, quote_id)
 
 
 async def create_draft_invoice_from_quote(
@@ -1002,11 +976,11 @@ async def create_draft_invoice_from_quote(
         version=1,
         quote_id=quote_obj.id,
     )
-    db.add(invoice)
-    await db.flush()
+    repository = InvoiceRepository(db)
+    repository.add(invoice)
+    await repository.flush()
 
-    for item in quote_obj.items:
-        db.add(
+    repository.add_all([
             InvoiceLineItem(
                 invoice_id=invoice.id,
                 position=item.position,
@@ -1015,9 +989,63 @@ async def create_draft_invoice_from_quote(
                 unit_price_minor=item.unit_price_minor,
                 total_minor=item.total_minor,
             )
-        )
+            for item in quote_obj.items
+        ])
 
     if commit:
         await db.commit()
-        await db.refresh(invoice)
+        await repository.refresh(invoice)
     return invoice
+
+
+async def list_invoice_comments(
+    db: AsyncSession, workspace: Workspace, invoice_id: str
+):
+    invoice = await _get_invoice_or_404(db, workspace, invoice_id)
+    return await InvoiceRepository(db).list_comments(invoice.id)
+
+
+async def create_invoice_comment(
+    db: AsyncSession, workspace: Workspace, invoice_id: str, payload
+):
+    from app.domains.sharing.models import InvoiceComment
+
+    repository = InvoiceRepository(db)
+    invoice = await _get_invoice_or_404(db, workspace, invoice_id)
+    if payload.line_item_id:
+        item = await repository.get_line_item(invoice.id, payload.line_item_id)
+        if item is None:
+            raise BadRequestException("That line item does not belong to this invoice.")
+    author_name = (
+        payload.author_name.strip()
+        if payload.author_name and payload.author_name.strip()
+        else (workspace.business_name or "Business")
+    )
+    message = payload.message.strip()
+    if not message:
+        raise BadRequestException("A comment message is required.")
+    comment = InvoiceComment(
+        invoice_id=invoice.id,
+        line_item_id=payload.line_item_id,
+        author_name=author_name,
+        message=message,
+        is_from_client=False,
+    )
+    repository.add(comment)
+    await db.commit()
+    await repository.refresh(comment)
+    return comment
+
+
+async def recall_invoice(
+    db: AsyncSession,
+    workspace: Workspace,
+    invoice_id: str,
+    *,
+    actor_user_id: str,
+    reason: Optional[str] = None,
+) -> Invoice:
+    return await InvoiceRecallService.recall(
+        db, workspace.id, invoice_id,
+        actor_user_id=actor_user_id, reason=reason,
+    )

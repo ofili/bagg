@@ -1,99 +1,73 @@
-from datetime import datetime, timezone, timedelta, date
-from typing import Optional, List
-from sqlalchemy import select, and_, func, desc, or_
-from sqlalchemy.ext.asyncio import AsyncSession
+"""Billing application services; persistence is delegated to BillingRepository.
+
+Invoice and Quote services retain their existing function signatures. Services
+own business rules and transaction decisions; repositories own SQL construction.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domains.billing.models import Subscription, CreditLedgerEntry, WebhookEvent
+from app.domains.billing.catalog import (
+    ANNUAL_PERIOD_DAYS,
+    FREE_TIER_MONTHLY_SENDS_LIMIT,
+    GRACE_PERIOD_DAYS,
+)
+from app.domains.billing.models import CreditLedgerEntry, Subscription
+from app.domains.billing.repository import BillingRepository
 from app.domains.workspaces.models import Workspace
-from app.domains.invoices.models import Invoice
-from app.domains.quotes.models import Quote
 
 
-FREE_TIER_MONTHLY_SENDS_LIMIT = 3
+def _month_bounds(now: datetime | None = None) -> tuple[datetime, datetime]:
+    current = now or datetime.now(timezone.utc)
+    start = datetime(current.year, current.month, 1, tzinfo=timezone.utc)
+    if current.month == 12:
+        end = datetime(current.year + 1, 1, 1, tzinfo=timezone.utc)
+    else:
+        end = datetime(current.year, current.month + 1, 1, tzinfo=timezone.utc)
+    return start, end
 
 
 async def get_credit_balance(workspace_id: str, db: AsyncSession) -> int:
-    """Returns the current credit ledger balance for a workspace."""
-    stmt = (
-        select(CreditLedgerEntry.balance_after)
-        .where(CreditLedgerEntry.workspace_id == workspace_id)
-        .order_by(CreditLedgerEntry.created_at.desc())
-        .limit(1)
-    )
-    res = await db.execute(stmt)
-    bal = res.scalar_one_or_none()
-    return bal if bal is not None else 0
+    return await BillingRepository(db).get_credit_balance(workspace_id)
 
 
 async def get_free_sends_used_this_month(workspace_id: str, db: AsyncSession) -> int:
-    """Counts documents dispatched this calendar month, across all channels.
-
-    Link/WhatsApp handoffs have no email status, so NULL is treated as a valid
-    dispatch. Failed email attempts are not metered.
-    """
-    today = date.today()
-    start_of_month = datetime(today.year, today.month, 1, tzinfo=timezone.utc)
-
-    invoice_stmt = select(func.count(Invoice.id)).where(
-        and_(
-            Invoice.workspace_id == workspace_id,
-            Invoice.sent_at >= start_of_month,
-            or_(
-                Invoice.email_delivery_status.is_(None),
-                Invoice.email_delivery_status != "failed",
-            ),
-        )
-    )
-    quote_stmt = select(func.count(Quote.id)).where(
-        and_(
-            Quote.workspace_id == workspace_id,
-            Quote.sent_at >= start_of_month,
-            or_(
-                Quote.email_delivery_status.is_(None),
-                Quote.email_delivery_status != "failed",
-            ),
-        )
-    )
-    invoice_count = (await db.execute(invoice_stmt)).scalar() or 0
-    quote_count = (await db.execute(quote_stmt)).scalar() or 0
-    return invoice_count + quote_count
+    start, end = _month_bounds()
+    return await BillingRepository(db).count_dispatched_since(workspace_id, start, end)
 
 
 async def check_delivery_quota(workspace: Workspace, db: AsyncSession) -> bool:
-    """
-    Free Tier Metering & Delivery Quota Guard (US-SUB-01).
-    - Pro & Professional tiers have unlimited sends.
-    - Free tier has 3 free sends per calendar month.
-    - 4th+ send requires paid credits or Creator Pro upgrade.
+    """Return whether one credit must be deducted, or reject exhausted quota.
 
-    Returns True if a credit must be deducted before delivery,
-    False if covered by the free tier or a paid tier.
-    Raises HTTPException(402) if the free allowance is exhausted and credit balance < 1.
-
-    The workspace row is locked for free-tier checks so concurrent sends cannot
-    both consume the last free slot or the last credit.
+    The workspace lock serializes competing sends. It remains held until the
+    caller commits the dispatch state and any credit-ledger mutation.
     """
-    if workspace.tier in ["creator_pro", "professional"]:
+    repository = BillingRepository(db)
+    locked_workspace = await repository.lock_workspace(workspace.id)
+    if locked_workspace is None:
+        raise HTTPException(status_code=404, detail="Workspace not found.")
+
+    if locked_workspace.tier in {"creator_pro", "professional"}:
         return False
-
-    await db.execute(
-        select(Workspace.id).where(Workspace.id == workspace.id).with_for_update()
-    )
 
     used = await get_free_sends_used_this_month(workspace.id, db)
     if used < FREE_TIER_MONTHLY_SENDS_LIMIT:
         return False
 
-    balance = await get_credit_balance(workspace.id, db)
-    if balance >= 1:
+    if await get_credit_balance(workspace.id, db) >= 1:
         return True
 
     raise HTTPException(
         status_code=402,
         detail=(
-            f"You have used your {FREE_TIER_MONTHLY_SENDS_LIMIT} free delivery sends for this month. "
-            "Please upgrade to Creator Pro (₦14,000/yr) or purchase a credit top-up pack to continue delivering invoices and quotes."
+            f"You have used your {FREE_TIER_MONTHLY_SENDS_LIMIT} free delivery "
+            "sends for this month. Please upgrade or purchase a credit top-up "
+            "pack to continue delivering invoices and quotes."
         ),
     )
 
@@ -105,15 +79,14 @@ async def consume_delivery_send(
     *,
     commit: bool = True,
 ) -> None:
-    """
-    Reserves a delivery send credit before dispatch (US-SUB-06).
+    if not deduct_credit:
+        return
 
-    Deducts 1 credit only when deduct_credit is True, meaning the pre-send quota
-    check already confirmed a credit is available. Callers that pass
-    commit=False keep the ledger entry in their transaction so the debit and the
-    document state commit atomically.
-    """
-    if not deduct_credit or workspace.tier in ["creator_pro", "professional"]:
+    repository = BillingRepository(db)
+    locked_workspace = await repository.lock_workspace(workspace.id)
+    if locked_workspace is None:
+        raise HTTPException(status_code=404, detail="Workspace not found.")
+    if locked_workspace.tier in {"creator_pro", "professional"}:
         return
 
     await add_credits(
@@ -137,24 +110,23 @@ async def add_credits(
     *,
     commit: bool = True,
 ) -> int:
-    """
-    Appends an entry to the append-only credit ledger (US-SUB-06).
+    """Append a ledger entry while serializing balance mutations per workspace."""
+    if amount == 0:
+        raise ValueError("Credit ledger entries must have a non-zero amount.")
 
-    Serializes balance changes on the workspace row so concurrent deductions
-    cannot both read the same balance. Pass commit=False to join the caller's
-    transaction.
-    """
-    await db.execute(
-        select(Workspace.id).where(Workspace.id == workspace_id).with_for_update()
-    )
+    repository = BillingRepository(db)
+    if await repository.lock_workspace(workspace_id) is None:
+        raise HTTPException(status_code=404, detail="Workspace not found.")
 
-    current_balance = await get_credit_balance(workspace_id, db)
+    if reference:
+        existing = await repository.find_credit_entry(workspace_id, reason, reference)
+        if existing:
+            return await repository.get_credit_balance(workspace_id)
+
+    current_balance = await repository.get_credit_balance(workspace_id)
     new_balance = current_balance + amount
     if new_balance < 0:
-        raise HTTPException(
-            status_code=402,
-            detail="Insufficient credit balance.",
-        )
+        raise HTTPException(status_code=402, detail="Insufficient credit balance.")
 
     entry = CreditLedgerEntry(
         workspace_id=workspace_id,
@@ -164,33 +136,39 @@ async def add_credits(
         description=description,
         reference=reference,
     )
-    db.add(entry)
+    await repository.add(entry)
+
     if commit:
         await db.commit()
-        await db.refresh(entry)
+        await repository.refresh(entry)
     else:
-        await db.flush()
+        await repository.flush()
+
     return new_balance
 
 
-async def get_or_create_subscription(workspace: Workspace, db: AsyncSession) -> Subscription:
-    """Returns active subscription for workspace or initializes a default free tier record."""
-    stmt = select(Subscription).where(Subscription.workspace_id == workspace.id)
-    sub = (await db.execute(stmt)).scalar_one_or_none()
-    if not sub:
-        sub = Subscription(
-            workspace_id=workspace.id,
-            tier=workspace.tier or "free",
-            status="active",
-            currency="NGN",
-            amount_minor=0,
-            billing_interval="annual",
-            cancel_at_period_end=False,
-        )
-        db.add(sub)
-        await db.commit()
-        await db.refresh(sub)
-    return sub
+async def get_or_create_subscription(
+    workspace: Workspace, db: AsyncSession
+) -> Subscription:
+    repository = BillingRepository(db)
+    await repository.lock_workspace(workspace.id)
+    subscription = await repository.get_subscription(workspace.id, lock=True)
+    if subscription:
+        return subscription
+
+    subscription = Subscription(
+        workspace_id=workspace.id,
+        tier=workspace.tier or "free",
+        status="active",
+        currency="NGN",
+        amount_minor=0,
+        billing_interval="annual",
+        cancel_at_period_end=False,
+    )
+    await repository.add(subscription)
+    await db.commit()
+    await repository.refresh(subscription)
+    return subscription
 
 
 async def activate_subscription(
@@ -202,91 +180,150 @@ async def activate_subscription(
     processor_subscription_code: Optional[str],
     processor_customer_code: Optional[str],
     db: AsyncSession,
+    *,
+    commit: bool = True,
 ) -> Subscription:
-    """
-    Activates or upgrades paid subscription (US-SUB-03).
-    Unlocks paid entitlements and sets period for 365 days.
-    """
-    stmt = select(Subscription).where(Subscription.workspace_id == workspace_id)
-    sub = (await db.execute(stmt)).scalar_one_or_none()
+    if plan not in {"creator_pro", "professional"}:
+        raise ValueError("Unsupported subscription plan.")
 
+    repository = BillingRepository(db)
+    workspace = await repository.lock_workspace(workspace_id)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="Workspace not found.")
+
+    subscription = await repository.get_subscription(workspace_id, lock=True)
     now = datetime.now(timezone.utc)
-    period_end = now + timedelta(days=365)
+    period_end = now + timedelta(days=ANNUAL_PERIOD_DAYS)
 
-    if not sub:
-        sub = Subscription(
-            workspace_id=workspace_id,
-            tier=plan,
-            status="active",
-            currency=currency,
-            amount_minor=amount_minor,
-            billing_interval="annual",
-            processor=processor,
-            processor_subscription_code=processor_subscription_code,
-            processor_customer_code=processor_customer_code,
-            current_period_start=now,
-            current_period_end=period_end,
-            cancel_at_period_end=False,
-            dunning_attempts=0,
-        )
-        db.add(sub)
-    else:
-        sub.tier = plan
-        sub.status = "active"
-        sub.currency = currency
-        sub.amount_minor = amount_minor
-        sub.processor = processor
-        if processor_subscription_code:
-            sub.processor_subscription_code = processor_subscription_code
-        if processor_customer_code:
-            sub.processor_customer_code = processor_customer_code
-        sub.current_period_start = now
-        sub.current_period_end = period_end
-        sub.cancel_at_period_end = False
-        sub.grace_period_end = None
-        sub.dunning_attempts = 0
+    if subscription is None:
+        subscription = Subscription(workspace_id=workspace_id)
+        await repository.add(subscription)
 
-    # Update workspace tier
-    ws_stmt = select(Workspace).where(Workspace.id == workspace_id)
-    ws = (await db.execute(ws_stmt)).scalar_one_or_none()
-    if ws:
-        ws.tier = plan
+    subscription.tier = plan
+    subscription.status = "active"
+    subscription.currency = currency.upper()
+    subscription.amount_minor = amount_minor
+    subscription.billing_interval = "annual"
+    subscription.processor = processor
+    if processor_subscription_code:
+        subscription.processor_subscription_code = processor_subscription_code
+    if processor_customer_code:
+        subscription.processor_customer_code = processor_customer_code
+    subscription.current_period_start = now
+    subscription.current_period_end = period_end
+    subscription.cancel_at_period_end = False
+    subscription.grace_period_end = None
+    subscription.dunning_attempts = 0
+    workspace.tier = plan
 
-    await db.commit()
-    await db.refresh(sub)
-    return sub
+    await repository.flush()
+    if commit:
+        await db.commit()
+        await repository.refresh(subscription)
+    return subscription
 
 
-async def handle_failed_payment(workspace_id: str, db: AsyncSession) -> Subscription:
-    """
-    Dunning & Grace Period (US-SUB-04):
-    Transitions status to past_due, grants 3-day grace period where Pro entitlements remain active.
-    """
-    stmt = select(Subscription).where(Subscription.workspace_id == workspace_id)
-    sub = (await db.execute(stmt)).scalar_one_or_none()
-    if not sub:
+async def handle_failed_payment(
+    workspace_id: str,
+    db: AsyncSession,
+    *,
+    commit: bool = True,
+) -> Subscription | None:
+    """Enter a three-day grace period without extending it on duplicate events."""
+    repository = BillingRepository(db)
+    workspace = await repository.lock_workspace(workspace_id)
+    if workspace is None:
         return None
 
-    now = datetime.now(timezone.utc)
-    sub.status = "past_due"
-    sub.grace_period_end = now + timedelta(days=3)
-    sub.dunning_attempts += 1
+    subscription = await repository.get_subscription(workspace_id, lock=True)
+    if subscription is None or subscription.status in {"canceled", "downgraded"}:
+        return subscription
+
+    if subscription.status != "past_due" or subscription.grace_period_end is None:
+        subscription.status = "past_due"
+        subscription.grace_period_end = datetime.now(timezone.utc) + timedelta(
+            days=GRACE_PERIOD_DAYS
+        )
+
+    subscription.dunning_attempts = (subscription.dunning_attempts or 0) + 1
+    await repository.flush()
+    if commit:
+        await db.commit()
+        await repository.refresh(subscription)
+    return subscription
+
+
+async def cancel_subscription_renewal(
+    workspace_id: str, db: AsyncSession
+) -> Subscription:
+    repository = BillingRepository(db)
+    await repository.lock_workspace(workspace_id)
+    subscription = await repository.get_subscription(workspace_id, lock=True)
+    if subscription is None:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    if subscription.current_period_end is None:
+        raise HTTPException(
+            status_code=409,
+            detail="There is no active paid billing period to cancel.",
+        )
+
+    subscription.cancel_at_period_end = True
+    # Paid entitlements remain active until the current period expires.
+    if subscription.status != "past_due":
+        subscription.status = "active"
 
     await db.commit()
-    await db.refresh(sub)
-    return sub
+    await repository.refresh(subscription)
+    return subscription
+
+
+async def expire_due_subscriptions(
+    db: AsyncSession,
+    *,
+    now: datetime | None = None,
+    batch_size: int = 100,
+) -> int:
+    """Downgrade expired subscriptions using workspace -> subscription lock order."""
+    current = now or datetime.now(timezone.utc)
+    repository = BillingRepository(db)
+    workspace_ids = await repository.list_expirable_workspace_ids(current, batch_size)
+    changed = 0
+
+    for workspace_id in workspace_ids:
+        workspace = await repository.lock_workspace(workspace_id)
+        if workspace is None:
+            continue
+        subscription = await repository.get_subscription(workspace_id, lock=True)
+        if subscription is None:
+            continue
+
+        canceled_expired = bool(
+            subscription.cancel_at_period_end
+            and subscription.current_period_end
+            and subscription.current_period_end <= current
+        )
+        grace_expired = bool(
+            subscription.status == "past_due"
+            and subscription.grace_period_end
+            and subscription.grace_period_end <= current
+        )
+        if not (canceled_expired or grace_expired):
+            continue
+
+        subscription.status = "downgraded"
+        subscription.tier = "free"
+        subscription.cancel_at_period_end = False
+        workspace.tier = "free"
+        changed += 1
+
+    await db.commit()
+    return changed
 
 
 async def check_and_apply_grace_period_expiration(sub: Subscription, db: AsyncSession):
-    """If grace period has passed and still unpaid, downgrade workspace to free."""
-    now = datetime.now(timezone.utc)
-    if sub.status == "past_due" and sub.grace_period_end and now > sub.grace_period_end:
-        sub.status = "downgraded"
-        sub.tier = "free"
+    """Backward-compatible wrapper for the consolidated expiry worker."""
+    return await expire_due_subscriptions(db)
 
-        ws_stmt = select(Workspace).where(Workspace.id == sub.workspace_id)
-        ws = (await db.execute(ws_stmt)).scalar_one_or_none()
-        if ws:
-            ws.tier = "free"
 
-        await db.commit()
+async def get_credit_history(workspace_id: str, db: AsyncSession, limit: int = 20):
+    return await BillingRepository(db).list_credit_history(workspace_id, limit)

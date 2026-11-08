@@ -213,7 +213,7 @@ export function QuoteCard({
           loading={sending}
           onClick={onSend}
         >
-          {q.status === 'issued' ? 'Send quote' : 'Send quote again'}
+          {q.status === 'issued' ? 'Send quotes' : 'Send quotes again'}
         </Button>
       )}
 

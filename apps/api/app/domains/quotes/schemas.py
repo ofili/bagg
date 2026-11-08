@@ -1,4 +1,5 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from app.core.money import validate_currency
 from typing import Optional, List
 from datetime import datetime, date
 
@@ -34,6 +35,14 @@ class QuoteCreate(BaseModel):
     deposit_amount_minor: Optional[int] = Field(default=None, ge=0)
     notes: Optional[str] = None
 
+    @field_validator("currency")
+    @classmethod
+    def check_currency(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if not validate_currency(normalized):
+            raise ValueError("Unsupported quote currency.")
+        return normalized
+
 
 class QuoteUpdate(BaseModel):
     client_id: Optional[str] = None
@@ -47,6 +56,16 @@ class QuoteUpdate(BaseModel):
     deposit_percentage: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     deposit_amount_minor: Optional[int] = Field(default=None, ge=0)
     notes: Optional[str] = None
+
+    @field_validator("currency")
+    @classmethod
+    def check_currency(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = value.strip().upper()
+        if not validate_currency(normalized):
+            raise ValueError("Unsupported quote currency.")
+        return normalized
 
 
 class QuoteResponse(BaseModel):
@@ -189,9 +208,23 @@ class QuoteReviseRequest(BaseModel):
     notes: Optional[str] = None
     reason: Optional[str] = Field(default="Scope or pricing adjustment", max_length=500)
 
+    @field_validator("currency")
+    @classmethod
+    def check_currency(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = value.strip().upper()
+        if not validate_currency(normalized):
+            raise ValueError("Unsupported quote currency.")
+        return normalized
+
 
 class QuoteDeclineRequest(BaseModel):
-    reason: Optional[str] = Field(None, max_length=500, description="Optional feedback note explaining why quote was declined")
+    reason: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="Optional feedback note explaining why quote was declined",
+    )
 
 
 class QuoteReviewRequest(BaseModel):

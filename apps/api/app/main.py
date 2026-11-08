@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models
+# import app.domains.recurring_invoices.models  # noqa: F401
 
 from app.core.config import settings
 from app.core.middleware import RequestTracingMiddleware, SecurityHeadersMiddleware
@@ -25,6 +26,7 @@ from app.domains.security.email_change_router import (
     router as email_change_router,
 )
 from app.domains.users.router import router as users_router
+from app.domains.recurring_invoices.router import router as recurring_invoices_router
 
 app = FastAPI(
     title="Bagg API",
@@ -67,6 +69,7 @@ app.include_router(notifications_router)
 app.include_router(security_router)
 app.include_router(email_change_router)
 app.include_router(users_router)
+app.include_router(recurring_invoices_router)
 
 
 @app.get("/health", tags=["System"])

@@ -3,9 +3,9 @@
 /*
  * Phone row for the quotes list. Replaces the renderMobileCard body.
  *
- * The row opens the quote. The next step for each state sits right under it,
+ * The row opens the quotes. The next step for each state sits right under it,
  * because quotes have one obvious next action:
- *   issued   -> Send quote            sent / viewed -> Send again
+ *   issued   -> Send quotes            sent / viewed -> Send again
  *   accepted -> Convert to invoice    converted     -> View invoice
  *   draft    -> (tap the row to finish it)
  * The button is a sibling of the link, never nested inside it.
@@ -78,7 +78,7 @@ export function QuoteRow({
                         loading={sending}
                         onClick={() => onSend(quote)}
                     >
-                        {quote.status === 'issued' ? 'Send quote' : 'Send again'}
+                        {quote.status === 'issued' ? 'Send quotes' : 'Send again'}
                     </Button>
                 </div>
             )}

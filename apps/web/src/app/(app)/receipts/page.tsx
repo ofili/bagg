@@ -19,6 +19,9 @@ import { Money } from '@/components/money/Money';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 import { useDataTable } from '@/hooks/useDataTable';
+import {DocTabs} from "@/components/mobile/DocTabs";
+import { ReceiptRow } from '@/components/mobile/ReceiptRow';
+import {BagCharacter} from "@/components/brand";
 
 interface ReceiptRecord {
   id: string;
@@ -172,8 +175,8 @@ export default function ReceiptsPage() {
   ];
 
   const emptyState = (
-    <Card zone="calm" className="space-y-3 p-8 text-center">
-      <ReceiptText aria-hidden className="mx-auto h-10 w-10 text-text-muted" />
+      <Card tone="peach" className="space-y-4 p-8 text-center">
+      <BagCharacter size={48} mood="happy" className="mx-auto" decorative />
       <h2 className="text-title">no receipts found</h2>
       <p className="mx-auto max-w-md text-body text-text-soft">
         {totalReceipts === 0 && !table.search.trim() && !table.filters['currency']
@@ -183,66 +186,7 @@ export default function ReceiptsPage() {
     </Card>
   );
 
-  const renderMobileCard = (receipt: ReceiptRecord) => (
-    <Card zone="calm" className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href={`/receipts/${encodeURIComponent(receipt.id)}`}
-            className="font-bold underline-offset-4 hover:underline"
-          >
-            {receipt.receipt_number}
-          </Link>
-          <p className="mt-1 truncate text-body text-text-soft">
-            {receipt.client_name || receipt.payer_name || 'Customer'}
-          </p>
-        </div>
-        <Money
-          amountMinor={receipt.amount_paid_minor}
-          currency={receipt.currency}
-          className="shrink-0 font-bold"
-          hideCurrencyCode
-        />
-      </div>
-
-      <dl className="grid grid-cols-2 gap-3 text-body">
-        <div>
-          <dt className="text-caption text-text-muted">Invoice</dt>
-          <dd>
-            <Link
-              href={`/invoices/${encodeURIComponent(receipt.invoice_id)}`}
-              className="underline-offset-4 hover:underline"
-            >
-              {receipt.invoice_number}
-            </Link>
-          </dd>
-        </div>
-        <div>
-          <dt className="text-caption text-text-muted">Payment date</dt>
-          <dd>{formatDate(receipt.payment_date)}</dd>
-        </div>
-        <div>
-          <dt className="text-caption text-text-muted">Method</dt>
-          <dd>{paymentMethodLabel(receipt.payment_method)}</dd>
-        </div>
-        <div>
-          <dt className="text-caption text-text-muted">Verification</dt>
-          <dd>{receipt.is_verified ? 'Verified' : 'Unverified'}</dd>
-        </div>
-      </dl>
-
-      <Link
-        href={`/receipts/${encodeURIComponent(receipt.id)}`}
-        className={buttonStyles({
-          variant: 'outline',
-          zone: 'calm',
-          fullWidth: true,
-        })}
-      >
-        View receipt
-      </Link>
-    </Card>
-  );
+  const renderMobileCard = (receipt: ReceiptRecord) => <ReceiptRow receipt={receipt} />;
 
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
@@ -255,7 +199,9 @@ export default function ReceiptsPage() {
         </div>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <DocTabs className="mt-3" />
+
+      <div className="hidden gap-3 sm:grid sm:grid-cols-2">
         <Card zone="calm" className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-row bg-peach">
             <ReceiptText aria-hidden className="h-5 w-5" />

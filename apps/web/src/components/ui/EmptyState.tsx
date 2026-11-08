@@ -71,8 +71,8 @@ export const emptyStates = {
   quotesFirst: {
     mood: 'happy',
     title: 'No quotes yet',
-    body: 'Send a quote and turn it into an invoice once it is accepted.',
-    action: { label: 'Create quote', href: '/quotes/new' },
+    body: 'Send a quotes and turn it into an invoice once it is accepted.',
+    action: { label: 'Create quotes', href: '/quotes/new' },
   },
   clientsFirst: {
     mood: 'happy',

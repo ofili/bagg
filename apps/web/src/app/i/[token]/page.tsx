@@ -7,6 +7,7 @@ import { AlertCircle, Check, Info, Loader2, MessageSquare, Send } from 'lucide-r
 import { BagCharacter } from '@/components/brand';
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { InvoiceDocument, PaymentDetails } from '@/components/invoice';
+import { ClientPayBar, ClientPayView, type ClientPayProps } from '@/components/mobile/ClientPay';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { Button, Card, Dialog, Field, Input, inputStyles } from '@/components/ui';
 import { cleanAmount, toMinor } from '@/lib/amount';
@@ -336,8 +337,45 @@ export default function PublicClientInvoiceView() {
     setIsClaimDialogOpen(true);
   };
 
+  const payProps: ClientPayProps = {
+    invoiceNumber: invoice.invoice_number,
+    currency: invoice.currency,
+    dueDate: invoice.due_date,
+    status: invoice.status,
+    payableMinor: payable,
+    paidMinor: invoice.amount_paid_minor || 0,
+    remainingMinor,
+    claim: resolvedLatestClaim,
+    receipt: invoice.latest_receipt ?? null,
+    paymentDetails: (
+        <PaymentDetails
+            profile={payment_profile}
+            currency={invoice.currency}
+            onCopy={handleCopy}
+            copiedKey={copiedKey}
+        />
+    ),
+    businessName: (data as { business_name?: string | null }).business_name ?? null,
+    onClaim: openClaimSheet,
+  };
+
+  const invoiceDoc = (
+      <InvoiceDocument
+          variant="public"
+          onClaimPaid={openClaimSheet}
+          paymentSlot={payProps.paymentDetails}
+          invoice={{
+            ...invoice,
+            remaining_minor: remainingMinor,
+            amount_paid_minor: invoice.amount_paid_minor,
+            latest_claim: resolvedLatestClaim,
+            latest_receipt: invoice.latest_receipt ?? null,
+          }}
+      />
+  );
+
   return (
-    <div className="min-h-dvh bg-cream p-4 sm:p-6 lg:p-8">
+      <div className="min-h-dvh bg-cream p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
       <div className="mx-auto max-w-xl space-y-6">
         {/* Copy and status toast */}
         {toastMsg && (
@@ -358,25 +396,16 @@ export default function PublicClientInvoiceView() {
           </Card>
         )}
 
-        <InvoiceDocument
-          variant="public"
-          onClaimPaid={openClaimSheet}
-          paymentSlot={
-            <PaymentDetails
-              profile={payment_profile}
-              currency={invoice.currency}
-              onCopy={handleCopy}
-              copiedKey={copiedKey}
-            />
-          }
-          invoice={{
-            ...invoice,
-            remaining_minor: remainingMinor,
-            amount_paid_minor: invoice.amount_paid_minor,
-            latest_claim: resolvedLatestClaim,
-            latest_receipt: invoice.latest_receipt ?? null,
-          }}
-        />
+        <ClientPayView {...payProps} />
+
+        <details className="rounded-card border-brut border-ink bg-surface sm:hidden">
+          <summary className="flex min-h-12 cursor-pointer items-center px-4 font-extrabold">
+            View full invoice
+          </summary>
+          <div className="p-3">{invoiceDoc}</div>
+        </details>
+        <div className="hidden sm:block">{invoiceDoc}</div>
+
 
         {/* Document Discussion */}
         <DocumentComments
@@ -409,7 +438,9 @@ export default function PublicClientInvoiceView() {
         </div>
       </div>
 
-      {/* "I've paid" dialog */}
+        <ClientPayBar {...payProps} />
+
+        {/* "I've paid" dialog */}
       <Dialog
         open={isClaimDialogOpen}
         onClose={() => !submittingClaim && setIsClaimDialogOpen(false)}

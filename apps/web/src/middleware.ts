@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// ---------------------------------------------------------------------------
-// Route classification
-// ---------------------------------------------------------------------------
+// Route classification ------------------------------------------------------
 
-/**
- * Protected routes – visiting without an active session redirects to /login.
- * Uses prefix matching so /invoices, /invoices/123, etc. all match.
- */
+/** Visiting these without a session cookie redirects to /login (prefix match). */
 const PROTECTED_PREFIXES = [
   '/invoices',
   '/quotes',
@@ -16,83 +11,66 @@ const PROTECTED_PREFIXES = [
   '/dashboard',
   '/settings',
   '/payments',
+  '/profile', // new: the profile page
 ];
 
-/**
- * Auth routes – visiting with an active session redirects to /dashboard.
- */
+/** Setup needs a session too, but there is no page to come back to afterwards. */
+const SESSION_ONLY_PREFIXES = ['/onboarding'];
+
+/** Visiting these WITH a session cookie redirects to /dashboard. */
 const AUTH_ROUTES = ['/login', '/signup'];
 
-/** Public document portals – always accessible regardless of session. */
+/** Public document portals: always reachable. */
 const PUBLIC_PREFIXES = ['/i/', '/q/', '/r/'];
 
 const SESSION_COOKIE = 'bagg_session';
 
-// ---------------------------------------------------------------------------
-// Edge-safe session check (no DB – just cookie presence)
-// ---------------------------------------------------------------------------
-function hasSessionCookie(request: NextRequest): boolean {
-  return Boolean(request.cookies.get(SESSION_COOKIE)?.value);
-}
+// Edge-safe check: cookie presence only (no database). A cookie can still be
+// stale or expired, which the app handles when an API call returns 401
+// (see SessionGuard) and which is why /login?expired=1 must never bounce away.
+const hasSessionCookie = (request: NextRequest) => Boolean(request.cookies.get(SESSION_COOKIE)?.value);
 
-function isProtected(pathname: string): boolean {
-  if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return false;
-  return PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
-}
+const isProtected = (pathname: string) =>
+    !PUBLIC_PREFIXES.some((p) => pathname.startsWith(p)) && PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
 
-function isAuthRoute(pathname: string): boolean {
-  return AUTH_ROUTES.some((r) => pathname.startsWith(r));
-}
+const isSessionOnly = (pathname: string) => SESSION_ONLY_PREFIXES.some((p) => pathname.startsWith(p));
+const isAuthRoute = (pathname: string) => AUTH_ROUTES.some((r) => pathname.startsWith(r));
 
-// ---------------------------------------------------------------------------
-// Security headers applied to every response
-// ---------------------------------------------------------------------------
 function applySecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'SAMEORIGIN');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set(
-    'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=()',
-  );
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   return response;
 }
 
-// ---------------------------------------------------------------------------
-// Middleware
-// ---------------------------------------------------------------------------
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
   const authenticated = hasSessionCookie(request);
 
-  // 1. Authenticated users visiting login/signup → send to dashboard
-  if (isAuthRoute(pathname) && authenticated) {
-    const destination = new URL('/dashboard', request.url);
-    return applySecurityHeaders(NextResponse.redirect(destination));
+  // 1. Signed-in users do not need the login page. The exception is a session the
+  //    app just found to be expired: let them reach /login to sign in again.
+  if (isAuthRoute(pathname) && authenticated && !searchParams.has('expired')) {
+    return applySecurityHeaders(NextResponse.redirect(new URL('/dashboard', request.url)));
   }
 
-  // 2. Unauthenticated users visiting protected routes → redirect to login
+  // 2. Signed-out users on protected pages go to /login and come back afterwards.
   if (isProtected(pathname) && !authenticated) {
     const loginUrl = new URL('/login', request.url);
-    // Preserve intended destination for post-login redirect
-    const safePath = encodeURIComponent(pathname + request.nextUrl.search);
-    loginUrl.searchParams.set('next', safePath);
+    // BUG FIX: searchParams.set() already encodes the value. The old code encoded it
+    // first, so it was encoded twice, the login page rejected it, and everyone landed on
+    // /dashboard instead of the page they asked for.
+    loginUrl.searchParams.set('next', pathname + request.nextUrl.search);
     return applySecurityHeaders(NextResponse.redirect(loginUrl));
   }
 
-  // 3. Pass through all other requests with security headers
+  if (isSessionOnly(pathname) && !authenticated) {
+    return applySecurityHeaders(NextResponse.redirect(new URL('/login', request.url)));
+  }
+
   return applySecurityHeaders(NextResponse.next());
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths EXCEPT:
-     * - _next/static (static files)
-     * - _next/image (image optimisation)
-     * - favicon.ico, opengraph images, public assets
-     * - API routes proxied to backend (/api/*)
-     */
-    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|api/).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|api/).*)'],
 };

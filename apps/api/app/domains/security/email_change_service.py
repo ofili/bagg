@@ -1,4 +1,3 @@
-
 import hashlib
 import hmac
 import json
@@ -83,18 +82,12 @@ class EmailChangeService:
             user_id=user_id,
             request_id=request_id,
             event_type=event_type,
-            old_email_hash=(
-                self._digest(old_email) if old_email else None
-            ),
-            new_email_hash=(
-                self._digest(new_email) if new_email else None
-            ),
+            old_email_hash=(self._digest(old_email) if old_email else None),
+            new_email_hash=(self._digest(new_email) if new_email else None),
             ip_address=ip_address,
             user_agent=user_agent,
             metadata_json=(
-                json.dumps(metadata, separators=(",", ":"))
-                if metadata
-                else None
+                json.dumps(metadata, separators=(",", ":")) if metadata else None
             ),
         )
 
@@ -102,9 +95,7 @@ class EmailChangeService:
 
     async def _get_locked_user(self, user_id: str) -> User:
         result = await self.db.execute(
-            select(User)
-            .where(User.id == user_id)
-            .with_for_update()
+            select(User).where(User.id == user_id).with_for_update()
         )
 
         user = result.scalars().first()
@@ -224,14 +215,10 @@ class EmailChangeService:
                 current_email=current_email,
                 new_email=proposed_email,
                 current_code_hash=self._digest(code),
-                current_code_expires_at=now + timedelta(
-                    minutes=self.CODE_MINUTES
-                ),
+                current_code_expires_at=now + timedelta(minutes=self.CODE_MINUTES),
                 current_attempts=0,
                 new_attempts=0,
-                expires_at=now + timedelta(
-                    minutes=self.REQUEST_MINUTES
-                ),
+                expires_at=now + timedelta(minutes=self.REQUEST_MINUTES),
             )
 
             self.db.add(change)
@@ -241,6 +228,7 @@ class EmailChangeService:
                 self.db,
                 recipient=current_email,
                 template="security_email_change_current",
+                aggregate_id=change.id,
                 payload={
                     "code": code,
                     "expires_in_minutes": self.CODE_MINUTES,
@@ -294,9 +282,7 @@ class EmailChangeService:
                 change.current_code_expires_at is None
                 or change.current_code_expires_at <= now
             ):
-                raise EmailChangeError(
-                    "The verification code has expired."
-                )
+                raise EmailChangeError("The verification code has expired.")
 
             if change.current_attempts >= self.MAX_ATTEMPTS:
                 raise EmailChangeError(
@@ -336,15 +322,14 @@ class EmailChangeService:
             new_code = self._new_code()
 
             change.new_code_hash = self._digest(new_code)
-            change.new_code_expires_at = now + timedelta(
-                minutes=self.CODE_MINUTES
-            )
+            change.new_code_expires_at = now + timedelta(minutes=self.CODE_MINUTES)
             change.new_attempts = 0
 
             await enqueue_security_email(
                 self.db,
                 recipient=change.new_email,
                 template="security_email_change_new",
+                aggregate_id=change.id,
                 payload={
                     "code": new_code,
                     "expires_in_minutes": self.CODE_MINUTES,
@@ -388,22 +373,15 @@ class EmailChangeService:
             self._assert_pending(change)
 
             if change.current_email_verified_at is None:
-                raise EmailChangeError(
-                    "Verify your current email address first."
-                )
+                raise EmailChangeError("Verify your current email address first.")
 
             if change.new_email_verified_at is not None:
                 raise EmailChangeError(
                     "The proposed email address has already been verified."
                 )
 
-            if (
-                change.new_code_expires_at is None
-                or change.new_code_expires_at <= now
-            ):
-                raise EmailChangeError(
-                    "The verification code has expired."
-                )
+            if change.new_code_expires_at is None or change.new_code_expires_at <= now:
+                raise EmailChangeError("The verification code has expired.")
 
             if change.new_attempts >= self.MAX_ATTEMPTS:
                 raise EmailChangeError(

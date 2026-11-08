@@ -18,6 +18,8 @@ import {
   Send,
 } from 'lucide-react';
 import { DocumentComments } from "@/components/comments/DocumentComments";
+import { QuoteMobileSummary } from '@/components/mobile/QuoteMobileSummary';
+import { QuoteActionBar } from '@/components/mobile/QuoteActionBar';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
 import { BaggSelect, Button, Card, Dialog, Field, Input, buttonStyles } from '@/components/ui';
@@ -197,7 +199,7 @@ export default function QuoteDetailPage() {
         credentials: 'include',
       });
       if (!response.ok) {
-        throw await readError(response, 'Could not convert this quote to an invoice.');
+        throw await readError(response, 'Could not convert this quotes to an invoice.');
       }
       const invoice = await response.json();
       setNotice({
@@ -208,7 +210,7 @@ export default function QuoteDetailPage() {
     } catch (error: unknown) {
       setNotice({
         kind: 'error',
-        message: error instanceof Error ? error.message : 'Could not convert quote.',
+        message: error instanceof Error ? error.message : 'Could not convert quotes.',
       });
     } finally {
       setConverting(false);
@@ -417,7 +419,7 @@ export default function QuoteDetailPage() {
       if (!response.ok) {
         throw await readError(
           response,
-          revisionMode ? 'Could not create a revised quote.' : 'Could not save quote.',
+          revisionMode ? 'Could not create a revised quotes.' : 'Could not save quotes.',
         );
       }
 
@@ -430,13 +432,13 @@ export default function QuoteDetailPage() {
         kind: 'success',
         message: revisionMode
           ? `Revision created for quote ${updated.quote_number}. Review it before issuing.`
-          : 'Draft quote saved.',
+          : 'Draft quotes saved.',
       });
       await loadQuote();
     } catch (error: unknown) {
       setNotice({
         kind: 'error',
-        message: error instanceof Error ? error.message : 'Could not save quote.',
+        message: error instanceof Error ? error.message : 'Could not save quotes.',
       });
     } finally {
       setSaving(false);
@@ -456,7 +458,7 @@ export default function QuoteDetailPage() {
       });
 
       if (!response.ok) {
-        throw await readError(response, 'Could not issue this quote.');
+        throw await readError(response, 'Could not issue this quotes.');
       }
 
       setNotice({
@@ -467,7 +469,7 @@ export default function QuoteDetailPage() {
     } catch (error: unknown) {
       setNotice({
         kind: 'error',
-        message: error instanceof Error ? error.message : 'Could not issue quote.',
+        message: error instanceof Error ? error.message : 'Could not issue quotes.',
       });
     } finally {
       setIssuing(false);
@@ -489,7 +491,7 @@ export default function QuoteDetailPage() {
       });
 
       if (!response.ok) {
-        throw await readError(response, 'Could not prepare the quote for sharing.');
+        throw await readError(response, 'Could not prepare the quotes for sharing.');
       }
 
       const result = await response.json();
@@ -513,8 +515,31 @@ export default function QuoteDetailPage() {
       setNotice({
         kind: 'error',
         message:
-          error instanceof Error ? error.message : 'Could not prepare quote sharing.',
+          error instanceof Error ? error.message : 'Could not prepare quotes sharing.',
       });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleShareWhatsApp = async () => {
+    if (!quote) return;
+    try {
+      setSending(true);
+      setNotice(null);
+      const response = await fetch(`${API_BASE}/quotes/${quote.id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ delivery_channel: 'whatsapp' }),
+      });
+      if (!response.ok) throw await readError(response, 'Could not prepare the quote for sharing.');
+      const result = await response.json();
+      if (result.whatsapp_share_url) window.open(result.whatsapp_share_url, '_blank');
+      else await copyPublicLink();
+      await loadQuote();
+    } catch (error: unknown) {
+      setNotice({ kind: 'error', message: error instanceof Error ? error.message : 'Could not share the quote.' });
     } finally {
       setSending(false);
     }
@@ -526,7 +551,7 @@ export default function QuoteDetailPage() {
       await navigator.clipboard.writeText(
         `${window.location.origin}/q/${quote.share_token}`,
       );
-      setNotice({ kind: 'success', message: 'Client quote link copied.' });
+      setNotice({ kind: 'success', message: 'Client quotes link copied.' });
     } catch {
       setNotice({ kind: 'error', message: 'Could not copy the client link.' });
     }
@@ -552,7 +577,7 @@ export default function QuoteDetailPage() {
           <AlertCircle aria-hidden className="h-6 w-6" />
           <h1 className="text-title">quote unavailable</h1>
           <p className="text-body text-text-soft">
-            {pageError || 'This quote could not be found.'}
+            {pageError || 'This quotes could not be found.'}
           </p>
           <Button variant="outline" zone="calm" onClick={() => void loadQuote()}>
             Try again
@@ -569,13 +594,13 @@ export default function QuoteDetailPage() {
     : null;
 
   return (
-    <main className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
+      <main className="w-full space-y-6 p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/quotes" className={buttonStyles({ variant: 'outline' })}>
           <ArrowLeft aria-hidden className="h-4 w-4" />
           All quotes
         </Link>
-        <div className="flex flex-wrap gap-2">
+        <div className="hidden flex-wrap gap-2 sm:flex">
           {editable && !editing && (
             <Button variant="outline" zone="calm" onClick={() => setEditing(true)}>
               <Pencil aria-hidden className="h-4 w-4" />
@@ -641,7 +666,7 @@ export default function QuoteDetailPage() {
             {quote.quote_number}
             <span className="ml-2 text-body text-text-soft">v{quote.version}</span>
           </h1>
-          <p className="mt-1 text-body text-text-soft">
+          <p className="mt-1 text-body text-text-soft hidden sm:block">
             {quote.client_name || 'Client'} · Created {formatDate(quote.created_at)}
           </p>
         </div>
@@ -651,7 +676,19 @@ export default function QuoteDetailPage() {
         </div>
       </section>
 
-      {editing ? (
+        {!editing && (
+            <QuoteMobileSummary
+                clientName={quote.client_name}
+                currency={quote.currency}
+                netPayableMinor={quote.net_payable_minor}
+                depositMinor={quote.deposit_amount_minor}
+                depositPercent={quote.deposit_percentage}
+                expiresAt={quote.expires_at}
+                expired={quote.is_expired}
+            />
+        )}
+
+        {editing ? (
         <Card zone="calm" className="space-y-6 p-4 sm:p-6">
           <div>
             <h2 className="text-heading">
@@ -1033,7 +1070,24 @@ export default function QuoteDetailPage() {
         </div>
       )}
 
-      {quote && (
+        {!editing && (
+            <QuoteActionBar
+                status={quote.status}
+                canEditDraft={editable}
+                canRevise={canStartRevision(quote)}
+                busy={sending || converting || issuing}
+                invoiceHref={quote.invoice_id ? `/invoices/${quote.invoice_id}` : undefined}
+                publicUrl={publicUrl}
+                onIssue={() => setShowApproveDialog(true)}
+                onShare={() => void handleShareWhatsApp()}
+                onConvert={() => void handleConvert()}
+                onEdit={() => setEditing(true)}
+                onRevise={() => { populateForm(quote); setRevisionMode(true); setEditing(true); }}
+                onCopy={() => void copyPublicLink()}
+            />
+        )}
+
+        {quote && (
         <Dialog
           open={showApproveDialog}
           onClose={() => !issuing && setShowApproveDialog(false)}

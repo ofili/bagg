@@ -1,0 +1,1 @@
+"""Recurring invoice scheduling domain"""

@@ -29,7 +29,7 @@ interface LineItemsEditorProps {
   currency: string;
 }
 
-/** One card per line item, so it works on a phone. Shared by the invoice and quote builders. */
+/** One card per line item, so it works on a phone. Shared by the invoice and quotes builders. */
 export function LineItemsEditor({ items, onChange, currency }: LineItemsEditorProps) {
   const update = (id: string, patch: Partial<LineItem>) =>
     onChange(items.map((it) => (it.id === id ? { ...it, ...patch } : it)));

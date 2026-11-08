@@ -36,7 +36,9 @@ class InvoiceCreate(BaseModel):
     def check_currency(cls, v: str) -> str:
         clean = v.upper().strip()
         if not validate_currency(clean):
-            raise ValueError(f"Currency '{v}' is not supported. Must be one of NGN, USD, GBP, EUR, GHS, KES, ZAR.")
+            raise ValueError(
+                f"Currency '{v}' is not supported. Must be one of NGN, USD, GBP, EUR, GHS, KES, ZAR."
+            )
         return clean
 
 
@@ -212,3 +214,7 @@ class CurrencyMetricsResponse(BaseModel):
     paid_count: int = 0
     overdue_count: int = 0
     cancelled_count: int = 0
+
+
+class InvoiceRecallRequest(BaseModel):
+    reason: Optional[str] = Field(None, max_length=1000)

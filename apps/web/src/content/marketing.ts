@@ -138,9 +138,9 @@ export const helpFaqs = [
   },
   {
     category: 'quotes',
-    question: 'How does a client accept a quote?',
+    question: 'How does a client accept a quotes?',
     answer:
-      'The client opens the quote link and chooses Accept quote. You can then turn the accepted quote into an invoice without copying every line item again.',
+      'The client opens the quotes link and chooses Accept quotes. You can then turn the accepted quotes into an invoice without copying every line item again.',
   },
   {
     category: 'payments',
@@ -215,7 +215,7 @@ export const creativeRoles = [
 
 export const freePlanFeatures = [
   'Unlimited drafts and clients',
-  'Shareable invoice and quote links',
+  'Shareable invoice and quotes links',
   'PDF invoices with your business details',
   'Three free PDF or email sends',
   'Payment status, claims and receipts',

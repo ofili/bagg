@@ -139,6 +139,7 @@ export default function PublicReceiptPage() {
 
           <div className="space-y-6 p-5 sm:p-6">
             {/* Who issued it */}
+            <BagCharacter size={72} mood="celebrating" className="mx-auto sm:hidden" decorative />
             <header className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-center gap-3">
                 {receipt.business_logo_url ? (
@@ -237,6 +238,14 @@ export default function PublicReceiptPage() {
                 {copiedCode ? <Check aria-hidden className="h-4 w-4" /> : <Copy aria-hidden className="h-4 w-4" />}
                 {copiedCode ? 'Copied' : 'Copy code'}
               </Button>
+              <Button
+                  variant="outline"
+                  zone="calm"
+                  onClick={() => (navigator.share ? navigator.share({ title: `Receipt ${receipt.receipt_number}`, url: window.location.href }).catch(() => {}) : window.print())}
+              >
+                Share receipt
+              </Button>
+
             </div>
 
             <p className="border-t border-line-subtle pt-4 text-center text-caption text-text-muted">

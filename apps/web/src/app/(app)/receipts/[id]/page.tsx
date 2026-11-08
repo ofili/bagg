@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import { Card, Button, buttonStyles } from '@/components/ui';
+import { ReceiptActionBar } from '@/components/mobile/ReceiptActionBar';
 import { Money } from '@/components/money/Money';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import { formatDate } from '@/lib/date';
@@ -208,7 +209,7 @@ export default function ReceiptDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto max-w-4xl space-y-6 p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div className="space-y-3">
           <Link
@@ -231,7 +232,7 @@ export default function ReceiptDetailPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2 print:hidden">
+        <div className="hidden flex-wrap gap-2 sm:flex print:hidden">
           <Button
             zone="calm"
             variant="outline"
@@ -281,7 +282,7 @@ export default function ReceiptDetailPage() {
             <p className="text-caption font-bold uppercase tracking-wide text-text-soft">
               Payment receipt
             </p>
-            <h2 className="mt-2 text-title-l">{receipt.receipt_number}</h2>
+            <h2 className="mt-2 hidden text-title-l sm:block">{receipt.receipt_number}</h2>
             <p className="mt-1 text-body text-text-soft">
               Receipt sequence #{receipt.sequence_number}
             </p>
@@ -439,6 +440,13 @@ export default function ReceiptDetailPage() {
           </Link>
         </div>
       </Card>
+      <ReceiptActionBar
+          canShare={!!receipt.share_url}
+          copied={copied}
+          onShare={() => void shareReceipt()}
+          onCopy={() => void copyReceiptLink()}
+      />
+
     </div>
   );
 }

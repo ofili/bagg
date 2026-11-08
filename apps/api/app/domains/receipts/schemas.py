@@ -1,12 +1,17 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, List
 from datetime import datetime, date
 
 
 class ReceiptCreate(BaseModel):
-    amount_paid_minor: int = Field(..., gt=0, description="Amount paid in integer minor units (kobo/cents)")
+    amount_paid_minor: int = Field(
+        ..., gt=0, description="Amount paid in integer minor units (kobo/cents)"
+    )
     payment_date: Optional[date] = None
-    payment_method: str = Field(default="bank_transfer", description="bank_transfer, card, mobile_money, cash, manual")
+    payment_method: str = Field(
+        default="bank_transfer",
+        description="bank_transfer, card, mobile_money, cash, manual",
+    )
     reference: Optional[str] = None
     payer_name: Optional[str] = None
     notes: Optional[str] = None
@@ -14,6 +19,17 @@ class ReceiptCreate(BaseModel):
         default=False,
         description="Issuer explicitly confirms the funds have been received",
     )
+
+    @field_validator("payment_method")
+    @classmethod
+    def validate_payment_method(cls, value: str) -> str:
+        allowed = {"bank_transfer", "card", "mobile_money", "cash", "manual"}
+        normalized = value.strip().lower()
+        if normalized not in allowed:
+            raise ValueError(
+                f"payment_method must be one of: {', '.join(sorted(allowed))}"
+            )
+        return normalized
 
 
 class ReceiptResponse(BaseModel):

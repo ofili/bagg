@@ -31,13 +31,18 @@ class PublicInvoiceView(BaseModel):
     revision_banner: Optional[str] = None
     revisions_count: int = 0
     show_viral_footer: bool = True
-    viral_footer_text: Optional[str] = "Powered by bagg. — Invoicing & get-paid workspace for African creators"
-    viral_footer_link: Optional[str] = "https://bagg.africa?utm_source=invoice_footer&utm_medium=referral"
+    viral_footer_text: Optional[str] = (
+        "Powered by bagg. — Invoicing & get-paid workspace for African creators"
+    )
+    viral_footer_link: Optional[str] = (
+        "https://bagg.africa?utm_source=invoice_footer&utm_medium=referral"
+    )
     latest_claim: Optional[PaymentClaimResponse] = None
 
 
 class DirectCheckoutRequest(BaseModel):
     amount_minor: Optional[int] = None
+    payer_email: Optional[str] = None
     callback_url: Optional[str] = None
 
 

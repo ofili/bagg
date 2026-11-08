@@ -1,29 +1,20 @@
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import List
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.domains.auth.router import get_current_user_and_workspace
+from app.domains.auth.dependencies import require_auth
 from app.domains.notifications.schemas import NotificationResponse, UnreadCountResponse
 from app.domains.notifications.service import NotificationService
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 
-def require_auth(
-    auth_data=Depends(get_current_user_and_workspace),
-):
-    if not auth_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required. Please sign in.",
-        )
-    return auth_data
-
-
 @router.get("", response_model=List[NotificationResponse])
 async def list_notifications(
-    unread_only: bool = Query(False, description="Filter for unread notifications only"),
+    unread_only: bool = Query(
+        False, description="Filter for unread notifications only"
+    ),
     limit: int = Query(30, ge=1, le=100, description="Max notifications to return"),
     auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
@@ -81,4 +72,7 @@ async def mark_all_notifications_read(
         user_id=user.id,
         workspace_id=workspace.id,
     )
-    return {"message": "All notifications marked as read", "updated_count": updated_count}
+    return {
+        "message": "All notifications marked as read",
+        "updated_count": updated_count,
+    }

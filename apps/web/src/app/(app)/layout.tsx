@@ -7,7 +7,8 @@ import { ChevronRight, Plus, Settings } from 'lucide-react';
 import { BagCharacter, Wordmark } from '@/components/brand';
 import { BottomNav } from '@/components/mobile/BottomNav';
 import { ClientOnly } from '@/components/mobile/ClientOnly';
-import { HeaderMenu } from '@/components/mobile/HeaderMenu';
+import { UserMenu } from '@/components/navigation/UserMenu';
+import { SessionGuard } from '@/components/navigation/SessionGuard';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { NAV_ITEMS } from '@/components/mobile/navItems';
 import { buttonStyles } from '@/components/ui';
@@ -53,7 +54,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
     }
 
-    checkSession();
+    checkSession().then(r => {});
 
     return () => {
       cancelled = true;
@@ -101,6 +102,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </span>
           )}
         </div>
+
+        <SessionGuard />
 
         <div className="p-3 lg:p-4">
           <Link
@@ -181,7 +184,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             <ClientOnly>
               <NotificationCenter />
-              <HeaderMenu />
+              <UserMenu />
             </ClientOnly>
           </div>
         </header>

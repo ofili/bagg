@@ -15,17 +15,19 @@ INVOICE_STATUSES = {
     "partially_paid",
     "paid",
     "cancelled",
+    "voided",
 }
 
 INVOICE_TRANSITIONS = {
-    "draft": {"issued", "cancelled"},
-    "issued": {"sent", "cancelled"},
-    "sent": {"viewed", "cancelled"},
-    "viewed": {"payment_claimed", "cancelled"},
-    "payment_claimed": {"viewed", "partially_paid", "paid", "cancelled"},
-    "partially_paid": {"paid", "cancelled"},
+    "draft": {"issued", "cancelled", "void"},
+    "issued": {"sent", "cancelled", "void"},
+    "sent": {"viewed", "cancelled", "void"},
+    "viewed": {"payment_claimed", "cancelled", "void"},
+    "payment_claimed": {"viewed", "partially_paid", "paid", "cancelled", "void"},
+    "partially_paid": {"paid"},
     "paid": set(),
     "cancelled": set(),
+    "voided": set(),
 }
 
 QUOTE_STATUSES = {
@@ -65,7 +67,7 @@ def invoice_balance_minor(invoice) -> int:
 
 
 def invoice_is_overdue(invoice, today: Optional[date] = None) -> bool:
-    if invoice.status in {"draft", "issued", "paid", "cancelled"}:
+    if invoice.status in {"draft", "issued", "paid", "cancelled", "void"}:
         return False
     today = today or date.today()
     return bool(invoice.due_date and invoice.due_date < today and invoice_balance_minor(invoice) > 0)
@@ -117,6 +119,8 @@ def user_facing_invoice_status(invoice, today: Optional[date] = None) -> str:
         return "Draft"
     if invoice.status == "cancelled":
         return "Cancelled"
+    if invoice.status == "void":
+        return "Voided"
     return invoice.status.title()
 
 

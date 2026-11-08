@@ -17,10 +17,7 @@ engine = create_async_engine(
 )
 
 AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autoflush=False
+    bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
 )
 
 
@@ -28,5 +25,9 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
+        except BaseException:
+            # Never return a failed transaction to the pool/session lifecycle.
+            await session.rollback()
+            raise
         finally:
             await session.close()

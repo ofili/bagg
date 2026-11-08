@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2, MessageSquare, Plus } from 'lucide-react';
 import { BagCharacter } from '@/components/brand';
 import { type QuoteCardData } from '@/components/mobile/QuoteCard';
+import { QuoteRow } from '@/components/mobile/QuoteRow';
+import { DocTabs } from '@/components/mobile/DocTabs';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
 import { formatDate } from '@/lib/date';
@@ -22,6 +24,7 @@ import {
   TableToolbar,
 } from '@/components/ui';
 import { useDataTable } from '@/hooks/useDataTable';
+import {cn} from "@/lib/cn";
 
 const API_BASE = '/api';
 
@@ -60,6 +63,12 @@ export default function QuotesPage() {
     defaultSortOrder: 'desc',
     defaultPerPage: 20,
   });
+
+  useEffect(() => {
+    const s = new URLSearchParams(window.location.search).get('status');
+    if (s) table.setFilter('status', s);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [convertingId, setConvertingId] = useState<string | null>(null);
@@ -103,7 +112,7 @@ export default function QuotesPage() {
       });
 
       if (!response.ok) {
-        throw await responseError(response, 'Could not send this quote.');
+        throw await responseError(response, 'Could not send this quotes.');
       }
 
       const result = await response.json();
@@ -121,14 +130,14 @@ export default function QuotesPage() {
       });
 
       closeDeliveryDialog();
-      table.reload();
+      await table.reload();
     } catch (error: unknown) {
       setNotice({
         kind: 'error',
         text:
           error instanceof Error
             ? error.message
-            : 'Failed to send the quote.',
+            : 'Failed to send the quotes.',
       });
     } finally {
       setDeliveryBusy(false);
@@ -152,7 +161,7 @@ export default function QuotesPage() {
       if (!response.ok) {
         throw await responseError(
           response,
-          'Could not convert this quote to an invoice.',
+          'Could not convert this quotes to an invoice.',
         );
       }
 
@@ -163,7 +172,7 @@ export default function QuotesPage() {
         text: `Quote ${quote.quote_number} is now invoice ${invoice.invoice_number}.`,
       });
 
-      table.reload();
+      await table.reload();
       window.setTimeout(() => router.push('/invoices'), 1500);
     } catch (error: unknown) {
       setNotice({
@@ -171,7 +180,7 @@ export default function QuotesPage() {
         text:
           error instanceof Error
             ? error.message
-            : 'Network error while converting the quote.',
+            : 'Network error while converting the quotes.',
       });
     } finally {
       setConvertingId(null);
@@ -334,7 +343,7 @@ export default function QuotesPage() {
       <p className="mx-auto max-w-sm text-body text-text-soft">
         {table.search.trim() || table.filters['status']
           ? 'No quotes match your current search and filters.'
-          : 'Create your first quote with an expiry date and an optional upfront deposit.'}
+          : 'Create your first quotes with an expiry date and an optional upfront deposit.'}
       </p>
       <Link href="/quotes/new" className={buttonStyles({ size: 'lg' })}>
         <Plus aria-hidden className="h-4 w-4" />
@@ -344,91 +353,18 @@ export default function QuotesPage() {
   );
 
   const renderMobileCard = (quote: QuoteCardData) => (
-    <Card zone="calm" className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href={`/quotes/${quote.id}`}
-            className="font-bold underline-offset-4 hover:underline"
-          >
-            {quote.quote_number}
-          </Link>
-          <p className="mt-1 text-body text-text-soft">
-            {quote.client_name || 'Unnamed client'}
-          </p>
-        </div>
-        <Money
-          amountMinor={quote.net_payable_minor}
-          currency={quote.currency}
-          className="shrink-0 font-bold"
-          hideCurrencyCode
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2 text-body">
-        <span className="text-text-soft">
-          Expires {formatDate(quote.expires_at)}
-        </span>
-        <StatusPill status={quote.effective_status || quote.status} />
-      </div>
-
-      {quote.status === 'draft' && (
-        <Link
-          href={`/quotes/${quote.id}`}
-          className={buttonStyles({
-            variant: 'outline',
-            zone: 'calm',
-            fullWidth: true,
-          })}
-        >
-          View draft quote
-        </Link>
-      )}
-
-      {['issued', 'sent', 'viewed'].includes(quote.status) && (
-        <Button
-          zone="calm"
-          fullWidth
-          loading={sendingId === quote.id}
-          onClick={() => openDeliveryDialog(quote)}
-        >
-          Send quote
-        </Button>
-      )}
-
-      {quote.status === 'accepted' && (
-        <Button
-          zone="calm"
-          fullWidth
-          loading={convertingId === quote.id}
-          onClick={() => void handleConvert(quote)}
-        >
-          Convert to invoice
-        </Button>
-      )}
-
-      {quote.status === 'converted' && (
-        <Link
-          href={
-            quote.invoice_id
-              ? `/invoices/${quote.invoice_id}`
-              : '/invoices'
-          }
-          className={buttonStyles({
-            variant: 'outline',
-            zone: 'calm',
-            fullWidth: true,
-          })}
-        >
-          View invoice
-        </Link>
-      )}
-    </Card>
+      <QuoteRow
+          quote={quote}
+          sending={sendingId === quote.id}
+          converting={convertingId === quote.id}
+          onSend={openDeliveryDialog}
+          onConvert={(q) => void handleConvert(q)}
+      />
   );
 
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="min-w-0 flex-1">
           <h1 className="text-title-l sm:text-display">quotes</h1>
           <p className="mt-1 text-body text-text-soft">
@@ -436,11 +372,13 @@ export default function QuotesPage() {
           </p>
         </div>
 
-        <Link href="/quotes/new" className={buttonStyles({ variant: 'accent' })}>
+        <Link href="/quotes/new" className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}>
           <Plus aria-hidden className="h-4 w-4" />
           New quote
         </Link>
-      </div>
+      </header>
+
+      <DocTabs className="mt-3" />
 
       {notice && (
         <div
@@ -516,7 +454,7 @@ export default function QuotesPage() {
         title={
           deliveryQuote
             ? `Send quote ${deliveryQuote.quote_number}`
-            : 'Send quote'
+            : 'Send quotes'
         }
         className="max-h-[90dvh] overflow-y-auto"
       >

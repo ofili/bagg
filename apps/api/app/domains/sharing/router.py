@@ -1,7 +1,6 @@
 from app.domains.notifications.service import NotificationService
 from app.domains.workspaces.models import Workspace
 import uuid
-import httpx
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
@@ -11,7 +10,6 @@ from sqlalchemy import select, and_, desc
 from datetime import datetime, timezone, date
 from typing import Optional, List
 
-from app.core.config import settings
 from app.core.database import get_db
 from app.core.money import format_money
 from app.domains.sharing.schemas import (
@@ -49,10 +47,7 @@ router = APIRouter(prefix="/share", tags=["Sharing"])
 
 
 @router.get("/{token}", response_model=PublicInvoiceView)
-async def get_public_invoice(
-    token: str,
-    db: AsyncSession = Depends(get_db)
-):
+async def get_public_invoice(token: str, db: AsyncSession = Depends(get_db)):
     """
     Public zero-account payer endpoint (US-CLV-01, US-CLV-02, US-CLV-04).
     - Automatically marks 'sent' invoices as 'viewed' with timestamp.
@@ -116,13 +111,17 @@ async def get_public_invoice(
     )
 
     # Query default payment profile for this invoice's currency and workspace (US-CLV-02)
-    stmt_prof = select(PaymentProfile).where(
-        and_(
-            PaymentProfile.workspace_id == invoice.workspace_id,
-            PaymentProfile.currency == invoice.currency,
-            PaymentProfile.is_default.is_(True)
+    stmt_prof = (
+        select(PaymentProfile)
+        .where(
+            and_(
+                PaymentProfile.workspace_id == invoice.workspace_id,
+                PaymentProfile.currency == invoice.currency,
+                PaymentProfile.is_default.is_(True),
+            )
         )
-    ).limit(1)
+        .limit(1)
+    )
     res_prof = await db.execute(stmt_prof)
     db_profile = res_prof.scalars().first()
 
@@ -144,7 +143,11 @@ async def get_public_invoice(
         )
 
     # Query comments (US-CLV-03)
-    cmt_stmt = select(InvoiceComment).where(InvoiceComment.invoice_id == invoice.id).order_by(InvoiceComment.created_at.asc())
+    cmt_stmt = (
+        select(InvoiceComment)
+        .where(InvoiceComment.invoice_id == invoice.id)
+        .order_by(InvoiceComment.created_at.asc())
+    )
     cmt_res = await db.execute(cmt_stmt)
     comments = cmt_res.scalars().all()
     comments_resp = [
@@ -161,16 +164,30 @@ async def get_public_invoice(
     ]
 
     # Query latest claim (US-CLM-01)
-    claim_stmt = select(PaymentClaim).where(PaymentClaim.invoice_id == invoice.id).order_by(PaymentClaim.created_at.desc()).limit(1)
+    claim_stmt = (
+        select(PaymentClaim)
+        .where(PaymentClaim.invoice_id == invoice.id)
+        .order_by(PaymentClaim.created_at.desc())
+        .limit(1)
+    )
     claim_res = await db.execute(claim_stmt)
     latest_claim = claim_res.scalars().first()
-    latest_claim_resp = PaymentClaimResponse.model_validate(latest_claim) if latest_claim else None
+    latest_claim_resp = (
+        PaymentClaimResponse.model_validate(latest_claim) if latest_claim else None
+    )
 
     # Query latest receipt (US-REC-01)
-    rcp_stmt = select(Receipt).where(Receipt.invoice_id == invoice.id).order_by(Receipt.created_at.desc()).limit(1)
+    rcp_stmt = (
+        select(Receipt)
+        .where(Receipt.invoice_id == invoice.id)
+        .order_by(Receipt.created_at.desc())
+        .limit(1)
+    )
     rcp_res = await db.execute(rcp_stmt)
     latest_rcp = rcp_res.scalars().first()
-    latest_receipt_resp = InvoiceReceiptSummary.model_validate(latest_rcp) if latest_rcp else None
+    latest_receipt_resp = (
+        InvoiceReceiptSummary.model_validate(latest_rcp) if latest_rcp else None
+    )
 
     invoice_resp.latest_claim = latest_claim_resp
     invoice_resp.latest_receipt = latest_receipt_resp
@@ -178,11 +195,15 @@ async def get_public_invoice(
     is_revised = invoice.version > 1
     banner = None
     if is_revised:
-        date_str = invoice.last_revised_at.strftime("%B %d, %Y") if invoice.last_revised_at else "recently"
+        date_str = (
+            invoice.last_revised_at.strftime("%B %d, %Y")
+            if invoice.last_revised_at
+            else "recently"
+        )
         banner = f"This invoice was revised on {date_str} (Revision {invoice.version}). You are viewing the latest active version."
 
     # Viral footer (US-CLV-04 / US-SUB-05)
-    show_footer = (workspace.tier not in ["pro", "creator_pro", "professional"])
+    show_footer = workspace.tier not in ["pro", "creator_pro", "professional"]
 
     return PublicInvoiceView(
         invoice=invoice_resp,
@@ -196,7 +217,11 @@ async def get_public_invoice(
     )
 
 
-@router.post("/{token}/claim", response_model=PaymentClaimResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{token}/claim",
+    response_model=PaymentClaimResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def submit_payment_claim(
     token: str,
     payload: PaymentClaimCreate,
@@ -302,7 +327,11 @@ async def submit_payment_claim(
     return PaymentClaimResponse.model_validate(claim)
 
 
-@router.post("/{token}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{token}/comments",
+    response_model=CommentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def post_comment(
     token: str,
     payload: CommentCreate,
@@ -366,10 +395,7 @@ async def post_comment(
 
 
 @router.get("/{token}/comments", response_model=List[CommentResponse])
-async def list_comments(
-    token: str,
-    db: AsyncSession = Depends(get_db)
-):
+async def list_comments(token: str, db: AsyncSession = Depends(get_db)):
     """Returns all comments for the invoice (US-CLV-03)."""
     stmt = select(Invoice).where(Invoice.share_token == token)
     res = await db.execute(stmt)
@@ -377,7 +403,11 @@ async def list_comments(
     if not invoice or invoice.status == "draft":
         raise HTTPException(status_code=404, detail="Invoice not found")
 
-    cmt_stmt = select(InvoiceComment).where(InvoiceComment.invoice_id == invoice.id).order_by(InvoiceComment.created_at.asc())
+    cmt_stmt = (
+        select(InvoiceComment)
+        .where(InvoiceComment.invoice_id == invoice.id)
+        .order_by(InvoiceComment.created_at.asc())
+    )
     cmt_res = await db.execute(cmt_stmt)
     comments = cmt_res.scalars().all()
 
@@ -395,174 +425,50 @@ async def list_comments(
     ]
 
 
-@router.post("/{token}/checkout", response_model=DirectCheckoutResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{token}/checkout",
+    response_model=DirectCheckoutResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def initiate_direct_checkout(
     token: str,
     payload: DirectCheckoutRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Integrated Direct Payer Checkout (US-INT-01).
-    Client initiates Paystack payment directly from the invoice page.
-    Funds settle to the freelancer's verified merchant subaccount — Bagg never holds funds.
-    Supports partial payments for milestone deposits.
-    """
-    stmt = (
-        select(Invoice, Client, Workspace)
-        .join(Client, Invoice.client_id == Client.id, isouter=True)
-        .join(Workspace, Invoice.workspace_id == Workspace.id)
-        .where(Invoice.share_token == token)
+    """Public sharing adapter for the Payments domain checkout use case."""
+    from app.domains.payments.checkout_service import initiate_invoice_checkout
+
+    result = await initiate_invoice_checkout(
+        db,
+        token,
+        amount_minor=payload.amount_minor,
+        callback_url=payload.callback_url,
+        payer_email=payload.payer_email,
     )
-    result = await db.execute(stmt)
-    row = result.first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-
-    invoice, client, workspace = row
-    if invoice.status == "draft":
-        raise HTTPException(status_code=404, detail="Invoice not found")
-
-    if not invoice.direct_checkout_enabled:
-        raise HTTPException(status_code=403, detail="Direct checkout is disabled for this invoice")
-
-    if invoice.status == "paid":
-        raise HTTPException(status_code=400, detail="Invoice is already fully paid")
-
-    if invoice.status in ["draft", "cancelled"]:
-        raise HTTPException(status_code=400, detail=f"Cannot pay a {invoice.status} invoice")
-
-    # Determine charge amount
-    net_payable = invoice.net_payable_minor if (invoice.net_payable_minor and invoice.net_payable_minor > 0) else invoice.total_minor
-    balance_due = max(0, net_payable - (invoice.amount_paid_minor or 0))
-
-    if payload.amount_minor and payload.amount_minor > 0:
-        charge_amount = min(payload.amount_minor, balance_due)
-    elif invoice.deposit_amount_minor and (invoice.amount_paid_minor or 0) == 0:
-        # First payment on a milestone invoice — charge deposit
-        charge_amount = invoice.deposit_amount_minor
-    else:
-        charge_amount = balance_due
-
-    if charge_amount <= 0:
-        raise HTTPException(status_code=400, detail="No outstanding balance to pay")
-
-    reference = f"bagg_pay_{uuid.uuid4().hex[:16]}"
-    invoice.direct_payment_reference = reference
-    invoice.payment_processing_at = datetime.now(timezone.utc)
-    invoice.payment_processing_reference = reference
-
-    await db.commit()
-
-    # Initialize Paystack transaction
-    callback = payload.callback_url or f"http://localhost:3000/i/{token}?payment=success"
-    paystack_payload = {
-        "email": client.email if client and client.email else "client@invoice.bagg",
-        "amount": charge_amount,  # Paystack expects kobo/cents
-        "currency": invoice.currency,
-        "reference": reference,
-        "callback_url": callback,
-        "metadata": {
-            "invoice_id": invoice.id,
-            "invoice_number": invoice.invoice_number,
-            "workspace_id": workspace.id,
-            "type": "direct_invoice_payment",
-        },
-    }
-
-    try:
-        async with httpx.AsyncClient() as http:
-            resp = await http.post(
-                "https://api.paystack.co/transaction/initialize",
-                json=paystack_payload,
-                headers={
-                    "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-                    "Content-Type": "application/json",
-                },
-                timeout=15.0,
-            )
-            resp_data = resp.json()
-
-        if not resp_data.get("status"):
-            raise HTTPException(status_code=502, detail="Payment gateway error")
-
-        return DirectCheckoutResponse(
-            checkout_url=resp_data["data"]["authorization_url"],
-            reference=reference,
-            amount_minor=charge_amount,
-            currency=invoice.currency,
-        )
-    except httpx.HTTPError:
-        raise HTTPException(status_code=502, detail="Payment gateway unavailable")
+    return DirectCheckoutResponse(**result)
 
 
-@router.post("/{token}/verify-payment", response_model=PaymentVerificationResponse)
+@router.post(
+    "/{token}/verify-payment",
+    response_model=PaymentVerificationResponse,
+)
 async def verify_direct_payment(
     token: str,
     payload: PaymentVerificationRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Verifies a Paystack transaction and reconciles the invoice (US-INT-01).
-    Called by frontend after Paystack redirect. Also handled by webhooks for reliability.
-    """
-    stmt = select(Invoice).where(Invoice.share_token == token)
-    result = await db.execute(stmt)
-    invoice = result.scalar_one_or_none()
-    if not invoice or invoice.status == "draft":
-        raise HTTPException(status_code=404, detail="Invoice not found")
+    """Browser verification adapter; only the signed webhook confirms money."""
+    from app.domains.payments.checkout_service import verify_invoice_checkout
 
-    # Verify with Paystack
-    try:
-        async with httpx.AsyncClient() as http:
-            resp = await http.get(
-                f"https://api.paystack.co/transaction/verify/{payload.reference}",
-                headers={"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"},
-                timeout=15.0,
-            )
-            resp_data = resp.json()
-    except httpx.HTTPError:
-        raise HTTPException(status_code=502, detail="Payment gateway unavailable")
-
-    if not resp_data.get("status") or resp_data.get("data", {}).get("status") != "success":
-        return PaymentVerificationResponse(
-            status="failed",
-            message="Payment not confirmed by gateway",
-            invoice_status=invoice.status,
-            amount_paid_minor=invoice.amount_paid_minor or 0,
-            balance_due_minor=invoice_balance_minor(invoice),
-        )
-
-    metadata = resp_data.get("data", {}).get("metadata") or {}
-    if metadata.get("invoice_id") and metadata["invoice_id"] != invoice.id:
-        raise HTTPException(status_code=400, detail="Payment reference does not belong to this invoice")
-
-    if invoice.status == "paid":
-        return PaymentVerificationResponse(
-            status="success",
-            message="Payment already confirmed",
-            invoice_status=invoice.status,
-            amount_paid_minor=invoice.amount_paid_minor or 0,
-            balance_due_minor=0,
-        )
-
-    # The browser redirect is not proof of settlement. Mark the attempt as
-    # processing and wait for the signed gateway webhook to confirm funds.
-    invoice.payment_processing_at = datetime.now(timezone.utc)
-    invoice.payment_processing_reference = payload.reference
-    invoice.direct_payment_reference = payload.reference
-    await db.commit()
-    await db.refresh(invoice)
-
-    return PaymentVerificationResponse(
-        status="processing",
-        message="Payment received by gateway; awaiting webhook confirmation",
-        invoice_status=invoice.status,
-        amount_paid_minor=invoice.amount_paid_minor or 0,
-        balance_due_minor=invoice_balance_minor(invoice),
-    )
+    result = await verify_invoice_checkout(db, token, payload.reference)
+    return PaymentVerificationResponse(**result)
 
 
-@router.post("/{token}/report-abuse", response_model=AbuseReportResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{token}/report-abuse",
+    response_model=AbuseReportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def report_abuse(
     token: str,
     payload: AbuseReportCreate,

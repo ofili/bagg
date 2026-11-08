@@ -24,7 +24,7 @@ test.describe('Bagg Smoke Suite', () => {
     await expect(claimButton).toBeVisible();
   });
 
-  test('Public quote view displays the seeded offer', async ({ page }) => {
+  test('Public quotes view displays the seeded offer', async ({ page }) => {
     await page.goto('/q/token_demo_sample_qot');
     await expect(page.getByText('QOT-0001')).toBeVisible();
     await expect(page.getByText('Brand strategy workshop')).toBeVisible();

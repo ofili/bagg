@@ -1,31 +1,32 @@
-import os
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from __future__ import annotations
+from datetime import date
+from typing import Optional
+from urllib.parse import quote
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc, asc, func, or_
-from typing import List, Optional
-from datetime import date, datetime, timezone
-from urllib.parse import quote
-from jinja2 import Template
-
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.pagination import PaginatedResponse
-from app.core.errors import NotFoundException, BadRequestException
+from app.core.errors import BadRequestException
 from app.core.money import format_money
 from app.domains.workspaces.models import Workspace
 from app.domains.workspaces.router import resolve_active_workspace
 from app.domains.auth.router import get_current_user_and_workspace
-from app.domains.clients.models import Client
-from app.domains.documents.service import render_receipt_html
-from app.domains.invoices.models import Invoice
 from app.domains.receipts.models import Receipt
-from app.domains.receipts.service import create_receipt
+from app.domains.receipts.repository import ReceiptRepository
+from app.domains.receipts.service import record_manual_payment
+from app.domains.receipts.queries import (
+    list_receipts,
+    get_receipt,
+    get_public_receipt,
+    get_statement,
+)
+from app.domains.documents.service import render_receipt_html
 from app.domains.receipts.schemas import (
     ReceiptCreate,
     ReceiptResponse,
     PublicReceiptView,
-    StatementEntry,
     ClientStatementResponse,
 )
 
@@ -40,13 +41,9 @@ def generate_receipt_whatsapp_url(
     business_name: str,
     share_url: str,
 ) -> str:
-    """Generates pre-filled 1-click WhatsApp message for receipt delivery."""
-    clean_phone = (phone or "").replace("+", "").replace(" ", "").replace("-", "")
-    message = (
-        f"Hi {client_name}, here is your official payment receipt {receipt_number} for {amount_formatted} "
-        f"from {business_name}: {share_url}. Thank you for your payment!"
-    )
-    return f"https://wa.me/{clean_phone}?text={quote(message)}"
+    clean = (phone or "").replace("+", "").replace(" ", "").replace("-", "")
+    message = f"Hi {client_name}, here is your official payment receipt {receipt_number} for {amount_formatted} from {business_name}: {share_url}. Thank you for your payment!"
+    return f"https://wa.me/{clean}?text={quote(message)}" if clean else ""
 
 
 def map_receipt_to_response(
@@ -55,40 +52,34 @@ def map_receipt_to_response(
     client_phone: Optional[str] = None,
     business_name: str = "Studio Bagg",
     base_url: str = settings.WEB_BASE_URL,
+    invoice_number: str = "INV",
 ) -> ReceiptResponse:
-    c_name = client_name
-    c_phone = client_phone
     if "client" in rcp.__dict__ and rcp.client:
-        if not c_name:
-            c_name = rcp.client.name
-        if not c_phone:
-            c_phone = rcp.client.phone
-
-    inv_num = rcp.invoice.invoice_number if ("invoice" in rcp.__dict__ and rcp.invoice) else "INV"
-
+        client_name = client_name or rcp.client.name
+        client_phone = client_phone or rcp.client.phone
+    if invoice_number == "INV" and "invoice" in rcp.__dict__ and rcp.invoice:
+        invoice_number = rcp.invoice.invoice_number
     share_url = f"{base_url}/r/{rcp.share_token}" if rcp.share_token else None
-    formatted_amt = format_money(rcp.amount_paid_minor, rcp.currency)
-    wa_url = (
+    wa = (
         generate_receipt_whatsapp_url(
-            phone=c_phone,
-            client_name=c_name or "Client",
-            receipt_number=rcp.receipt_number,
-            amount_formatted=formatted_amt,
-            business_name=business_name,
-            share_url=share_url or "",
+            client_phone,
+            client_name or "Client",
+            rcp.receipt_number,
+            format_money(rcp.amount_paid_minor, rcp.currency),
+            business_name,
+            share_url,
         )
-        if share_url
+        if share_url and client_phone
         else None
     )
-
     return ReceiptResponse(
         id=rcp.id,
         bagg_reference=rcp.bagg_reference,
         workspace_id=rcp.workspace_id,
         client_id=rcp.client_id,
-        client_name=c_name,
+        client_name=client_name,
         invoice_id=rcp.invoice_id,
-        invoice_number=inv_num,
+        invoice_number=invoice_number,
         payment_claim_id=rcp.payment_claim_id,
         receipt_number=rcp.receipt_number,
         sequence_number=rcp.sequence_number,
@@ -109,95 +100,51 @@ def map_receipt_to_response(
         provider_reference=rcp.provider_reference,
         share_token=rcp.share_token,
         share_url=share_url,
-        whatsapp_share_url=wa_url,
+        whatsapp_share_url=wa,
         created_at=rcp.created_at,
         updated_at=rcp.updated_at,
     )
 
 
 @router.get("", response_model=PaginatedResponse[ReceiptResponse])
-async def list_receipts(
-    page: int = Query(1, ge=1, description="Page number"),
-    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search by receipt number, invoice number, or client name"),
-    sort_by: str = Query("created_at", description="Column to sort by"),
-    sort_order: str = Query("desc", description="Sort order: asc or desc"),
-    client_id: Optional[str] = Query(None, description="Filter by client ID"),
-    invoice_id: Optional[str] = Query(None, description="Filter by invoice ID"),
-    currency: Optional[str] = Query(None, description="Filter by currency"),
+async def list_receipts_endpoint(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    search: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    client_id: Optional[str] = None,
+    invoice_id: Optional[str] = None,
+    currency: Optional[str] = None,
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    """Lists issued receipts for the active workspace."""
-    conditions = [Receipt.workspace_id == workspace.id]
-
-    if client_id:
-        conditions.append(Receipt.client_id == client_id)
-    if invoice_id:
-        conditions.append(Receipt.invoice_id == invoice_id)
-    if currency:
-        conditions.append(Receipt.currency == currency.upper())
-    if search:
-        conditions.append(
-            or_(
-                Receipt.receipt_number.ilike(f"%{search}%"),
-                Invoice.invoice_number.ilike(f"%{search}%"),
-                Client.name.ilike(f"%{search}%"),
-            )
-        )
-
-    SORT_COLUMNS = {
-        "created_at": Receipt.created_at,
-        "amount_minor": Receipt.amount_paid_minor,
-        "receipt_number": Receipt.receipt_number,
-    }
-    sort_col = SORT_COLUMNS.get(sort_by, Receipt.created_at)
-    order_expr = asc(sort_col) if sort_order == "asc" else desc(sort_col)
-
-    count_stmt = (
-        select(func.count())
-        .select_from(Receipt)
-        .join(Client, Receipt.client_id == Client.id, isouter=True)
-        .join(Invoice, Receipt.invoice_id == Invoice.id)
-        .where(and_(*conditions))
-    )
-    total = (await db.execute(count_stmt)).scalar_one()
-
-    order_clauses = [order_expr]
-    if sort_by != "created_at":
-        order_clauses.append(desc(Receipt.created_at))
-
-    stmt = (
-        select(Receipt, Client.name.label("client_name"), Client.phone.label("client_phone"), Invoice.invoice_number)
-        .join(Client, Receipt.client_id == Client.id, isouter=True)
-        .join(Invoice, Receipt.invoice_id == Invoice.id)
-        .where(and_(*conditions))
-        .order_by(*order_clauses)
-        .offset((page - 1) * per_page)
-        .limit(per_page)
-    )
-
-    res = await db.execute(stmt)
-    rows = res.all()
-
-    items = [
-        map_receipt_to_response(
-            rcp,
-            client_name=c_name,
-            client_phone=c_phone,
-            business_name=workspace.business_name,
-        )
-        for rcp, c_name, c_phone, _ in rows
-    ]
-    return PaginatedResponse(
-        items=items,
-        total=total,
+    rows, total = await list_receipts(
+        db,
+        workspace.id,
         page=page,
         per_page=per_page,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        client_id=client_id,
+        invoice_id=invoice_id,
+        currency=currency,
     )
+    items = [
+        map_receipt_to_response(
+            row[0], row[1], row[2], workspace.business_name, invoice_number=row[3]
+        )
+        for row in rows
+    ]
+    return PaginatedResponse(items=items, total=total, page=page, per_page=per_page)
 
 
-@router.post("/invoice/{invoice_id}", response_model=ReceiptResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/invoice/{invoice_id}",
+    response_model=ReceiptResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def record_payment_receipt(
     invoice_id: str,
     payload: ReceiptCreate,
@@ -205,28 +152,19 @@ async def record_payment_receipt(
     auth_data=Depends(get_current_user_and_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Manually records an offline payment for an invoice and issues an official stamped receipt (US-RCP-01).
-    The issuer must explicitly confirm that the funds were received.
-    """
     if not payload.confirm_received:
         raise BadRequestException(
             "Explicit confirmation is required before a payment can be recorded"
         )
-
-    stmt = (
-        select(Invoice, Client)
-        .join(Client, Invoice.client_id == Client.id)
-        .where(and_(Invoice.id == invoice_id, Invoice.workspace_id == workspace.id))
+    row = await ReceiptRepository(db).get_invoice_for_workspace(
+        workspace.id, invoice_id
     )
-    res = await db.execute(stmt)
-    row = res.first()
-    if not row:
+    if row is None:
+        from app.core.errors import NotFoundException
+
         raise NotFoundException(f"Invoice '{invoice_id}' not found")
-
     invoice, client = row
-
-    receipt = await create_receipt(
+    receipt = await record_manual_payment(
         db=db,
         workspace=workspace,
         invoice=invoice,
@@ -236,120 +174,20 @@ async def record_payment_receipt(
         payer_name=payload.payer_name or client.name,
         payment_date=payload.payment_date,
         notes=payload.notes,
-        confirmation_source="issuer_manual",
         confirmed_by_user_id=auth_data[0].id if auth_data else workspace.owner_id,
-        provider="manual",
     )
-    await db.commit()
-    await db.refresh(receipt)
-
     return map_receipt_to_response(
         receipt,
-        client_name=client.name,
-        client_phone=client.phone,
-        business_name=workspace.business_name,
+        client.name,
+        client.phone,
+        workspace.business_name,
+        invoice_number=invoice.invoice_number,
     )
 
-
-@router.get("/{id}", response_model=ReceiptResponse)
-async def get_receipt(
-    id: str,
-    workspace: Workspace = Depends(resolve_active_workspace),
-    db: AsyncSession = Depends(get_db),
-):
-    """Retrieve detailed receipt by ID."""
-    stmt = (
-        select(Receipt, Client.name.label("client_name"), Client.phone.label("client_phone"), Invoice.invoice_number)
-        .join(Client, Receipt.client_id == Client.id, isouter=True)
-        .join(Invoice, Receipt.invoice_id == Invoice.id)
-        .where(and_(Receipt.id == id, Receipt.workspace_id == workspace.id))
-    )
-    res = await db.execute(stmt)
-    row = res.first()
-    if not row:
-        raise NotFoundException(f"Receipt '{id}' not found")
-
-    rcp, c_name, c_phone, _ = row
-    return map_receipt_to_response(
-        rcp,
-        client_name=c_name,
-        client_phone=c_phone,
-        business_name=workspace.business_name,
-    )
-
-
-@router.get("/{id}/pdf")
-async def get_receipt_pdf(
-    id: str,
-    workspace: Workspace = Depends(resolve_active_workspace),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Render the receipt as server-side HTML for printing or archiving.
-
-    The endpoint name and response contract are retained for compatibility.
-    """
-    stmt = (
-        select(Receipt, Client.name.label("client_name"), Invoice.invoice_number)
-        .join(Client, Receipt.client_id == Client.id, isouter=True)
-        .join(Invoice, Receipt.invoice_id == Invoice.id)
-        .where(
-            and_(
-                Receipt.id == id,
-                Receipt.workspace_id == workspace.id,
-            )
-        )
-    )
-    res = await db.execute(stmt)
-    row = res.first()
-
-    if not row:
-        raise NotFoundException(f"Receipt '{id}' not found")
-
-    receipt, client_name, invoice_number = row
-
-    html_content = render_receipt_html(
-        receipt,
-        business_name=workspace.business_name,
-        client_name=client_name,
-        invoice_number=invoice_number,
-    )
-
-    return HTMLResponse(
-        content=html_content,
-        headers={
-            "Content-Disposition": (
-                f"inline; filename=Receipt-{receipt.receipt_number}.html"
-            )
-        },
-    )
-
-
-# --- Public Client Receipt Portal (US-RCP-02) ---
 
 @router.get("/share/{token}", response_model=PublicReceiptView)
-async def get_public_receipt(
-    token: str,
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Public zero-account payer endpoint (US-RCP-02).
-    Displays official stamped receipt for corporate expense submission.
-    """
-    stmt = (
-        select(Receipt, Client.name.label("client_name"), Workspace, Invoice.invoice_number)
-        .join(Client, Receipt.client_id == Client.id, isouter=True)
-        .join(Workspace, Receipt.workspace_id == Workspace.id)
-        .join(Invoice, Receipt.invoice_id == Invoice.id)
-        .where(Receipt.share_token == token)
-    )
-    res = await db.execute(stmt)
-    row = res.first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Receipt not found or invalid link")
-
-    rcp, client_name, workspace, invoice_number = row
-
+async def get_public_receipt_endpoint(token: str, db: AsyncSession = Depends(get_db)):
+    rcp, client_name, workspace, invoice_number = await get_public_receipt(db, token)
     return PublicReceiptView(
         id=rcp.id,
         receipt_number=rcp.receipt_number,
@@ -371,128 +209,58 @@ async def get_public_receipt(
         business_logo_url=workspace.logo_url,
         business_brand_color=workspace.brand_color,
         client_name=client_name,
-        show_badge=(workspace.tier == "free"),
+        show_badge=workspace.tier == "free",
     )
 
-
-# --- Client Statement of Account (US-RCP-03) ---
 
 @router.get("/statement/{client_id}", response_model=ClientStatementResponse)
 async def get_client_statement(
     client_id: str,
-    currency: Optional[str] = Query(None, description="Statement currency (e.g. NGN, USD)"),
-    date_from: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
-    date_to: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
+    currency: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Formal Statement of Account for a client (US-RCP-03).
-    Chronologically reconciles all invoices (debits) and receipts (credits) with running balance.
-    """
-    client_stmt = select(Client).where(
-        and_(Client.id == client_id, Client.workspace_id == workspace.id)
+    if date_from and date_to and date_from > date_to:
+        raise BadRequestException("date_from must be on or before date_to")
+    return await get_statement(db, workspace, client_id, currency, date_from, date_to)
+
+
+@router.get("/{receipt_id}", response_model=ReceiptResponse)
+async def get_receipt_endpoint(
+    receipt_id: str,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    row = await get_receipt(db, workspace.id, receipt_id)
+    rcp, client_name, client_phone, invoice_number = row
+    return map_receipt_to_response(
+        rcp,
+        client_name,
+        client_phone,
+        workspace.business_name,
+        invoice_number=invoice_number,
     )
-    client_res = await db.execute(client_stmt)
-    client = client_res.scalar_one_or_none()
-    if not client:
-        raise NotFoundException(f"Client '{client_id}' not found")
 
-    selected_currency = (currency or client.preferred_currency or workspace.default_currency).upper()
 
-    # Invoices billed to this client
-    inv_stmt = select(Invoice).where(
-        and_(
-            Invoice.workspace_id == workspace.id,
-            Invoice.client_id == client.id,
-            Invoice.currency == selected_currency,
-            Invoice.status != "draft",  # only finalized/sent/paid invoices
-        )
-    )
-    if date_from:
-        inv_stmt = inv_stmt.where(Invoice.issue_date >= date_from)
-    if date_to:
-        inv_stmt = inv_stmt.where(Invoice.issue_date <= date_to)
-
-    inv_res = await db.execute(inv_stmt)
-    invoices = inv_res.scalars().all()
-
-    # Receipts credited to this client
-    rcp_stmt = select(Receipt).where(
-        and_(
-            Receipt.workspace_id == workspace.id,
-            Receipt.client_id == client.id,
-            Receipt.currency == selected_currency,
-        )
-    )
-    if date_from:
-        rcp_stmt = rcp_stmt.where(Receipt.payment_date >= date_from)
-    if date_to:
-        rcp_stmt = rcp_stmt.where(Receipt.payment_date <= date_to)
-
-    rcp_res = await db.execute(rcp_stmt)
-    receipts = rcp_res.scalars().all()
-
-    # Build chronological timeline
-    timeline = []
-    for inv in invoices:
-        billed = inv.net_payable_minor if (inv.net_payable_minor and inv.net_payable_minor > 0) else inv.total_minor
-        timeline.append({
-            "date": inv.issue_date,
-            "created_at": inv.created_at,
-            "type": "invoice",
-            "reference_number": inv.invoice_number,
-            "description": f"Invoice {inv.invoice_number} (Due {inv.due_date})",
-            "debit_minor": billed,
-            "credit_minor": 0,
-        })
-
-    for rcp in receipts:
-        timeline.append({
-            "date": rcp.payment_date,
-            "created_at": rcp.created_at,
-            "type": "receipt",
-            "reference_number": rcp.receipt_number,
-            "description": f"Payment Receipt ({rcp.payment_method.replace('_', ' ').title()})",
-            "debit_minor": 0,
-            "credit_minor": rcp.amount_paid_minor,
-        })
-
-    # Sort chronological by date then created_at
-    timeline.sort(key=lambda x: (x["date"], x["created_at"]))
-
-    running_balance = 0
-    total_invoiced = 0
-    total_paid = 0
-    entries = []
-
-    for item in timeline:
-        running_balance += item["debit_minor"] - item["credit_minor"]
-        total_invoiced += item["debit_minor"]
-        total_paid += item["credit_minor"]
-        entries.append(
-            StatementEntry(
-                date=item["date"],
-                type=item["type"],
-                reference_number=item["reference_number"],
-                description=item["description"],
-                debit_minor=item["debit_minor"],
-                credit_minor=item["credit_minor"],
-                running_balance_minor=running_balance,
-            )
-        )
-
-    return ClientStatementResponse(
-        client_id=client.id,
-        client_name=client.name,
-        currency=selected_currency,
-        date_from=date_from,
-        date_to=date_to,
-        opening_balance_minor=0,
-        entries=entries,
-        total_invoiced_minor=total_invoiced,
-        total_paid_minor=total_paid,
-        closing_balance_minor=running_balance,
+@router.get("/{receipt_id}/pdf")
+async def get_receipt_pdf(
+    receipt_id: str,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    row = await get_receipt(db, workspace.id, receipt_id)
+    receipt, client_name, _client_phone, invoice_number = row
+    html = render_receipt_html(
+        receipt,
         business_name=workspace.business_name,
-        generated_at=datetime.now(timezone.utc),
+        client_name=client_name,
+        invoice_number=invoice_number,
+    )
+    return HTMLResponse(
+        content=html,
+        headers={
+            "Content-Disposition": f'inline; filename="Receipt-{receipt.receipt_number}.html"'
+        },
     )

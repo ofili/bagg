@@ -10,23 +10,10 @@ from app.domains.workspaces.schemas import (
     WorkspaceOnboardingRequest,
 )
 from app.domains.workspaces.models import Workspace
-from app.domains.auth.router import get_current_user_and_workspace
+from app.domains.auth.dependencies import get_current_user_and_workspace
+from app.domains.workspaces.dependencies import resolve_active_workspace
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
-
-
-async def resolve_active_workspace(
-    auth_data=Depends(get_current_user_and_workspace),
-) -> Workspace:
-    """Return only the authenticated user's workspace."""
-    if not auth_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required. Please sign in.",
-        )
-
-    _, workspace = auth_data
-    return workspace
 
 
 @router.post(
@@ -122,8 +109,8 @@ async def get_current_workspace(
 @router.patch("/current", response_model=WorkspaceResponse)
 async def update_current_workspace(
     payload: WorkspaceUpdate,
-    auth_data = Depends(get_current_user_and_workspace),
-    db: AsyncSession = Depends(get_db)
+    auth_data=Depends(get_current_user_and_workspace),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Updates workspace branding, logo, default currency, TIN, and address (US-ONB-02).

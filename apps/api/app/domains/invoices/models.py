@@ -1,5 +1,6 @@
 from datetime import datetime, date, timezone
 from sqlalchemy import (
+    CheckConstraint,
     Column,
     String,
     Integer,
@@ -100,6 +101,35 @@ class Invoice(Base):
     version = Column(Integer, nullable=False, default=1)
     last_revised_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Recall and reissue lifecycle
+    last_recalled_at = Column(DateTime(timezone=True), nullable=True)
+    last_recalled_by_user_id = Column(String, nullable=True)
+    last_recall_reason = Column(Text, nullable=True)
+    # Permanent void is distinct from recall
+    voided_at = Column(DateTime(timezone=True), nullable=True)
+    voided_by_user_id = Column(String, nullable=True)
+    void_reason = Column(Text, nullable=True)
+
+    # Set when a successful late payment requires reconciliation
+    reconciliation_required = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
+
+    # Recurring Invoice provenance.
+    recurring_schedule_id = Column(
+        String,
+        ForeignKey("recurring_invoice_schedules.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    recurring_period_key = Column(String(32), nullable=True)
+    recurring_period_start = Column(Date, nullable=True)
+    recurring_period_end = Column(Date, nullable=True)
+    recurring_label = Column(String(160), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -147,9 +177,14 @@ class Invoice(Base):
         order_by="ReminderJob.due_at",
         lazy="selectin",
     )
+    recurring_schedule = relationship(
+        "RecurringInvoiceSchedule",
+        back_populates="invoices",
+    )
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "invoice_number", name="uq_workspace_invoice_number"),
+        UniqueConstraint("recurring_schedule_id", "recurring_period_key", name="uq_invoice_recurring_schedule_period"),
         Index("ix_invoices_workspace_status", "workspace_id", "status"),
     )
 

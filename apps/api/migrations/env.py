@@ -10,6 +10,9 @@ from app.domains.security.email_change_models import (
     EmailChangeRequest,
     EmailChangeAuditEvent,
 )
+import app.domains.invoices.recall_models  # noqa: F401
+import app.domains.recurring_invoices.models  # noqa: F401
+import app.domains.payments.models  # noqa: F401
 
 config = context.config
 

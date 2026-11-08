@@ -6,18 +6,20 @@ Every ORM entrypoint (API process, email worker, Alembic, scripts, tests) must
 import this module before issuing queries.
 """
 
-import app.domains.auth.models
-import app.domains.billing.models
-import app.domains.clients.models
-import app.domains.compliance.models
-import app.domains.invoices.models
-import app.domains.lifecycle.models
-import app.domains.notifications.models
-import app.domains.payments.models
-import app.domains.quotes.models
-import app.domains.receipts.models
-import app.domains.reminders.models
-import app.domains.security.models
-import app.domains.sharing.models
-import app.domains.workspaces.models
+import app.domains.auth.models  # noqa: F401
+import app.domains.billing.models  # noqa: F401
+import app.domains.clients.models  # noqa: F401
+import app.domains.compliance.models  # noqa: F401
+import app.domains.invoices.models  # noqa: F401
+import app.domains.invoices.recall_models  # noqa: F401
+import app.domains.lifecycle.models  # noqa: F401
+import app.domains.notifications.models  # noqa: F401
+import app.domains.payments.models  # noqa: F401
+import app.domains.quotes.models  # noqa: F401
+import app.domains.receipts.models  # noqa: F401
+import app.domains.recurring_invoices.models  # noqa: F401
+import app.domains.reminders.models  # noqa: F401
+import app.domains.security.models  # noqa: F401
+import app.domains.sharing.models  # noqa: F401
+import app.domains.workspaces.models  # noqa: F401
 import app.integrations.email_models  # noqa: F401
