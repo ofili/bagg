@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Bricolage_Grotesque } from 'next/font/google';
+import React from "react";
 
 // One family for everything. latin-ext carries the naira sign (U+20A6);
 // confirm the four currency glyphs render in this font, not a fallback (DESIGN.md 4.4).

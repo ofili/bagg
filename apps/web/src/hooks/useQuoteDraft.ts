@@ -1,5 +1,13 @@
 'use client';
 
+/*
+* State and API logic for creating a quote on phones. The maths, validation
+* messages and POST body match quotes/new/page.tsx. It also adds
+* saveAndIssue: create the draft, then approve and issue it (not send it).
+*
+* Assumption to check: POST /quotes returns the created quote with an `id`.
+*/
+
 import { useEffect, useMemo, useState } from 'react';
 import {
     lineTotalMinor,
