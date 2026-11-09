@@ -1,14 +1,41 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+)
 from typing import List, Optional
 from datetime import datetime
+
 from app.domains.invoices.schemas import InvoiceResponse
-from app.domains.payments.schemas import PaymentProfileResponse, PaymentClaimResponse
+from app.domains.payments.schemas import (
+    PaymentProfileResponse,
+    PaymentClaimResponse,
+)
 
 
 class CommentCreate(BaseModel):
     line_item_id: Optional[str] = None
-    author_name: str
-    message: str
+    author_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=120,
+    )
+    message: str = Field(
+        ...,
+        min_length=1,
+        max_length=5000,
+    )
+
+    @field_validator("author_name", "message")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        cleaned = value.strip()
+
+        if not cleaned:
+            raise ValueError("This field cannot be blank")
+
+        return cleaned
 
 
 class CommentResponse(BaseModel):

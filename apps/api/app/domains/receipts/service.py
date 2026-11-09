@@ -192,6 +192,7 @@ async def confirm_payment(
                 document_id=invoice.id,
                 document_number=invoice.invoice_number,
                 link_url=f"/invoices/{invoice.id}",
+                commit=False,
             )
         except Exception:
             logger.exception(

@@ -20,7 +20,7 @@ INVOICE_STATUSES = {
 
 INVOICE_TRANSITIONS = {
     "draft": {"issued", "cancelled", "void"},
-    "issued": {"sent", "cancelled", "void"},
+    "issued": {"sent", "viewed", "cancelled", "void"},
     "sent": {"viewed", "cancelled", "void"},
     "viewed": {"payment_claimed", "cancelled", "void"},
     "payment_claimed": {"viewed", "partially_paid", "paid", "cancelled", "void"},

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.domains.workspaces.models import Workspace
-from app.domains.workspaces.router import resolve_active_workspace
+from app.domains.workspaces.dependencies import resolve_active_workspace
 from app.domains.payments.schemas import (
     PaymentProfileResponse,
     PaymentProfileCreate,

@@ -1,7 +1,16 @@
-from datetime import datetime, timezone
+"""Notification use cases.
+
+Notification creation can participate in a caller-owned transaction.
+Standalone callers retain the existing commit-by-default behaviour.
+"""
+
+from __future__ import annotations
+
 import logging
+from datetime import datetime, timezone
 from typing import List, Optional
-from sqlalchemy import select, update, func
+
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.notifications.models import Notification
@@ -23,7 +32,28 @@ class NotificationService:
         document_number: str,
         link_url: str,
         comment_id: Optional[str] = None,
+        *,
+        commit: bool = True,
     ) -> Notification:
+        """Create a notification.
+
+        Args:
+            db: Active database session.
+            workspace_id: Owning workspace.
+            recipient_user_id: Notification recipient.
+            type: Notification event type.
+            title: Notification title.
+            body: Notification body.
+            document_type: Related document type.
+            document_id: Related document identifier.
+            document_number: Human-readable document number.
+            link_url: Internal destination.
+            comment_id: Optional related comment.
+            commit: When false, leave transaction ownership to the caller.
+
+        The default remains True for compatibility with existing callers.
+        """
+
         notification = Notification(
             workspace_id=workspace_id,
             recipient_user_id=recipient_user_id,
@@ -36,9 +66,14 @@ class NotificationService:
             link_url=link_url,
             comment_id=comment_id,
         )
+
         db.add(notification)
-        await db.commit()
-        await db.refresh(notification)
+        await db.flush()
+
+        if commit:
+            await db.commit()
+            await db.refresh(notification)
+
         return notification
 
     @staticmethod
@@ -58,11 +93,12 @@ class NotificationService:
             .order_by(Notification.created_at.desc())
             .limit(limit)
         )
+
         if unread_only:
             stmt = stmt.where(Notification.read_at.is_(None))
 
-        res = await db.execute(stmt)
-        return list(res.scalars().all())
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
 
     @staticmethod
     async def get_unread_count(
@@ -75,8 +111,9 @@ class NotificationService:
             Notification.workspace_id == workspace_id,
             Notification.read_at.is_(None),
         )
-        res = await db.execute(stmt)
-        return int(res.scalar_one_or_none() or 0)
+
+        result = await db.execute(stmt)
+        return int(result.scalar_one_or_none() or 0)
 
     @staticmethod
     async def mark_as_read(
@@ -88,14 +125,18 @@ class NotificationService:
             Notification.id == notification_id,
             Notification.recipient_user_id == user_id,
         )
-        res = await db.execute(stmt)
-        notification = res.scalar_one_or_none()
-        if not notification:
+
+        result = await db.execute(stmt)
+        notification = result.scalar_one_or_none()
+
+        if notification is None:
             return None
 
         notification.read_at = datetime.now(timezone.utc)
+
         await db.commit()
         await db.refresh(notification)
+
         return notification
 
     @staticmethod
@@ -105,6 +146,7 @@ class NotificationService:
         workspace_id: str,
     ) -> int:
         now = datetime.now(timezone.utc)
+
         stmt = (
             update(Notification)
             .where(
@@ -114,21 +156,33 @@ class NotificationService:
             )
             .values(read_at=now)
         )
-        res = await db.execute(stmt)
-        await db.commit()
-        return res.rowcount
 
-    # Backward compatibility helpers
+        result = await db.execute(stmt)
+        await db.commit()
+
+        return result.rowcount or 0
+
+    # Backward-compatibility helpers.
     @staticmethod
-    async def notify_invoice_viewed(freelancer_email: str, invoice_number: str):
+    async def notify_invoice_viewed(
+        freelancer_email: str,
+        invoice_number: str,
+    ):
         logger.info(
-            f"Notification: Invoice {invoice_number} was viewed by client. Sending alert to {freelancer_email}"
+            "Notification: Invoice %s was viewed by client. " "Sending alert to %s",
+            invoice_number,
+            freelancer_email,
         )
 
     @staticmethod
     async def notify_payment_claimed(
-        freelancer_email: str, invoice_number: str, amount_formatted: str
+        freelancer_email: str,
+        invoice_number: str,
+        amount_formatted: str,
     ):
         logger.info(
-            f"Notification: Client claimed payment of {amount_formatted} on {invoice_number}. Alerting {freelancer_email}"
+            "Notification: Client claimed payment of %s on %s. " "Alerting %s",
+            amount_formatted,
+            invoice_number,
+            freelancer_email,
         )

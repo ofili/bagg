@@ -1,9 +1,8 @@
+from datetime import datetime
+from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List
-from datetime import datetime, date
 
-
-# --- Abuse Reporting (US-SEC-02) ---
 
 class AbuseReportCreate(BaseModel):
     reporter_email: Optional[str] = None
@@ -23,13 +22,11 @@ class AbuseReportResponse(BaseModel):
     created_at: datetime
 
 
-# --- Data Export (US-SEC-01) ---
-
 class ExportRequest(BaseModel):
     include_invoices: bool = True
     include_clients: bool = True
     include_payments: bool = True
-    format: str = "csv"  # csv or zip
+    format: str = "csv"
 
 
 class ExportResponse(BaseModel):
@@ -39,14 +36,26 @@ class ExportResponse(BaseModel):
     generated_at: datetime
 
 
-# --- Account Deletion (US-SEC-03) ---
-
 class AccountDeletionRequest(BaseModel):
-    confirmation_phrase: str = Field(..., description="Must be 'DELETE MY ACCOUNT'")
+    confirmation_phrase: str = Field(
+        ...,
+        description="Must be exactly 'DELETE MY ACCOUNT'",
+    )
+    challenge_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Consumed account-deletion security challenge ID",
+    )
     reason: Optional[str] = None
 
 
 class AccountDeletionResponse(BaseModel):
     status: str
     message: str
-    data_purge_scheduled_at: datetime
+
+    # Kept for response compatibility with the previous API contract.
+    # This is the completion timestamp, not a future scheduled purge.
+    data_purge_scheduled_at: datetime = Field(
+        description="Timestamp when account deactivation and anonymisation completed."
+    )

@@ -11,8 +11,8 @@ from app.core.pagination import PaginatedResponse
 from app.core.errors import BadRequestException
 from app.core.money import format_money
 from app.domains.workspaces.models import Workspace
-from app.domains.workspaces.router import resolve_active_workspace
-from app.domains.auth.router import get_current_user_and_workspace
+from app.domains.workspaces.dependencies import resolve_active_workspace
+from app.domains.auth.dependencies import get_current_user_and_workspace
 from app.domains.receipts.models import Receipt
 from app.domains.receipts.repository import ReceiptRepository
 from app.domains.receipts.service import record_manual_payment

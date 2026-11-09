@@ -30,6 +30,7 @@ class SecurityPurpose:
     PAYMENT_PROFILE_DELETE = "payment_profile_delete"
 
     ACCOUNT_RECOVERY = "account_recovery"
+    ACCOUNT_DELETION = "account_deletion"
 
 
 ALLOWED_PURPOSES = {
@@ -39,6 +40,7 @@ ALLOWED_PURPOSES = {
     SecurityPurpose.PAYMENT_PROFILE_UPDATE,
     SecurityPurpose.PAYMENT_PROFILE_DELETE,
     SecurityPurpose.ACCOUNT_RECOVERY,
+    SecurityPurpose.ACCOUNT_DELETION,
 }
 
 
@@ -280,3 +282,39 @@ class SecurityService:
         await self.db.flush()
 
         return event
+
+    async def require_consumed_step_up(
+        self,
+        *,
+        user,
+        workspace,
+        challenge_id: str,
+        purpose: str,
+        payload: dict[str, Any],
+    ) -> SecurityChallenge:
+        """Require a recently consumed challenge for an exact operation."""
+
+        now = datetime.now(timezone.utc)
+
+        challenge = await self.repo.get_consumed_challenge(
+            challenge_id=challenge_id,
+            user_id=user.id,
+            workspace_id=workspace.id,
+            purpose=purpose,
+            now=now,
+        )
+
+        if challenge is None:
+            raise BadRequestException(
+                "A valid recent security verification is required"
+            )
+
+        if not constant_time_equal(
+            challenge.payload_hash,
+            payload_digest(payload),
+        ):
+            raise BadRequestException(
+                "Security verification does not match this operation"
+            )
+
+        return challenge

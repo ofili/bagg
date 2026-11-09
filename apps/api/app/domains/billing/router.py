@@ -27,6 +27,7 @@ from app.domains.billing.service import (
     get_credit_history,
 )
 from app.domains.billing.checkout_service import create_billing_checkout
+from app.domains.workspaces.dependencies import resolve_active_workspace
 
 router = APIRouter(prefix="/billing", tags=["Billing & Subscriptions"])
 

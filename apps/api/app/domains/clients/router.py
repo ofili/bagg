@@ -1,24 +1,34 @@
-from typing import List, Optional
+"""HTTP adapter for the client/contact domain.
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, func, or_, select
+No SQLAlchemy statements or persistence operations belong here.
+"""
+
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.domains.workspaces.models import Workspace
-from app.domains.workspaces.router import resolve_active_workspace
+from app.domains.auth.dependencies import require_auth
 from app.domains.clients.models import Client, Contact
+from app.domains.clients.repository import ClientRepository
 from app.domains.clients.schemas import (
     ClientCreate,
     ClientUpdate,
     ClientResponse,
     ClientDetailResponse,
-    ClientInvoiceSummary,
     ContactCreate,
-    ContactInput,
     ContactUpdate,
     ContactResponse,
 )
+from app.domains.clients.service import (
+    ClientService,
+    ClientNotFoundError,
+    ContactNotFoundError,
+    BusinessContactInvariantError,
+)
+from app.domains.workspaces.dependencies import resolve_active_workspace
+from app.domains.workspaces.models import Workspace
 
 router = APIRouter(prefix="/clients", tags=["Clients"])
 
@@ -43,17 +53,12 @@ async def _client_response(
     client: Client,
     db: AsyncSession,
     *,
-    include_invoices: bool = False,
-) -> ClientResponse:
-    contacts_result = await db.execute(
-        select(Contact)
-        .where(
-            Contact.workspace_id == client.workspace_id,
-            Contact.client_id == client.id,
-        )
-        .order_by(Contact.is_primary.desc(), Contact.name.asc())
+    detail: bool = False,
+):
+    contacts = await ClientRepository(db).list_client_contacts(
+        client.workspace_id,
+        client.id,
     )
-    contacts = contacts_result.scalars().all()
 
     values = dict(
         id=client.id,
@@ -78,120 +83,56 @@ async def _client_response(
         updated_at=client.updated_at,
     )
 
-    if include_invoices:
+    if detail:
         return ClientDetailResponse(**values, invoices=[])
 
     return ClientResponse(**values)
 
 
-async def _get_workspace_client(
-    client_id: str,
-    workspace_id: str,
-    db: AsyncSession,
-) -> Client:
-    result = await db.execute(
-        select(Client).where(
-            Client.id == client_id,
-            Client.workspace_id == workspace_id,
-        )
-    )
-    client = result.scalar_one_or_none()
+def _workspace(auth) -> Workspace:
+    return auth[1]
 
-    if client is None:
+
+def _raise_domain_error(exc: Exception):
+    if isinstance(exc, (ClientNotFoundError, ContactNotFoundError)):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
+            detail="Client or contact not found",
+        ) from exc
 
-    return client
-
-
-async def _ensure_business_has_contact(
-    client: Client,
-    db: AsyncSession,
-) -> None:
-    if client.client_type != "BUSINESS":
-        return
-
-    count_result = await db.execute(
-        select(func.count(Contact.id)).where(
-            Contact.workspace_id == client.workspace_id,
-            Contact.client_id == client.id,
-        )
-    )
-    count = count_result.scalar_one()
-
-    if count < 1:
+    if isinstance(exc, BusinessContactInvariantError):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A business client must have at least one contact.",
-        )
+            detail=str(exc),
+        ) from exc
+
+    raise exc
 
 
-async def _get_workspace_contact(
-    contact_id: str,
-    workspace_id: str,
-    db: AsyncSession,
-) -> Contact:
-    result = await db.execute(
-        select(Contact).where(
-            Contact.id == contact_id,
-            Contact.workspace_id == workspace_id,
-        )
-    )
-    contact = result.scalar_one_or_none()
-
-    if contact is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Contact not found",
-        )
-
-    return contact
-
-
-# Keep this static route before /{client_id} so "contacts" is not
-# interpreted as a client ID.
-@router.get("/contacts", response_model=List[ContactResponse])
+@router.get("/contacts", response_model=list[ContactResponse])
 async def list_contacts(
     q: Optional[str] = Query(
         None,
         description="Search contacts by name, email, phone or client",
     ),
     client_id: Optional[str] = Query(None),
-    workspace: Workspace = Depends(resolve_active_workspace),
+    auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = (
-        select(Contact)
-        .join(Client, Contact.client_id == Client.id)
-        .where(
-            Contact.workspace_id == workspace.id,
-            Client.workspace_id == workspace.id,
+    try:
+        items = await ClientService(db).list_contacts(
+            _workspace(auth).id,
+            query=q,
+            client_id=client_id,
         )
-    )
+        return [_contact_response(item) for item in items]
 
-    if client_id:
-        stmt = stmt.where(Contact.client_id == client_id)
-
-    if q and q.strip():
-        clean_q = f"%{q.strip()}%"
-        stmt = stmt.where(
-            or_(
-                Contact.name.ilike(clean_q),
-                Contact.email.ilike(clean_q),
-                Contact.phone.ilike(clean_q),
-                Contact.job_title.ilike(clean_q),
-                Client.name.ilike(clean_q),
-            )
-        )
-
-    stmt = stmt.order_by(
-        Contact.is_primary.desc(),
-        Contact.name.asc(),
-    )
-    result = await db.execute(stmt)
-    return [_contact_response(contact) for contact in result.scalars().all()]
+    except (
+        ClientNotFoundError,
+        ContactNotFoundError,
+        BusinessContactInvariantError,
+    ) as exc:
+        _raise_domain_error(exc)
 
 
 @router.post(
@@ -201,82 +142,48 @@ async def list_contacts(
 )
 async def create_contact(
     payload: ContactCreate,
-    workspace: Workspace = Depends(resolve_active_workspace),
+    auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    client = await _get_workspace_client(
-        payload.client_id,
-        workspace.id,
-        db,
-    )
-
-    contact_data = payload.model_dump(exclude={"client_id"})
-    contact = Contact(
-        workspace_id=workspace.id,
-        client_id=client.id,
-        **contact_data,
-    )
-
     try:
-        # If this is the first contact for a business, make it primary.
-        existing_result = await db.execute(
-            select(func.count(Contact.id)).where(
-                Contact.workspace_id == workspace.id,
-                Contact.client_id == client.id,
-            )
+        contact = await ClientService(db).create_contact(
+            _workspace(auth).id,
+            payload,
         )
-        existing_count = existing_result.scalar_one()
+        return _contact_response(contact)
 
-        if existing_count == 0:
-            contact.is_primary = 1
-
-        db.add(contact)
-        await db.commit()
-        await db.refresh(contact)
-    except Exception:
-        await db.rollback()
-        raise
-
-    return _contact_response(contact)
+    except (
+        ClientNotFoundError,
+        ContactNotFoundError,
+        BusinessContactInvariantError,
+    ) as exc:
+        _raise_domain_error(exc)
 
 
-@router.patch("/contacts/{contact_id}", response_model=ContactResponse)
+@router.patch(
+    "/contacts/{contact_id}",
+    response_model=ContactResponse,
+)
 async def update_contact(
     contact_id: str,
     payload: ContactUpdate,
-    workspace: Workspace = Depends(resolve_active_workspace),
+    auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    contact = await _get_workspace_contact(
-        contact_id,
-        workspace.id,
-        db,
-    )
-
-    update_data = payload.model_dump(exclude_unset=True)
-
-    if "name" in update_data and update_data["name"] is not None:
-        update_data["name"] = update_data["name"].strip()
-        if not update_data["name"]:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Contact name is required.",
-            )
-
-    for field, value in update_data.items():
-        if field == "is_primary" and value is not None:
-            setattr(contact, field, int(value))
-        elif value is not None or field in {"email", "phone", "job_title", "notes"}:
-            setattr(contact, field, value)
-
     try:
-        await db.commit()
-        await db.refresh(contact)
-    except Exception:
-        await db.rollback()
-        raise
+        contact = await ClientService(db).update_contact(
+            _workspace(auth).id,
+            contact_id,
+            payload,
+        )
+        return _contact_response(contact)
 
-    return _contact_response(contact)
+    except (
+        ClientNotFoundError,
+        ContactNotFoundError,
+        BusinessContactInvariantError,
+    ) as exc:
+        _raise_domain_error(exc)
 
 
 @router.delete(
@@ -285,71 +192,42 @@ async def update_contact(
 )
 async def delete_contact(
     contact_id: str,
-    workspace: Workspace = Depends(resolve_active_workspace),
+    auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    contact = await _get_workspace_contact(
-        contact_id,
-        workspace.id,
-        db,
-    )
-
-    client = await _get_workspace_client(
-        contact.client_id,
-        workspace.id,
-        db,
-    )
-
-    if client.client_type == "BUSINESS":
-        count_result = await db.execute(
-            select(func.count(Contact.id)).where(
-                Contact.workspace_id == workspace.id,
-                Contact.client_id == client.id,
-            )
+    try:
+        await ClientService(db).delete_contact(
+            _workspace(auth).id,
+            contact_id,
         )
-        contact_count = count_result.scalar_one()
 
-        if contact_count <= 1:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    "This is the business's last contact. "
-                    "Add another contact before deleting this one."
-                ),
-            )
+    except (
+        ClientNotFoundError,
+        ContactNotFoundError,
+        BusinessContactInvariantError,
+    ) as exc:
+        _raise_domain_error(exc)
 
-    await db.delete(contact)
-    await db.commit()
-    return None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("", response_model=List[ClientResponse])
+@router.get("", response_model=list[ClientResponse])
 async def list_clients(
     q: Optional[str] = Query(
         None,
         description="Search by name, email, or phone",
     ),
     currency: Optional[str] = Query(None),
-    workspace: Workspace = Depends(resolve_active_workspace),
+    auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Client).where(Client.workspace_id == workspace.id)
+    service = ClientService(db)
 
-    if q and q.strip():
-        clean_q = f"%{q.strip()}%"
-        stmt = stmt.where(
-            or_(
-                Client.name.ilike(clean_q),
-                Client.email.ilike(clean_q),
-                Client.phone.ilike(clean_q),
-            )
-        )
-
-    if currency:
-        stmt = stmt.where(Client.preferred_currency == currency.upper().strip())
-
-    result = await db.execute(stmt.order_by(Client.name.asc()))
-    clients = result.scalars().all()
+    clients = await service.list_clients(
+        _workspace(auth).id,
+        query=q,
+        currency=currency,
+    )
 
     return [await _client_response(client, db) for client in clients]
 
@@ -361,110 +239,70 @@ async def list_clients(
 )
 async def create_client(
     payload: ClientCreate,
-    workspace: Workspace = Depends(resolve_active_workspace),
+    auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    # Pydantic also validates this, but retain a server-side guard.
-    if payload.client_type == "BUSINESS" and not payload.contacts:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="A business client must have at least one contact.",
+    try:
+        client = await ClientService(db).create_client(
+            _workspace(auth),
+            payload,
         )
 
-    client = Client(
-        workspace_id=workspace.id,
-        name=payload.name,
-        client_type=payload.client_type,
-        email=payload.email,
-        phone=payload.phone,
-        address=payload.address,
-        country=payload.country or workspace.country,
-        preferred_currency=payload.preferred_currency,
-        default_payment_terms_days=payload.default_payment_terms_days,
-        tax_id=payload.tax_id,
-        notes=payload.notes,
-    )
+        return await _client_response(client, db)
 
-    try:
-        db.add(client)
-        await db.flush()
-
-        for index, contact_input in enumerate(payload.contacts):
-            contact_data = contact_input.model_dump()
-            is_primary = contact_data.pop("is_primary", False)
-
-            contact = Contact(
-                workspace_id=workspace.id,
-                client_id=client.id,
-                **contact_data,
-                is_primary=int(is_primary or index == 0),
-            )
-            db.add(contact)
-
-        await db.commit()
-        await db.refresh(client)
-    except Exception:
-        await db.rollback()
-        raise
-
-    return await _client_response(client, db)
+    except BusinessContactInvariantError as exc:
+        _raise_domain_error(exc)
 
 
-@router.get("/{client_id}", response_model=ClientDetailResponse)
+@router.get(
+    "/{client_id}",
+    response_model=ClientDetailResponse,
+)
 async def get_client(
     client_id: str,
-    workspace: Workspace = Depends(resolve_active_workspace),
+    auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    client = await _get_workspace_client(
-        client_id,
-        workspace.id,
-        db,
-    )
-    return await _client_response(client, db, include_invoices=True)
+    try:
+        client = await ClientService(db).get_client(
+            _workspace(auth).id,
+            client_id,
+        )
+
+        return await _client_response(
+            client,
+            db,
+            detail=True,
+        )
+
+    except ClientNotFoundError as exc:
+        _raise_domain_error(exc)
 
 
-@router.patch("/{client_id}", response_model=ClientResponse)
+@router.patch(
+    "/{client_id}",
+    response_model=ClientResponse,
+)
 async def update_client(
     client_id: str,
     payload: ClientUpdate,
-    workspace: Workspace = Depends(resolve_active_workspace),
+    auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    client = await _get_workspace_client(
-        client_id,
-        workspace.id,
-        db,
-    )
-
-    update_data = payload.model_dump(exclude_unset=True)
-
-    for field, value in update_data.items():
-        if value is not None or field in {
-            "email",
-            "phone",
-            "address",
-            "country",
-            "tax_id",
-            "notes",
-        }:
-            setattr(client, field, value)
-
-    # A person can be changed to a business only if contacts already exist.
-    await db.flush()
-
     try:
-        await _ensure_business_has_contact(client, db)
-        await db.commit()
-        await db.refresh(client)
-    except HTTPException:
-        await db.rollback()
-        raise
-    except Exception:
-        await db.rollback()
-        raise
+        client = await ClientService(db).update_client(
+            _workspace(auth).id,
+            client_id,
+            payload,
+        )
 
-    return await _client_response(client, db)
+        return await _client_response(client, db)
+
+    except (
+        ClientNotFoundError,
+        BusinessContactInvariantError,
+    ) as exc:
+        _raise_domain_error(exc)
 
 
 @router.delete(
@@ -473,15 +311,16 @@ async def update_client(
 )
 async def delete_client(
     client_id: str,
-    workspace: Workspace = Depends(resolve_active_workspace),
+    auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    client = await _get_workspace_client(
-        client_id,
-        workspace.id,
-        db,
-    )
+    try:
+        await ClientService(db).delete_client(
+            _workspace(auth).id,
+            client_id,
+        )
 
-    await db.delete(client)
-    await db.commit()
-    return None
+    except ClientNotFoundError as exc:
+        _raise_domain_error(exc)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

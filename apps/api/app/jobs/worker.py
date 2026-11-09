@@ -14,6 +14,7 @@ import app.models  # noqa: F401  (registers every SQLAlchemy model)
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine
 from app.domains.auth.models import MagicLoginCode
+from app.domains.reminders.models import ReminderJob
 from app.integrations.email_models import (
     EmailOutbox,
     EmailDeliveryAttempt,
@@ -190,6 +191,17 @@ async def mark_superseded(message_id: str):
             message.locked_by = None
             message.updated_at = utcnow()
 
+            if message.message_type == "invoice_reminder":
+                reminder = await db.get(
+                    ReminderJob,
+                    message.aggregate_id,
+                    with_for_update=True,
+                )
+
+                if reminder is not None and reminder.status != "sent":
+                    reminder.status = "cancelled"
+                    reminder.updated_at = utcnow()
+
 
 async def record_result(
     message_id: str,
@@ -200,7 +212,6 @@ async def record_result(
 
     async with AsyncSessionLocal() as db:
         async with db.begin():
-
             message = await db.get(
                 EmailOutbox,
                 message_id,
@@ -210,7 +221,7 @@ async def record_result(
             if message is None:
                 return
 
-            # Do not overwrite a message superseded by another process.
+            # A cancellation or superseding operation may have won the race.
             if message.status == "superseded":
                 return
 
@@ -229,6 +240,8 @@ async def record_result(
                 )
             )
 
+            terminal_failure = False
+
             if result.outcome == DeliveryOutcome.ACCEPTED:
                 message.status = "sent"
                 message.sent_at = now
@@ -240,6 +253,7 @@ async def record_result(
                 message.failed_at = now
                 message.encrypted_payload = None
                 message.last_error_code = result.error_code
+                terminal_failure = True
 
             elif message.attempts >= settings.EMAIL_MAX_ATTEMPTS:
                 message.status = "failed"
@@ -248,6 +262,7 @@ async def record_result(
                 message.last_error_code = (
                     result.error_code or "maximum_attempts_exceeded"
                 )
+                terminal_failure = True
 
             else:
                 message.status = "pending"
@@ -259,13 +274,37 @@ async def record_result(
                 )
 
                 base_delay = RETRY_DELAYS[delay_index]
-
-                jitter = random.uniform(
-                    0,
-                    base_delay * 0.2,
-                )
+                jitter = random.uniform(0, base_delay * 0.2)
 
                 message.available_at = now + timedelta(seconds=base_delay + jitter)
+
+            # Keep the reminder domain's state aligned with the terminal
+            # result of its associated outbox message.
+            if message.message_type == "invoice_reminder":
+                reminder = await db.get(
+                    ReminderJob,
+                    message.aggregate_id,
+                    with_for_update=True,
+                )
+
+                if reminder is not None and reminder.status != "cancelled":
+                    if message.status == "sent":
+                        reminder.status = "sent"
+                        reminder.sent_at = now
+                        reminder.error_message = None
+
+                    elif terminal_failure:
+                        reminder.status = "failed"
+                        reminder.error_message = (
+                            result.error_code or "email_delivery_failed"
+                        )
+
+                    else:
+                        # Retryable or ambiguous provider outcomes remain
+                        # queued. The outbox worker owns the retry lifecycle.
+                        reminder.status = "queued"
+
+                    reminder.updated_at = now
 
             if message.status == "failed":
                 logger.error(
@@ -402,6 +441,23 @@ async def process_message(message_id: str):
                     else:
                         selected_provider = current_message.provider
 
+        # Recheck that this message is still owned by this worker.
+        # A payment or recall may have cancelled a queued reminder while
+        # this worker was preparing the email.
+        async with AsyncSessionLocal() as db:
+            current_message = await db.get(
+                EmailOutbox,
+                message_id,
+                with_for_update=True,
+            )
+
+            if (
+                current_message is None
+                or current_message.status != "processing"
+                or current_message.locked_by != WORKER_ID
+            ):
+                return
+            
         result = await deliver_email(
             to_email=recipient,
             subject=subject,

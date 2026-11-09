@@ -556,76 +556,105 @@ async def send_invoice(
     send_email: bool = True,
 ) -> SendInvoiceOutcome:
     row = await InvoiceRepository(db).get_with_client_for_update(
-        workspace.id, invoice_id
+        workspace.id,
+        invoice_id,
     )
+
     if row is None:
         raise NotFoundException(f"Invoice '{invoice_id}' not found")
+
     invoice, client = row
+
     if invoice.status == "draft":
         raise BadRequestException(
-            f"Invoice '{invoice.invoice_number or invoice_id}' is a draft and cannot be sent. "
-            "Finalize it first with POST /invoices/{id}/finalize."
+            f"Invoice '{invoice.invoice_number or invoice_id}' is a draft "
+            "and cannot be sent. Finalize it first with "
+            "POST /invoices/{id}/finalize."
         )
+
     if invoice.status not in {"issued", "sent", "viewed"}:
         raise BadRequestException(
-            f"Invoice '{invoice.invoice_number or invoice_id}' is '{invoice.status}' and cannot be sent."
+            f"Invoice '{invoice.invoice_number or invoice_id}' is "
+            f"'{invoice.status}' and cannot be sent."
         )
 
     _ensure_share_token(invoice)
-    share_url = f"{settings.WEB_BASE_URL}/i/{invoice.share_token}"
+
+    share_url = f"{settings.WEB_BASE_URL.rstrip('/')}/i/{invoice.share_token}"
 
     recipient_email = client.email
     email_sent = False
     dispatched = False
     is_first_dispatch = invoice.sent_at is None
+    deduct_credit = False
 
     if send_email:
         if recipient_email:
-            deduct_credit = False
             if is_first_dispatch:
-                deduct_credit = await check_delivery_quota(workspace, db)
+                deduct_credit = await check_delivery_quota(
+                    workspace,
+                    db,
+                )
+
                 if deduct_credit:
                     await consume_delivery_send(
-                        workspace, db, deduct_credit=True, commit=False
+                        workspace,
+                        db,
+                        deduct_credit=True,
+                        commit=False,
                     )
+
             email_sent = await EmailSender().send_invoice_email(
                 to_email=recipient_email,
                 invoice_number=invoice.invoice_number,
                 share_url=share_url,
             )
+
             dispatched = email_sent
+
             if email_sent:
                 invoice.email_delivery_status = "delivered"
             else:
                 invoice.email_delivery_status = "failed"
+
                 if deduct_credit:
                     await add_credits(
                         workspace_id=workspace.id,
                         amount=1,
                         reason="send_refund",
-                        description="Refund for failed invoice email delivery",
+                        description=("Refund for failed invoice email delivery"),
                         reference=None,
                         db=db,
                         commit=False,
                     )
         else:
             invoice.email_delivery_status = "no_email"
+
     else:
-        # An explicit link/WhatsApp handoff is a real dispatch: the share URL is
-        # generated and returned to the issuer for delivery.
+        # Explicit link/WhatsApp hand-off is treated as dispatch.
         if is_first_dispatch:
-            deduct_credit = await check_delivery_quota(workspace, db)
+            deduct_credit = await check_delivery_quota(
+                workspace,
+                db,
+            )
+
             if deduct_credit:
                 await consume_delivery_send(
-                    workspace, db, deduct_credit=True, commit=False
+                    workspace,
+                    db,
+                    deduct_credit=True,
+                    commit=False,
                 )
+
         dispatched = True
         invoice.email_delivery_status = "link_shared"
 
     old_status = invoice.status
+
     if dispatched:
         if invoice.status in {"issued", "sent"}:
             invoice.status = "sent"
+
         if invoice.sent_at is None:
             invoice.sent_at = datetime.now(timezone.utc)
 
@@ -642,10 +671,17 @@ async def send_invoice(
             source="issuer_send",
         )
 
+    if dispatched:
+        # Do not commit here. Reminder jobs must commit atomically with
+        # the invoice dispatch state and its lifecycle event.
+        await schedule_invoice_reminders(
+            invoice,
+            db,
+            commit=False,
+        )
+
     await db.commit()
     await InvoiceRepository(db).refresh(invoice)
-    if dispatched:
-        await schedule_invoice_reminders(invoice, db)
 
     return SendInvoiceOutcome(
         invoice=invoice,

@@ -72,6 +72,7 @@ async def _notify_workspace_owner(
             else f"/quotes/{quote_obj.id}"
         ),
         comment_id=comment_id,
+        commit=False,
     )
 
 
@@ -770,6 +771,7 @@ async def view_public_quote(
                     document_id=quote_obj.id,
                     document_number=quote_obj.quote_number,
                     link_url=f"/quotes/{quote_obj.id}",
+                    commit=False,
                 )
             except Exception as e:
                 logger.warning(f"Failed to create quote viewed notification: {e}")

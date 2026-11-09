@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.domains.auth.router import get_current_user_and_workspace
+from app.domains.auth.dependencies import get_current_user_and_workspace
 from app.domains.recurring_invoices import service
 from app.domains.recurring_invoices.schemas import (
     RecurringOccurrenceResponse,
