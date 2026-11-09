@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import and_, or_, select, update, func
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.domains.invoices.models import Invoice
 from app.domains.reminders.models import ReminderJob
 from app.integrations.email_models import EmailOutbox
 
@@ -43,8 +44,6 @@ class ReminderRepository:
         stale_before: datetime,
         limit: int,
     ) -> list[ReminderJob]:
-        """Lock eligible jobs so concurrent processors cannot enqueue twice."""
-
         result = await self.db.execute(
             select(ReminderJob)
             .options(selectinload(ReminderJob.invoice))
@@ -145,21 +144,61 @@ class ReminderRepository:
         )
         return result.rowcount or 0
 
+
+    async def get_invoice_for_workspace(
+        self,
+        invoice_id: str,
+        workspace_id: str,
+    ) -> Invoice | None:
+        result = await self.db.execute(
+            select(Invoice)
+            .options(selectinload(Invoice.client))
+            .where(
+                Invoice.id == invoice_id,
+                Invoice.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_invoice_reminders(
         self,
         invoice_id: str,
         workspace_id: str,
     ) -> list[ReminderJob]:
-        from app.domains.invoices.models import Invoice
+        belongs = await self.invoice_belongs_to_workspace(
+            invoice_id,
+            workspace_id,
+        )
 
-        invoice_result = await self.db.execute(
+        if not belongs:
+            return []
+
+        return await self.list_for_invoice(invoice_id)
+
+    async def invoice_belongs_to_workspace(
+        self,
+        invoice_id: str,
+        workspace_id: str,
+    ) -> bool:
+        result = await self.db.execute(
             select(Invoice.id).where(
                 Invoice.id == invoice_id,
                 Invoice.workspace_id == workspace_id,
             )
         )
+        return result.scalar_one_or_none() is not None
 
-        if invoice_result.scalar_one_or_none() is None:
-            return []
-
-        return await self.list_for_invoice(invoice_id)
+    async def get_invoice_for_workspace(
+        self,
+        invoice_id: str,
+        workspace_id: str,
+    ) -> Invoice | None:
+        result = await self.db.execute(
+            select(Invoice)
+            .options(selectinload(Invoice.client))
+            .where(
+                Invoice.id == invoice_id,
+                Invoice.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()

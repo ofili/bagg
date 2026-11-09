@@ -36,4 +36,10 @@ class SecurityAuditResponse(BaseModel):
 class RecoveryCodeResponse(BaseModel):
     codes: list[str]
     message: str
-    
+
+
+class StepUpVerifyResponse(BaseModel):
+    verified: bool
+    challenge_id: str
+    operation_id: str
+    message: str

@@ -198,3 +198,19 @@ async def logout_all(
         "message": "All sessions have been revoked.",
         "revoked_sessions": revoked_count,
     }
+
+@router.get("/me", response_model=AuthResponse)
+async def get_me(
+    response: Response,
+    auth_data=Depends(get_current_user_and_workspace),
+):
+    response.headers["Cache-Control"] = "no-store"
+    if not auth_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Please sign in.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user, workspace = auth_data
+    return build_auth_response(user, workspace)
+

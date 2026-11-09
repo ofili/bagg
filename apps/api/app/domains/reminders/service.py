@@ -82,6 +82,18 @@ async def schedule_invoice_reminders(
     jobs: list[ReminderJob] = []
 
     for reminder_type, target_date in cadence:
+        generation = invoice.issuance_generation or 0
+
+        if generation < 1:
+            raise ValueError(
+                "Cannot schedule reminders for an invoice "
+                "that has not been issued."
+            )
+
+        idempotency_key = (
+            f"{invoice.id}:{generation}:{reminder_type}"
+        )
+        
         idempotency_key = f"{invoice.id}:{reminder_type}"
 
         existing = await repository.get_by_idempotency_key(

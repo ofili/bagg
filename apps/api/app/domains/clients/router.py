@@ -49,16 +49,25 @@ def _contact_response(contact: Contact) -> ContactResponse:
     )
 
 
-async def _client_response(
+def _client_response(
     client: Client,
-    db: AsyncSession,
+    summaries: list[dict],
     *,
     detail: bool = False,
+    invoices: list[dict] | None = None,
 ):
-    contacts = await ClientRepository(db).list_client_contacts(
-        client.workspace_id,
-        client.id,
+    preferred = next(
+        (item for item in summaries if item["currency"] == client.preferred_currency),
+        None,
     )
+
+    preferred = preferred or {
+        "currency": client.preferred_currency,
+        "total_invoiced_minor": 0,
+        "total_paid_minor": 0,
+        "total_outstanding_minor": 0,
+        "invoice_count": 0,
+    }
 
     values = dict(
         id=client.id,
@@ -74,17 +83,21 @@ async def _client_response(
         default_payment_terms_days=client.default_payment_terms_days,
         tax_id=client.tax_id,
         notes=client.notes,
-        contacts=[_contact_response(contact) for contact in contacts],
-        total_invoiced_minor=0,
-        total_paid_minor=0,
-        total_outstanding_minor=0,
-        invoice_count=0,
+        contacts=[_contact_response(contact) for contact in client.contacts],
+        total_invoiced_minor=preferred["total_invoiced_minor"],
+        total_paid_minor=preferred["total_paid_minor"],
+        total_outstanding_minor=preferred["total_outstanding_minor"],
+        invoice_count=preferred["invoice_count"],
+        financial_summary_by_currency=summaries,
         created_at=client.created_at,
         updated_at=client.updated_at,
     )
 
     if detail:
-        return ClientDetailResponse(**values, invoices=[])
+        return ClientDetailResponse(
+            **values,
+            invoices=invoices or [],
+        )
 
     return ClientResponse(**values)
 
@@ -221,15 +234,27 @@ async def list_clients(
     auth=Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    service = ClientService(db)
+    workspace_id = _workspace(auth).id
+    repository = ClientRepository(db)
 
-    clients = await service.list_clients(
-        _workspace(auth).id,
+    clients = await ClientService(db).list_clients(
+        workspace_id,
         query=q,
         currency=currency,
     )
 
-    return [await _client_response(client, db) for client in clients]
+    summaries = await repository.get_financial_summaries(
+        workspace_id,
+        [client.id for client in clients],
+    )
+
+    return [
+        _client_response(
+            client,
+            summaries.get(client.id, []),
+        )
+        for client in clients
+    ]
 
 
 @router.post(
@@ -248,7 +273,17 @@ async def create_client(
             payload,
         )
 
-        return await _client_response(client, db)
+        repository = ClientRepository(db)
+
+        summaries = await repository.get_financial_summaries(
+            client.workspace_id,
+            [client.id],
+        )
+
+        return _client_response(
+            client,
+            summaries.get(client.id, []),
+        )
 
     except BusinessContactInvariantError as exc:
         _raise_domain_error(exc)
@@ -269,10 +304,27 @@ async def get_client(
             client_id,
         )
 
-        return await _client_response(
+        repository = ClientRepository(db)
+
+        client = await repository.get_client(
+            workspace_id,
+            client.id,
+        )
+
+        if client is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Client not found",
+            )
+
+        summaries = await repository.get_financial_summaries(
+            workspace_id,
+            [client.id],
+        )
+
+        return _client_response(
             client,
-            db,
-            detail=True,
+            summaries.get(client.id, []),
         )
 
     except ClientNotFoundError as exc:
@@ -296,7 +348,28 @@ async def update_client(
             payload,
         )
 
-        return await _client_response(client, db)
+        repository = ClientRepository(db)
+
+        client = await repository.get_client(
+            workspace_id,
+            client.id,
+        )
+
+        if client is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Client not found",
+            )
+
+        summaries = await repository.get_financial_summaries(
+            workspace_id,
+            [client.id],
+        )
+
+        return _client_response(
+            client,
+            summaries.get(client.id, []),
+        )
 
     except (
         ClientNotFoundError,

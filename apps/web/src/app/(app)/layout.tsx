@@ -171,9 +171,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {businessName || 'Your business'}
           </p>
 
-          <ClientOnly>
-            <NotificationCenter />
-          </ClientOnly>
+          <div className="flex items-center gap-3">
+            <ClientOnly>
+              <NotificationCenter />
+              <UserMenu />
+            </ClientOnly>
+          </div>
         </header>
 
         {/* Phone header */}

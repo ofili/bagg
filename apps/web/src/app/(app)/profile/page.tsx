@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react';
 import { Avatar } from '@/components/navigation/UserMenu';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? '';
+const API = '/api';
 
 const labelClass = 'block text-body font-bold text-ink mb-1.5';
 const inputClass =

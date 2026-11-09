@@ -21,7 +21,7 @@ type Me = {
     workspace: { business_name?: string | null };
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? '';
+const API = '/api';
 
 export function initialsOf(name?: string | null, email?: string | null) {
     const n = (name ?? '').trim();

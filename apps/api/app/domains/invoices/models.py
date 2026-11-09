@@ -105,6 +105,12 @@ class Invoice(Base):
     last_recalled_at = Column(DateTime(timezone=True), nullable=True)
     last_recalled_by_user_id = Column(String, nullable=True)
     last_recall_reason = Column(Text, nullable=True)
+    issuance_generation = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
     # Permanent void is distinct from recall
     voided_at = Column(DateTime(timezone=True), nullable=True)
     voided_by_user_id = Column(String, nullable=True)

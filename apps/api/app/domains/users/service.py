@@ -1,7 +1,7 @@
-from fastapi import HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import NotFoundException
 from app.domains.auth.models import User
 from app.domains.users.schemas import ProfileUpdate
 
@@ -10,19 +10,30 @@ class UserService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def update_me(self, user_id: str, user_dict: ProfileUpdate):
-        user_result = await self.db.execute(
-            select(User).where(User.id == user_id)
+    async def update_me(
+        self,
+        user_id: str,
+        payload: ProfileUpdate,
+    ) -> User:
+        result = await self.db.execute(
+            select(User)
+            .where(User.id == user_id)
+            .with_for_update()
         )
-        user = user_result.scalar()
+        user = result.scalar_one_or_none()
 
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        if user is None:
+            raise NotFoundException("User not found")
 
-        user = await self.db.execute(
-            update(User).where(User.id == user_id).values(user_dict.model_dump(exclude_unset=True))
-        )
-        await self.db.commit()
-        await self.db.refresh(user)
+        changes = payload.model_dump(exclude_unset=True)
 
-        return user
+        for field, value in changes.items():
+            setattr(user, field, value)
+
+        try:
+            await self.db.commit()
+            await self.db.refresh(user)
+            return user
+        except Exception:
+            await self.db.rollback()
+            raise

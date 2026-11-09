@@ -20,7 +20,8 @@ import {InvoiceDocument, LineItemsEditor} from '@/components/invoice';
 import {MoneyInput} from '@/components/mobile/MoneyInput';
 import {Money} from '@/components/money/Money';
 import {BaggSelect, Button, Card, Dialog, Field, Input, buttonStyles, inputStyles} from '@/components/ui';
-import {SUPPORTED_CURRENCIES, addDays, type InvoiceDraft} from '@/hooks/useInvoiceDraft';
+import { InlineClientModal } from '@/components/clients/InlineClientModal';
+import {SUPPORTED_CURRENCIES, addDays, type InvoiceDraft, type Client} from '@/hooks/useInvoiceDraft';
 import {cleanAmount} from '@/lib/amount';
 import {cn} from '@/lib/cn';
 import {formatDate} from '@/lib/date';
@@ -50,6 +51,7 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
     const [step, setStep] = useState(0);
     const [query, setQuery] = useState('');
     const [pickDate, setPickDate] = useState(false);
+    const [showClientModal, setShowClientModal] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
     const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -58,11 +60,11 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
         headingRef.current?.focus();
     }, [step]);
 
-    const client = draft.clients.find((c: { id: any; }) => c.id === draft.selectedClientId);
+    const client = draft.clients.find((c: Client) => c.id === draft.selectedClientId);
     const gap = daysBetween(draft.issueDate, draft.dueDate);
     const knownGap = DUE_OPTIONS.some((o) => o.days === gap);
 
-    const filtered = draft.clients.filter((c: { name: string; }) => c.name.toLowerCase().includes(query.trim().toLowerCase()));
+    const filtered = draft.clients.filter((c: Client) => c.name.toLowerCase().includes(query.trim().toLowerCase()));
 
     function next() {
         draft.setErrorMsg(null);
@@ -161,9 +163,9 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                             <h2 className="text-title">add your first client</h2>
                             <p className="text-body text-text-soft">You need a client before you can send an
                                 invoice.</p>
-                            <Link href="/clients/new" className={buttonStyles({size: 'lg'})}>
+                            <Button size="lg" onClick={() => setShowClientModal(true)}>
                                 <UserPlus aria-hidden className="h-4 w-4"/> Add a client
-                            </Link>
+                            </Button>
                         </Card>
                     ) : (
                         <>
@@ -177,17 +179,18 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                             )}
                             <div role="radiogroup" aria-label="Client"
                                  className="overflow-hidden rounded-card border-brut border-ink bg-surface">
-                                <Link
-                                    href="/clients/new"
-                                    className="flex min-h-16 items-center gap-3 px-3 font-extrabold hover:bg-surface-tint"
+                                <button
+                                    type="button"
+                                    onClick={() => setShowClientModal(true)}
+                                    className="flex min-h-16 w-full items-center gap-3 px-3 font-extrabold hover:bg-surface-tint text-left"
                                 >
                   <span
                       className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-ink">
                     <UserPlus aria-hidden className="h-5 w-5"/>
                   </span>
                                     Add new client
-                                </Link>
-                                {filtered.map((c: { id: Key | null | undefined; name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; preferred_currency: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; default_payment_terms_days: any; }) => {
+                                </button>
+                                {filtered.map((c: Client) => {
                                     const on = c.id === draft.selectedClientId;
                                     return (
                                         <button
@@ -450,6 +453,12 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                     Close preview
                 </Button>
             </Dialog>
+            <InlineClientModal
+                open={showClientModal}
+                onClose={() => setShowClientModal(false)}
+                onClientCreated={draft.addClient}
+                defaultCurrency={draft.currency}
+            />
         </div>
     );
 }

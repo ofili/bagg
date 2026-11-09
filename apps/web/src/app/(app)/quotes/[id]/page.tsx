@@ -11,6 +11,7 @@ import {
   Copy,
   ExternalLink,
   FileText,
+  Download,
   Loader2,
   Pencil,
   Plus,
@@ -638,6 +639,19 @@ export default function QuoteDetailPage() {
               Convert to invoice
             </Button>
           )}
+          {quote.status !== 'draft' && (
+            <a
+              href={`${API_BASE}/quotes/${quote.id}/pdf`}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+            >
+              <Download aria-hidden className="h-4 w-4" />
+              PDF
+            </a>
+          )}
+
         </div>
       </div>
 

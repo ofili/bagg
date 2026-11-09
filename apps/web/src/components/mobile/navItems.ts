@@ -3,6 +3,7 @@ import {
   FileText,
   LayoutDashboard,
   ReceiptText,
+  Repeat,
   Users,
 } from 'lucide-react';
 
@@ -11,5 +12,6 @@ export const NAV_ITEMS = [
   { label: 'Invoices', href: '/invoices', icon: FileText },
   { label: 'Quotes', href: '/quotes', icon: FileCheck },
   { label: 'Receipts', href: '/receipts', icon: ReceiptText },
+  { label: 'Recurring', href: '/recurring-invoices', icon: Repeat },
   { label: 'Clients', href: '/clients', icon: Users },
 ] as const;

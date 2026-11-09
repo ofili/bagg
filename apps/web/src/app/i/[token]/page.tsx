@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, Check, Info, Loader2, MessageSquare, Send } from 'lucide-react';
+import { AlertCircle, Check,
+  CreditCard, Info, Loader2, MessageSquare, Send } from 'lucide-react';
 import { BagCharacter } from '@/components/brand';
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { InvoiceDocument, PaymentDetails } from '@/components/invoice';
@@ -121,6 +122,36 @@ export default function PublicClientInvoiceView() {
   const [claimProofUrl, setClaimProofUrl] = useState('');
   const [submittingClaim, setSubmittingClaim] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+
+
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  const handleInitiateCheckout = async () => {
+    try {
+      setCheckingOut(true);
+      setCheckoutError(null);
+      const res = await fetch(`${API_BASE}/share/${token}/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callback_url: window.location.href,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Online payment could not be started.');
+      }
+      const data = await res.json();
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+      }
+    } catch (err: any) {
+      setCheckoutError(err.message || 'Online payment could not be started.');
+    } finally {
+      setCheckingOut(false);
+    }
+  };
 
   const [showAbuseDialog, setShowAbuseDialog] = useState(false);
   const [abuseReason, setAbuseReason] = useState('');
@@ -249,6 +280,28 @@ export default function PublicClientInvoiceView() {
   useEffect(() => {
     fetchInvoiceData();
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const ref = urlParams.get('reference');
+    if (ref) {
+      fetch(`${API_BASE}/share/${token}/verify-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference: ref }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((verification) => {
+          if (verification?.verified) {
+            setToastMsg('Payment verified successfully! Thank you.');
+            fetchInvoiceData();
+          }
+        })
+        .catch(() => {});
+    }
+  }, [token]);
+
 
   const handleCopy = (text: string, key: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -393,6 +446,26 @@ export default function PublicClientInvoiceView() {
           <Card zone="calm" tone="peach" className="flex items-start gap-2.5 text-body">
             <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{revision_banner}</span>
+          </Card>
+        )}
+
+        
+        {remainingMinor > 0 && invoice.status !== 'paid' && (
+          <Card zone="calm" className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-extrabold text-heading">Pay online securely</p>
+              <p className="text-body text-text-soft">Pay with debit card, bank transfer, or USSD.</p>
+              {checkoutError && <p role="alert" className="mt-1 text-caption text-danger">{checkoutError}</p>}
+            </div>
+            <Button
+              zone="calm"
+              size="lg"
+              loading={checkingOut}
+              onClick={handleInitiateCheckout}
+            >
+              <CreditCard aria-hidden className="h-4 w-4" />
+              Pay now
+            </Button>
           </Card>
         )}
 

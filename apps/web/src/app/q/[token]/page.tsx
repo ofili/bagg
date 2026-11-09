@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, Check, Clock, Loader2, Sparkles, XCircle } from 'lucide-react';
+import { AlertCircle, Check, Clock, Loader2, Sparkles, XCircle, RotateCcw } from 'lucide-react';
 import { BagCharacter } from '@/components/brand';
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { QuoteRespondBar } from '@/components/mobile/QuoteRespondBar';
@@ -75,6 +75,13 @@ export default function PublicQuotePage() {
   const [acceptName, setAcceptName] = useState('');
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
+
+
+  // Review Request Dialog State
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [reviewReason, setReviewReason] = useState('');
+  const [requestingReview, setRequestingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   // Decline Bottom Sheet State
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
@@ -149,6 +156,39 @@ export default function PublicQuotePage() {
       setAcceptError('Network error while submitting acceptance.');
     } finally {
       setAccepting(false);
+    }
+  };
+
+
+  const handleRequestReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewReason.trim()) {
+      setReviewError('Please describe the adjustments or questions you have.');
+      return;
+    }
+
+    try {
+      setRequestingReview(true);
+      setReviewError(null);
+      const res = await fetch(`${API_BASE}/quotes/share/${token}/request-review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reviewReason.trim() }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setReviewError(err.detail || 'Failed to request review.');
+        return;
+      }
+
+      const updated = await res.json();
+      setQuote(updated);
+      setShowReviewDialog(false);
+    } catch {
+      setReviewError('Network error while requesting review.');
+    } finally {
+      setRequestingReview(false);
     }
   };
 
@@ -405,9 +445,14 @@ export default function PublicQuotePage() {
                   <Button zone="calm" size="lg" fullWidth onClick={() => setShowAcceptDialog(true)}>
                     <Check aria-hidden className="h-4 w-4" /> Accept quote
                   </Button>
-                  <Button variant="outline" zone="calm" size="lg" fullWidth onClick={() => setShowDeclineDialog(true)}>
-                    Decline
-                  </Button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button variant="outline" zone="calm" size="lg" onClick={() => setShowReviewDialog(true)}>
+                      <RotateCcw aria-hidden="true" className="h-4 w-4" /> Request changes
+                    </Button>
+                    <Button variant="outline" zone="calm" size="lg" onClick={() => setShowDeclineDialog(true)}>
+                      Decline
+                    </Button>
+                  </div>
                 </div>
                 <div className="text-center">
                   <a

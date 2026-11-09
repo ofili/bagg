@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Check,
   Copy,
+  Download,
   ExternalLink,
   FileText,
   Loader2,
@@ -241,6 +242,20 @@ export default function ReceiptDetailPage() {
             <Printer aria-hidden className="h-4 w-4" />
             Print
           </Button>
+          <a
+            href={`${API_BASE}/receipts/${receipt.id}/pdf`}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonStyles({
+              variant: 'outline',
+              zone: 'calm',
+            })}
+          >
+            <Download aria-hidden className="h-4 w-4" />
+            PDF
+          </a>
+
 
           <Button
             zone="calm"

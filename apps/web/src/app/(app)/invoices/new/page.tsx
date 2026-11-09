@@ -14,6 +14,7 @@ import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { NewInvoiceFlow } from '@/components/mobile/NewInvoiceFlow';
 import { Money } from '@/components/money/Money';
 import { BaggSelect, Button, Card, Dialog, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
+import { InlineClientModal } from '@/components/clients/InlineClientModal';
 import { SUPPORTED_CURRENCIES, useInvoiceDraft } from '@/hooks/useInvoiceDraft';
 import { cleanAmount } from '@/lib/amount';
 import { cn } from '@/lib/cn';
@@ -22,6 +23,7 @@ export default function NewInvoicePage() {
   const router = useRouter();
   const draft = useInvoiceDraft();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [showClientModal, setShowClientModal] = useState(false);
 
   const handleSaveDraft = async () => {
     const id = await draft.saveDraft();
@@ -75,9 +77,20 @@ export default function NewInvoicePage() {
 
           {/* Client, currency, dates */}
           <Card zone="calm" className="grid gap-4 p-5 sm:grid-cols-2">
-            {draft.clients.length > 0 ? (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-body font-medium text-text">Client</label>
+                <button
+                  type="button"
+                  onClick={() => setShowClientModal(true)}
+                  className="text-caption font-bold text-mango hover:underline"
+                >
+                  + Add new client
+                </button>
+              </div>
+              {draft.clients.length > 0 ? (
                 <BaggSelect
-                    label="Client"
+                    label=""
                     className="w-full"
                     value={draft.selectedClientId}
                     onChange={draft.handleClientChange}
@@ -86,17 +99,21 @@ export default function NewInvoicePage() {
                       label: `${c.name} (${c.preferred_currency})`,
                     }))}
                 />
-            ) : (
-                <div className="space-y-1.5">
-                  <p className="text-body font-medium">Client</p>
+              ) : (
+                <div className="rounded-input border border-dashed border-line p-3">
                   <p className="text-body text-text-soft">
                     No clients yet.{' '}
-                    <Link href="/clients" className="font-extrabold text-link underline underline-offset-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowClientModal(true)}
+                      className="font-extrabold text-link underline underline-offset-4"
+                    >
                       Add a client
-                    </Link>
+                    </button>
                   </p>
                 </div>
-            )}
+              )}
+            </div>
 
             <BaggSelect
                 label="Currency"
@@ -195,6 +212,12 @@ export default function NewInvoicePage() {
               Close preview
             </Button>
           </Dialog>
+          <InlineClientModal
+              open={showClientModal}
+              onClose={() => setShowClientModal(false)}
+              onClientCreated={draft.addClient}
+              defaultCurrency={draft.currency}
+          />
         </div>
       </>
   );

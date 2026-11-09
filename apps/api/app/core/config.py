@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # Internal scheduled jobs / worker endpoints
     INTERNAL_JOB_TOKEN: str | None = None
-    EMAIL_ENCRYPTION_KEY: str | None = "Jgmn1HnnF-Q0AYTcEplUDyoWZi_X_Vb6QhvaKmPNiLw="
+    EMAIL_ENCRYPTION_KEY: str | None = None
     EMAIL_WORKER_POLL_SECONDS: int = 2
     EMAIL_WORKER_BATCH_SIZE: int = 10
     EMAIL_WORKER_LEASE_SECONDS: int = 120
@@ -106,7 +106,9 @@ class Settings(BaseSettings):
                 "OTP_HASH_SECRET must contain at least 32 characters in production"
             )
         if not self.EMAIL_ENCRYPTION_KEY:
-            raise ValueError("EMAIL_ENCRYPTION_KEY must be configured in production")
+            raise ValueError(
+                "EMAIL_ENCRYPTION_KEY must be configured in production"
+            )
         return self
 
     @field_validator("EMAIL_ENCRYPTION_KEY")

@@ -148,6 +148,12 @@ export function useQuoteDraft() {
     /*
      * Select a client and adopt their preferred currency.
      */
+        const addClient = (newClient: QuoteClient) => {
+        setClients((prev) => [newClient, ...prev.filter((c) => c.id !== newClient.id)]);
+        setSelectedClientId(newClient.id);
+        if (newClient.preferred_currency) setCurrency(newClient.preferred_currency);
+    };
+
     const handleClientChange = (clientId: string) => {
         setSelectedClientId(clientId);
 
@@ -433,6 +439,7 @@ export function useQuoteDraft() {
         selectedClientId,
         setSelectedClientId,
         handleClientChange,
+        addClient,
 
         currency,
         setCurrency,

@@ -1,9 +1,9 @@
 'use client';
 
 /*
- * Phone-only switcher for the three document lists, since the tab bar has one
+ * Phone-only switcher for the document lists, since the tab bar has one
  * "Invoices" tab for all of them. Put <DocTabs /> directly under the page
- * header on invoices/NewQuoteDesktop.tsx, quotes/NewQuoteDesktop.tsx and receipts/NewQuoteDesktop.tsx.
+ * header on invoices, quotes, receipts and recurring-invoices pages.
  * Tablet and desktop keep the sidebar, so it hides from the sm breakpoint up.
  */
 import Link from 'next/link';
@@ -14,6 +14,7 @@ const TABS = [
     { label: 'Invoices', href: '/invoices' },
     { label: 'Quotes', href: '/quotes' },
     { label: 'Receipts', href: '/receipts' },
+    { label: 'Recurring', href: '/recurring-invoices' },
 ] as const;
 
 export function DocTabs({ className = '' }: { className?: string }) {

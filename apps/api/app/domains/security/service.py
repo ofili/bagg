@@ -19,6 +19,7 @@ from app.domains.security.models import (
     SecurityAuditEvent,
     SecurityChallenge,
 )
+from app.domains.security.repository import SecurityRepository
 
 
 class SecurityPurpose:
@@ -51,6 +52,7 @@ class SecurityService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.repo = SecurityRepository(db)
 
     async def create_challenge(
         self,
@@ -292,21 +294,42 @@ class SecurityService:
         purpose: str,
         payload: dict[str, Any],
     ) -> SecurityChallenge:
-        """Require a recently consumed challenge for an exact operation."""
+        """
+        Authorise one exact protected operation using a recently verified
+        challenge.
+
+        The challenge is locked and marked revoked in the same transaction
+        as the protected mutation. This makes the authorisation single-use:
+        a failed mutation rolls back both the mutation and challenge use.
+        """
 
         now = datetime.now(timezone.utc)
-
-        challenge = await self.repo.get_consumed_challenge(
-            challenge_id=challenge_id,
-            user_id=user.id,
-            workspace_id=workspace.id,
-            purpose=purpose,
-            now=now,
+        verification_cutoff = now - timedelta(
+            minutes=self.CHALLENGE_MINUTES
         )
+
+        result = await self.db.execute(
+            select(SecurityChallenge)
+            .where(
+                and_(
+                    SecurityChallenge.id == challenge_id,
+                    SecurityChallenge.user_id == user.id,
+                    SecurityChallenge.workspace_id == workspace.id,
+                    SecurityChallenge.purpose == purpose,
+                    SecurityChallenge.consumed_at.is_not(None),
+                    SecurityChallenge.consumed_at >= verification_cutoff,
+                    SecurityChallenge.revoked_at.is_(None),
+                    SecurityChallenge.expires_at > now,
+                )
+            )
+            .with_for_update()
+        )
+
+        challenge = result.scalars().first()
 
         if challenge is None:
             raise BadRequestException(
-                "A valid recent security verification is required"
+                "A valid, recently verified security challenge is required"
             )
 
         if not constant_time_equal(
@@ -316,5 +339,77 @@ class SecurityService:
             raise BadRequestException(
                 "Security verification does not match this operation"
             )
+
+        # A verified challenge is spent when it authorises the mutation.
+        # This update is deliberately not committed here. The caller's
+        # payment-profile transaction commits it with the actual mutation.
+        challenge.revoked_at = now
+
+        await self.db.flush()
+
+        return challenge
+
+    async def verify_challenge_code(
+        self,
+        *,
+        challenge_id: str,
+        user_id: str,
+        workspace_id: Optional[str],
+        code: str,
+    ) -> SecurityChallenge:
+        """
+        Verify a challenge using its server-stored purpose and payload hash.
+
+        The browser supplies only the challenge ID and code. The operation
+        details remain server-owned.
+        """
+
+        now = datetime.now(timezone.utc)
+
+        result = await self.db.execute(
+            select(SecurityChallenge)
+            .where(
+                and_(
+                    SecurityChallenge.id == challenge_id,
+                    SecurityChallenge.user_id == user_id,
+                    SecurityChallenge.workspace_id == workspace_id,
+                    SecurityChallenge.consumed_at.is_(None),
+                    SecurityChallenge.revoked_at.is_(None),
+                    SecurityChallenge.expires_at > now,
+                )
+            )
+            .with_for_update()
+        )
+
+        challenge = result.scalars().first()
+
+        if challenge is None:
+            raise BadRequestException(
+                "Invalid or expired security challenge"
+            )
+
+        if challenge.attempts >= challenge.max_attempts:
+            raise BadRequestException(
+                "Security challenge attempt limit exceeded"
+            )
+
+        challenge.attempts += 1
+
+        expected_hash = hash_verification_code(
+            code,
+            purpose=challenge.purpose,
+            user_id=user_id,
+        )
+
+        if not constant_time_equal(
+            challenge.code_hash,
+            expected_hash,
+        ):
+            await self.db.flush()
+            raise BadRequestException("Invalid verification code")
+
+        challenge.consumed_at = now
+
+        await self.db.flush()
 
         return challenge

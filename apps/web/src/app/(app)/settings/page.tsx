@@ -23,12 +23,27 @@ import {
 } from 'lucide-react';
 import { BagCharacter } from '@/components/brand';
 import { Button } from '@/components/ui/button';
-import { BaggSelect } from '@/components/ui';
+import { BaggSelect, Dialog } from '@/components/ui';
 import { Sheet, SheetContent, SheetFooter } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { formatMoney } from '@/lib/money';
 
 const API_BASE = '/api';
+
+interface ReminderScheduleItem {
+  days_relative_to_due: number;
+  reminder_type: string;
+  channel: string;
+  enabled: boolean;
+}
+
+interface PendingStepUp {
+  challengeId: string;
+  purpose: string;
+  payload: any;
+  action: 'create' | 'delete';
+  profileId?: string;
+}
 
 interface PaymentProfile {
   id: string;
@@ -113,6 +128,13 @@ export default function SettingsPage() {
   const [addingProfile, setAddingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
+  const [reminderSchedules, setReminderSchedules] = useState<ReminderScheduleItem[]>([]);
+  const [showStepUpModal, setShowStepUpModal] = useState(false);
+  const [stepUpCode, setStepUpCode] = useState('');
+  const [verifyingStepUp, setVerifyingStepUp] = useState(false);
+  const [stepUpError, setStepUpError] = useState<string | null>(null);
+  const [pendingStepUp, setPendingStepUp] = useState<PendingStepUp | null>(null);
+
   const [channelType, setChannelType] = useState<ChannelType>('bank');
   const [newCurrency, setNewCurrency] = useState('NGN');
   const [bankName, setBankName] = useState('');
@@ -183,6 +205,14 @@ export default function SettingsPage() {
 
     fetchProfiles();
     fetchBilling();
+    fetch(`${API_BASE}/reminders/settings`, { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.schedules)) {
+          setReminderSchedules(data.schedules);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -305,28 +335,32 @@ export default function SettingsPage() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/payments/profiles`, {
+      setProfileError(null);
+      const stepUpRes = await fetch(`${API_BASE}/security/step-up/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          purpose: 'payment_profile_create',
+          resource_type: 'payment_profile',
+          resource_id: null,
+          payload,
+        }),
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || 'we could not save that payment detail. Check it and try again.');
+      if (!stepUpRes.ok) {
+        const errData = await stepUpRes.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Could not initiate security verification.');
       }
 
-      setShowAddProfileModal(false);
-      setBankName('');
-      setAccountName('');
-      setAccountNumber('');
-      setRoutingNumber('');
-      setPaymentLink('');
-      setMobileMoneyNumber('');
-      setInstructions('');
-      showNotice(`${newCurrency} payment details saved.`);
-      await fetchProfiles();
+      const stepUpData = await stepUpRes.json();
+      setPendingStepUp({
+        challengeId: stepUpData.challenge_id,
+        purpose: 'payment_profile_create',
+        payload,
+        action: 'create',
+      });
+      setShowStepUpModal(true);
     } catch (err) {
       setProfileError(errorText(err, 'we could not save that payment detail. Check it and try again.'));
     } finally {
@@ -340,15 +374,112 @@ export default function SettingsPage() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`${API_BASE}/payments/profiles/${profile.id}`, {
-        method: 'DELETE',
+      setError(null);
+      const payload = { profile_id: profile.id };
+      const stepUpRes = await fetch(`${API_BASE}/security/step-up/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({
+          purpose: 'payment_profile_delete',
+          resource_type: 'payment_profile',
+          resource_id: profile.id,
+          payload,
+        }),
       });
-      if (!res.ok) throw new Error('we could not delete that payment detail. Try again.');
-      showNotice('Payment detail deleted.');
-      await fetchProfiles();
+
+      if (!stepUpRes.ok) {
+        const errData = await stepUpRes.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Could not initiate security verification.');
+      }
+
+      const stepUpData = await stepUpRes.json();
+      setPendingStepUp({
+        challengeId: stepUpData.challenge_id,
+        purpose: 'payment_profile_delete',
+        payload,
+        action: 'delete',
+        profileId: profile.id,
+      });
+      setShowStepUpModal(true);
     } catch (err) {
       setError(errorText(err, 'we could not delete that payment detail. Try again.'));
+    }
+  };
+
+  const handleVerifyStepUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingStepUp || !stepUpCode.trim()) return;
+
+    setVerifyingStepUp(true);
+    setStepUpError(null);
+
+    try {
+      const verifyRes = await fetch(`${API_BASE}/security/step-up/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          challenge_id: pendingStepUp.challengeId,
+          code: stepUpCode.trim(),
+        }),
+      });
+
+      if (!verifyRes.ok) {
+        const errData = await verifyRes.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Invalid verification code. Please check and try again.');
+      }
+
+      if (pendingStepUp.action === 'create') {
+        const res = await fetch(`${API_BASE}/payments/profiles`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Security-Challenge-ID': pendingStepUp.challengeId,
+          },
+          credentials: 'include',
+          body: JSON.stringify(pendingStepUp.payload),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || 'we could not save that payment detail. Check it and try again.');
+        }
+
+        setShowStepUpModal(false);
+        setShowAddProfileModal(false);
+        setStepUpCode('');
+        setPendingStepUp(null);
+        setBankName('');
+        setAccountName('');
+        setAccountNumber('');
+        setRoutingNumber('');
+        setPaymentLink('');
+        setMobileMoneyNumber('');
+        setInstructions('');
+        showNotice(`${newCurrency} payment details saved.`);
+        await fetchProfiles();
+      } else if (pendingStepUp.action === 'delete') {
+        const res = await fetch(`${API_BASE}/payments/profiles/${pendingStepUp.profileId}`, {
+          method: 'DELETE',
+          headers: {
+            'X-Security-Challenge-ID': pendingStepUp.challengeId,
+          },
+          credentials: 'include',
+        });
+
+        if (!res.ok) throw new Error('we could not delete that payment detail. Try again.');
+
+        setShowStepUpModal(false);
+        setStepUpCode('');
+        setPendingStepUp(null);
+        showNotice('Payment detail deleted.');
+        await fetchProfiles();
+      }
+    } catch (err) {
+      setStepUpError(errorText(err, 'Verification failed. Try again.'));
+    } finally {
+      setVerifyingStepUp(false);
     }
   };
 
@@ -762,12 +893,28 @@ export default function SettingsPage() {
         description="Polite reminders go out automatically. You can still nudge from any invoice."
       >
         <div className="grid gap-2 sm:grid-cols-4">
-          {['3 days before due', 'on the due date', '3 days after due', '7 days after due'].map(
-            (label) => (
-              <div key={label} className="rounded-row bg-sunken px-3 py-3 text-caption font-bold text-ink-soft">
-                {label}
-              </div>
-            ),
+          {reminderSchedules.length > 0 ? (
+            reminderSchedules.map((s, idx) => {
+              const label =
+                s.days_relative_to_due < 0
+                  ? `${Math.abs(s.days_relative_to_due)} days before due`
+                  : s.days_relative_to_due === 0
+                  ? 'On the due date'
+                  : `${s.days_relative_to_due} days after due`;
+              return (
+                <div key={idx} className="rounded-row bg-sunken px-3 py-3 text-caption font-bold text-ink-soft">
+                  <span className="capitalize">{s.channel}</span>: {label}
+                </div>
+              );
+            })
+          ) : (
+            ['3 days before due', 'on the due date', '3 days after due', '7 days after due'].map(
+              (label) => (
+                <div key={label} className="rounded-row bg-sunken px-3 py-3 text-caption font-bold text-ink-soft">
+                  {label}
+                </div>
+              ),
+            )
           )}
         </div>
       </Section>
@@ -1102,6 +1249,72 @@ export default function SettingsPage() {
           </form>
         </SheetContent>
       </Sheet>
+      {/* Step-up Security Verification Dialog */}
+      <Dialog
+        open={showStepUpModal}
+        onClose={() => {
+          setShowStepUpModal(false);
+          setPendingStepUp(null);
+          setStepUpCode('');
+          setStepUpError(null);
+        }}
+        title="Security verification"
+      >
+        <form onSubmit={handleVerifyStepUp} className="space-y-4 p-4">
+          <div className="flex items-center gap-2 text-ink">
+            <ShieldCheck className="h-5 w-5 text-mango" />
+            <p className="text-body font-bold">Confirm payout instructions change</p>
+          </div>
+          <p className="text-caption text-text-soft">
+            A 6-digit confirmation code was dispatched to your account email. Enter it below to complete this update.
+          </p>
+
+          <div>
+            <label htmlFor="stepUpCode" className="block text-caption font-bold text-ink mb-1">
+              Verification code
+            </label>
+            <input
+              id="stepUpCode"
+              type="text"
+              autoComplete="one-time-code"
+              placeholder="e.g. 123456"
+              maxLength={12}
+              required
+              value={stepUpCode}
+              onChange={(e) => setStepUpCode(e.target.value)}
+              className="w-full rounded-input border-brut bg-surface px-3 py-2 text-center text-title font-mono tracking-widest text-ink focus-visible:outline-none focus-visible:shadow-brut-sm"
+            />
+          </div>
+
+          {stepUpError && (
+            <p className="text-caption font-bold text-danger">{stepUpError}</p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => {
+                setShowStepUpModal(false);
+                setPendingStepUp(null);
+                setStepUpCode('');
+                setStepUpError(null);
+              }}
+              disabled={verifyingStepUp}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="accent"
+              type="submit"
+              loading={verifyingStepUp}
+              disabled={!stepUpCode.trim()}
+            >
+              Confirm
+            </Button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 }

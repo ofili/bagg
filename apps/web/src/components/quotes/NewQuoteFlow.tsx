@@ -16,6 +16,7 @@ import {FlowShell} from '@/components/mobile/FlowShell';
 import {MoneyInput} from '@/components/mobile/MoneyInput';
 import {Money} from '@/components/money/Money';
 import {BaggSelect, Button, Card, Chip, Field, Input, buttonStyles, inputStyles} from '@/components/ui';
+import { InlineClientModal } from '@/components/clients/InlineClientModal';
 import {VALIDITY_OPTIONS, useQuoteDraft} from '@/hooks/useQuoteDraft';
 import {cleanAmount} from '@/lib/amount';
 import {cn} from '@/lib/cn';
@@ -32,6 +33,7 @@ export function NewQuoteFlow() {
     const d = useQuoteDraft();
     const [step, setStep] = useState(0);
     const [query, setQuery] = useState('');
+    const [showClientModal, setShowClientModal] = useState(false);
     const client = d.clients.find((c: { id: any; }) => c.id === d.selectedClientId);
     const filtered = d.clients.filter((c: {
         name: string;
@@ -108,10 +110,9 @@ export function NewQuoteFlow() {
         <FlowShell
             heading={TITLES[step]}
             title="New quote"
-            steps={step}
-            total={4}
+            steps={TITLES}
+            currentStep={step}
             closeHref="/quotes"
-            closeLabel="Close and go back to quotes"
             error={d.errorMsg}
             onDismissError={() => d.setErrorMsg(null)}
             footer={footer}
@@ -122,9 +123,9 @@ export function NewQuoteFlow() {
                         <Card tone="peach" className="space-y-3 p-6 text-center">
                             <BagCharacter size={72} mood="happy" className="mx-auto" decorative/>
                             <h2 className="text-title">add your first client</h2>
-                            <Link href="/clients/new" className={buttonStyles({size: 'lg'})}>
+                            <Button size="lg" onClick={() => setShowClientModal(true)}>
                                 <UserPlus aria-hidden className="h-4 w-4"/> Add a client
-                            </Link>
+                            </Button>
                         </Card>
                     ) : (
                         <>
@@ -136,14 +137,17 @@ export function NewQuoteFlow() {
                             )}
                             <div role="radiogroup" aria-label="Client"
                                  className="overflow-hidden rounded-card border-brut border-ink bg-surface">
-                                <Link href="/clients/new"
-                                      className="flex min-h-16 items-center gap-3 px-3 font-extrabold hover:bg-surface-tint">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowClientModal(true)}
+                                    className="flex min-h-16 w-full items-center gap-3 px-3 font-extrabold hover:bg-surface-tint text-left"
+                                >
                   <span
                       className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-ink">
                     <UserPlus aria-hidden className="h-5 w-5"/>
                   </span>
                                     Add new client
-                                </Link>
+                                </button>
                                 {filtered.map((c) => {
                                     const on = c.id === d.selectedClientId;
                                     return (
@@ -224,10 +228,10 @@ export function NewQuoteFlow() {
                             Offer is valid for
                         </p>
                         <div role="group" aria-labelledby="validity-label" className="flex flex-wrap gap-2">
-                            {VALIDITY_OPTIONS.map((days) => (
-                                <Chip key={days} selected={d.validityDays === days}
-                                      onClick={() => d.setValidityDays(days)}>
-                                    {days} days
+                            {VALIDITY_OPTIONS.map((opt) => (
+                                <Chip key={opt.value} selected={d.validityDays === opt.value}
+                                      onClick={() => d.setValidityDays(opt.value)}>
+                                    {opt.label}
                                 </Chip>
                             ))}
                         </div>
@@ -306,6 +310,12 @@ export function NewQuoteFlow() {
                     </p>
                 </div>
             )}
+                    <InlineClientModal
+                open={showClientModal}
+                onClose={() => setShowClientModal(false)}
+                onClientCreated={d.addClient}
+                defaultCurrency={d.currency}
+            />
         </FlowShell>
     );
 }

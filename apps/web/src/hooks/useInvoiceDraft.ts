@@ -99,6 +99,13 @@ export function useInvoiceDraft() {
     const termsFor = (clientId: string) =>
         clients.find((c) => c.id === clientId)?.default_payment_terms_days || 14;
 
+        const addClient = (newClient: Client) => {
+        setClients((prev) => [newClient, ...prev.filter((c) => c.id !== newClient.id)]);
+        setSelectedClientId(newClient.id);
+        if (newClient.preferred_currency) setCurrency(newClient.preferred_currency);
+        setDueDate(addDays(issueDate, newClient.default_payment_terms_days || 14));
+    };
+
     const handleClientChange = (clientId: string) => {
         setSelectedClientId(clientId);
         const client = clients.find((c) => c.id === clientId);
@@ -248,6 +255,7 @@ export function useInvoiceDraft() {
         taxMinor,
         totalMinor,
         handleClientChange,
+        addClient,
         handleIssueDateChange,
         termsFor,
         validate,

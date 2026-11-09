@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine
 from app.domains.auth.models import MagicLoginCode
 from app.domains.reminders.models import ReminderJob
+from app.domains.security.models import SecurityChallenge
 from app.integrations.email_models import (
     EmailOutbox,
     EmailDeliveryAttempt,
@@ -136,41 +137,83 @@ async def is_current_otp(
     message: EmailOutbox,
     recipient: str,
 ) -> bool:
-
-    challenge_result = await db.execute(
-        select(MagicLoginCode)
-        .where(MagicLoginCode.id == message.aggregate_id)
-        .with_for_update()
-    )
-
-    challenge = challenge_result.scalars().first()
-
-    if challenge is None:
-        return False
-
     now = utcnow()
 
-    if challenge.email != recipient:
-        return False
-
-    if challenge.used_at is not None:
-        return False
-
-    if challenge.expires_at <= now:
-        return False
-
-    current_result = await db.execute(
-        select(MagicLoginCode.id)
-        .where(
-            MagicLoginCode.email == recipient,
-            MagicLoginCode.used_at.is_(None),
-            MagicLoginCode.expires_at > now,
+    if message.message_type == "login_otp":
+        challenge_result = await db.execute(
+            select(MagicLoginCode)
+            .where(MagicLoginCode.id == message.aggregate_id)
+            .with_for_update()
         )
-        .order_by(MagicLoginCode.created_at.desc())
-        .limit(1)
-    )
 
-    return current_result.scalar_one_or_none() == challenge.id
+        challenge = challenge_result.scalars().first()
+
+        if challenge is None:
+            return False
+
+        if challenge.email != recipient:
+            return False
+
+        if challenge.used_at is not None:
+            return False
+
+        if challenge.expires_at <= now:
+            return False
+
+        current_result = await db.execute(
+            select(MagicLoginCode.id)
+            .where(
+                MagicLoginCode.email == recipient,
+                MagicLoginCode.used_at.is_(None),
+                MagicLoginCode.expires_at > now,
+            )
+            .order_by(MagicLoginCode.created_at.desc())
+            .limit(1)
+        )
+
+        return current_result.scalar_one_or_none() == challenge.id
+
+    if message.message_type == "security_step_up":
+        challenge_result = await db.execute(
+            select(SecurityChallenge)
+            .where(SecurityChallenge.id == message.aggregate_id)
+            .with_for_update()
+        )
+
+        challenge = challenge_result.scalars().first()
+
+        if challenge is None:
+            return False
+
+        if challenge.destination != recipient:
+            return False
+
+        if challenge.consumed_at is not None:
+            return False
+
+        if challenge.revoked_at is not None:
+            return False
+
+        if challenge.expires_at <= now:
+            return False
+
+        current_result = await db.execute(
+            select(SecurityChallenge.id)
+            .where(
+                SecurityChallenge.user_id == challenge.user_id,
+                SecurityChallenge.purpose == challenge.purpose,
+                SecurityChallenge.destination == recipient,
+                SecurityChallenge.consumed_at.is_(None),
+                SecurityChallenge.revoked_at.is_(None),
+                SecurityChallenge.expires_at > now,
+            )
+            .order_by(SecurityChallenge.created_at.desc())
+            .limit(1)
+        )
+
+        return current_result.scalar_one_or_none() == challenge.id
+
+    return False
 
 
 async def mark_superseded(message_id: str):
@@ -387,7 +430,7 @@ async def process_message(message_id: str):
     lock_connection = None
 
     try:
-        if message_type == "login_otp":
+        if message_type in {"login_otp", "security_step_up"}:
             lock_connection = await acquire_delivery_lock(recipient)
 
             async with AsyncSessionLocal() as db:
@@ -457,7 +500,7 @@ async def process_message(message_id: str):
                 or current_message.locked_by != WORKER_ID
             ):
                 return
-            
+
         result = await deliver_email(
             to_email=recipient,
             subject=subject,

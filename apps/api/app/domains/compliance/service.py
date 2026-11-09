@@ -239,7 +239,12 @@ class ComplianceService:
         now = datetime.now(timezone.utc)
 
         try:
-            user = await self.repo.get_user_for_update(user_id)
+            locked_user = await self.repo.get_user_for_update(user.id)
+
+            if locked_user is None:
+                raise BadRequestException("Account could not be found")
+
+            user = locked_user
 
             if user is None:
                 raise BadRequestException("Account could not be found")
@@ -259,6 +264,8 @@ class ComplianceService:
             # Revoke all active sessions before changing the account identity.
             await self.repo.revoke_all_sessions(user.id, now)
 
+            security_challenge_ids = await self.repo.get_security_challenge_ids(user.id)
+
             # Remove temporary security artefacts and account notifications.
             await self.repo.delete_security_challenges(user.id)
             await self.repo.delete_recovery_codes(user.id)
@@ -277,7 +284,7 @@ class ComplianceService:
             # Prevent pending encrypted authentication messages from being
             # delivered after the account has been deactivated.
             await self.repo.supersede_pending_email_messages(
-                login_code_ids + email_change_ids,
+                login_code_ids + email_change_ids + security_challenge_ids,
                 now,
             )
 

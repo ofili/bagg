@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -8,6 +8,7 @@ import { LineItemsEditor, lineTotalMinor, newLineItem, type LineItem } from '@/c
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { Money } from '@/components/money/Money';
 import { BaggSelect, Button, Card, Chip, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
+import { InlineClientModal, type InlineCreatedClient } from '@/components/clients/InlineClientModal';
 import { cleanAmount, toMinor } from '@/lib/amount';
 import { cn } from '@/lib/cn';
 
@@ -36,6 +37,7 @@ export function NewQuoteDesktop() {
   const [clients, setClients] = useState<ClientItem[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [currency, setCurrency] = useState('NGN');
+  const [showClientModal, setShowClientModal] = useState(false);
   const [validityDays, setValidityDays] = useState(14);
 
   const [items, setItems] = useState<LineItem[]>(() => [newLineItem()]);
@@ -65,6 +67,12 @@ export function NewQuoteDesktop() {
     setSelectedClientId(id);
     const client = clients.find((c) => c.id === id);
     if (client?.preferred_currency) setCurrency(client.preferred_currency);
+  };
+
+  const handleClientCreated = (newClient: InlineCreatedClient) => {
+    setClients((prev) => [newClient, ...prev.filter((c) => c.id !== newClient.id)]);
+    setSelectedClientId(newClient.id);
+    if (newClient.preferred_currency) setCurrency(newClient.preferred_currency);
   };
 
   // Everything is calculated in minor units
@@ -166,28 +174,43 @@ export function NewQuoteDesktop() {
       )}
 
       <Card zone="calm" className="grid gap-4 p-5 sm:grid-cols-2">
-        {clients.length > 0 ? (
-          <BaggSelect
-            label="Client"
-            className="w-full"
-            value={selectedClientId}
-            onChange={handleClientChange}
-            options={clients.map((c) => ({
-              value: c.id,
-              label: `${c.name} (${c.preferred_currency})`,
-            }))}
-          />
-        ) : (
-          <div className="space-y-1.5">
-            <p className="text-body font-medium">Client</p>
-            <p className="text-body text-text-soft">
-              No clients yet.{' '}
-              <Link href="/clients" className="font-extrabold text-link underline underline-offset-4">
-                Add a client
-              </Link>
-            </p>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <label className="text-body font-medium text-text">Client</label>
+            <button
+              type="button"
+              onClick={() => setShowClientModal(true)}
+              className="text-caption font-bold text-mango hover:underline"
+            >
+              + Add new client
+            </button>
           </div>
-        )}
+          {clients.length > 0 ? (
+            <BaggSelect
+              label=""
+              className="w-full"
+              value={selectedClientId}
+              onChange={handleClientChange}
+              options={clients.map((c) => ({
+                value: c.id,
+                label: `${c.name} (${c.preferred_currency})`,
+              }))}
+            />
+          ) : (
+            <div className="rounded-input border border-dashed border-line p-3">
+              <p className="text-body text-text-soft">
+                No clients yet.{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowClientModal(true)}
+                  className="font-extrabold text-link underline underline-offset-4"
+                >
+                  Add a client
+                </button>
+              </p>
+            </div>
+          )}
+        </div>
 
         <BaggSelect
           label="Currency"
@@ -315,6 +338,12 @@ export function NewQuoteDesktop() {
           Create quote
         </Button>
       </div>
+      <InlineClientModal
+        open={showClientModal}
+        onClose={() => setShowClientModal(false)}
+        onClientCreated={handleClientCreated}
+        defaultCurrency={currency}
+      />
     </div>
   );
 }

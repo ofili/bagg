@@ -17,7 +17,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ContactRound, FileCheck, FileText, House, Plus, User, UserPlus, Users } from 'lucide-react';
+import { ContactRound, FileCheck, FileText, House, Plus, Repeat, User, UserPlus, Users } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { MenuBody, useMe } from '@/components/navigation/UserMenu';
 import { cn } from '@/lib/cn';
@@ -28,7 +28,7 @@ type Tab = { label: string; href: string; match: string[]; icon: typeof House };
 
 const LEFT: Tab[] = [
     { label: 'Home', href: '/dashboard', match: ['/dashboard'], icon: House },
-    { label: 'Invoices', href: '/invoices', match: ['/invoices', '/quotes', '/receipts'], icon: FileText },
+    { label: 'Invoices', href: '/invoices', match: ['/invoices', '/quotes', '/receipts', '/recurring-invoices'], icon: FileText },
 ];
 const RIGHT: Tab[] = [{ label: 'Clients', href: '/clients', match: ['/clients'], icon: Users }];
 
@@ -83,6 +83,7 @@ function TabLink({ tab, active, badge }: { tab: Tab; active: boolean; badge?: nu
 
 const CREATE_ITEMS = [
     { label: 'New invoice', href: '/invoices/new', icon: FileText },
+    { label: 'New recurring schedule', href: '/recurring-invoices/new', icon: Repeat },
     { label: 'New quotes', href: '/quotes/new', icon: FileCheck },
     { label: 'Add client', href: '/clients/new', icon: UserPlus },
     { label: 'Add contact', href: '/clients/contacts/new', icon: ContactRound }
@@ -103,7 +104,7 @@ export function BottomNav({ className = '' }: { className?: string }) {
 
     // Create flows and detail pages (/invoices/new, /invoices/123, ...) are full screen and own the bottom
     // of the screen, so the tab bar hides there. The list pages keep it.
-    if (/^\/(invoices|quotes|receipts|clients)\/[^/]+/.test(pathname)) return null;
+    if (/^\/(invoices|quotes|receipts|clients|recurring-invoices)\/[^/]+/.test(pathname)) return null;
 
     return (
         <>

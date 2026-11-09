@@ -145,9 +145,20 @@ class ClientResponse(ClientBase):
     total_paid_minor: int = 0
     total_outstanding_minor: int = 0
     invoice_count: int = 0
+    financial_summary_by_currency: list[ClientCurrencySummary] = Field(
+        default_factory=list
+    )
     created_at: datetime
     updated_at: datetime
 
 
 class ClientDetailResponse(ClientResponse):
     invoices: list[ClientInvoiceSummary] = Field(default_factory=list)
+
+
+class ClientCurrencySummary(BaseModel):
+    currency: str
+    total_invoiced_minor: int = 0
+    total_paid_minor: int = 0
+    total_outstanding_minor: int = 0
+    invoice_count: int = 0

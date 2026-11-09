@@ -27,6 +27,18 @@ class ComplianceRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    async def get_security_challenge_ids(
+        self,
+        user_id: str,
+    ) -> list[str]:
+        result = await self.db.execute(
+            select(SecurityChallenge.id).where(
+                SecurityChallenge.user_id == user_id
+            )
+        )
+
+        return list(result.scalars().all())
+
     async def get_export_clients(self, workspace_id: str) -> list[Client]:
         result = await self.db.execute(
             select(Client)

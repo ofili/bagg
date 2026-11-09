@@ -6,18 +6,28 @@ import { useParams } from 'next/navigation';
 import {
   AlertCircle,
   ArrowLeft,
+  Bell,
   Check,
   CheckCircle2,
   Copy,
+  Download,
   ExternalLink,
+  FileCheck,
   FileText,
+  History,
   Loader2,
+  MessageCircle,
+  Pencil,
   ReceiptText,
+  RefreshCw,
+  RotateCcw,
   Share2,
+  Undo2,
   X,
+  XCircle,
 } from 'lucide-react';
 import { DocumentComments } from "@/components/comments/DocumentComments";
-import { InvoiceDocument } from '@/components/invoice';
+import { InvoiceDocument, LineItemsEditor, type LineItem } from '@/components/invoice';
 import { InvoiceMobileSummary } from '@/components/mobile/InvoiceMobileSummary';
 import { InvoiceActionBar } from '@/components/mobile/InvoiceActionBar';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
@@ -41,6 +51,36 @@ import { cleanAmount, toMinor } from '@/lib/amount';
 import { formatDate } from '@/lib/date';
 
 const API_BASE = '/api';
+
+
+interface InvoiceRevision {
+  id: string;
+  invoice_id: string;
+  version: number;
+  subtotal_minor: number;
+  discount_minor: number;
+  tax_minor: number;
+  wht_minor?: number;
+  total_minor: number;
+  items_snapshot: Array<{
+    description: string;
+    quantity: number;
+    unit_price_minor: number;
+    total_minor?: number;
+  }>;
+  reason?: string | null;
+  created_at: string;
+}
+
+interface ReminderJob {
+  id: string;
+  invoice_id: string;
+  reminder_type: string;
+  channel: string;
+  scheduled_for: string;
+  status: string;
+  sent_at?: string | null;
+}
 
 interface PaymentClaim {
   id: string;
@@ -84,6 +124,8 @@ interface InvoiceDetail {
   net_payable_minor?: number;
   amount_paid_minor: number;
   notes?: string | null;
+  wht_credit_note_number?: string | null;
+  version?: number;
   share_token?: string | null;
   latest_claim?: PaymentClaim | null;
   latest_receipt?: {
@@ -178,6 +220,29 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
   const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
   const [deliveryEmail, setDeliveryEmail] = useState('');
 
+  const [revisions, setRevisions] = useState<InvoiceRevision[]>([]);
+  const [reminders, setReminders] = useState<ReminderJob[]>([]);
+
+  // Recall dialog state
+  const [showRecallDialog, setShowRecallDialog] = useState(false);
+  const [recallReason, setRecallReason] = useState('');
+  const [recalling, setRecalling] = useState(false);
+
+  // WHT Credit Note dialog state
+  const [showWhtDialog, setShowWhtDialog] = useState(false);
+  const [whtCreditNoteNumber, setWhtCreditNoteNumber] = useState('');
+  const [savingWht, setSavingWht] = useState(false);
+
+  // Reject Claim dialog state
+  const [rejectingClaim, setRejectingClaim] = useState<PaymentClaim | null>(null);
+  const [rejectClaimReason, setRejectClaimReason] = useState('');
+  const [savingClaimReject, setSavingClaimReject] = useState(false);
+
+  // WhatsApp Nudge state
+  const [nudgingWhatsApp, setNudgingWhatsApp] = useState(false);
+  const [regeneratingLink, setRegeneratingLink] = useState(false);
+
+
   const { setCurrentLabel } = useCurrentBreadcrumb();
 
   useEffect(() => {
@@ -191,7 +256,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
       setLoading(true);
       setError(null);
 
-      const [invoiceRes, eventsRes, claimsRes, receiptsRes] =
+      const [invoiceRes, eventsRes, claimsRes, receiptsRes, revisionsRes, remindersRes] =
         await Promise.all([
           fetch(`${API_BASE}/invoices/${invoiceId}`, {
             credentials: 'include',
@@ -212,6 +277,14 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
               cache: 'no-store',
             },
           ),
+          fetch(`${API_BASE}/invoices/${invoiceId}/revisions`, {
+            credentials: 'include',
+            cache: 'no-store',
+          }).catch(() => null),
+          fetch(`${API_BASE}/reminders/invoices/${invoiceId}`, {
+            credentials: 'include',
+            cache: 'no-store',
+          }).catch(() => null),
         ]);
 
       if (!invoiceRes.ok) {
@@ -228,6 +301,18 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
       setClaims(
         claimsRes.ok ? ((await claimsRes.json()) as PaymentClaim[]) : [],
       );
+
+      if (revisionsRes && revisionsRes.ok) {
+        setRevisions(((await revisionsRes.json()) as InvoiceRevision[]) || []);
+      } else {
+        setRevisions([]);
+      }
+
+      if (remindersRes && remindersRes.ok) {
+        setReminders(((await remindersRes.json()) as ReminderJob[]) || []);
+      } else {
+        setReminders([]);
+      }
 
       
       if (receiptsRes.ok) {
@@ -392,6 +477,119 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
   /**
    * Finalization only: issue the invoice without sending it to the client.
    */
+
+  const handleRecallInvoice = async () => {
+    if (!invoice || recalling) return;
+    try {
+      setRecalling(true);
+      setActionError(null);
+      const res = await fetch(`${API_BASE}/invoices/${invoice.id}/recall`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reason: recallReason.trim() || undefined }),
+      });
+      if (!res.ok) throw await readError(res, 'Could not recall invoice.');
+      setShowRecallDialog(false);
+      setRecallReason('');
+      setActionNotice('Invoice recalled successfully and returned to draft.');
+      await loadInvoice();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Could not recall invoice.');
+    } finally {
+      setRecalling(false);
+    }
+  };
+
+  const handleUpdateWht = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invoice || savingWht || !whtCreditNoteNumber.trim()) return;
+    try {
+      setSavingWht(true);
+      setActionError(null);
+      const res = await fetch(`${API_BASE}/invoices/${invoice.id}/wht`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ wht_credit_note_number: whtCreditNoteNumber.trim() }),
+      });
+      if (!res.ok) throw await readError(res, 'Could not update WHT credit note.');
+      setShowWhtDialog(false);
+      setActionNotice('WHT credit note number recorded.');
+      await loadInvoice();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Could not update WHT credit note.');
+    } finally {
+      setSavingWht(false);
+    }
+  };
+
+  const handleRejectClaim = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invoice || !rejectingClaim || savingClaimReject || !rejectClaimReason.trim()) return;
+    try {
+      setSavingClaimReject(true);
+      setActionError(null);
+      const res = await fetch(`${API_BASE}/invoices/${invoice.id}/claims/${rejectingClaim.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reason: rejectClaimReason.trim() }),
+      });
+      if (!res.ok) throw await readError(res, 'Could not reject payment claim.');
+      setRejectingClaim(null);
+      setRejectClaimReason('');
+      setActionNotice('Payment claim rejected.');
+      await loadInvoice();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Could not reject payment claim.');
+    } finally {
+      setSavingClaimReject(false);
+    }
+  };
+
+  const handleWhatsAppNudge = async () => {
+    if (!invoice || nudgingWhatsApp) return;
+    try {
+      setNudgingWhatsApp(true);
+      setActionError(null);
+      const res = await fetch(`${API_BASE}/reminders/invoices/${invoice.id}/nudge/whatsapp`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw await readError(res, 'Could not generate WhatsApp reminder.');
+      const data = await res.json();
+      if (data.whatsapp_url) {
+        window.open(data.whatsapp_url, '_blank');
+        setActionNotice('WhatsApp reminder opened.');
+      }
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Could not generate WhatsApp reminder.');
+    } finally {
+      setNudgingWhatsApp(false);
+    }
+  };
+
+  const handleRegenerateShareLink = async () => {
+    if (!invoice || regeneratingLink) return;
+    const ok = window.confirm('Regenerate public share link? Previous links shared with clients will stop working.');
+    if (!ok) return;
+    try {
+      setRegeneratingLink(true);
+      setActionError(null);
+      const res = await fetch(`${API_BASE}/invoices/${invoice.id}/share-link/regenerate`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) throw await readError(res, 'Could not regenerate share link.');
+      setActionNotice('New public share link generated.');
+      await loadInvoice();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Could not regenerate share link.');
+    } finally {
+      setRegeneratingLink(false);
+    }
+  };
+
   const handleFinalizeInvoice = async () => {
     if (!invoice) return;
 
@@ -625,6 +823,10 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
   );
   const pendingClaims = claims.filter((claim) => claim.status === 'pending');
   const canRecordPayment = !['paid', 'cancelled'].includes(invoice.status);
+  const canRecall =
+    ['issued', 'sent', 'viewed', 'overdue'].includes(invoice.status) &&
+    invoice.amount_paid_minor === 0 &&
+    pendingClaims.length === 0;
 
   const whatsappHref = invoice.share_token
     ? `https://wa.me/?text=${encodeURIComponent(
@@ -753,6 +955,71 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
               Record payment
             </Button>
           )}
+
+          {invoice.status !== 'draft' && (
+            <a
+              href={`${API_BASE}/invoices/${invoice.id}/pdf`}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonStyles({
+                variant: 'outline',
+                zone: 'calm',
+              })}
+            >
+              <Download aria-hidden className="h-4 w-4" />
+              PDF
+            </a>
+          )}
+
+          {['issued', 'sent', 'viewed', 'overdue', 'partially_paid', 'payment_claimed'].includes(invoice.status) && (
+            <Button
+              variant="outline"
+              zone="calm"
+              loading={nudgingWhatsApp}
+              onClick={handleWhatsAppNudge}
+            >
+              <MessageCircle aria-hidden className="h-4 w-4" />
+              Nudge
+            </Button>
+          )}
+
+          {canRecall && (
+            <Button
+              variant="outline"
+              zone="calm"
+              onClick={() => setShowRecallDialog(true)}
+            >
+              <Undo2 aria-hidden className="h-4 w-4" />
+              Recall
+            </Button>
+          )}
+
+          {((invoice.wht_minor || 0) > 0 || invoice.wht_credit_note_number) && (
+            <Button
+              variant="outline"
+              zone="calm"
+              onClick={() => {
+                setWhtCreditNoteNumber(invoice.wht_credit_note_number || '');
+                setShowWhtDialog(true);
+              }}
+            >
+              <FileCheck aria-hidden className="h-4 w-4" />
+              {invoice.wht_credit_note_number ? 'WHT ref' : 'Record WHT'}
+            </Button>
+          )}
+
+          {invoice.share_token && invoice.status !== 'draft' && (
+            <Button
+              variant="outline"
+              zone="calm"
+              loading={regeneratingLink}
+              onClick={handleRegenerateShareLink}
+              title="Generate a new public link"
+            >
+              <RefreshCw aria-hidden className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -833,14 +1100,27 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                       </p>
                     </div>
 
-                    <Button
-                      zone="calm"
-                      loading={confirmingClaimId === claim.id}
-                      onClick={() => void handleConfirmClaim(claim)}
-                    >
-                      <CheckCircle2 aria-hidden className="h-4 w-4" />
-                      Confirm funds received
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        zone="calm"
+                        onClick={() => {
+                          setRejectingClaim(claim);
+                          setRejectClaimReason('');
+                        }}
+                      >
+                        <XCircle aria-hidden className="h-4 w-4" />
+                        Reject
+                      </Button>
+                      <Button
+                        zone="calm"
+                        loading={confirmingClaimId === claim.id}
+                        onClick={() => void handleConfirmClaim(claim)}
+                      >
+                        <CheckCircle2 aria-hidden className="h-4 w-4" />
+                        Confirm funds
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -944,6 +1224,58 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
               </ul>
             )}
           </Card>
+
+          
+          {revisions.length > 0 && (
+            <Card zone="calm" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-heading">revision history</h2>
+                  <p className="text-body text-text-soft">Prior snapshots of this invoice.</p>
+                </div>
+                <History aria-hidden className="h-5 w-5 text-text-muted" />
+              </div>
+              <ul className="divide-y divide-line-subtle">
+                {revisions.map((rev) => (
+                  <li key={rev.id} className="py-3 text-body">
+                    <div className="flex justify-between font-bold">
+                      <span>Version {rev.version}</span>
+                      <Money amountMinor={rev.total_minor} currency={invoice.currency} />
+                    </div>
+                    <p className="text-caption text-text-muted">
+                      {formatDate(rev.created_at)}
+                      {rev.reason ? ` · ${rev.reason}` : ''}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          {reminders.length > 0 && (
+            <Card zone="calm" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-heading">automated reminders</h2>
+                  <p className="text-body text-text-soft">Scheduled and sent payment nudges.</p>
+                </div>
+                <Bell aria-hidden className="h-5 w-5 text-text-muted" />
+              </div>
+              <ul className="divide-y divide-line-subtle text-caption">
+                {reminders.map((r) => (
+                  <li key={r.id} className="flex items-center justify-between py-2">
+                    <div>
+                      <span className="font-bold">{r.reminder_type.replace('_', ' ')}</span>
+                      <span className="ml-2 text-text-muted">{r.channel}</span>
+                    </div>
+                    <span className="rounded-full bg-surface-tint px-2 py-0.5 font-bold capitalize">
+                      {r.status}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
 
           <DocumentComments
             documentType="invoice"
@@ -1201,6 +1533,105 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
           </div>
         </form>
       </Dialog>
+
+      {/* Recall invoice dialog */}
+      <Dialog
+        open={showRecallDialog}
+        onClose={() => !recalling && setShowRecallDialog(false)}
+        title="recall this invoice"
+      >
+        <div className="space-y-4">
+          <p className="text-body text-text-soft">
+            Recalling returns this invoice to draft status. Any public share link will stop working until you re-issue it.
+          </p>
+          <Field label="Reason (optional)">
+            {(fieldProps) => (
+              <Input
+                type="text"
+                placeholder="e.g. Scope change or billing correction"
+                value={recallReason}
+                onChange={(e) => setRecallReason(e.target.value)}
+                {...fieldProps}
+              />
+            )}
+          </Field>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" zone="calm" disabled={recalling} onClick={() => setShowRecallDialog(false)}>
+              Cancel
+            </Button>
+            <Button zone="calm" loading={recalling} onClick={handleRecallInvoice}>
+              Confirm recall
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Record WHT dialog */}
+      <Dialog
+        open={showWhtDialog}
+        onClose={() => !savingWht && setShowWhtDialog(false)}
+        title="withholding tax credit note"
+      >
+        <form onSubmit={handleUpdateWht} className="space-y-4">
+          <p className="text-body text-text-soft">
+            Enter the credit note or tax certificate number provided by your client.
+          </p>
+          <Field label="Credit note / certificate number">
+            {(fieldProps) => (
+              <Input
+                type="text"
+                required
+                placeholder="e.g. WHT-2026-0987"
+                value={whtCreditNoteNumber}
+                onChange={(e) => setWhtCreditNoteNumber(e.target.value)}
+                {...fieldProps}
+              />
+            )}
+          </Field>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" zone="calm" disabled={savingWht} onClick={() => setShowWhtDialog(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" zone="calm" loading={savingWht}>
+              Save WHT number
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* Reject payment claim dialog */}
+      <Dialog
+        open={!!rejectingClaim}
+        onClose={() => !savingClaimReject && setRejectingClaim(null)}
+        title="reject payment claim"
+      >
+        <form onSubmit={handleRejectClaim} className="space-y-4">
+          <p className="text-body text-text-soft">
+            Let the client know why their claimed payment could not be confirmed.
+          </p>
+          <Field label="Reason for rejection">
+            {(fieldProps) => (
+              <Input
+                type="text"
+                required
+                placeholder="e.g. Funds not found in account, please verify session ID"
+                value={rejectClaimReason}
+                onChange={(e) => setRejectClaimReason(e.target.value)}
+                {...fieldProps}
+              />
+            )}
+          </Field>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" zone="calm" disabled={savingClaimReject} onClick={() => setRejectingClaim(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="danger" loading={savingClaimReject}>
+              Reject claim
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
     </div>
   );
 }
