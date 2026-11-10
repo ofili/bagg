@@ -121,7 +121,11 @@ class FinancialBoundaryTests(unittest.TestCase):
             ("app/domains/quotes/service.py", "quote_obj"),
         ):
             source = self.source(path)
-            self.assertIn(f'{variable}.email_delivery_status = "link_shared"', source)
+            self.assertIn(
+                f"{variable}.email_delivery_status = "
+                "DocumentDeliveryStatus.LINK_SHARED",
+                source,
+            )
 
     def test_public_sharing_checkout_delegates_to_payments_domain(self):
         source = self.source("app/domains/sharing/router.py")

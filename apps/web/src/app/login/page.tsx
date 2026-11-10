@@ -99,6 +99,9 @@ function LoginPageContent() {
     });
     const data = await readApiResponse(res);
     if (!res.ok) throw new Error(data.detail || 'We could not send the code. Try again.');
+    if ((data as any).code) {
+      setCode((data as any).code);
+    }
   }, []);
 
   const handleSendCode = async (e: FormEvent<HTMLFormElement>) => {

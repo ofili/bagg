@@ -55,9 +55,9 @@ class SharingBoundaryTests(unittest.TestCase):
             'previous_claim.status = "superseded"',
             service,
         )
-        self.assertIn(
-            "cancel_invoice_reminders(invoice.id, self.db, commit=False)",
+        self.assertRegex(
             service,
+            r"cancel_invoice_reminders\(\s*invoice\.id,\s*self\.db,\s*commit=False,?\s*\)",
         )
 
     def test_comment_line_item_is_scoped_to_invoice(self):

@@ -4,18 +4,18 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
-  AlertCircle,
   ArrowLeft,
+  ArrowSquareOut,
   Check,
+  CircleNotch,
   Copy,
-  Download,
-  ExternalLink,
+  DownloadSimple,
   FileText,
-  Loader2,
   Printer,
-  ReceiptText,
-  Share2,
-} from 'lucide-react';
+  Receipt,
+  ShareNetwork,
+  WarningCircle,
+} from '@phosphor-icons/react';
 
 import { Card, Button, buttonStyles } from '@/components/ui';
 import { ReceiptActionBar } from '@/components/mobile/ReceiptActionBar';
@@ -179,7 +179,7 @@ export default function ReceiptDetailPage() {
         role="status"
         className="flex min-h-[50vh] items-center justify-center text-text-muted"
       >
-        <Loader2 aria-hidden className="h-6 w-6 animate-spin" />
+        <CircleNotch aria-hidden className="h-6 w-6 animate-spin" />
         <span className="sr-only">Loading receipt</span>
       </div>
     );
@@ -192,7 +192,7 @@ export default function ReceiptDetailPage() {
           zone="calm"
           className="mx-auto max-w-lg space-y-3 p-8 text-center"
         >
-          <AlertCircle aria-hidden className="mx-auto h-9 w-9" />
+          <WarningCircle aria-hidden className="mx-auto h-9 w-9" />
           <h1 className="text-title">receipt unavailable</h1>
           <p role="alert" className="text-body text-text-soft">
             {error || 'Receipt not found.'}
@@ -222,7 +222,7 @@ export default function ReceiptDetailPage() {
           </Link>
 
           <div className="flex flex-wrap items-center gap-3">
-            <ReceiptText aria-hidden className="h-7 w-7" />
+            <Receipt aria-hidden className="h-7 w-7" />
             <h1 className="text-title-l sm:text-display">
               {receipt.receipt_number}
             </h1>
@@ -252,7 +252,7 @@ export default function ReceiptDetailPage() {
               zone: 'calm',
             })}
           >
-            <Download aria-hidden className="h-4 w-4" />
+            <DownloadSimple aria-hidden className="h-4 w-4" />
             PDF
           </a>
 
@@ -276,7 +276,7 @@ export default function ReceiptDetailPage() {
             onClick={() => void shareReceipt()}
             disabled={!receipt.share_url}
           >
-            <Share2 aria-hidden className="h-4 w-4" />
+            <ShareNetwork aria-hidden className="h-4 w-4" />
             Share
           </Button>
         </div>
@@ -314,7 +314,7 @@ export default function ReceiptDetailPage() {
             {receipt.is_verified ? (
               <Check aria-hidden className="h-4 w-4" />
             ) : (
-              <AlertCircle aria-hidden className="h-4 w-4" />
+              <WarningCircle aria-hidden className="h-4 w-4" />
             )}
             {receipt.is_verified ? 'Verified' : 'Unverified'}
           </span>
@@ -360,7 +360,7 @@ export default function ReceiptDetailPage() {
               className="mt-2 inline-flex items-center gap-2 text-heading underline-offset-4 hover:underline print:no-underline"
             >
               {receipt.invoice_number}
-              <ExternalLink
+              <ArrowSquareOut
                 aria-hidden
                 className="h-4 w-4 print:hidden"
               />

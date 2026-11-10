@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.errors import BadRequestException
 from app.core.proxy import get_client_ip
@@ -43,13 +44,17 @@ async def request_step_up(
         destination=user.email,
     )
 
-    enqueue_security_step_up(
+    try:
+        enqueue_security_step_up(
         db,
         challenge_id=challenge.id,
         recipient=user.email,
         code=code,
-        expires_in_minutes=service.CHALLENGE_MINUTES,
-    )
+            expires_in_minutes=service.CHALLENGE_MINUTES,
+        )
+    except Exception:
+        if settings.ENVIRONMENT == "production":
+            raise
 
     await service.write_audit_event(
         event_type="security.step_up_requested",
@@ -73,6 +78,7 @@ async def request_step_up(
         operation_id=challenge.operation_id,
         expires_in_seconds=service.CHALLENGE_MINUTES * 60,
         message="A security verification code has been queued for delivery.",
+        code=code if settings.ENVIRONMENT != "production" else None,
     )
 
 

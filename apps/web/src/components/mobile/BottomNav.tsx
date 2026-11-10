@@ -17,18 +17,28 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ContactRound, FileCheck, FileText, House, Plus, Repeat, User, UserPlus, Users } from 'lucide-react';
+import {
+    AddressBook,
+    ArrowsClockwise,
+    House,
+    Plus,
+    Receipt,
+    Scroll,
+    User,
+    UserPlus,
+    Users,
+} from '@phosphor-icons/react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { MenuBody, useMe } from '@/components/navigation/UserMenu';
 import { cn } from '@/lib/cn';
 
 const API_BASE = '/api';
 
-type Tab = { label: string; href: string; match: string[]; icon: typeof House };
+type Tab = { label: string; href: string; match: string[]; icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }> };
 
 const LEFT: Tab[] = [
     { label: 'Home', href: '/dashboard', match: ['/dashboard'], icon: House },
-    { label: 'Invoices', href: '/invoices', match: ['/invoices', '/quotes', '/receipts', '/recurring-invoices'], icon: FileText },
+    { label: 'Invoices', href: '/invoices', match: ['/invoices', '/quotes', '/receipts', '/recurring-invoices'], icon: Receipt },
 ];
 const RIGHT: Tab[] = [{ label: 'Clients', href: '/clients', match: ['/clients'], icon: Users }];
 
@@ -82,11 +92,11 @@ function TabLink({ tab, active, badge }: { tab: Tab; active: boolean; badge?: nu
 }
 
 const CREATE_ITEMS = [
-    { label: 'New invoice', href: '/invoices/new', icon: FileText },
-    { label: 'New recurring schedule', href: '/recurring-invoices/new', icon: Repeat },
-    { label: 'New quotes', href: '/quotes/new', icon: FileCheck },
+    { label: 'New invoice', href: '/invoices/new', icon: Receipt },
+    { label: 'New recurring schedule', href: '/recurring-invoices/new', icon: ArrowsClockwise },
+    { label: 'New quotes', href: '/quotes/new', icon: Scroll },
     { label: 'Add client', href: '/clients/new', icon: UserPlus },
-    { label: 'Add contact', href: '/clients/contacts/new', icon: ContactRound }
+    { label: 'Add contact', href: '/clients/contacts/new', icon: AddressBook },
 ] as const;
 
 export function BottomNav({ className = '' }: { className?: string }) {

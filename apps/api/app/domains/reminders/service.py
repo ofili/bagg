@@ -83,11 +83,11 @@ async def schedule_invoice_reminders(
 
     generation = invoice.issuance_generation or 0
 
-    if generation < 1:
-        raise ValueError(
-            "Cannot schedule reminders for an invoice "
-            "that has not been issued."
-        )
+    # Legacy invoices were never assigned a generation. Keep their ``:0:``
+    # idempotency keys, but only schedule once the invoice has actually been
+    # dispatched. Recall returns the invoice to draft and clears sent_at.
+    if invoice.status == "draft" or invoice.sent_at is None:
+        return []
 
     for reminder_type, target_date in cadence:
         idempotency_key = (
@@ -136,9 +136,11 @@ async def cancel_invoice_reminders(
 
     repository = ReminderRepository(db)
 
-    cancelled_count = await repository.cancel_invoice_jobs(invoice_id)
-
+    # Match the worker's lock order: outbox first, then reminder jobs. A
+    # worker reconciling a reminder holds the outbox row before the job row.
     await repository.cancel_queued_outbox_messages(invoice_id)
+
+    cancelled_count = await repository.cancel_invoice_jobs(invoice_id)
 
     if commit:
         await db.commit()

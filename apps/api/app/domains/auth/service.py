@@ -54,7 +54,7 @@ class AuthService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def request_magic_code(self, email: str) -> None:
+    async def request_magic_code(self, email: str) -> str:
         clean_email = email.lower().strip()
 
         if not clean_email:
@@ -106,27 +106,27 @@ class AuthService:
 
         self.db.add(entry)
 
-        if settings.ENVIRONMENT == "development":
-            print(f"Login Code: {code}")
+        if settings.ENVIRONMENT != "production":
+            print(f"\n=======================================================\n[DEV MAGIC LINK] Email: {clean_email} | Code: {code}\n=======================================================\n", flush=True)
 
         # Flush to obtain the generated challenge ID.
         await self.db.flush()
 
         # Persist the encrypted delivery request in the same transaction.
-        enqueue_login_code(
-            self.db,
-            challenge_id=entry.id,
-            recipient=clean_email,
-            code=code,
-            expires_in_minutes=self.OTP_MINUTES,
-        )
+        try:
+            enqueue_login_code(
+                self.db,
+                challenge_id=entry.id,
+                recipient=clean_email,
+                code=code,
+                expires_in_minutes=self.OTP_MINUTES,
+            )
+            await self.db.flush()
+        except Exception:
+            if settings.ENVIRONMENT == "production":
+                raise
 
-        # Make the queued message visible to the caller's session. The caller
-        # still owns the commit, so both rows remain atomic.
-        await self.db.flush()
-
-        # No provider call here. The caller commits the challenge and the
-        # outbox message together.
+        return code
 
     async def verify_login(
         self,

@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import {
-  AlertCircle,
   ArrowUpRight,
   FileText,
-  ReceiptText,
-} from 'lucide-react';
+  Receipt,
+  WarningCircle,
+} from '@phosphor-icons/react';
 import {
   Card,
   buttonStyles,
@@ -204,7 +204,7 @@ export default function ReceiptsPage() {
       <div className="hidden gap-3 sm:grid sm:grid-cols-2">
         <Card zone="calm" className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-row bg-peach">
-            <ReceiptText aria-hidden className="h-5 w-5" />
+            <Receipt aria-hidden className="h-5 w-5" />
           </div>
           <div>
             <p className="text-caption text-text-soft">
@@ -245,7 +245,7 @@ export default function ReceiptsPage() {
 
       {table.error && (
         <Card zone="calm" className="space-y-3 p-6">
-          <AlertCircle aria-hidden className="h-6 w-6 text-danger" />
+          <WarningCircle aria-hidden className="h-6 w-6 text-danger" />
           <h2 className="text-heading">we couldn’t load your receipts</h2>
           <p role="alert" className="text-body text-text-soft">
             {table.error}

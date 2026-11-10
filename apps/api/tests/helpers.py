@@ -22,7 +22,7 @@ def sign_paystack(payload: Dict[str, Any], secret: str) -> tuple[bytes, str]:
 _CAPTURED_LOGIN_CODES: dict[str, str] = {}
 
 _LOGIN_CODE_IN_HTML = re.compile(
-    r"letter-spacing:\s*8px;[^>]*>\s*(\d{6})\s*</p>"
+    r"letter-spacing:\s*\d+px\b[^>]*>\s*(\d{6})\s*</p>"
 )
 
 

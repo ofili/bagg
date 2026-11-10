@@ -163,7 +163,7 @@
 * **Story:** As a freelancer, I want Bagg to email the invoice directly to the client's inbox so that formal corporate clients receive clean records.
 * **Acceptance Criteria:**
   - Sent via Postmark/Resend/SMTP background queue.
-  - Delivery status is tracked (`queued`, `delivered`, `opened`, `bounced`).
+  - Delivery status is tracked (`queued`, `delivered`, `failed`, `no_email`, `link_shared`); `bounced`/`opened` remain reserved for provider webhooks.
   - Transient SMTP failures retry 3 times with exponential backoff.
   - Hard bounces trigger an in-app warning offering the share link as a fallback.
 * **Priority:** P0 (MVP)
@@ -390,7 +390,7 @@
 * **Story:** As an occasional sender who doesn't need an annual subscription, I want to buy a 200-credit top-up pack for ₦2,000 so that I can send PDFs and emails as needed.
 * **Acceptance Criteria:**
   - Pack purchase (e.g. 200 credits for ₦2,000) creates an entry in `credit_ledger_entry`.
-  - Ledger schema: `id`, `workspace_id`, `amount`, `balance_after`, `reason` (`pack_purchase`, `send_deduction`, `failed_refund`), `created_at`.
+  - Ledger schema: `id`, `workspace_id`, `amount`, `balance_after`, `reason` (`pack_purchase`, `send_deduction`, `send_refund`, `initial_grant`), `created_at`.
   - All credit reservations and deductions occur within PostgreSQL transactions with row-level locks.
   - Metered email failure triggers an automatic refund ledger entry.
   - Balance can never drop below zero.

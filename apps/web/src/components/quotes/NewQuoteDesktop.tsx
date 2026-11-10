@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, X } from '@phosphor-icons/react';
 import { LineItemsEditor, lineTotalMinor, newLineItem, type LineItem } from '@/components/invoice';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { Money } from '@/components/money/Money';

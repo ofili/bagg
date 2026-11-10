@@ -90,7 +90,7 @@ class CreditLedgerEntry(Base):
     balance_after = Column(Integer, nullable=False)
     reason = Column(
         String, nullable=False
-    )  # pack_purchase, send_deduction, failed_refund, initial_grant
+    )  # pack_purchase, send_deduction, send_refund, initial_grant
     description = Column(String, nullable=True)
     reference = Column(String, nullable=True, index=True)
 

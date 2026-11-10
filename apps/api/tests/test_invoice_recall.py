@@ -85,7 +85,10 @@ async def test_recall_blocks_payment_processing():
 
 
 @pytest.mark.asyncio
-async def test_recall_blocks_existing_checkout_reference():
+async def test_recall_ignores_stale_direct_payment_reference():
+    # Payment attempts are now the authoritative provider-transaction record;
+    # recall invalidates open attempts and blocks processing ones. A leftover
+    # reference on the invoice no longer gates eligibility by itself.
     invoice = make_invoice(
         direct_payment_reference="bagg_pay_existing",
     )
@@ -95,11 +98,10 @@ async def test_recall_blocks_existing_checkout_reference():
         None,
     ])
 
-    with pytest.raises(BadRequestException):
-        await InvoiceRecallService.validate_recall_eligibility(
-            db,
-            invoice,
-        )
+    await InvoiceRecallService.validate_recall_eligibility(
+        db,
+        invoice,
+    )
 
 
 @pytest.mark.asyncio

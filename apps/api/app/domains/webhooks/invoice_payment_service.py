@@ -50,7 +50,7 @@ async def _event(db: AsyncSession, reference: str, payload: dict) -> WebhookEven
         payload=_safe_provider_payload(payload),
         processed=False,
     )
-    repo.add(candidate)
+    await repo.add(candidate)
     try:
         await db.commit()
     except IntegrityError:

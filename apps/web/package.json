@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@bagg/api-client": "workspace:*",
+    "@phosphor-icons/react": "^2.1.10",
     "clsx": "^2.1.1",
     "lucide-react": "^0.475.0",
     "next": "^15.1.7",

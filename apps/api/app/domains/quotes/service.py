@@ -13,10 +13,10 @@ from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals, format_money
 from app.core.security import generate_share_token
 from app.domains.billing.service import (
-    add_credits,
     check_delivery_quota,
     consume_delivery_send,
 )
+from app.domains.documents.delivery import DocumentDeliveryStatus
 from app.domains.invoices import service as invoices_service
 from app.domains.lifecycle.service import record_status_event
 from app.domains.quotes.models import Quote, QuoteComment, QuoteLineItem, QuoteRevision
@@ -35,6 +35,8 @@ from app.integrations.email import build_quote_email_payload
 from app.integrations.email_outbox import (
     enqueue_email,
     get_active_document_email,
+    should_meter_document_send,
+    supersede_active_document_emails,
 )
 
 
@@ -458,6 +460,14 @@ async def revise_quote(
     quote_obj.review_requested_at = None
     quote_obj.review_reason = None
 
+    # A queued email from the previous version must not deliver the revoked
+    # link. SKIP LOCKED inside the helper avoids waiting on the email worker.
+    await supersede_active_document_emails(
+        db,
+        message_type="quote_email",
+        aggregate_id=quote_obj.id,
+    )
+
     record_status_event(
         db=db,
         workspace_id=workspace.id,
@@ -641,7 +651,12 @@ async def send_quote(
             else:
                 deduct_credit = False
 
-                if is_first_dispatch:
+                if await should_meter_document_send(
+                    db,
+                    message_type="quote_email",
+                    aggregate_id=quote_obj.id,
+                    is_first_dispatch=is_first_dispatch,
+                ):
                     deduct_credit = await check_delivery_quota(
                         workspace,
                         db,
@@ -677,10 +692,10 @@ async def send_quote(
                 email_queued = True
 
             dispatched = True
-            quote_obj.email_delivery_status = "queued"
+            quote_obj.email_delivery_status = DocumentDeliveryStatus.QUEUED
 
         else:
-            quote_obj.email_delivery_status = "no_email"
+            quote_obj.email_delivery_status = DocumentDeliveryStatus.NO_EMAIL
 
     else:
         if is_first_dispatch:
@@ -695,10 +710,14 @@ async def send_quote(
                     db,
                     deduct_credit=True,
                     commit=False,
+                    reference=(
+                        f"link_share:{quote_obj.id}:"
+                        f"{quote_obj.version}"
+                    ),
                 )
 
         dispatched = True
-        quote_obj.email_delivery_status = "link_shared"
+        quote_obj.email_delivery_status = DocumentDeliveryStatus.LINK_SHARED
 
     old_status = quote_obj.status
 

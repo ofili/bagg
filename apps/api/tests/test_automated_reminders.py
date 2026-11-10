@@ -6,6 +6,9 @@ from sqlalchemy import select, update
 from app.main import app
 from app.core.database import AsyncSessionLocal
 from app.domains.reminders.models import ReminderJob
+from app.integrations.email_delivery import DeliveryOutcome, DeliveryResult
+from app.integrations.email_models import EmailOutbox
+from app.jobs.worker import WORKER_ID, record_result
 from tests.helpers import create_sent_invoice, login_code_for
 
 
@@ -89,7 +92,40 @@ async def test_automated_reminders_lifecycle(monkeypatch):
         proc_data = proc_res.json()
         assert proc_data["processed_count"] >= 1
 
-        # Verify target job is now 'sent'
+        # Verify target job is now 'queued'. The worker owns delivery.
+        updated_reminders = await client.get(f"/reminders/invoices/{inv_id}")
+        queued_jobs = [j for j in updated_reminders.json() if j["id"] == target_job_id]
+        assert len(queued_jobs) == 1
+        assert queued_jobs[0]["status"] == "queued"
+        assert queued_jobs[0]["sent_at"] is None
+
+        # Simulate the worker accepting the reminder email.
+        async with AsyncSessionLocal() as session:
+            message = (
+                await session.execute(
+                    select(EmailOutbox).where(
+                        EmailOutbox.message_type == "invoice_reminder",
+                        EmailOutbox.aggregate_id == target_job_id,
+                    )
+                )
+            ).scalar_one()
+            message.status = "processing"
+            message.locked_by = WORKER_ID
+            message.locked_at = datetime.now(timezone.utc)
+            message.attempts = 1
+            message_id = message.id
+            await session.commit()
+
+        await record_result(
+            message_id,
+            1,
+            DeliveryResult(
+                outcome=DeliveryOutcome.ACCEPTED,
+                provider="smtp",
+            ),
+        )
+
+        # Verify the reminder job is now 'sent'.
         updated_reminders = await client.get(f"/reminders/invoices/{inv_id}")
         sent_jobs = [j for j in updated_reminders.json() if j["id"] == target_job_id]
         assert len(sent_jobs) == 1

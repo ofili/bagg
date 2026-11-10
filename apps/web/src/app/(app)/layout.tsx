@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ChevronRight, Plus, Settings } from 'lucide-react';
+import { IconContext, Plus, Gear } from '@phosphor-icons/react';
 import { BagCharacter, Wordmark } from '@/components/brand';
 import { BottomNav } from '@/components/mobile/BottomNav';
 import { ClientOnly } from '@/components/mobile/ClientOnly';
@@ -88,6 +88,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
+    <IconContext.Provider value={{ weight: 'bold' }}>
     <div className="flex min-h-dvh bg-cream">
       {/* Tablet: icon rail. Desktop: labelled sidebar. Phone: bottom tab bar (below). */}
       <aside className="hidden w-[72px] shrink-0 flex-col border-r-brut border-ink bg-surface sm:flex lg:w-64">
@@ -155,7 +156,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               : 'border-transparent font-medium text-text hover:bg-surface-tint',
           )}
         >
-          <Settings aria-hidden className="h-[18px] w-[18px] shrink-0" />
+          <Gear aria-hidden className="h-[18px] w-[18px] shrink-0" />
           <span className="hidden lg:inline">Settings</span>
         </Link>
       </div>
@@ -205,5 +206,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </ClientOnly>
       </main>
     </div>
+    </IconContext.Provider>
   );
 }

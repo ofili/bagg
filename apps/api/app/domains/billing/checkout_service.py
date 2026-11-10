@@ -36,7 +36,7 @@ async def create_billing_checkout(
         amount_minor=amount_minor,
         status="initializing",
     )
-    repo.add(checkout)
+    await repo.add(checkout)
     await db.commit()
     await db.refresh(checkout)
     try:

@@ -1,29 +1,30 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  AlertCircle,
   ArrowLeft,
-  Building2,
+  CaretDown,
+  ArrowsClockwise,
+  Buildings,
   Calendar,
   Check,
-  Edit2,
-  FileCheck,
+  CircleNotch,
+  Envelope,
   FileText,
-  Loader2,
-  Mail,
+  FloppyDisk,
   MapPin,
+  PencilSimple,
   Phone,
   Plus,
   Printer,
-  ReceiptText,
-  Repeat,
-  Save,
-  UserRound,
+  Receipt,
+  Scroll,
+  User,
   Users,
-} from 'lucide-react';
+  WarningCircle,
+} from '@phosphor-icons/react';
 
 import { BagCharacter } from '@/components/brand';
 import { Money } from '@/components/money/Money';
@@ -147,6 +148,52 @@ const inputClass =
   'min-h-12 w-full rounded-input border border-line bg-surface px-3 py-2 text-body text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-cocoa focus:ring-2 focus:ring-cocoa/20';
 const labelClass = 'mb-1 block text-label font-bold text-ink-soft';
 
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  NGN: '₦',
+  USD: '$',
+  GBP: '£',
+  EUR: '€',
+  GHS: 'GH₵',
+  KES: 'KSh',
+  ZAR: 'R',
+};
+
+function formatCompactAmount(amountMinor: number, currency: string): string {
+  const symbol = CURRENCY_SYMBOLS[currency] || (currency ? `${currency} ` : '');
+  const major = (amountMinor || 0) / 100;
+  const abs = Math.abs(major);
+  const sign = major < 0 ? '-' : '';
+
+  if (abs >= 1_000_000_000) {
+    const val = (abs / 1_000_000_000).toFixed(abs % 1_000_000_000 === 0 ? 0 : 2).replace(/\.00$/, '');
+    return `${sign}${symbol}${val}B`;
+  }
+  if (abs >= 1_000_000) {
+    const val = (abs / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 2).replace(/\.00$/, '');
+    return `${sign}${symbol}${val}M`;
+  }
+  if (abs >= 10_000) {
+    const val = (abs / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1).replace(/\.0$/, '');
+    return `${sign}${symbol}${val}K`;
+  }
+  return `${sign}${symbol}${abs.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function formatFullAmount(amountMinor: number, currency: string): string {
+  const symbol = CURRENCY_SYMBOLS[currency] || (currency ? `${currency} ` : '');
+  const major = (amountMinor || 0) / 100;
+  const abs = Math.abs(major);
+  const sign = major < 0 ? '-' : '';
+  return `${sign}${symbol}${abs.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} ${currency}`;
+}
+
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
   const clientId = params.id;
@@ -187,6 +234,28 @@ export default function ClientDetailPage() {
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
+
+  
+  const [createDropdownOpen, setCreateDropdownOpen] = useState(false);
+  const createDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!createDropdownOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (createDropdownRef.current && !createDropdownRef.current.contains(e.target as Node)) {
+        setCreateDropdownOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCreateDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [createDropdownOpen]);
 
   const { setCurrentLabel } = useCurrentBreadcrumb();
 
@@ -370,7 +439,7 @@ export default function ClientDetailPage() {
   if (loading) {
     return (
       <div role="status" className="flex min-h-[50vh] items-center justify-center text-text-muted">
-        <Loader2 aria-hidden className="h-6 w-6 animate-spin" />
+        <CircleNotch aria-hidden className="h-6 w-6 animate-spin" />
         <span className="sr-only">Loading client...</span>
       </div>
     );
@@ -380,7 +449,7 @@ export default function ClientDetailPage() {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <Card zone="calm" className="mx-auto max-w-lg space-y-3 p-8 text-center">
-          <AlertCircle aria-hidden className="mx-auto h-9 w-9 text-danger" />
+          <WarningCircle aria-hidden className="mx-auto h-9 w-9 text-danger" />
           <h1 className="text-title">Client not found</h1>
           <p role="alert" className="text-body text-text-soft">{loadError || 'This client could not be loaded.'}</p>
           <Link href="/clients" className={buttonStyles({ variant: 'outline' })}>
@@ -403,15 +472,15 @@ export default function ClientDetailPage() {
             <h1 className="text-title-l sm:text-display">{client.name}</h1>
             <span className="rounded-full bg-peach-chip px-3 py-1 text-caption font-extrabold text-ink-soft">
               {client.client_type === 'BUSINESS' ? (
-                <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" /> Company</span>
+                <span className="flex items-center gap-1.5"><Buildings className="h-3.5 w-3.5" /> Company</span>
               ) : (
-                <span className="flex items-center gap-1.5"><UserRound className="h-3.5 w-3.5" /> Person</span>
+                <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> Person</span>
               )}
             </span>
           </div>
           <div className="flex flex-wrap gap-4 text-body text-text-soft">
             {client.email && (
-              <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-text-muted" /> {client.email}</span>
+              <span className="flex items-center gap-1.5"><Envelope className="h-4 w-4 text-text-muted" /> {client.email}</span>
             )}
             {client.phone && (
               <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-text-muted" /> {client.phone}</span>
@@ -422,42 +491,196 @@ export default function ClientDetailPage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href={`/invoices/new?client_id=${client.id}`}
-            className={buttonStyles({ zone: 'calm' })}
+        {/* Create New Dropdown */}
+        <div ref={createDropdownRef} className="relative inline-block text-left">
+          <button
+            type="button"
+            onClick={() => setCreateDropdownOpen((prev) => !prev)}
+            className={cn(buttonStyles({ variant: 'accent' }), 'flex items-center gap-1.5')}
+            aria-haspopup="true"
+            aria-expanded={createDropdownOpen}
           >
-            <Plus aria-hidden className="h-4 w-4" /> New invoice
-          </Link>
-          <Link
-            href={`/quotes/new?client_id=${client.id}`}
-            className={buttonStyles({ variant: 'outline', zone: 'calm' })}
-          >
-            <Plus aria-hidden className="h-4 w-4" /> New quote
-          </Link>
+            <Plus aria-hidden className="h-4 w-4" />
+            <span>Create new</span>
+            <CaretDown
+              aria-hidden
+              className={cn(
+                'h-3.5 w-3.5 transition-transform duration-150',
+                createDropdownOpen && 'rotate-180',
+              )}
+            />
+          </button>
+
+          {createDropdownOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 z-30 mt-2 w-56 rounded-card border-brut bg-surface p-1.5 shadow-brut animate-in fade-in zoom-in-95 duration-100"
+            >
+              <Link
+                href={`/invoices/new?client_id=${client.id}`}
+                role="menuitem"
+                onClick={() => setCreateDropdownOpen(false)}
+                className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
+              >
+                <Receipt aria-hidden className="h-4 w-4 shrink-0 text-ink" />
+                <div>
+                  <div className="font-extrabold text-ink">Invoice</div>
+                  <p className="text-[11px] font-normal text-text-soft">Bill this client</p>
+                </div>
+              </Link>
+              <Link
+                href={`/quotes/new?client_id=${client.id}`}
+                role="menuitem"
+                onClick={() => setCreateDropdownOpen(false)}
+                className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
+              >
+                <Scroll aria-hidden className="h-4 w-4 shrink-0 text-ink" />
+                <div>
+                  <div className="font-extrabold text-ink">Quote</div>
+                  <p className="text-[11px] font-normal text-text-soft">Send estimate with expiry</p>
+                </div>
+              </Link>
+              <Link
+                href={`/recurring-invoices/new?client_id=${client.id}`}
+                role="menuitem"
+                onClick={() => setCreateDropdownOpen(false)}
+                className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
+              >
+                <ArrowsClockwise aria-hidden className="h-4 w-4 shrink-0 text-ink" />
+                <div>
+                  <div className="font-extrabold text-ink">Recurring schedule</div>
+                  <p className="text-[11px] font-normal text-text-soft">Repeat invoice on a cadence</p>
+                </div>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Metrics Banner */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-card border-brut border-ink bg-surface p-4">
-          <p className="text-caption font-bold text-text-muted">Total Invoiced</p>
-          <Money amountMinor={client.total_invoiced_minor || 0} currency={client.preferred_currency} className="mt-1 text-amount-m" />
-        </div>
-        <div className="rounded-card border-brut border-ink bg-surface p-4">
-          <p className="text-caption font-bold text-text-muted">Total Paid</p>
-          <Money amountMinor={client.total_paid_minor || 0} currency={client.preferred_currency} variant="paid" className="mt-1 text-amount-m" />
-        </div>
-        <div className="rounded-card border-brut border-ink bg-surface p-4">
-          <p className="text-caption font-bold text-text-muted">Outstanding</p>
-          <Money amountMinor={client.total_outstanding_minor || 0} currency={client.preferred_currency} variant="total" className="mt-1 text-amount-m" />
-        </div>
-        <div className="rounded-card border-brut border-ink bg-surface p-4">
-          <p className="text-caption font-bold text-text-muted">Invoices</p>
-          <p className="mt-1 text-amount-m font-extrabold">{client.invoice_count || 0}</p>
-        </div>
-      </div>
+      {/* Mini Financial Dashboard */}
+      {(() => {
+        const totalInvoiced = client.total_invoiced_minor || 0;
+        const totalPaid = client.total_paid_minor || 0;
+        const totalOutstanding = client.total_outstanding_minor || 0;
+        const invoiceCount = client.invoice_count || 0;
+        const paidPercentage =
+          totalInvoiced > 0
+            ? Math.min(100, Math.round((totalPaid / totalInvoiced) * 100))
+            : 0;
+
+        return (
+          <section
+            aria-label="Client financial overview"
+            className="rounded-card border-brut bg-surface p-5 shadow-brut-sm sm:p-6"
+          >
+            <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr_1fr_0.8fr] lg:divide-x-2 lg:divide-line">
+              {/* Main Hero: Total Invoiced & Collection Progress */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-caption font-black uppercase tracking-wider text-text-soft">
+                    Total Invoiced
+                  </span>
+                  <span className="rounded-full bg-surface-tint px-2 py-0.5 text-caption font-bold text-text-soft">
+                    {invoiceCount} {invoiceCount === 1 ? 'invoice' : 'invoices'}
+                  </span>
+                </div>
+                <div>
+                  <p
+                    className="text-title-l font-black text-ink sm:text-display"
+                    title={formatFullAmount(totalInvoiced, client.preferred_currency)}
+                  >
+                    {formatCompactAmount(totalInvoiced, client.preferred_currency)}
+                  </p>
+                  <p className="text-caption text-text-muted">
+                    Lifetime billing volume
+                  </p>
+                </div>
+
+                {/* Collection Progress Bar */}
+                {totalInvoiced > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex justify-between text-caption font-bold">
+                      <span className="text-text-soft">Collection rate</span>
+                      <span className="text-ink">{paidPercentage}% collected</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full border border-ink bg-[#FAF6EF]">
+                      <div
+                        className="h-full bg-leaf transition-all duration-300"
+                        style={{ width: `${paidPercentage}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Stat 2: Total Paid */}
+              <div className="flex flex-col justify-between space-y-2 lg:pl-6">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full border border-ink bg-leaf" />
+                  <span className="text-caption font-black uppercase tracking-wider text-text-soft">
+                    Total Paid
+                  </span>
+                </div>
+                <div>
+                  <p
+                    className="text-title font-black text-[#052E1B] sm:text-title-l"
+                    title={formatFullAmount(totalPaid, client.preferred_currency)}
+                  >
+                    {formatCompactAmount(totalPaid, client.preferred_currency)}
+                  </p>
+                  <p className="text-caption text-text-muted">
+                    Received &amp; verified
+                  </p>
+                </div>
+              </div>
+
+              {/* Stat 3: Total Outstanding */}
+              <div className="flex flex-col justify-between space-y-2 lg:pl-6">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      'h-2.5 w-2.5 rounded-full border border-ink',
+                      totalOutstanding > 0 ? 'bg-mango' : 'bg-surface-tint',
+                    )}
+                  />
+                  <span className="text-caption font-black uppercase tracking-wider text-text-soft">
+                    Outstanding
+                  </span>
+                </div>
+                <div>
+                  <p
+                    className={cn(
+                      'text-title font-black sm:text-title-l',
+                      totalOutstanding > 0 ? 'text-[#8A2400]' : 'text-text-soft',
+                    )}
+                    title={formatFullAmount(totalOutstanding, client.preferred_currency)}
+                  >
+                    {formatCompactAmount(totalOutstanding, client.preferred_currency)}
+                  </p>
+                  <p className="text-caption text-text-muted">
+                    {totalOutstanding > 0 ? 'Pending client payment' : 'Fully settled'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Stat 4: Invoices Summary */}
+              <div className="flex flex-col justify-between space-y-2 lg:pl-6">
+                <span className="text-caption font-black uppercase tracking-wider text-text-soft">
+                  Invoices
+                </span>
+                <div>
+                  <p className="text-title font-black text-ink sm:text-title-l">
+                    {invoiceCount}
+                  </p>
+                  <p className="text-caption text-text-muted">
+                    {statement?.entries?.length || invoiceCount} on record
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Navigation Tabs */}
       <div className="flex gap-1 overflow-x-auto border-b border-line pb-px">
@@ -562,7 +785,7 @@ export default function ClientDetailPage() {
 
           {statementLoading ? (
             <div className="flex min-h-[200px] items-center justify-center text-text-muted">
-              <Loader2 className="h-6 w-6 animate-spin" />
+              <CircleNotch className="h-6 w-6 animate-spin" />
             </div>
           ) : !statement || statement.entries.length === 0 ? (
             <div className="rounded-card border border-dashed border-line p-8 text-center">
@@ -635,7 +858,7 @@ export default function ClientDetailPage() {
           </div>
           {invoicesLoading ? (
             <div className="flex min-h-[200px] items-center justify-center text-text-muted">
-              <Loader2 className="h-6 w-6 animate-spin" />
+              <CircleNotch className="h-6 w-6 animate-spin" />
             </div>
           ) : invoices.length === 0 ? (
             <div className="rounded-card border border-dashed border-line p-8 text-center">
@@ -676,11 +899,11 @@ export default function ClientDetailPage() {
           </div>
           {quotesLoading ? (
             <div className="flex min-h-[200px] items-center justify-center text-text-muted">
-              <Loader2 className="h-6 w-6 animate-spin" />
+              <CircleNotch className="h-6 w-6 animate-spin" />
             </div>
           ) : quotes.length === 0 ? (
             <div className="rounded-card border border-dashed border-line p-8 text-center">
-              <FileCheck className="mx-auto h-8 w-8 text-text-muted" />
+              <Scroll className="mx-auto h-8 w-8 text-text-muted" />
               <p className="mt-2 font-bold">No quotes for this client</p>
             </div>
           ) : (
@@ -717,11 +940,11 @@ export default function ClientDetailPage() {
           </div>
           {recurringLoading ? (
             <div className="flex min-h-[200px] items-center justify-center text-text-muted">
-              <Loader2 className="h-6 w-6 animate-spin" />
+              <CircleNotch className="h-6 w-6 animate-spin" />
             </div>
           ) : recurringSchedules.length === 0 ? (
             <div className="rounded-card border border-dashed border-line p-8 text-center">
-              <Repeat className="mx-auto h-8 w-8 text-text-muted" />
+              <ArrowsClockwise className="mx-auto h-8 w-8 text-text-muted" />
               <p className="mt-2 font-bold">No recurring schedules for this client</p>
               <p className="mt-1 text-caption text-text-soft">Set up automated billing on a repeat cadence.</p>
               <div className="mt-4">
@@ -783,7 +1006,7 @@ export default function ClientDetailPage() {
           </div>
           {contactsLoading ? (
             <div className="flex min-h-[200px] items-center justify-center text-text-muted">
-              <Loader2 className="h-6 w-6 animate-spin" />
+              <CircleNotch className="h-6 w-6 animate-spin" />
             </div>
           ) : contacts.length === 0 ? (
             <div className="rounded-card border border-dashed border-line p-8 text-center">
@@ -833,7 +1056,7 @@ export default function ClientDetailPage() {
           )}
           {errorMessage && (
             <div role="alert" className="flex items-center gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010] font-bold">
-              <AlertCircle className="h-4 w-4" /> {errorMessage}
+              <WarningCircle className="h-4 w-4" /> {errorMessage}
             </div>
           )}
 
@@ -929,7 +1152,7 @@ export default function ClientDetailPage() {
 
             <div className="flex justify-end pt-2">
               <Button type="submit" zone="calm" loading={saving}>
-                <Save className="h-4 w-4" /> Save changes
+                <FloppyDisk className="h-4 w-4" /> Save changes
               </Button>
             </div>
           </Card>

@@ -4,20 +4,20 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  AlertCircle,
+  ArrowCounterClockwise,
   ArrowLeft,
-  CheckCircle2,
-  Clock3,
+  ArrowSquareOut,
+  CheckCircle,
+  CircleNotch,
+  Clock,
   Copy,
-  ExternalLink,
+  DownloadSimple,
   FileText,
-  Download,
-  Loader2,
+  PaperPlaneTilt,
   Pencil,
   Plus,
-  RotateCcw,
-  Send,
-} from 'lucide-react';
+  WarningCircle,
+} from '@phosphor-icons/react';
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { QuoteMobileSummary } from '@/components/mobile/QuoteMobileSummary';
 import { QuoteActionBar } from '@/components/mobile/QuoteActionBar';
@@ -561,7 +561,7 @@ export default function QuoteDetailPage() {
   if (loading) {
     return (
       <div role="status" className="flex justify-center py-20 text-text-muted">
-        <Loader2 aria-hidden className="h-7 w-7 animate-spin" />
+        <CircleNotch aria-hidden className="h-7 w-7 animate-spin" />
         <span className="sr-only">Loading quote</span>
       </div>
     );
@@ -575,7 +575,7 @@ export default function QuoteDetailPage() {
           Back to quotes
         </Link>
         <Card zone="calm" className="space-y-3 p-6">
-          <AlertCircle aria-hidden className="h-6 w-6" />
+          <WarningCircle aria-hidden className="h-6 w-6" />
           <h1 className="text-title">quote unavailable</h1>
           <p className="text-body text-text-soft">
             {pageError || 'This quotes could not be found.'}
@@ -618,19 +618,19 @@ export default function QuoteDetailPage() {
                 setEditing(true);
               }}
             >
-              <RotateCcw aria-hidden className="h-4 w-4" />
+              <ArrowCounterClockwise aria-hidden className="h-4 w-4" />
               Create revision
             </Button>
           )}
           {editable && !editing && (
             <Button zone="calm" onClick={() => setShowApproveDialog(true)}>
-              <CheckCircle2 aria-hidden className="h-4 w-4" />
+              <CheckCircle aria-hidden className="h-4 w-4" />
               Approve & issue
             </Button>
           )}
           {['issued', 'sent', 'viewed', 'review_requested'].includes(quote.status) && (
             <Button zone="calm" loading={sending} onClick={() => void handleSend()}>
-              <Send aria-hidden className="h-4 w-4" />
+              <PaperPlaneTilt aria-hidden className="h-4 w-4" />
               Copy share link
             </Button>
           )}
@@ -647,7 +647,7 @@ export default function QuoteDetailPage() {
               rel="noopener noreferrer"
               className={buttonStyles({ variant: 'outline', zone: 'calm' })}
             >
-              <Download aria-hidden className="h-4 w-4" />
+              <DownloadSimple aria-hidden className="h-4 w-4" />
               PDF
             </a>
           )}
@@ -665,9 +665,9 @@ export default function QuoteDetailPage() {
           }
         >
           {notice.kind === 'error' ? (
-            <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+            <WarningCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
           ) : (
-            <CheckCircle2 aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+            <CheckCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
           )}
           <span>{notice.message}</span>
         </div>
@@ -935,7 +935,7 @@ export default function QuoteDetailPage() {
                     .map((revision) => (
                       <li key={revision.id} className="flex gap-3">
                         <div className="mt-1 rounded-full bg-surface-muted p-2">
-                          <Clock3 aria-hidden className="h-4 w-4" />
+                          <Clock aria-hidden className="h-4 w-4" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap justify-between gap-2">
@@ -987,7 +987,7 @@ export default function QuoteDetailPage() {
                         rel="noreferrer"
                         className={buttonStyles({ variant: 'outline', zone: 'calm' })}
                       >
-                        <ExternalLink aria-hidden className="h-4 w-4" />
+                        <ArrowSquareOut aria-hidden className="h-4 w-4" />
                         Preview
                       </a>
                     )}

@@ -6,13 +6,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
-  Building2,
+  Buildings,
   Check,
-  LoaderCircle,
-  Mail,
+  CircleNotch,
+  Envelope,
   Phone,
-  UserRound,
-} from 'lucide-react';
+  User,
+} from '@phosphor-icons/react';
 
 import { Button, buttonStyles } from '@/components/ui/button';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
@@ -237,7 +237,7 @@ export default function EditContactPage({ params }: PageProps) {
       {loading ? (
         <div className="flex min-h-52 items-center justify-center rounded-card border border-line bg-surface">
           <div className="flex items-center gap-3 text-sm text-ink-muted">
-            <LoaderCircle className="size-5 animate-spin" />
+            <CircleNotch className="size-5 animate-spin" />
             Loading contact…
           </div>
         </div>
@@ -280,7 +280,7 @@ export default function EditContactPage({ params }: PageProps) {
                 <label className={labelClass}>Associated client</label>
 
                 <div className="flex min-h-12 items-center gap-3 rounded-input border border-line bg-surface-muted px-3">
-                  <Building2 className="size-4 shrink-0 text-ink-muted" />
+                  <Buildings className="size-4 shrink-0 text-ink-muted" />
                   <span className="text-sm font-medium text-ink">
                     {clientName}
                   </span>
@@ -297,7 +297,7 @@ export default function EditContactPage({ params }: PageProps) {
                 </label>
 
                 <div className="relative">
-                  <UserRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+                  <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
                   <input
                     id="name"
                     name="name"
@@ -341,7 +341,7 @@ export default function EditContactPage({ params }: PageProps) {
                   </label>
 
                   <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+                    <Envelope className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
                     <input
                       id="email"
                       name="email"
@@ -444,7 +444,7 @@ export default function EditContactPage({ params }: PageProps) {
             <Button type="submit" disabled={saving}>
               {saving ? (
                 <>
-                  <LoaderCircle className="mr-2 size-4 animate-spin" />
+                  <CircleNotch className="mr-2 size-4 animate-spin" />
                   Saving changes…
                 </>
               ) : (

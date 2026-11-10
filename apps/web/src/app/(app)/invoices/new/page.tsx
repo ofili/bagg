@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CreditCard, X } from 'lucide-react';
+import { ArrowLeft, CreditCard, X } from '@phosphor-icons/react';
 import { InvoiceDocument, LineItemsEditor } from '@/components/invoice';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { NewInvoiceFlow } from '@/components/mobile/NewInvoiceFlow';

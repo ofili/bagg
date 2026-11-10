@@ -127,13 +127,22 @@ class ReminderRepository:
             ReminderJob.invoice_id == invoice_id
         )
 
-        result = await self.db.execute(
-            update(EmailOutbox)
+        # SKIP LOCKED keeps cancellation from waiting on a message the worker
+        # already owns. The worker's result guard refuses to resurrect a
+        # cancelled reminder, so a skipped in-flight message stays terminal.
+        target_ids = (
+            select(EmailOutbox.id)
             .where(
                 EmailOutbox.message_type == "invoice_reminder",
                 EmailOutbox.aggregate_id.in_(reminder_ids),
                 EmailOutbox.status.in_(["pending", "processing"]),
             )
+            .with_for_update(skip_locked=True)
+        )
+
+        result = await self.db.execute(
+            update(EmailOutbox)
+            .where(EmailOutbox.id.in_(target_ids))
             .values(
                 status="superseded",
                 encrypted_payload=None,

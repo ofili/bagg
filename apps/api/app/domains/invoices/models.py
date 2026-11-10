@@ -94,7 +94,10 @@ class Invoice(Base):
     # Delivery & Tracking (US-DEL-03, US-DEL-04, US-CLV-01)
     sent_at = Column(DateTime(timezone=True), nullable=True)
     viewed_at = Column(DateTime(timezone=True), nullable=True)
-    email_delivery_status = Column(String, nullable=True)  # queued, delivered, bounced, opened
+    # None = never dispatched or reset by recall/revision.
+    # queued, delivered, failed, no_email, link_shared.
+    # See app.domains.documents.delivery.DocumentDeliveryStatus.
+    email_delivery_status = Column(String, nullable=True)
     pdf_url = Column(String, nullable=True)
 
     # Version tracking for immutable revisions (US-DEL-05)

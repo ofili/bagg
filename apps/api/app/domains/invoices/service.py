@@ -9,11 +9,11 @@ from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals
 from app.core.security import generate_share_token
 from app.domains.billing.service import (
-    add_credits,
     check_delivery_quota,
     consume_delivery_send,
 )
 from app.domains.clients.models import Client
+from app.domains.documents.delivery import DocumentDeliveryStatus
 from app.domains.invoices.models import Invoice, InvoiceLineItem, InvoiceRevision
 from app.domains.invoices.repository import InvoiceRepository
 from app.domains.invoices.recall_service import InvoiceRecallService
@@ -28,6 +28,7 @@ from app.integrations.email import build_invoice_email_payload
 from app.integrations.email_outbox import (
     enqueue_email,
     get_active_document_email,
+    should_meter_document_send,
 )
 
 @dataclass
@@ -507,6 +508,11 @@ async def finalize_invoice(
     invoice.invoice_number = invoice_number
     invoice.sequence_number = sequence_number
 
+    # A finalize is a new issuance boundary. Recall returns the invoice to
+    # draft, so re-finalising advances the generation and gives the reminder
+    # cadence a fresh idempotency namespace.
+    invoice.issuance_generation = (invoice.issuance_generation or 0) + 1
+
     _ensure_share_token(invoice)
 
     record_status_event(
@@ -607,7 +613,12 @@ async def send_invoice(
             else:
                 deduct_credit = False
 
-                if is_first_dispatch:
+                if await should_meter_document_send(
+                    db,
+                    message_type="invoice_email",
+                    aggregate_id=invoice.id,
+                    is_first_dispatch=is_first_dispatch,
+                ):
                     deduct_credit = await check_delivery_quota(
                         workspace,
                         db,
@@ -636,10 +647,10 @@ async def send_invoice(
                 email_queued = True
 
             dispatched = True
-            invoice.email_delivery_status = "queued"
+            invoice.email_delivery_status = DocumentDeliveryStatus.QUEUED
 
         else:
-            invoice.email_delivery_status = "no_email"
+            invoice.email_delivery_status = DocumentDeliveryStatus.NO_EMAIL
 
     else:
         # Explicit link/WhatsApp hand-off is a dispatch in its own right.
@@ -655,10 +666,14 @@ async def send_invoice(
                     db,
                     deduct_credit=True,
                     commit=False,
+                    reference=(
+                        f"link_share:{invoice.id}:"
+                        f"{invoice.issuance_generation or 0}"
+                    ),
                 )
 
         dispatched = True
-        invoice.email_delivery_status = "link_shared"
+        invoice.email_delivery_status = DocumentDeliveryStatus.LINK_SHARED
 
     old_status = invoice.status
 

@@ -6,11 +6,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
-  Building2,
-  Loader2,
-  Save,
-  UserRound,
-} from 'lucide-react';
+  Buildings,
+  CircleNotch,
+  FloppyDisk,
+  User,
+} from '@phosphor-icons/react';
 import { Button, buttonStyles } from '@/components/ui/button';
 import { BaggSelect } from '@/components/ui';
 import { cn } from '@/lib/cn';
@@ -217,7 +217,7 @@ export default function NewClientPage() {
                 )}
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface">
-                  <UserRound className="h-5 w-5 text-ink" aria-hidden="true" />
+                  <User className="h-5 w-5 text-ink" aria-hidden="true" />
                 </span>
                 <span>
                   <span className="block text-body font-extrabold text-ink">
@@ -241,7 +241,7 @@ export default function NewClientPage() {
                 )}
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface">
-                  <Building2 className="h-5 w-5 text-ink" aria-hidden="true" />
+                  <Buildings className="h-5 w-5 text-ink" aria-hidden="true" />
                 </span>
                 <span>
                   <span className="block text-body font-extrabold text-ink">
@@ -505,9 +505,9 @@ export default function NewClientPage() {
 
           <Button type="submit" disabled={saving}>
             {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <CircleNotch className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
-              <Save className="h-4 w-4" aria-hidden="true" />
+              <FloppyDisk className="h-4 w-4" aria-hidden="true" />
             )}
             {saving ? 'Creating client…' : 'Create client'}
           </Button>

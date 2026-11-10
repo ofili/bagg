@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Repeat, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash, X } from '@phosphor-icons/react';
 import { LineItemsEditor } from '@/components/invoice';
 import { NewRecurringFlow } from '@/components/mobile/NewRecurringFlow';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
@@ -52,25 +52,13 @@ export default function NewRecurringSchedulePage() {
 
       {/* Tablet & Desktop: Single-page form */}
       <div className="hidden w-full max-w-4xl space-y-6 p-4 pb-24 sm:block sm:space-y-6 sm:p-6 sm:pb-16 lg:p-8">
-        <div>
-          <Link
-            href="/recurring-invoices"
-            className="inline-flex items-center gap-1.5 text-caption font-bold text-text-soft hover:text-ink"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to recurring schedules
+        <div className="space-y-2">
+          <Link href="/recurring-invoices" className={buttonStyles({ variant: 'outline' })}>
+            <ArrowLeft aria-hidden className="h-4 w-4" />
+            All recurring
           </Link>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-card border-brut bg-sun text-ink shadow-brut-sm">
-            <Repeat className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-title-l font-black text-ink">New recurring schedule</h1>
-            <p className="text-body text-text-soft">
-              Set up an automated schedule for repeat invoicing
-            </p>
-          </div>
+          <h1 className="text-title-l sm:text-display">new recurring schedule</h1>
+          <p className="text-body text-text-soft">Set up an automated schedule for repeat invoicing</p>
         </div>
 
         {draft.errorMsg && (
@@ -344,7 +332,7 @@ export default function NewRecurringSchedulePage() {
                 <div className="mt-3 max-w-xs">
                   <Field label="Total occurrences">
                     {({ id, ...a11y }) => (
-                      <input
+                      <Input
                         id={id}
                         {...a11y}
                         type="number"

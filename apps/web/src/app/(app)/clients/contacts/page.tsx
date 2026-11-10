@@ -4,20 +4,19 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  AlertCircle,
   ArrowLeft,
-  Building2,
-  ContactRound,
-  Edit2,
-  Loader2,
-  Mail,
-  MessageCircle,
+  Buildings,
+  ChatCircle,
+  CircleNotch,
+  Envelope,
+  PencilSimple,
   Phone,
   Plus,
-  Trash2,
-  UserRound,
+  Trash,
+  User,
   Users,
-} from 'lucide-react';
+  WarningCircle,
+} from '@phosphor-icons/react';
 import { ContactRow } from '@/components/mobile/ContactRow';
 import {
   buttonStyles,
@@ -226,7 +225,7 @@ export default function ContactsPage() {
       render: (contact) => (
         <div className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">
-            <UserRound className="h-4 w-4" aria-hidden="true" />
+            <User className="h-4 w-4" aria-hidden="true" />
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
@@ -255,7 +254,7 @@ export default function ContactsPage() {
             className="inline-flex items-center gap-1.5 font-semibold text-link underline-offset-4 hover:underline"
           >
             {client?.client_type === 'BUSINESS' ? (
-              <Building2 className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+              <Buildings className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
             ) : (
               <Users className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
             )}
@@ -284,7 +283,7 @@ export default function ContactsPage() {
             href={`mailto:${contact.email}`}
             className="inline-flex items-center gap-1.5 text-body text-text-soft hover:text-ink hover:underline"
           >
-            <Mail className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+            <Envelope className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
             <span className="truncate">{contact.email}</span>
           </a>
         ) : (
@@ -311,7 +310,7 @@ export default function ContactsPage() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-caption font-bold text-link hover:underline"
               >
-                <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                <ChatCircle className="h-3.5 w-3.5" aria-hidden="true" />
                 WhatsApp
               </a>
             )}
@@ -331,7 +330,7 @@ export default function ContactsPage() {
             title="Edit contact"
             className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
           >
-            <Edit2 className="h-4 w-4" aria-hidden="true" />
+            <PencilSimple className="h-4 w-4" aria-hidden="true" />
           </Link>
           <button
             type="button"
@@ -342,9 +341,9 @@ export default function ContactsPage() {
             className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-[#FFB3B3] hover:text-[#5A1010] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {deletingContactId === contact.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <CircleNotch className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              <Trash className="h-4 w-4" aria-hidden="true" />
             )}
           </button>
         </div>
@@ -361,7 +360,7 @@ export default function ContactsPage() {
 
   const emptyState = (
     <div className="rounded-card border border-line-subtle bg-surface px-6 py-12 text-center">
-      <ContactRound
+      <User
         className="mx-auto h-10 w-10 text-text-muted"
         aria-hidden="true"
       />
@@ -434,7 +433,7 @@ export default function ContactsPage() {
           className="flex flex-col gap-3 rounded-row bg-[#FFB3B3] px-3 py-3 text-body text-[#5A1010] sm:flex-row sm:items-center sm:justify-between"
         >
           <span className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <WarningCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             {loadError}
           </span>
 
@@ -463,7 +462,7 @@ export default function ContactsPage() {
               aria-current="page"
               className="inline-flex min-h-10 items-center gap-2 rounded-btn border border-line-subtle bg-peach-chip px-4 text-body font-bold text-ink"
             >
-              <ContactRound className="h-4 w-4" aria-hidden="true" />
+              <User className="h-4 w-4" aria-hidden="true" />
               Contacts
               <span className="rounded-full bg-surface px-2 py-0.5 text-caption font-bold">
                 {contacts.length}

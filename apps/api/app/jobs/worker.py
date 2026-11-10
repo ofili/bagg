@@ -17,7 +17,12 @@ from app.domains.auth.models import MagicLoginCode
 from app.domains.invoices.models import Invoice
 from app.domains.quotes.models import Quote
 from app.domains.billing.repository import BillingRepository
-from app.domains.billing.service import add_credits
+from app.domains.billing.service import (
+    CREDIT_REASON_SEND_DEDUCTION,
+    CREDIT_REASON_SEND_REFUND,
+    add_credits,
+)
+from app.domains.documents.delivery import DocumentDeliveryStatus
 from app.domains.reminders.models import ReminderJob
 from app.domains.security.models import SecurityChallenge
 from app.integrations.email_models import (
@@ -250,6 +255,132 @@ async def mark_superseded(message_id: str):
                     reminder.updated_at = utcnow()
 
 
+async def _reconcile_document_email(
+    db,
+    message: EmailOutbox,
+    *,
+    terminal_failure: bool,
+) -> None:
+    """Align invoice/quote delivery state with an outbox result.
+
+    The outbox row is already locked by this worker; the document row is
+    locked second, matching the dispatch order (document, then outbox).
+    """
+
+    if message.message_type == "invoice_email":
+        document = await db.get(
+            Invoice,
+            message.aggregate_id,
+            with_for_update=True,
+        )
+    elif message.message_type == "quote_email":
+        document = await db.get(
+            Quote,
+            message.aggregate_id,
+            with_for_update=True,
+        )
+    else:
+        return
+
+    if document is None:
+        return
+
+    latest_result = await db.execute(
+        select(EmailOutbox.id)
+        .where(
+            EmailOutbox.message_type == message.message_type,
+            EmailOutbox.aggregate_id == message.aggregate_id,
+        )
+        .order_by(
+            EmailOutbox.created_at.desc(),
+            EmailOutbox.id.desc(),
+        )
+        .limit(1)
+    )
+
+    is_latest_message = latest_result.scalar_one_or_none() == message.id
+
+    # Recall and revision return the document to draft and clear sent_at. A
+    # result from the previous issuance must not restore delivery state.
+    if (
+        is_latest_message
+        and document.status != "draft"
+        and document.sent_at is not None
+    ):
+        if message.status == "sent":
+            document.email_delivery_status = DocumentDeliveryStatus.DELIVERED
+        elif terminal_failure:
+            document.email_delivery_status = DocumentDeliveryStatus.FAILED
+        else:
+            document.email_delivery_status = DocumentDeliveryStatus.QUEUED
+
+    if not terminal_failure:
+        return
+
+    # A metered send is refunded only after terminal failure. The outbox ID is
+    # the ledger reference, making compensation idempotent across retries.
+    billing_repository = BillingRepository(db)
+
+    deduction = await billing_repository.find_credit_entry(
+        document.workspace_id,
+        CREDIT_REASON_SEND_DEDUCTION,
+        message.id,
+    )
+
+    if deduction is None:
+        return
+
+    await add_credits(
+        workspace_id=document.workspace_id,
+        amount=1,
+        reason=CREDIT_REASON_SEND_REFUND,
+        description="Refund for permanently failed document email",
+        reference=message.id,
+        db=db,
+        commit=False,
+    )
+
+
+async def _reconcile_reminder_email(
+    db,
+    message: EmailOutbox,
+    *,
+    terminal_failure: bool,
+    now: datetime,
+) -> None:
+    """Align a reminder job with the terminal result of its outbox message."""
+
+    if message.message_type != "invoice_reminder":
+        return
+
+    reminder = await db.get(
+        ReminderJob,
+        message.aggregate_id,
+        with_for_update=True,
+    )
+
+    if reminder is None or reminder.status in {"cancelled", "sent"}:
+        return
+
+    if message.status == "sent":
+        reminder.status = "sent"
+        reminder.sent_at = now
+        reminder.error_message = None
+
+    elif terminal_failure:
+        reminder.status = "failed"
+        reminder.error_message = (
+            message.last_error_code or "email_delivery_failed"
+        )
+
+    else:
+        # Retryable or ambiguous provider outcomes remain queued. The outbox
+        # worker owns the retry lifecycle.
+        reminder.status = "queued"
+
+    reminder.updated_at = now
+
+
 async def record_result(
     message_id: str,
     attempt_number: int,
@@ -268,8 +399,20 @@ async def record_result(
             if message is None:
                 return
 
-            # A cancellation or superseding operation may have won the race.
-            if message.status == "superseded":
+            # A cancel/supersede may have won the race, or another worker may
+            # now own the message. Terminal states are immutable, so a late or
+            # duplicate provider result must not rewrite history.
+            if (
+                message.status != "processing"
+                or message.locked_by != WORKER_ID
+            ):
+                logger.debug(
+                    "Ignoring stale email result",
+                    extra={
+                        "message_id": message.id,
+                        "status": message.status,
+                    },
+                )
                 return
 
             message.last_provider = result.provider
@@ -325,93 +468,17 @@ async def record_result(
 
                 message.available_at = now + timedelta(seconds=base_delay + jitter)
 
-            # Keep the reminder domain's state aligned with the terminal
-            # result of its associated outbox message.
-            # Reconcile document email state with the outbox result.
-            # Only the newest message for a document may update its state.
-            if message.message_type in {"invoice_email", "quote_email"}:
-                if message.message_type == "invoice_email":
-                    document = await db.get(
-                        Invoice,
-                        message.aggregate_id,
-                        with_for_update=True,
-                    )
-                    document_model = Invoice
-                else:
-                    document = await db.get(
-                        Quote,
-                        message.aggregate_id,
-                        with_for_update=True,
-                    )
-                    document_model = Quote
-
-                if document is not None:
-                    latest_result = await db.execute(
-                        select(EmailOutbox.id)
-                        .where(
-                            EmailOutbox.message_type == message.message_type,
-                            EmailOutbox.aggregate_id == message.aggregate_id,
-                        )
-                        .order_by(
-                            EmailOutbox.created_at.desc(),
-                            EmailOutbox.id.desc(),
-                        )
-                        .limit(1)
-                    )
-
-                    is_latest_message = latest_result.scalar_one_or_none() == message.id
-
-                    if is_latest_message:
-                        if message.status == "sent":
-                            document.email_delivery_status = "delivered"
-                        elif terminal_failure:
-                            document.email_delivery_status = "failed"
-                        else:
-                            document.email_delivery_status = "queued"
-
-                # A metered send is refunded only after terminal failure.
-                # The outbox ID is the ledger reference, making compensation
-                # idempotent across worker retries.
-                if terminal_failure and document is not None:
-                    billing_repository = BillingRepository(db)
-
-                    deduction = await billing_repository.find_credit_entry(
-                        document.workspace_id,
-                        "send_deduction",
-                        message.id,
-                    )
-
-                    if deduction is not None:
-                        await add_credits(
-                            workspace_id=document.workspace_id,
-                            amount=1,
-                            reason="send_refund",
-                            description=(
-                                "Refund for permanently failed document email"
-                            ),
-                            reference=message.id,
-                            db=db,
-                            commit=False,
-                        )
-
-                if reminder is not None and reminder.status != "cancelled":
-                    if message.status == "sent":
-                        reminder.status = "sent"
-                        reminder.sent_at = now
-                        reminder.error_message = None
-
-                    elif terminal_failure:
-                        reminder.status = "failed"
-                        reminder.error_message = (
-                            result.error_code or "email_delivery_failed"
-                        )
-
-                    else:
-                        # Retryable or ambiguous provider outcomes remain
-                        # queued. The outbox worker owns the retry lifecycle.
-                        reminder.status = "queued"
-
-                    reminder.updated_at = now
+            await _reconcile_document_email(
+                db,
+                message,
+                terminal_failure=terminal_failure,
+            )
+            await _reconcile_reminder_email(
+                db,
+                message,
+                terminal_failure=terminal_failure,
+                now=now,
+            )
 
             if message.status == "failed":
                 logger.error(
@@ -442,7 +509,6 @@ async def process_message(message_id: str):
             return
 
         message_type = message.message_type
-        aggregate_id = message.aggregate_id
         attempt_number = message.attempts
         encrypted_payload = message.encrypted_payload
         selected_provider = message.provider

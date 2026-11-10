@@ -21,6 +21,11 @@ from app.domains.billing.models import CreditLedgerEntry, Subscription
 from app.domains.billing.repository import BillingRepository
 from app.domains.workspaces.models import Workspace
 
+CREDIT_REASON_PACK_PURCHASE = "pack_purchase"
+CREDIT_REASON_SEND_DEDUCTION = "send_deduction"
+CREDIT_REASON_SEND_REFUND = "send_refund"
+CREDIT_REASON_INITIAL_GRANT = "initial_grant"
+
 
 def _month_bounds(now: datetime | None = None) -> tuple[datetime, datetime]:
     current = now or datetime.now(timezone.utc)
@@ -77,9 +82,17 @@ async def consume_delivery_send(
     db: AsyncSession,
     deduct_credit: bool = False,
     *,
+    reference: str,
     commit: bool = True,
-    reference: Optional[str] = None,
 ) -> None:
+    """Meter one document dispatch against the workspace allowance.
+
+    ``reference`` is required so the deduction is attributable and the
+    corresponding compensation is idempotent. Email dispatches use the outbox
+    message ID; link/WhatsApp hand-offs use a stable per-issuance key. A
+    terminal delivery failure is refunded with the same reference and reason
+    ``send_refund``.
+    """
     if not deduct_credit:
         return
 
@@ -98,7 +111,7 @@ async def consume_delivery_send(
     await add_credits(
         workspace_id=workspace.id,
         amount=-1,
-        reason="send_deduction",
+        reason=CREDIT_REASON_SEND_DEDUCTION,
         description="Metered invoice delivery send deduction",
         reference=reference,
         db=db,

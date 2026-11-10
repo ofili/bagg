@@ -6,13 +6,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
-  Building2,
+  Buildings,
   Check,
-  LoaderCircle,
-  Mail,
+  CircleNotch,
+  Envelope,
   Phone,
-  UserRound,
-} from 'lucide-react';
+  User,
+} from '@phosphor-icons/react';
 
 import { Button, buttonStyles } from '@/components/ui/button';
 import { BaggSelect } from '@/components/ui';
@@ -222,7 +222,7 @@ export default function NewContactPage() {
       {!clientsLoading && !loadError && clients.length === 0 && (
         <section className="rounded-card border border-line-subtle bg-surface p-6">
           <span className="flex size-11 items-center justify-center rounded-full bg-tint text-ink-soft">
-            <Building2 className="size-5" aria-hidden="true" />
+            <Buildings className="size-5" aria-hidden="true" />
           </span>
 
           <h2 className="mt-4 text-heading text-ink">
@@ -275,7 +275,7 @@ export default function NewContactPage() {
                 </label>
 
                 <div className="relative">
-                  <UserRound
+                  <User
                     className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
                     aria-hidden="true"
                   />
@@ -319,7 +319,7 @@ export default function NewContactPage() {
                   </label>
 
                   <div className="relative">
-                    <Mail
+                    <Envelope
                       className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
                       aria-hidden="true"
                     />
@@ -409,7 +409,7 @@ export default function NewContactPage() {
             >
               {saving ? (
                 <>
-                  <LoaderCircle
+                  <CircleNotch
                     className="mr-2 size-4 animate-spin"
                     aria-hidden="true"
                   />

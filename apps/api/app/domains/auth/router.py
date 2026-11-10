@@ -82,7 +82,7 @@ async def request_magic_link(
     service = AuthService(db)
 
     try:
-        await service.request_magic_code(str(payload.email))
+        code = await service.request_magic_code(str(payload.email))
     except RuntimeError:
         # Do not disclose the code or provider-specific delivery details.
         raise HTTPException(
@@ -93,12 +93,16 @@ async def request_magic_link(
         # Commit the challenge and the outbox message together.
         await db.commit()
 
-    return {
+    resp = {
         "message": (
             "If this address can be used to sign in, "
             "a verification email will be sent."
         )
     }
+    if settings.ENVIRONMENT != "production":
+        resp["code"] = code
+
+    return resp
 
 
 @router.post("/verify", response_model=AuthResponse)
@@ -213,4 +217,3 @@ async def get_me(
         )
     user, workspace = auth_data
     return build_auth_response(user, workspace)
-

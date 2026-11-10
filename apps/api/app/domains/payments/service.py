@@ -27,7 +27,7 @@ async def create_payment_profile(db: AsyncSession, workspace_id: str, values: di
         workspace_id=workspace_id,
         **{**values, "currency": currency, "is_default": is_default}
     )
-    repo.add(profile)
+    await repo.add(profile)
     await db.commit()
     await repo.refresh(profile)
     return profile

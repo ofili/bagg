@@ -25,7 +25,8 @@ class ReminderJob(Base):
     invoice_id = Column(String, ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
     reminder_type = Column(String, nullable=False)  # upcoming_3d, due_today, overdue_3d, overdue_7d, custom
     due_at = Column(DateTime(timezone=True), nullable=False, index=True)
-    status = Column(String, nullable=False, default="pending", index=True)  # pending, claimed, sent, cancelled, failed
+    # pending, queued, claimed (legacy recovery state), sent, cancelled, failed
+    status = Column(String, nullable=False, default="pending", index=True)
     idempotency_key = Column(String, nullable=False, unique=True, index=True)
     attempts = Column(Integer, nullable=False, default=0)
     max_attempts = Column(Integer, nullable=False, default=3)

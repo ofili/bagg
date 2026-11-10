@@ -8,6 +8,7 @@ from app.domains.billing.models import WebhookEvent
 from app.domains.billing.repository import BillingRepository
 from app.domains.billing.catalog import PLAN_PRICING, CREDIT_PACK_PRICING
 from app.domains.billing.service import (
+    CREDIT_REASON_PACK_PURCHASE,
     add_credits,
     activate_subscription,
     handle_failed_payment,
@@ -60,7 +61,7 @@ async def _get_or_create_event(
         payload=_safe_payload(payload),
         processed=False,
     )
-    repo.add(event)
+    await repo.add(event)
     try:
         await db.commit()
     except IntegrityError:
@@ -144,7 +145,7 @@ async def process_paystack_billing_event(
                     await add_credits(
                         checkout.workspace_id,
                         checkout.credits,
-                        "pack_purchase",
+                        CREDIT_REASON_PACK_PURCHASE,
                         f"Purchased {checkout.credits} delivery credits",
                         checkout.provider_reference,
                         db,

@@ -95,8 +95,15 @@ class ClientService:
                 )
 
             await self.db.commit()
-            await self.repo.refresh(client)
-            return client
+
+            # Re-read with contacts eager-loaded. The router serializes the
+            # relationship, which cannot lazy-load from async context.
+            created = await self.repo.get_client(workspace.id, client.id)
+
+            if created is None:
+                raise ClientNotFoundError
+
+            return created
 
         except Exception:
             await self.db.rollback()
@@ -145,8 +152,15 @@ class ClientService:
                 )
 
             await self.db.commit()
-            await self.repo.refresh(client)
-            return client
+
+            # Re-read with contacts eager-loaded. The router serializes the
+            # relationship, which cannot lazy-load from async context.
+            updated = await self.repo.get_client(workspace_id, client_id)
+
+            if updated is None:
+                raise ClientNotFoundError
+
+            return updated
 
         except Exception:
             await self.db.rollback()

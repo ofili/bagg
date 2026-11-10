@@ -27,9 +27,18 @@ export function initialsOf(name?: string | null, email?: string | null) {
     const n = (name ?? '').trim();
     if (n) {
         const parts = n.split(/\s+/);
-        return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+        const first = parts[0]?.[0] ?? '';
+        const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
+        const initials = `${first}${last}`.trim();
+        if (initials) {
+            return initials.toUpperCase();
+        }
     }
-    return (email ?? '?')[0].toUpperCase();
+    const e = (email ?? '').trim();
+    if (e) {
+        return (e[0] ?? '?').toUpperCase();
+    }
+    return '?';
 }
 
 /** Initials on a mango circle until a photo exists. */

@@ -129,7 +129,7 @@ async def confirm_payment(
         share_token=raw_token,
         share_token_hash=token_hash,
     )
-    repo.add(receipt)
+    await repo.add(receipt)
     record_status_event(
         db=db,
         workspace_id=workspace.id,

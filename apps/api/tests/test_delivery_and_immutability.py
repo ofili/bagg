@@ -16,15 +16,6 @@ async def test_delivery_and_immutability_lifecycle(monkeypatch):
         verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
         client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
 
-        # Treat the provider as accepting the message so dispatch is real.
-        async def accept_email(self, **kwargs):
-            return True
-
-        monkeypatch.setattr(
-            "app.domains.invoices.service.EmailSender.send_invoice_email",
-            accept_email,
-        )
-
         # Create Client with phone (US-DEL-02)
         client_res = await client.post(
             "/clients",
@@ -67,7 +58,9 @@ async def test_delivery_and_immutability_lifecycle(monkeypatch):
         send_data = send_res.json()
         assert send_data["invoice"]["status"] == "sent"
         assert send_data["invoice"]["sent_at"] is not None
-        assert send_data["email_sent"] is True
+        assert send_data["email_queued"] is True
+        assert send_data["email_sent"] is False
+        assert send_data["invoice"]["email_delivery_status"] == "queued"
         assert send_data["recipient_email"] == "kofi@mensah.gh"
         assert "https://wa.me/233241234567" in send_data["whatsapp_url"]
         assert "Kofi+Mensah+Media" in send_data["whatsapp_url"] or "Kofi%20Mensah%20Media" in send_data["whatsapp_url"]
@@ -97,6 +90,13 @@ async def test_delivery_and_immutability_lifecycle(monkeypatch):
         assert revised_inv["version"] == 2
         assert revised_inv["total_minor"] == 2000000
         assert revised_inv["last_revised_at"] is not None
+
+        # Revision is recall-and-reissue. Finalizing again issues the revised
+        # document with a fresh share token; the recalled token stays dead.
+        reissue_res = await client.post(f"/invoices/{inv_id}/finalize")
+        assert reissue_res.status_code == 200
+        revised_inv = reissue_res.json()
+        assert revised_inv["share_token"] is not None
 
         # 4. Audit Revisions Endpoint
         revisions_res = await client.get(f"/invoices/{inv_id}/revisions")

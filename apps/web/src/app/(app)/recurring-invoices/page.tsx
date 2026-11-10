@@ -4,14 +4,14 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  AlertCircle,
+  ArrowsClockwise,
   Calendar,
-  CheckCircle2,
+  CheckCircle,
+  CircleNotch,
   Clock,
-  Loader2,
   Plus,
-  Repeat,
-} from 'lucide-react';
+  WarningCircle,
+} from '@phosphor-icons/react';
 
 import { BagCharacter } from '@/components/brand';
 import { DocTabs } from '@/components/mobile/DocTabs';
@@ -169,26 +169,26 @@ export default function RecurringInvoicesPage() {
   }, [selectedStatus]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6">
-      {/* Mobile document navigation */}
-      <DocTabs />
-
+    <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-title-l font-black text-ink">Recurring schedules</h1>
-          <p className="text-body text-text-soft">
-            Automate ongoing invoices with scheduled generation and draft lead times
+      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-title-l sm:text-display">recurring schedules</h1>
+          <p className="mt-1 text-body text-text-soft">
+            Automate ongoing invoices with scheduled generation and draft lead times.
           </p>
         </div>
         <Link
           href="/recurring-invoices/new"
-          className={buttonStyles({ variant: 'accent' })}
+          className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
         >
-          <Plus className="h-4 w-4" />
+          <Plus aria-hidden className="h-4 w-4" />
           <span>New schedule</span>
         </Link>
-      </div>
+      </header>
+
+      {/* Mobile document navigation */}
+      <DocTabs className="mt-3" />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 border-b border-line pb-4">
@@ -202,7 +202,7 @@ export default function RecurringInvoicesPage() {
               className={cn(
                 'rounded-full px-3.5 py-1.5 text-caption font-bold transition-colors',
                 active
-                  ? 'border-brut-thin border-ink bg-sun text-ink shadow-brut-sm'
+                  ? 'border border-ink bg-sun text-ink shadow-brut-sm'
                   : 'border border-line bg-surface text-text-soft hover:bg-surface-tint',
               )}
             >
@@ -215,7 +215,7 @@ export default function RecurringInvoicesPage() {
       {/* Error state */}
       {error && (
         <div className="flex items-center gap-3 rounded-card border-brut border-danger bg-[#FFB3B3]/20 p-4 text-danger">
-          <AlertCircle className="h-5 w-5 shrink-0" />
+          <WarningCircle className="h-5 w-5 shrink-0" />
           <p className="text-body font-bold">{error}</p>
         </div>
       )}
@@ -223,12 +223,12 @@ export default function RecurringInvoicesPage() {
       {/* Content */}
       {loading ? (
         <div className="flex min-h-[300px] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-text-muted" />
+          <CircleNotch className="h-8 w-8 animate-spin text-text-muted" />
         </div>
       ) : schedules.length === 0 ? (
         <div className="rounded-card border border-dashed border-line bg-surface p-12 text-center">
           <BagCharacter size={80} className="mx-auto mb-4" />
-          <h3 className="text-heading font-black text-ink">No recurring schedules found</h3>
+          <h3 className="text-heading font-black text-ink">no recurring schedules yet</h3>
           <p className="mx-auto mt-1 max-w-sm text-body text-text-soft">
             Set up an automated schedule once and Bagg will handle draft generation, reminders, and delivery for you.
           </p>

@@ -6,8 +6,11 @@ import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.domains.billing.models import BillingCheckout
 from app.domains.webhooks.security import (
     paystack_event_reference,
     paystack_idempotency_key,
@@ -112,18 +115,49 @@ async def test_webhook_rejects_invalid_signature(monkeypatch):
 @pytest.mark.asyncio
 async def test_signed_credit_pack_is_granted_once(monkeypatch):
     monkeypatch.setattr(settings, "PAYSTACK_SECRET_KEY", WEBHOOK_SECRET)
+
+    async def fake_initialize(self, **kwargs):
+        return {
+            "authorization_url": "https://checkout.test/authorize",
+            "reference": kwargs["reference"],
+        }
+
+    monkeypatch.setattr(
+        "app.domains.billing.checkout_service.PaystackClient.initialize_payment",
+        fake_initialize,
+    )
+
     client, workspace_id = await authenticated_client()
     try:
+        checkout = await client.post(
+            "/billing/credits/buy",
+            json={"pack": "200_credits", "currency": "NGN"},
+        )
+        assert checkout.status_code in {200, 201}
+        reference = checkout.json()["reference"]
+
+        async with AsyncSessionLocal() as session:
+            stored = (
+                await session.execute(
+                    select(BillingCheckout).where(
+                        BillingCheckout.provider_reference == reference
+                    )
+                )
+            ).scalar_one()
+
         payload = {
             "event": "charge.success",
             "data": {
-                "reference": f"pack_secure_{uuid.uuid4().hex[:8]}",
+                "reference": reference,
                 "amount": 200000,
                 "currency": "NGN",
+                "status": "success",
                 "metadata": {
+                    "type": "bagg_billing_checkout",
+                    "billing_checkout_id": stored.id,
                     "workspace_id": workspace_id,
-                    "type": "credit_pack",
-                    "credits": 200,
+                    "purchase_type": "credit_pack",
+                    "pack": "200_credits",
                 },
             },
         }

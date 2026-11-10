@@ -10,7 +10,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { Check, Clock, Plus, Repeat, UserPlus, X } from 'lucide-react';
+import { ArrowsClockwise, Check, Clock, Plus, UserPlus, X } from '@phosphor-icons/react';
 import { BagCharacter } from '@/components/brand';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
 import { LineItemsEditor } from '@/components/invoice';

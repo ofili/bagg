@@ -73,6 +73,9 @@ class Quote(Base):
     # Delivery & Tracking (US-QOT-02)
     sent_at = Column(DateTime(timezone=True), nullable=True)
     viewed_at = Column(DateTime(timezone=True), nullable=True)
+    # None = never dispatched or reset by revision.
+    # queued, delivered, failed, no_email, link_shared.
+    # See app.domains.documents.delivery.DocumentDeliveryStatus.
     email_delivery_status = Column(String, nullable=True)
 
     # Acceptance / Decline (US-QOT-02)

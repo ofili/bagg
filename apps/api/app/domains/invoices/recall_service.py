@@ -8,6 +8,7 @@ from app.core.errors import BadRequestException, NotFoundException
 from app.domains.invoices.models import Invoice
 from app.domains.invoices.recall_models import InvoiceDocumentVersion
 from app.domains.invoices.repository import InvoiceRepository
+from app.integrations.email_outbox import supersede_active_document_emails
 
 from app.domains.reminders.service import cancel_invoice_reminders
 from app.domains.lifecycle.service import record_status_event
@@ -216,6 +217,15 @@ class InvoiceRecallService:
         invoice.sent_at = None
         invoice.viewed_at = None
         invoice.email_delivery_status = None
+
+        # Cancel an in-flight email before it can deliver a link that is no
+        # longer valid. SKIP LOCKED inside the helper avoids waiting on the
+        # email worker while this request holds the invoice row lock.
+        await supersede_active_document_emails(
+            db,
+            message_type="invoice_email",
+            aggregate_id=invoice.id,
+        )
 
         invoice.last_recalled_at = now
         invoice.last_recalled_by_user_id = actor_user_id

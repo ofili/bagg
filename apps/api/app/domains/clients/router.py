@@ -306,19 +306,8 @@ async def get_client(
 
         repository = ClientRepository(db)
 
-        client = await repository.get_client(
-            workspace_id,
-            client.id,
-        )
-
-        if client is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Client not found",
-            )
-
         summaries = await repository.get_financial_summaries(
-            workspace_id,
+            client.workspace_id,
             [client.id],
         )
 
@@ -350,19 +339,8 @@ async def update_client(
 
         repository = ClientRepository(db)
 
-        client = await repository.get_client(
-            workspace_id,
-            client.id,
-        )
-
-        if client is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Client not found",
-            )
-
         summaries = await repository.get_financial_summaries(
-            workspace_id,
+            client.workspace_id,
             [client.id],
         )
 

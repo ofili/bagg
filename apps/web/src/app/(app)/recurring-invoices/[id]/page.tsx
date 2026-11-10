@@ -4,21 +4,21 @@ import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  AlertCircle,
+  ArrowCounterClockwise,
   ArrowLeft,
+  ArrowSquareOut,
   Calendar,
-  CheckCircle2,
+  CheckCircle,
+  CircleNotch,
   Clock,
-  ExternalLink,
   FileText,
-  Loader2,
   Pause,
   Play,
-  RotateCcw,
   StopCircle,
   User,
+  WarningCircle,
   X,
-} from 'lucide-react';
+} from '@phosphor-icons/react';
 
 import {
   Button,
@@ -201,7 +201,7 @@ export default function RecurringScheduleDetailPage({
   if (loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-text-muted" />
+        <CircleNotch className="h-8 w-8 animate-spin text-text-muted" />
       </div>
     );
   }
@@ -209,7 +209,7 @@ export default function RecurringScheduleDetailPage({
   if (error || !schedule) {
     return (
       <div className="mx-auto max-w-xl p-8 text-center">
-        <AlertCircle className="mx-auto h-12 w-12 text-danger" />
+        <WarningCircle className="mx-auto h-12 w-12 text-danger" />
         <h2 className="mt-4 text-heading font-black text-ink">Schedule not found</h2>
         <p className="mt-1 text-body text-text-soft">{error}</p>
         <div className="mt-6">
@@ -217,7 +217,8 @@ export default function RecurringScheduleDetailPage({
             href="/recurring-invoices"
             className={buttonStyles({ variant: 'outline' })}
           >
-            Back to recurring schedules
+            <ArrowLeft aria-hidden className="h-4 w-4" />
+            All recurring
           </Link>
         </div>
       </div>
@@ -233,22 +234,16 @@ export default function RecurringScheduleDetailPage({
   const totalMinor = subtotalMinor + taxMinor - whtMinor;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6">
-      {/* Back button */}
-      <div>
-        <Link
-          href="/recurring-invoices"
-          className="inline-flex items-center gap-1.5 text-caption font-bold text-text-soft hover:text-ink"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to recurring schedules
-        </Link>
-      </div>
-
-      {/* Top Header Card */}
-      <div className="flex flex-col justify-between gap-4 rounded-card border-brut bg-surface p-6 shadow-brut-sm sm:flex-row sm:items-center">
+    <div className="mx-auto max-w-5xl space-y-6 p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-title-l font-black text-ink">{schedule.name}</h1>
+          <Link href="/recurring-invoices" className={buttonStyles({ variant: 'outline' })}>
+            <ArrowLeft aria-hidden className="h-4 w-4" />
+            All recurring
+          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-title-l sm:text-display">{schedule.name}</h1>
             <span
               className={cn(
                 'rounded-full border px-2.5 py-0.5 text-caption font-black uppercase tracking-wider',
@@ -263,8 +258,8 @@ export default function RecurringScheduleDetailPage({
             </span>
           </div>
 
-          <p className="text-body text-text-soft">
-            Client:{' '}
+          <p className="flex flex-wrap items-center gap-2 text-body text-text-soft">
+            <span>Client:</span>
             {client ? (
               <Link
                 href={`/clients/${client.id}`}
@@ -275,10 +270,10 @@ export default function RecurringScheduleDetailPage({
             ) : (
               <span className="font-bold text-ink">Client</span>
             )}
-            {' • '}
-            <span>Frequency: {schedule.frequency}</span>
-            {' • '}
-            <span>Mode: {schedule.issue_mode === 'auto_issue' ? 'Auto issue' : 'Draft lead'}</span>
+            <span>·</span>
+            <span>Frequency: <strong className="font-bold text-ink capitalize">{schedule.frequency}</strong></span>
+            <span>·</span>
+            <span>Mode: <strong className="font-bold text-ink">{schedule.issue_mode === 'auto_issue' ? 'Auto issue' : 'Draft review'}</strong></span>
           </p>
         </div>
 
@@ -319,7 +314,7 @@ export default function RecurringScheduleDetailPage({
       {/* Metric Cards */}
       <div className="grid gap-4 sm:grid-cols-4">
         <Card className="p-4">
-          <p className="text-caption font-bold text-text-soft">Cycle Value</p>
+          <p className="text-caption font-bold text-text-soft">Cycle value</p>
           <Money
             amountMinor={totalMinor}
             currency={schedule.currency}
@@ -329,33 +324,39 @@ export default function RecurringScheduleDetailPage({
         </Card>
 
         <Card className="p-4">
-          <p className="text-caption font-bold text-text-soft">Next Run Date</p>
+          <p className="text-caption font-bold text-text-soft">Next run date</p>
           <p className="mt-1 text-title font-black text-ink">
             {formatDate(schedule.next_run_date)}
           </p>
           <p className="text-[12px] text-text-muted">
-            Lead: {schedule.draft_lead_days} days draft
+            {schedule.draft_lead_days} days draft lead
           </p>
         </Card>
 
         <Card className="p-4">
-          <p className="text-caption font-bold text-text-soft">Generated Invoices</p>
+          <p className="text-caption font-bold text-text-soft">Invoices created</p>
           <p className="mt-1 text-title font-black text-ink">
             {schedule.generated_count}
           </p>
-          <p className="text-[12px] text-text-muted">total created</p>
+          <p className="text-[12px] text-text-muted">total cycles run</p>
         </Card>
 
         <Card className="p-4">
-          <p className="text-caption font-bold text-text-soft">End Condition</p>
+          <p className="text-caption font-bold text-text-soft">End condition</p>
           <p className="mt-1 text-title font-black text-ink">
             {schedule.end_rule === 'never'
-              ? 'Never'
+              ? 'Ongoing'
               : schedule.end_rule === 'after_count'
               ? `${schedule.end_after_count} runs`
               : formatDate(schedule.end_date ?? '')}
           </p>
-          <p className="text-[12px] text-text-muted">rule: {schedule.end_rule}</p>
+          <p className="text-[12px] text-text-muted">
+            {schedule.end_rule === 'never'
+              ? 'until cancelled'
+              : schedule.end_rule === 'after_count'
+              ? `${schedule.generated_count} of ${schedule.end_after_count} completed`
+              : 'stops on end date'}
+          </p>
         </Card>
       </div>
 
@@ -421,7 +422,9 @@ export default function RecurringScheduleDetailPage({
             <FileText className="mx-auto h-8 w-8 text-text-muted" />
             <p className="mt-2 font-bold text-ink">No invoices generated yet</p>
             <p className="mt-1 text-caption text-text-soft">
-              The first invoice draft will be generated on {formatDate(schedule.next_run_date)}.
+              {schedule.issue_mode === 'auto_issue'
+                ? `Bagg will automatically generate, finalize, and email the first invoice on ${formatDate(schedule.next_run_date)}.`
+                : `The first draft invoice will be automatically created on ${formatDate(schedule.next_run_date)} for your review.`}
             </p>
           </div>
         ) : (
@@ -452,7 +455,7 @@ export default function RecurringScheduleDetailPage({
                     className="text-amount-s font-bold"
                   />
                   <StatusPill status={occ.invoice_status} />
-                  <ExternalLink className="h-4 w-4 text-text-muted" />
+                  <ArrowSquareOut className="h-4 w-4 text-text-muted" />
                 </div>
               </Link>
             ))}

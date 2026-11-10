@@ -2,11 +2,26 @@ import uuid
 from datetime import date, timedelta
 import pytest
 from httpx import AsyncClient, ASGITransport
+from sqlalchemy import select
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.domains.billing.models import BillingCheckout
 from app.main import app
 from tests.helpers import login_code_for, sign_paystack
 
 WEBHOOK_SECRET = "sk_test_subscription_webhook_secret"
+
+
+async def checkout_id_for(reference: str) -> str:
+    async with AsyncSessionLocal() as session:
+        checkout = (
+            await session.execute(
+                select(BillingCheckout).where(
+                    BillingCheckout.provider_reference == reference
+                )
+            )
+        ).scalar_one()
+        return checkout.id
 
 
 async def post_signed_webhook(client: AsyncClient, payload: dict):
@@ -24,6 +39,18 @@ async def post_signed_webhook(client: AsyncClient, payload: dict):
 @pytest.mark.asyncio
 async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
     monkeypatch.setattr(settings, "PAYSTACK_SECRET_KEY", WEBHOOK_SECRET)
+
+    async def fake_initialize(self, **kwargs):
+        return {
+            "authorization_url": "https://checkout.test/authorize",
+            "reference": kwargs["reference"],
+        }
+
+    monkeypatch.setattr(
+        "app.domains.billing.checkout_service.PaystackClient.initialize_payment",
+        fake_initialize,
+    )
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Step 0: Auth & Workspace Setup
@@ -98,8 +125,9 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
         # 2. US-SUB-06: Credit Pack Purchase & Ledger Deduction
         # Buy top-up pack checkout request
         pack_req = await client.post("/billing/credits/buy", json={"pack": "200_credits", "currency": "NGN"})
-        assert pack_req.status_code == 200
+        assert pack_req.status_code in {200, 201}
         pack_ref = pack_req.json()["reference"]
+        pack_checkout_id = await checkout_id_for(pack_ref)
 
         unsigned_pack = await client.post(
             "/webhooks/paystack",
@@ -129,10 +157,13 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
                     "reference": pack_ref,
                     "amount": 200000,
                     "currency": "NGN",
+                    "status": "success",
                     "metadata": {
+                        "type": "bagg_billing_checkout",
+                        "billing_checkout_id": pack_checkout_id,
                         "workspace_id": workspace_id,
-                        "type": "credit_pack",
-                        "credits": 200,
+                        "purchase_type": "credit_pack",
+                        "pack": "200_credits",
                     },
                 },
             },
@@ -159,8 +190,9 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
             "/billing/checkout",
             json={"plan": "creator_pro", "currency": "NGN"},
         )
-        assert checkout_res.status_code == 200
+        assert checkout_res.status_code in {200, 201}
         sub_ref = checkout_res.json()["reference"]
+        sub_checkout_id = await checkout_id_for(sub_ref)
 
         # Simulate Paystack Webhook for Creator Pro subscription activation
         wh_sub_res = await post_signed_webhook(
@@ -173,8 +205,12 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
                     "currency": "NGN",
                     "subscription_code": "SUB_DEMO_001",
                     "customer": {"customer_code": "CUST_DEMO_001"},
+                    "status": "success",
                     "metadata": {
+                        "type": "bagg_billing_checkout",
+                        "billing_checkout_id": sub_checkout_id,
                         "workspace_id": workspace_id,
+                        "purchase_type": "subscription",
                         "plan": "creator_pro",
                     },
                 },

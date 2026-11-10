@@ -360,6 +360,9 @@ export default function SettingsPage() {
         payload,
         action: 'create',
       });
+      if (stepUpData.code) {
+        setStepUpCode(stepUpData.code);
+      }
       setShowStepUpModal(true);
     } catch (err) {
       setProfileError(errorText(err, 'we could not save that payment detail. Check it and try again.'));
@@ -401,6 +404,9 @@ export default function SettingsPage() {
         action: 'delete',
         profileId: profile.id,
       });
+      if (stepUpData.code) {
+        setStepUpCode(stepUpData.code);
+      }
       setShowStepUpModal(true);
     } catch (err) {
       setError(errorText(err, 'we could not delete that payment detail. Try again.'));
@@ -540,6 +546,9 @@ export default function SettingsPage() {
         action: 'delete_account',
       });
       setShowDeleteModal(false);
+      if (stepUpData.code) {
+        setStepUpCode(stepUpData.code);
+      }
       setShowStepUpModal(true);
     } catch (err) {
       setDeleteError(errorText(err, 'we could not delete your account. Try again.'));

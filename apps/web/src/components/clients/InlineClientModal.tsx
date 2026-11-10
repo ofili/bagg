@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, UserRound } from 'lucide-react';
+import { Buildings, User } from '@phosphor-icons/react';
 import { BaggSelect, Button, Dialog, Field, Input } from '@/components/ui';
 import { cn } from '@/lib/cn';
 
@@ -132,7 +132,7 @@ export function InlineClientModal({
                   : 'border-line bg-surface text-text-soft hover:bg-surface-tint',
               )}
             >
-              <UserRound className="h-4 w-4" /> Individual
+              <User className="h-4 w-4" /> Individual
             </button>
             <button
               type="button"
@@ -144,7 +144,7 @@ export function InlineClientModal({
                   : 'border-line bg-surface text-text-soft hover:bg-surface-tint',
               )}
             >
-              <Building2 className="h-4 w-4" /> Business
+              <Buildings className="h-4 w-4" /> Business
             </button>
           </div>
         </div>

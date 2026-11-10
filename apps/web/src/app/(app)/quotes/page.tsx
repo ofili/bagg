@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, CheckCircle2, MessageSquare, Plus } from 'lucide-react';
+import { CheckCircle, ChatDots, Plus, WarningCircle } from '@phosphor-icons/react';
 import { BagCharacter } from '@/components/brand';
 import { type QuoteCardData } from '@/components/mobile/QuoteCard';
 import { QuoteRow } from '@/components/mobile/QuoteRow';
@@ -206,7 +206,7 @@ export default function QuotesPage() {
               title={`${quote.comment_count} comment${(quote.comment_count ?? 0) > 1 ? 's' : ''}`}
               className="inline-flex items-center gap-1 rounded border border-border bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
             >
-              <MessageSquare className="h-3 w-3 text-ink-muted" />
+              <ChatDots className="h-3 w-3 text-ink-muted" />
               <span>{quote.comment_count}</span>
             </span>
           )}
@@ -390,9 +390,9 @@ export default function QuotesPage() {
           }
         >
           {notice.kind === 'error' ? (
-            <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+            <WarningCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
           ) : (
-            <CheckCircle2 aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+            <CheckCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
           )}
           <span>{notice.text}</span>
         </div>

@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
+  ChatDots,
+  CheckCircle,
+  CircleNotch,
   Plus,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
+  WarningCircle,
   X,
-  MessageSquare,
-} from 'lucide-react';
+} from '@phosphor-icons/react';
 
 import {
   Sheet,
@@ -456,7 +456,7 @@ export default function InvoicesPage() {
                     title={`${invoice.comment_count} comment${(invoice.comment_count ?? 0) > 1 ? 's' : ''}`}
                     className="inline-flex items-center gap-1 rounded border border-border bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
                 >
-              <MessageSquare className="h-3 w-3 text-ink-muted" />
+              <ChatDots className="h-3 w-3 text-ink-muted" />
               <span>{invoice.comment_count}</span>
             </span>
             )}
@@ -676,7 +676,7 @@ export default function InvoicesPage() {
                 className="flex flex-wrap items-center justify-between gap-3"
             >
               <p className="flex items-center gap-2 text-body">
-                <AlertCircle
+                <WarningCircle
                     aria-hidden
                     className="h-4 w-4 shrink-0"
                 />
@@ -816,7 +816,7 @@ export default function InvoicesPage() {
                           role="status"
                           className="flex justify-center py-6 text-text-muted"
                       >
-                        <Loader2
+                        <CircleNotch
                             aria-hidden
                             className="h-6 w-6 animate-spin"
                         />
@@ -908,7 +908,7 @@ export default function InvoicesPage() {
                                                 void handleConfirmFull(claim.id)
                                             }
                                         >
-                                          <CheckCircle2
+                                          <CheckCircle
                                               aria-hidden
                                               className="h-4 w-4"
                                           />

@@ -15,6 +15,7 @@ class StepUpRequestResponse(BaseModel):
     operation_id: str
     expires_in_seconds: int
     message: str
+    code: Optional[str] = None
 
 
 class StepUpVerifyRequest(BaseModel):
