@@ -60,6 +60,8 @@ def _client_response(
         (item for item in summaries if item["currency"] == client.preferred_currency),
         None,
     )
+    if preferred is None and summaries:
+        preferred = summaries[0]
 
     preferred = preferred or {
         "currency": client.preferred_currency,

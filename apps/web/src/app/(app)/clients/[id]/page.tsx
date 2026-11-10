@@ -173,7 +173,7 @@ function formatCompactAmount(amountMinor: number, currency: string): string {
     const val = (abs / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 2).replace(/\.00$/, '');
     return `${sign}${symbol}${val}M`;
   }
-  if (abs >= 10_000) {
+  if (abs >= 1_000) {
     const val = (abs / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1).replace(/\.0$/, '');
     return `${sign}${symbol}${val}K`;
   }
@@ -191,7 +191,7 @@ function formatFullAmount(amountMinor: number, currency: string): string {
   return `${sign}${symbol}${abs.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })} ${currency}`;
+  })}`;
 }
 
 export default function ClientDetailPage() {
@@ -559,10 +559,35 @@ export default function ClientDetailPage() {
 
       {/* Mini Financial Dashboard */}
       {(() => {
-        const totalInvoiced = client.total_invoiced_minor || 0;
-        const totalPaid = client.total_paid_minor || 0;
-        const totalOutstanding = client.total_outstanding_minor || 0;
-        const invoiceCount = client.invoice_count || 0;
+        const invoicedFromList = invoices.reduce((sum, inv) => sum + (inv.total_minor || 0), 0);
+        const paidFromList = invoices.reduce((sum, inv) => sum + (inv.amount_paid_minor || 0), 0);
+        const outstandingFromList = invoices.reduce(
+          (sum, inv) => sum + Math.max(0, (inv.total_minor || 0) - (inv.amount_paid_minor || 0)),
+          0,
+        );
+
+        const totalInvoiced =
+          client.total_invoiced_minor && client.total_invoiced_minor > 0
+            ? client.total_invoiced_minor
+            : invoicedFromList;
+
+        const totalPaid =
+          client.total_paid_minor && client.total_paid_minor > 0
+            ? client.total_paid_minor
+            : paidFromList;
+
+        const totalOutstanding =
+          client.total_outstanding_minor && client.total_outstanding_minor > 0
+            ? client.total_outstanding_minor
+            : totalInvoiced > 0
+            ? Math.max(0, totalInvoiced - totalPaid)
+            : outstandingFromList;
+
+        const invoiceCount =
+          client.invoice_count && client.invoice_count > 0
+            ? client.invoice_count
+            : invoices.length;
+
         const paidPercentage =
           totalInvoiced > 0
             ? Math.min(100, Math.round((totalPaid / totalInvoiced) * 100))

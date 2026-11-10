@@ -6,6 +6,8 @@ interface MoneyProps {
   variant?: 'total' | 'paid' | 'outstanding' | 'muted' | 'negative' | 'inherit';
   className?: string;
   hideCurrencyCode?: boolean;
+  showCurrencyCode?: boolean;
+  compact?: boolean;
   nowrap?: boolean;
 }
 
@@ -19,27 +21,50 @@ const CURRENCY_SYMBOLS: Record<string, { symbol: string; decimals: number }> = {
   ZAR: { symbol: 'R', decimals: 2 },
 };
 
+function formatCompact(major: number): string {
+  const abs = Math.abs(major);
+  if (abs >= 1_000_000_000) {
+    const val = (abs / 1_000_000_000).toFixed(abs % 1_000_000_000 === 0 ? 0 : 2).replace(/\.00$/, '');
+    return `${val}B`;
+  }
+  if (abs >= 1_000_000) {
+    const val = (abs / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 2).replace(/\.00$/, '');
+    return `${val}M`;
+  }
+  if (abs >= 1_000) {
+    const val = (abs / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1).replace(/\.0$/, '');
+    return `${val}K`;
+  }
+  return abs.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function Money({
   amountMinor,
   currency,
   variant = 'total',
   className = '',
-  hideCurrencyCode = false,
+  hideCurrencyCode = true,
+  showCurrencyCode = false,
+  compact = false,
   nowrap = true,
 }: MoneyProps) {
-  const conf = CURRENCY_SYMBOLS[currency] || { symbol: currency, decimals: 2 };
+  const conf = CURRENCY_SYMBOLS[currency] || { symbol: currency ? `${currency} ` : '', decimals: 2 };
   const major = (amountMinor || 0) / 100;
   const isNegative = major < 0;
   const absMajor = Math.abs(major);
 
   // Fixed locale so server and client render the same string (no hydration mismatch)
-  const formatted = absMajor.toLocaleString('en-US', {
+  const fullFormatted = absMajor.toLocaleString('en-US', {
     minimumFractionDigits: conf.decimals,
     maximumFractionDigits: conf.decimals,
   });
 
+  const formatted = compact ? formatCompact(absMajor) : fullFormatted;
   const sign = isNegative ? '−' : '';
-  const currencyCode = hideCurrencyCode ? '' : ` ${currency}`;
+  const currencyCode = showCurrencyCode ? ` ${currency}` : '';
 
   // Green means paid, nothing else. Outstanding amounts stay in the normal text colour.
   const variantClass =
@@ -55,6 +80,7 @@ export function Money({
 
   return (
     <span
+      title={compact ? `${sign}${conf.symbol}${fullFormatted}` : undefined}
       className={`tabular-nums font-extrabold ${nowrap ? 'whitespace-nowrap' : ''} ${variantClass} ${className}`}
     >
       {sign}{conf.symbol}{formatted}{currencyCode}
