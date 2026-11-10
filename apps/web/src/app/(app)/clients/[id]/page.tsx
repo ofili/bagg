@@ -33,11 +33,13 @@ import {
   BaggSelect,
   Button,
   Card,
+  DataTable,
   Field,
   Input,
   buttonStyles,
 } from '@/components/ui';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
+import { useDataTable } from '@/hooks/useDataTable';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 

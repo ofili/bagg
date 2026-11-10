@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, ChevronRight, FileCheck, FileText, UserPlus } from 'lucide-react';
+import { ArrowClockwiseIcon } from '@phosphor-icons/react';
 import { BagCharacter } from '@/components/brand';
 import { SetupChecklist } from "@/components/mobile/SetupChecklist";
 import { Money } from '@/components/money/Money';
@@ -160,6 +161,7 @@ const QUICK = [
   { label: 'Invoice', href: '/invoices/new', icon: FileText },
   { label: 'Quote', href: '/quotes/new', icon: FileCheck },
   { label: 'Client', href: '/clients/new', icon: UserPlus },
+  { label: 'Recurring', href: '/recurring-invoices', icon: ArrowClockwiseIcon }
 ] as const;
 
 export default function DashboardPage() {
@@ -303,7 +305,7 @@ export default function DashboardPage() {
                 )}
               </Card>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {QUICK.map((q) => {
                   const Icon = q.icon;
                   return (

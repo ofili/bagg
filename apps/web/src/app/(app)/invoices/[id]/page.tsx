@@ -4,27 +4,27 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
-  ArrowCounterClockwise,
-  ArrowLeft,
-  ArrowsClockwise,
-  ArrowSquareOut,
-  ArrowUUpLeft,
-  Bell,
-  ChatCircle,
-  Check,
-  CheckCircle,
-  CircleNotch,
-  ClockCounterClockwise,
-  Copy,
-  DownloadSimple,
-  FileText,
-  Pencil,
-  Receipt,
-  Scroll,
-  ShareNetwork,
-  WarningCircle,
-  X,
-  XCircle,
+  ArrowCounterClockwiseIcon,
+  ArrowLeftIcon,
+  ArrowsClockwiseIcon,
+  ArrowSquareOutIcon,
+  ArrowUUpLeftIcon,
+  BellIcon,
+  ChatCircleIcon,
+  CheckIcon,
+  CheckCircleIcon,
+  CircleNotchIcon,
+  ClockCounterClockwiseIcon,
+  CopyIcon,
+  DownloadSimpleIcon,
+  FileTextIcon,
+  PencilIcon,
+  ReceiptIcon,
+  ScrollIcon,
+  ShareNetworkIcon,
+  WarningCircleIcon,
+  XIcon,
+  XCircleIcon,
 } from '@phosphor-icons/react';
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { InvoiceDocument, LineItemsEditor, type LineItem } from '@/components/invoice';
@@ -789,7 +789,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
         role="status"
         className="flex min-h-[50vh] items-center justify-center text-text-muted"
       >
-        <CircleNotch aria-hidden className="h-6 w-6 animate-spin" />
+        <CircleNotchIcon aria-hidden className="h-6 w-6 animate-spin" />
         <span className="sr-only">Loading invoice</span>
       </div>
     );
@@ -802,7 +802,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
           zone="calm"
           className="mx-auto max-w-lg space-y-3 p-8 text-center"
         >
-          <WarningCircle aria-hidden className="mx-auto h-9 w-9" />
+          <WarningCircleIcon aria-hidden className="mx-auto h-9 w-9" />
           <h1 className="text-title">invoice unavailable</h1>
           <p className="text-body text-text-soft">
             {error || 'Invoice not found.'}
@@ -811,7 +811,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
             href="/invoices"
             className={buttonStyles({ variant: 'outline' })}
           >
-            <ArrowLeft aria-hidden className="h-4 w-4" />
+            <ArrowLeftIcon aria-hidden className="h-4 w-4" />
             Back to invoices
           </Link>
         </Card>
@@ -855,7 +855,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <Link href="/invoices" className={buttonStyles({ variant: 'outline' })}>
-            <ArrowLeft aria-hidden className="h-4 w-4" />
+            <ArrowLeftIcon aria-hidden className="h-4 w-4" />
             All invoices
           </Link>
 
@@ -879,7 +879,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                 className="inline-flex items-center gap-1.5 rounded-full border border-ink bg-sun/40 px-2.5 py-0.5 text-caption font-bold text-ink hover:bg-sun transition-colors"
                 title="View recurring schedule"
               >
-                <ArrowsClockwise aria-hidden className="h-3.5 w-3.5" />
+                <ArrowsClockwiseIcon aria-hidden className="h-3.5 w-3.5" />
                 <span>{invoice.recurring_label || 'Recurring'}</span>
               </Link>
             )}
@@ -922,9 +922,9 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                 onClick={copyShareLink}
               >
                 {copied ? (
-                  <Check aria-hidden className="h-4 w-4" />
+                  <CheckIcon aria-hidden className="h-4 w-4" />
                 ) : (
-                  <Copy aria-hidden className="h-4 w-4" />
+                  <CopyIcon aria-hidden className="h-4 w-4" />
                 )}
                 {copied ? 'Copied' : 'Copy link'}
               </Button>
@@ -937,7 +937,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                   zone: 'calm',
                 })}
               >
-                <ArrowSquareOut aria-hidden className="h-4 w-4" />
+                <ArrowSquareOutIcon aria-hidden className="h-4 w-4" />
                 Client view
               </Link>
 
@@ -951,7 +951,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                     zone: 'calm',
                   })}
                 >
-                  <ShareNetwork aria-hidden className="h-4 w-4" />
+                  <ShareNetworkIcon aria-hidden className="h-4 w-4" />
                   WhatsApp
                 </a>
               )}
@@ -964,7 +964,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
               variant={pendingClaims.length > 0 ? 'outline' : 'primary'}
               onClick={openReceiptModal}
             >
-              <Receipt aria-hidden className="h-4 w-4" />
+              <ReceiptIcon aria-hidden className="h-4 w-4" />
               Record payment
             </Button>
           )}
@@ -980,7 +980,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                 zone: 'calm',
               })}
             >
-              <DownloadSimple aria-hidden className="h-4 w-4" />
+              <DownloadSimpleIcon aria-hidden className="h-4 w-4" />
               PDF
             </a>
           )}
@@ -992,7 +992,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
               loading={nudgingWhatsApp}
               onClick={handleWhatsAppNudge}
             >
-              <ChatCircle aria-hidden className="h-4 w-4" />
+              <ChatCircleIcon aria-hidden className="h-4 w-4" />
               Nudge
             </Button>
           )}
@@ -1003,7 +1003,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
               zone="calm"
               onClick={() => setShowRecallDialog(true)}
             >
-              <ArrowUUpLeft aria-hidden className="h-4 w-4" />
+              <ArrowUUpLeftIcon aria-hidden className="h-4 w-4" />
               Recall
             </Button>
           )}
@@ -1017,7 +1017,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                 setShowWhtDialog(true);
               }}
             >
-              <Scroll aria-hidden className="h-4 w-4" />
+              <ScrollIcon aria-hidden className="h-4 w-4" />
               {invoice.wht_credit_note_number ? 'WHT ref' : 'Record WHT'}
             </Button>
           )}
@@ -1030,7 +1030,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
               onClick={handleRegenerateShareLink}
               title="Generate a new public link"
             >
-              <ArrowCounterClockwise aria-hidden className="h-4 w-4" />
+              <ArrowCounterClockwiseIcon aria-hidden className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -1048,7 +1048,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
             onClick={() => setActionError(null)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn"
           >
-            <X aria-hidden className="h-5 w-5" />
+            <XIcon aria-hidden className="h-5 w-5" />
           </button>
         </div>
       )}
@@ -1065,7 +1065,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
             onClick={() => setActionNotice(null)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn"
           >
-            <X aria-hidden className="h-5 w-5" />
+            <XIcon aria-hidden className="h-5 w-5" />
           </button>
         </div>
       )}
@@ -1122,7 +1122,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                           setRejectClaimReason('');
                         }}
                       >
-                        <XCircle aria-hidden className="h-4 w-4" />
+                        <XCircleIcon aria-hidden className="h-4 w-4" />
                         Reject
                       </Button>
                       <Button
@@ -1130,7 +1130,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                         loading={confirmingClaimId === claim.id}
                         onClick={() => void handleConfirmClaim(claim)}
                       >
-                        <CheckCircle aria-hidden className="h-4 w-4" />
+                        <CheckCircleIcon aria-hidden className="h-4 w-4" />
                         Confirm funds
                       </Button>
                     </div>
@@ -1169,7 +1169,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
 
             {!receiptsError && receipts.length === 0 ? (
               <div className="rounded-row border border-dashed border-line-subtle p-5">
-                <Receipt
+                <ReceiptIcon
                   aria-hidden
                   className="h-6 w-6 text-text-muted"
                 />
@@ -1187,7 +1187,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                   >
                     <div className="flex min-w-0 items-start gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-row bg-peach">
-                        <Receipt aria-hidden className="h-5 w-5" />
+                        <ReceiptIcon aria-hidden className="h-5 w-5" />
                       </div>
 
                       <div className="min-w-0">
@@ -1246,7 +1246,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                   <h2 className="text-heading">revision history</h2>
                   <p className="text-body text-text-soft">Prior snapshots of this invoice.</p>
                 </div>
-                <ClockCounterClockwise aria-hidden className="h-5 w-5 text-text-muted" />
+                <ClockCounterClockwiseIcon aria-hidden className="h-5 w-5 text-text-muted" />
               </div>
               <ul className="divide-y divide-line-subtle">
                 {revisions.map((rev) => (
@@ -1272,7 +1272,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                   <h2 className="text-heading">automated reminders</h2>
                   <p className="text-body text-text-soft">Scheduled and sent payment nudges.</p>
                 </div>
-                <Bell aria-hidden className="h-5 w-5 text-text-muted" />
+                <BellIcon aria-hidden className="h-5 w-5 text-text-muted" />
               </div>
               <ul className="divide-y divide-line-subtle text-caption">
                 {reminders.map((r) => (
@@ -1312,7 +1312,7 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                 fullWidth: true,
               })}
             >
-              <FileText aria-hidden className="h-4 w-4" />
+              <FileTextIcon aria-hidden className="h-4 w-4" />
               Official receipt
             </Link>
           )}

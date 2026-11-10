@@ -39,6 +39,11 @@ export const metadata: Metadata = {
     'apple-mobile-web-app-status-bar-style': 'default',
     'format-detection': 'telephone=no',
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Bagg | Invoice like a pro. Get paid without chasing.'
+  }
 };
 
 export default function RootLayout({

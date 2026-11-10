@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CreditCard, X } from '@phosphor-icons/react';
+import { ArrowLeftIcon, CreditCardIcon, XIcon } from '@phosphor-icons/react';
 import { InvoiceDocument, LineItemsEditor } from '@/components/invoice';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { NewInvoiceFlow } from '@/components/mobile/NewInvoiceFlow';
@@ -39,7 +39,7 @@ export default function NewInvoicePage() {
         <div className="hidden w-full max-w-3xl space-y-6 p-4 pb-24 sm:block sm:space-y-6 sm:p-6 sm:pb-16 lg:p-8">
           <div className="space-y-2">
             <Link href="/invoices" className={buttonStyles({ variant: 'outline' })}>
-              <ArrowLeft aria-hidden className="h-4 w-4" />
+              <ArrowLeftIcon aria-hidden className="h-4 w-4" />
               Back to invoices
             </Link>
             <h1 className="text-title-l sm:text-display">new invoice</h1>
@@ -57,7 +57,7 @@ export default function NewInvoicePage() {
                     onClick={() => draft.setErrorMsg(null)}
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn"
                 >
-                  <X aria-hidden className="h-5 w-5" />
+                  <XIcon aria-hidden className="h-5 w-5" />
                 </button>
               </div>
           )}
@@ -70,7 +70,7 @@ export default function NewInvoicePage() {
                   where to pay.
                 </p>
                 <Link href="/settings" className={buttonStyles({ variant: 'link' })}>
-                  <CreditCard aria-hidden className="h-4 w-4" /> Add {draft.currency} details in settings
+                  <CreditCardIcon aria-hidden className="h-4 w-4" /> Add {draft.currency} details in settings
                 </Link>
               </Card>
           )}
