@@ -196,15 +196,17 @@ async def send_quote(
 
     if outcome.email_sent:
         message = f"Quote {quote_obj.quote_number} emailed successfully."
+    elif outcome.email_queued:
+        message = (
+            f"Quote {quote_obj.quote_number} has been queued for email delivery."
+        )
     elif send_email and not outcome.recipient_email:
         message = (
             "Quote status updated, but no email was sent because the client "
             "has no email address on record. Add an email or share via WhatsApp."
         )
     elif send_email:
-        message = (
-            "Quote marked sent, but email delivery failed. Share the link instead."
-        )
+        message = "Email delivery was not queued. Please retry."
     else:
         message = f"Quote {quote_obj.quote_number} is ready to share."
 
@@ -213,6 +215,7 @@ async def send_quote(
         workspace,
         outcome.share_url,
         email_sent=outcome.email_sent,
+        email_queued=outcome.email_queued,
         recipient_email=outcome.recipient_email,
         message=message,
     )

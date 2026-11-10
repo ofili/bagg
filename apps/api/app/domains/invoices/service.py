@@ -24,14 +24,18 @@ from app.domains.quotes.models import Quote
 from app.domains.receipts.service import confirm_payment
 from app.domains.reminders.service import schedule_invoice_reminders
 from app.domains.workspaces.models import Workspace
-from app.integrations.email import EmailSender
-
+from app.integrations.email import build_invoice_email_payload
+from app.integrations.email_outbox import (
+    enqueue_email,
+    get_active_document_email,
+)
 
 @dataclass
 class SendInvoiceOutcome:
     invoice: Invoice
     client: Client
     email_sent: bool
+    email_queued: bool
     recipient_email: Optional[str]
     share_url: str
 
@@ -584,16 +588,40 @@ async def send_invoice(
 
     recipient_email = client.email
     email_sent = False
+    email_queued = False
     dispatched = False
     is_first_dispatch = invoice.sent_at is None
-    deduct_credit = False
 
     if send_email:
         if recipient_email:
-            if is_first_dispatch:
-                deduct_credit = await check_delivery_quota(
-                    workspace,
+            existing_message = await get_active_document_email(
+                db,
+                message_type="invoice_email",
+                aggregate_id=invoice.id,
+            )
+
+            if existing_message is not None:
+                # A previous request already committed the message.
+                # Do not deduct another credit or enqueue another email.
+                email_queued = True
+            else:
+                deduct_credit = False
+
+                if is_first_dispatch:
+                    deduct_credit = await check_delivery_quota(
+                        workspace,
+                        db,
+                    )
+
+                message = enqueue_email(
                     db,
+                    message_type="invoice_email",
+                    aggregate_id=invoice.id,
+                    payload=build_invoice_email_payload(
+                        to_email=recipient_email,
+                        invoice_number=invoice.invoice_number,
+                        share_url=share_url,
+                    ),
                 )
 
                 if deduct_credit:
@@ -602,36 +630,19 @@ async def send_invoice(
                         db,
                         deduct_credit=True,
                         commit=False,
+                        reference=message.id,
                     )
 
-            email_sent = await EmailSender().send_invoice_email(
-                to_email=recipient_email,
-                invoice_number=invoice.invoice_number,
-                share_url=share_url,
-            )
+                email_queued = True
 
-            dispatched = email_sent
+            dispatched = True
+            invoice.email_delivery_status = "queued"
 
-            if email_sent:
-                invoice.email_delivery_status = "delivered"
-            else:
-                invoice.email_delivery_status = "failed"
-
-                if deduct_credit:
-                    await add_credits(
-                        workspace_id=workspace.id,
-                        amount=1,
-                        reason="send_refund",
-                        description=("Refund for failed invoice email delivery"),
-                        reference=None,
-                        db=db,
-                        commit=False,
-                    )
         else:
             invoice.email_delivery_status = "no_email"
 
     else:
-        # Explicit link/WhatsApp hand-off is treated as dispatch.
+        # Explicit link/WhatsApp hand-off is a dispatch in its own right.
         if is_first_dispatch:
             deduct_credit = await check_delivery_quota(
                 workspace,
@@ -672,14 +683,14 @@ async def send_invoice(
         )
 
     if dispatched:
-        # Do not commit here. Reminder jobs must commit atomically with
-        # the invoice dispatch state and its lifecycle event.
         await schedule_invoice_reminders(
             invoice,
             db,
             commit=False,
         )
 
+    # Invoice state, credit ledger, reminder cadence and email outbox
+    # become visible together or not at all.
     await db.commit()
     await InvoiceRepository(db).refresh(invoice)
 
@@ -687,6 +698,7 @@ async def send_invoice(
         invoice=invoice,
         client=client,
         email_sent=email_sent,
+        email_queued=email_queued,
         recipient_email=recipient_email,
         share_url=share_url,
     )

@@ -31,13 +31,18 @@ from app.domains.quotes.schemas import (
     QuoteUpdate,
 )
 from app.domains.workspaces.models import Workspace
-from app.integrations.email import EmailSender
+from app.integrations.email import build_quote_email_payload
+from app.integrations.email_outbox import (
+    enqueue_email,
+    get_active_document_email,
+)
 
 
 @dataclass
 class SendQuoteOutcome:
     quote: Quote
     email_sent: bool
+    email_queued: bool
     recipient_email: Optional[str]
     share_url: str
 
@@ -591,7 +596,11 @@ async def send_quote(
     *,
     send_email: bool = False,
 ) -> SendQuoteOutcome:
-    quote_obj = await QuoteRepository(db).get_for_update(workspace.id, quote_id)
+    quote_obj = await QuoteRepository(db).get_for_update(
+        workspace.id,
+        quote_id,
+    )
+
     if quote_obj is None:
         raise NotFoundException(f"Quote '{quote_id}' not found")
 
@@ -600,71 +609,103 @@ async def send_quote(
             f"Quote '{quote_obj.quote_number}' is a draft and cannot be sent. "
             f"Finalize it first with POST /quotes/{quote_id}/finalize."
         )
+
     if quote_obj.status not in {"issued", "sent", "viewed"}:
         raise BadRequestException(
-            f"Quote '{quote_obj.quote_number}' is '{quote_obj.status}' and cannot be sent."
+            f"Quote '{quote_obj.quote_number}' is "
+            f"'{quote_obj.status}' and cannot be sent."
         )
 
     client = quote_obj.client
     recipient_email = client.email if client else None
+
     _ensure_share_token(quote_obj)
-    share_url = f"{settings.WEB_BASE_URL}/q/{quote_obj.share_token}"
+
+    share_url = f"{settings.WEB_BASE_URL.rstrip('/')}/q/{quote_obj.share_token}"
 
     email_sent = False
+    email_queued = False
     dispatched = False
     is_first_dispatch = quote_obj.sent_at is None
 
     if send_email:
         if recipient_email:
-            deduct_credit = False
-            if is_first_dispatch:
-                deduct_credit = await check_delivery_quota(workspace, db)
+            existing_message = await get_active_document_email(
+                db,
+                message_type="quote_email",
+                aggregate_id=quote_obj.id,
+            )
+
+            if existing_message is not None:
+                email_queued = True
+            else:
+                deduct_credit = False
+
+                if is_first_dispatch:
+                    deduct_credit = await check_delivery_quota(
+                        workspace,
+                        db,
+                    )
+
+                message = enqueue_email(
+                    db,
+                    message_type="quote_email",
+                    aggregate_id=quote_obj.id,
+                    payload=build_quote_email_payload(
+                        to_email=recipient_email,
+                        quote_number=quote_obj.quote_number,
+                        share_url=share_url,
+                        business_name=workspace.business_name,
+                        client_name=client.name if client else None,
+                        formatted_total=format_money(
+                            quote_obj.total_minor,
+                            quote_obj.currency,
+                        ),
+                        expires_at=quote_obj.expires_at.strftime("%d %b %Y"),
+                    ),
+                )
+
                 if deduct_credit:
                     await consume_delivery_send(
-                        workspace, db, deduct_credit=True, commit=False
-                    )
-            email_sent = await EmailSender().send_quote_email(
-                to_email=recipient_email,
-                quote_number=quote_obj.quote_number,
-                share_url=share_url,
-                business_name=workspace.business_name,
-                client_name=client.name if client else None,
-                formatted_total=format_money(quote_obj.total_minor, quote_obj.currency),
-                expires_at=quote_obj.expires_at.strftime("%d %b %Y"),
-            )
-            dispatched = email_sent
-            if email_sent:
-                quote_obj.email_delivery_status = "delivered"
-            else:
-                quote_obj.email_delivery_status = "failed"
-                if deduct_credit:
-                    await add_credits(
-                        workspace_id=workspace.id,
-                        amount=1,
-                        reason="send_refund",
-                        description="Refund for failed quote email delivery",
-                        reference=None,
-                        db=db,
+                        workspace,
+                        db,
+                        deduct_credit=True,
                         commit=False,
+                        reference=message.id,
                     )
+
+                email_queued = True
+
+            dispatched = True
+            quote_obj.email_delivery_status = "queued"
+
         else:
             quote_obj.email_delivery_status = "no_email"
+
     else:
-        # An explicit link/WhatsApp handoff is a real dispatch: the share URL is
-        # generated and returned to the issuer for delivery.
         if is_first_dispatch:
-            deduct_credit = await check_delivery_quota(workspace, db)
+            deduct_credit = await check_delivery_quota(
+                workspace,
+                db,
+            )
+
             if deduct_credit:
                 await consume_delivery_send(
-                    workspace, db, deduct_credit=True, commit=False
+                    workspace,
+                    db,
+                    deduct_credit=True,
+                    commit=False,
                 )
+
         dispatched = True
         quote_obj.email_delivery_status = "link_shared"
 
     old_status = quote_obj.status
+
     if dispatched:
         if quote_obj.status in {"issued", "sent"}:
             quote_obj.status = "sent"
+
         if quote_obj.sent_at is None:
             quote_obj.sent_at = datetime.now(timezone.utc)
 
@@ -683,9 +724,11 @@ async def send_quote(
 
     await db.commit()
     await QuoteRepository(db).refresh(quote_obj)
+
     return SendQuoteOutcome(
         quote=quote_obj,
         email_sent=email_sent,
+        email_queued=email_queued,
         recipient_email=recipient_email,
         share_url=share_url,
     )

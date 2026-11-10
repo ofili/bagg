@@ -396,12 +396,13 @@ async def list_schedules(
     db: AsyncSession,
     workspace: Workspace,
     *,
+    client_id: str | None = None,
     schedule_status: str | None = None,
     limit: int = 25,
     offset: int = 0,
 ) -> tuple[list[RecurringInvoiceSchedule], int]:
     return await RecurringInvoiceRepository(db).list_for_workspace(
-        workspace.id, status=schedule_status, limit=limit, offset=offset
+        workspace.id, status=schedule_status, client_id=client_id, limit=limit, offset=offset
     )
 
 

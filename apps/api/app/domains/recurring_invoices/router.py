@@ -50,6 +50,7 @@ async def list_schedules(
         alias="status",
         pattern="^(active|paused|cancelled|completed)$",
     ),
+    client_id: str | None = Query(default=None),
     limit: int = Query(default=25, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     auth=Depends(get_current_user_and_workspace),
@@ -59,6 +60,7 @@ async def list_schedules(
     schedules, total = await service.list_schedules(
         db,
         workspace,
+        client_id=client_id,
         schedule_status=schedule_status,
         limit=limit,
         offset=offset,

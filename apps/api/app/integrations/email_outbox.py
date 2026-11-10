@@ -5,6 +5,8 @@ import secrets
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from sqlalchemy import select
+
 from app.core.config import settings
 
 
@@ -118,6 +120,30 @@ def enqueue_email(
     db.add(message)
 
     return message
+
+
+async def get_active_document_email(
+    db: AsyncSession,
+    *,
+    message_type: str,
+    aggregate_id: str,
+) -> EmailOutbox | None:
+    """Return an already queued or processing document email.
+
+    Callers must hold the corresponding invoice or quote row lock. That
+    serializes concurrent dispatch requests for the same document.
+    """
+    result = await db.execute(
+        select(EmailOutbox)
+        .where(
+            EmailOutbox.message_type == message_type,
+            EmailOutbox.aggregate_id == aggregate_id,
+            EmailOutbox.status.in_(["pending", "processing"]),
+        )
+        .order_by(EmailOutbox.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 async def acquire_email_issuance_lock(

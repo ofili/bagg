@@ -50,11 +50,13 @@ class RecurringInvoiceRepository(SQLAlchemyRepository[RecurringInvoiceSchedule])
         return list((await self.session.execute(statement)).scalars().all())
 
     async def list_for_workspace(
-        self, workspace_id: str, *, status: str | None, limit: int, offset: int
+        self, workspace_id: str, *, status: str | None, client_id: str | None = None, limit: int, offset: int
     ) -> tuple[list[RecurringInvoiceSchedule], int]:
         filters = [RecurringInvoiceSchedule.workspace_id == workspace_id]
         if status is not None:
             filters.append(RecurringInvoiceSchedule.status == status)
+        if client_id is not None:
+            filters.append(RecurringInvoiceSchedule.client_id == client_id)
         total = (
             await self.session.execute(
                 select(func.count(RecurringInvoiceSchedule.id)).where(*filters)

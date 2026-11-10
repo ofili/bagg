@@ -19,6 +19,7 @@ import {
   Plus,
   Printer,
   ReceiptText,
+  Repeat,
   Save,
   UserRound,
   Users,
@@ -42,7 +43,18 @@ import { cn } from '@/lib/cn';
 const API_BASE = '/api';
 
 type ClientType = 'PERSON' | 'BUSINESS';
-type ClientTab = 'overview' | 'statement' | 'invoices' | 'quotes' | 'contacts' | 'edit';
+type ClientTab = 'overview' | 'statement' | 'invoices' | 'quotes' | 'recurring' | 'contacts' | 'edit';
+
+interface ClientRecurringSchedule {
+  id: string;
+  name: string;
+  currency: string;
+  frequency: string;
+  interval: number;
+  status: 'active' | 'paused' | 'cancelled' | 'completed';
+  next_run_date: string;
+  items: { quantity: number; unit_price_minor: number; description: string }[];
+}
 
 interface Contact {
   id: string;
@@ -170,6 +182,8 @@ export default function ClientDetailPage() {
 
   const [quotes, setQuotes] = useState<ClientQuote[]>([]);
   const [quotesLoading, setQuotesLoading] = useState(false);
+  const [recurringSchedules, setRecurringSchedules] = useState<ClientRecurringSchedule[]>([]);
+  const [recurringLoading, setRecurringLoading] = useState(false);
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
@@ -267,6 +281,24 @@ export default function ClientDetailPage() {
       // Soft fail
     } finally {
       setQuotesLoading(false);
+    }
+  }, [clientId]);
+
+  const fetchRecurringSchedules = useCallback(async () => {
+    if (!clientId) return;
+    try {
+      setRecurringLoading(true);
+      const res = await fetch(`${API_BASE}/recurring-invoices?client_id=${encodeURIComponent(clientId)}&limit=50`, {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRecurringSchedules(Array.isArray(data) ? data : data.items || []);
+      }
+    } catch {
+      // Soft fail
+    } finally {
+      setRecurringLoading(false);
     }
   }, [clientId]);
 
@@ -669,6 +701,72 @@ export default function ClientDetailPage() {
                   </div>
                 </Link>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 4.5: RECURRING SCHEDULES */}
+      {activeTab === 'recurring' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-heading">Recurring schedules</h2>
+            <Link href={`/recurring-invoices/new?client_id=${client.id}`} className={buttonStyles({ zone: 'calm' })}>
+              <Plus className="h-4 w-4" /> New schedule
+            </Link>
+          </div>
+          {recurringLoading ? (
+            <div className="flex min-h-[200px] items-center justify-center text-text-muted">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : recurringSchedules.length === 0 ? (
+            <div className="rounded-card border border-dashed border-line p-8 text-center">
+              <Repeat className="mx-auto h-8 w-8 text-text-muted" />
+              <p className="mt-2 font-bold">No recurring schedules for this client</p>
+              <p className="mt-1 text-caption text-text-soft">Set up automated billing on a repeat cadence.</p>
+              <div className="mt-4">
+                <Link href={`/recurring-invoices/new?client_id=${client.id}`} className={buttonStyles({ variant: 'accent' })}>
+                  <Plus className="h-4 w-4" /> Create schedule
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recurringSchedules.map((sched) => {
+                const cycleAmount = sched.items.reduce(
+                  (sum, it) => sum + (it.quantity || 1) * (it.unit_price_minor || 0),
+                  0,
+                );
+                return (
+                  <Link
+                    key={sched.id}
+                    href={`/recurring-invoices/${sched.id}`}
+                    className="flex items-center justify-between rounded-card border border-line bg-surface p-4 transition-colors hover:border-ink hover:bg-surface-tint"
+                  >
+                    <div className="space-y-1">
+                      <p className="font-extrabold text-ink">{sched.name}</p>
+                      <p className="text-caption text-text-soft">
+                        <span className="capitalize">{sched.frequency}</span> • Next run {formatDate(sched.next_run_date)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Money amountMinor={cycleAmount} currency={sched.currency} className="text-amount-s font-bold" />
+                      <span
+                        className={cn(
+                          'rounded-full px-2.5 py-0.5 text-caption font-extrabold capitalize border',
+                          sched.status === 'active'
+                            ? 'bg-leaf text-[#052E1B] border-ink'
+                            : sched.status === 'paused'
+                            ? 'bg-sun text-[#4A3200] border-ink'
+                            : 'bg-surface-tint text-text-soft border-line',
+                        )}
+                      >
+                        {sched.status}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>

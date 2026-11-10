@@ -230,13 +230,14 @@ def map_public_quote_view(
 
 
 def map_quote_send_response(
-    quote_obj: Quote,
-    workspace: Workspace,
-    share_url: str,
+    quote_obj,
+    workspace,
+    share_url,
     *,
-    email_sent: bool = False,
-    recipient_email: Optional[str] = None,
-    message: str = "",
+    email_sent: bool,
+    email_queued: bool = False,
+    recipient_email: Optional[str],
+    message: str,
 ) -> QuoteSendResponse:
     client = quote_obj.client if "client" in quote_obj.__dict__ else None
     c_name = client.name if client else None
@@ -263,6 +264,7 @@ def map_quote_send_response(
         whatsapp_share_url=wa_url,
         sent_at=quote_obj.sent_at,
         email_sent=email_sent,
+        email_queued=email_queued,
         recipient_email=recipient_email,
         message=message,
     )

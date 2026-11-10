@@ -1,4 +1,4 @@
-﻿﻿﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import {
@@ -41,7 +41,7 @@ interface PendingStepUp {
   challengeId: string;
   purpose: string;
   payload: any;
-  action: 'create' | 'delete';
+  action: 'create' | 'delete' | 'delete_account';
   profileId?: string;
 }
 
@@ -430,6 +430,27 @@ export default function SettingsPage() {
         throw new Error(errData.detail || 'Invalid verification code. Please check and try again.');
       }
 
+      if (pendingStepUp.action === 'delete_account') {
+        const res = await fetch(`${API_BASE}/compliance/delete-account`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            challenge_id: pendingStepUp.challengeId,
+            confirmation_phrase: pendingStepUp.payload.confirmation_phrase,
+            reason: pendingStepUp.payload.reason || undefined,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || 'we could not delete your account. Try again.');
+        }
+
+        window.location.href = '/login';
+        return;
+      }
+
       if (pendingStepUp.action === 'create') {
         const res = await fetch(`${API_BASE}/payments/profiles`, {
           method: 'POST',
@@ -493,20 +514,33 @@ export default function SettingsPage() {
     try {
       setDeletingAccount(true);
       setDeleteError(null);
-      const res = await fetch(`${API_BASE}/compliance/delete-account`, {
+
+      const stepUpRes = await fetch(`${API_BASE}/security/step-up/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          confirmation_phrase: deletePhrase,
-          reason: deleteReason || undefined,
+          purpose: 'account_deletion',
+          resource_type: 'account',
+          resource_id: null,
+          payload: { confirmation_phrase: deletePhrase, reason: deleteReason || null },
         }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || 'we could not delete your account. Try again.');
+
+      if (!stepUpRes.ok) {
+        const errData = await stepUpRes.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Could not initiate security verification.');
       }
-      window.location.href = '/login';
+
+      const stepUpData = await stepUpRes.json();
+      setPendingStepUp({
+        challengeId: stepUpData.challenge_id,
+        purpose: 'account_deletion',
+        payload: { confirmation_phrase: deletePhrase, reason: deleteReason || null },
+        action: 'delete_account',
+      });
+      setShowDeleteModal(false);
+      setShowStepUpModal(true);
     } catch (err) {
       setDeleteError(errorText(err, 'we could not delete your account. Try again.'));
     } finally {

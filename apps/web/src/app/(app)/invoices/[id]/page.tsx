@@ -19,6 +19,7 @@ import {
   MessageCircle,
   Pencil,
   ReceiptText,
+  Repeat,
   RefreshCw,
   RotateCcw,
   Share2,
@@ -127,6 +128,9 @@ interface InvoiceDetail {
   wht_credit_note_number?: string | null;
   version?: number;
   share_token?: string | null;
+  recurring_schedule_id?: string | null;
+  recurring_label?: string | null;
+  recurring_period_key?: string | null;
   latest_claim?: PaymentClaim | null;
   latest_receipt?: {
     id: string;
@@ -870,6 +874,16 @@ const [receiptsError, setReceiptsError] = useState<string | null>(null);
                   : undefined
               }
             />
+            {invoice.recurring_schedule_id && (
+              <Link
+                href={`/recurring-invoices/${invoice.recurring_schedule_id}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-ink bg-sun/40 px-2.5 py-0.5 text-caption font-bold text-ink hover:bg-sun transition-colors"
+                title="View recurring schedule"
+              >
+                <Repeat aria-hidden className="h-3.5 w-3.5" />
+                <span>{invoice.recurring_label || 'Recurring'}</span>
+              </Link>
+            )}
           </div>
 
           <p className="hidden text-body text-text-soft sm:block">

@@ -246,6 +246,7 @@ class QuoteSendResponse(BaseModel):
     whatsapp_share_url: str
     sent_at: Optional[datetime] = None
     email_sent: bool = False
+    email_queued: bool = False
     recipient_email: Optional[str] = None
     message: str = ""
 

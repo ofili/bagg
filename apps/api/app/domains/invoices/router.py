@@ -174,15 +174,17 @@ async def send_invoice(
 
     if outcome.email_sent:
         message = f"Invoice {invoice.invoice_number} emailed successfully."
+    elif outcome.email_queued:
+        message = (
+            f"Invoice {invoice.invoice_number} has been queued for email delivery."
+        )
     elif send_email and not outcome.recipient_email:
         message = (
             "Invoice status updated, but no email was sent because the client "
             "has no email address on record. Add an email or share via WhatsApp."
         )
     elif send_email:
-        message = (
-            "Invoice marked sent, but email delivery failed. Share the link instead."
-        )
+        message = "Email delivery was not queued. Please retry."
     else:
         message = f"Invoice {invoice.invoice_number} is ready to share."
 
@@ -190,6 +192,7 @@ async def send_invoice(
         invoice=resp_invoice,
         whatsapp_url=wa_url,
         email_sent=outcome.email_sent,
+        email_queued=outcome.email_queued,
         recipient_email=outcome.recipient_email,
         share_url=outcome.share_url,
         message=message,

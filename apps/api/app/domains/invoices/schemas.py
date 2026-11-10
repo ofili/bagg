@@ -30,6 +30,9 @@ class InvoiceCreate(BaseModel):
     direct_checkout_enabled: bool = True
     notes: Optional[str] = None
     payment_profile_id: Optional[str] = None
+    recurring_schedule_id: Optional[str] = None
+    recurring_label: Optional[str] = None
+    recurring_period_key: Optional[str] = None
 
     @field_validator("currency")
     @classmethod
@@ -194,6 +197,7 @@ class InvoiceSendResponse(BaseModel):
     invoice: InvoiceResponse
     whatsapp_url: str
     email_sent: bool
+    email_queued: bool = False
     recipient_email: Optional[str] = None
     share_url: str
     message: str

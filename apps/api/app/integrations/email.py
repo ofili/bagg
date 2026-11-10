@@ -247,3 +247,57 @@ class EmailSender:
             "Your Bagg sign-in code",
             self.build_login_code_email(code, expires_in_minutes),
         )
+
+
+def build_invoice_email_payload(
+    *,
+    to_email: str,
+    invoice_number: str,
+    share_url: str,
+) -> dict:
+    safe_number = escape(invoice_number)
+    safe_url = escape(share_url, quote=True)
+
+    body = (
+        f"<p>You have received invoice "
+        f"<strong>{safe_number}</strong>.</p>"
+        f'<p><a href="{safe_url}">View and pay the invoice</a></p>'
+    )
+
+    return {
+        "to_email": to_email,
+        "subject": f"Invoice {invoice_number} from Bagg",
+        "html": _html_shell(f"Invoice {invoice_number}", body),
+    }
+
+
+def build_quote_email_payload(
+    *,
+    to_email: str,
+    quote_number: str,
+    share_url: str,
+    business_name: str,
+    client_name: Optional[str],
+    formatted_total: str,
+    expires_at: str,
+) -> dict:
+    greeting = f"Hi {escape(client_name)}," if client_name else "Hello,"
+
+    body = (
+        f"<p>{greeting}</p>"
+        f"<p>{escape(business_name)} sent you quote "
+        f"<strong>{escape(quote_number)}</strong> "
+        f"for <strong>{escape(formatted_total)}</strong>.</p>"
+        f"<p>The offer is valid until {escape(expires_at)}.</p>"
+        f'<p><a href="{escape(share_url, quote=True)}" '
+        'style="background-color: #FF7A1A; color: #2B1405; '
+        "padding: 12px 20px; text-decoration: none; border-radius: 8px; "
+        'font-weight: bold; display: inline-block;">'
+        "Review and respond</a></p>"
+    )
+
+    return {
+        "to_email": to_email,
+        "subject": f"Quote {quote_number} from {business_name}",
+        "html": _html_shell(f"Quote {quote_number}", body),
+    }

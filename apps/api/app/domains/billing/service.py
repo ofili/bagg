@@ -78,14 +78,20 @@ async def consume_delivery_send(
     deduct_credit: bool = False,
     *,
     commit: bool = True,
+    reference: Optional[str] = None,
 ) -> None:
     if not deduct_credit:
         return
 
     repository = BillingRepository(db)
     locked_workspace = await repository.lock_workspace(workspace.id)
+
     if locked_workspace is None:
-        raise HTTPException(status_code=404, detail="Workspace not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="Workspace not found.",
+        )
+
     if locked_workspace.tier in {"creator_pro", "professional"}:
         return
 
@@ -94,7 +100,7 @@ async def consume_delivery_send(
         amount=-1,
         reason="send_deduction",
         description="Metered invoice delivery send deduction",
-        reference=None,
+        reference=reference,
         db=db,
         commit=commit,
     )

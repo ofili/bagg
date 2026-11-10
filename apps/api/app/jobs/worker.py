@@ -14,6 +14,10 @@ import app.models  # noqa: F401  (registers every SQLAlchemy model)
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine
 from app.domains.auth.models import MagicLoginCode
+from app.domains.invoices.models import Invoice
+from app.domains.quotes.models import Quote
+from app.domains.billing.repository import BillingRepository
+from app.domains.billing.service import add_credits
 from app.domains.reminders.models import ReminderJob
 from app.domains.security.models import SecurityChallenge
 from app.integrations.email_models import (
@@ -323,12 +327,72 @@ async def record_result(
 
             # Keep the reminder domain's state aligned with the terminal
             # result of its associated outbox message.
-            if message.message_type == "invoice_reminder":
-                reminder = await db.get(
-                    ReminderJob,
-                    message.aggregate_id,
-                    with_for_update=True,
-                )
+            # Reconcile document email state with the outbox result.
+            # Only the newest message for a document may update its state.
+            if message.message_type in {"invoice_email", "quote_email"}:
+                if message.message_type == "invoice_email":
+                    document = await db.get(
+                        Invoice,
+                        message.aggregate_id,
+                        with_for_update=True,
+                    )
+                    document_model = Invoice
+                else:
+                    document = await db.get(
+                        Quote,
+                        message.aggregate_id,
+                        with_for_update=True,
+                    )
+                    document_model = Quote
+
+                if document is not None:
+                    latest_result = await db.execute(
+                        select(EmailOutbox.id)
+                        .where(
+                            EmailOutbox.message_type == message.message_type,
+                            EmailOutbox.aggregate_id == message.aggregate_id,
+                        )
+                        .order_by(
+                            EmailOutbox.created_at.desc(),
+                            EmailOutbox.id.desc(),
+                        )
+                        .limit(1)
+                    )
+
+                    is_latest_message = latest_result.scalar_one_or_none() == message.id
+
+                    if is_latest_message:
+                        if message.status == "sent":
+                            document.email_delivery_status = "delivered"
+                        elif terminal_failure:
+                            document.email_delivery_status = "failed"
+                        else:
+                            document.email_delivery_status = "queued"
+
+                # A metered send is refunded only after terminal failure.
+                # The outbox ID is the ledger reference, making compensation
+                # idempotent across worker retries.
+                if terminal_failure and document is not None:
+                    billing_repository = BillingRepository(db)
+
+                    deduction = await billing_repository.find_credit_entry(
+                        document.workspace_id,
+                        "send_deduction",
+                        message.id,
+                    )
+
+                    if deduction is not None:
+                        await add_credits(
+                            workspace_id=document.workspace_id,
+                            amount=1,
+                            reason="send_refund",
+                            description=(
+                                "Refund for permanently failed document email"
+                            ),
+                            reference=message.id,
+                            db=db,
+                            commit=False,
+                        )
 
                 if reminder is not None and reminder.status != "cancelled":
                     if message.status == "sent":
