@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { IconContext, Plus, Gear } from '@phosphor-icons/react';
+import { IconContext, PlusIcon, GearIcon } from '@phosphor-icons/react';
 
 import { Wordmark } from '@/components/brand';
 import { BottomNav } from '@/components/mobile/BottomNav';
@@ -80,14 +80,14 @@ function Sidebar({
       aria-label="Application sidebar"
       className={cn(
         'hidden w-[72px] shrink-0 flex-col',
-        'border-r-brut border-ink bg-surface',
+        'border-r-2 border-solid border-ink bg-surface',
         'sm:flex lg:w-64',
       )}
     >
       <div
         className={cn(
           'flex h-16 shrink-0 items-center justify-center',
-          'border-b-brut border-ink px-3',
+          'border-b-2 border-solid border-ink px-3',
           'lg:justify-between lg:px-5',
         )}
       >
@@ -118,7 +118,7 @@ function Sidebar({
             'px-0 lg:px-5',
           )}
         >
-          <Plus aria-hidden className="h-4 w-4 shrink-0" />
+          <PlusIcon aria-hidden className="h-4 w-4 shrink-0" />
           <span className="hidden lg:inline">New invoice</span>
         </Link>
       </div>
@@ -140,7 +140,7 @@ function Sidebar({
               : 'border-transparent font-medium text-text hover:bg-surface-tint',
           )}
         >
-          <Gear
+          <GearIcon
             aria-hidden
             className="h-[18px] w-[18px] shrink-0"
           />
@@ -160,7 +160,7 @@ function DesktopHeader({
     <header
       className={cn(
         'hidden h-16 shrink-0 items-center justify-between',
-        'border-b-brut border-ink bg-surface px-8 sm:flex',
+        'border-b-2 border-solid border-ink bg-surface px-8 sm:flex',
       )}
     >
       <p

@@ -9,6 +9,7 @@ import {
 } from '@phosphor-icons/react';
 
 import { useTheme, type ThemePreference } from '@/components/theme/theme-provider';
+import { HeaderAction } from '@/components/navigation/HeaderAction';
 import { cn } from '@/lib/cn';
 
 const OPTIONS: {
@@ -74,27 +75,19 @@ export function ThemeSwitcher() {
 
   return (
     <div ref={wrap} className="relative">
-      <button
-        type="button"
+      <HeaderAction
         aria-label={`Appearance: ${preference}`}
         aria-haspopup="menu"
         aria-expanded={open}
         title={`Appearance: ${preference}`}
         onClick={() => setOpen((current) => !current)}
-        className={cn(
-          'inline-flex h-10 w-10 items-center justify-center',
-          'rounded-btn border-brut-thin border-transparent',
-          'text-ink transition-colors',
-          'hover:border-ink hover:bg-surface-tint',
-          'focus-visible:outline-none',
-        )}
       >
         <ActiveIcon
           aria-hidden
           weight="bold"
-          className="h-5 w-5"
+          className="h-[18px] w-[18px]"
         />
-      </button>
+      </HeaderAction>
 
       {open && (
         <div
