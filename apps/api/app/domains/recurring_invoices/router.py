@@ -7,13 +7,14 @@ from app.core.database import get_db
 from app.domains.auth.dependencies import get_current_user_and_workspace
 from app.domains.recurring_invoices import service
 from app.domains.recurring_invoices.schemas import (
+    RecurringOccurrenceListResponse,
+    RecurringScheduleListResponse,
     RecurringOccurrenceResponse,
     RecurringScheduleCreate,
     RecurringScheduleResponse,
     RecurringScheduleUpdate,
     ResumeScheduleRequest,
 )
-from app.domains.workspaces.models import Workspace
 
 router = APIRouter(
     prefix="/recurring-invoices",
@@ -32,6 +33,7 @@ async def create_schedule(
     db: AsyncSession = Depends(get_db),
 ):
     user, workspace = auth
+
     return await service.create_schedule(
         db,
         workspace,
@@ -42,7 +44,7 @@ async def create_schedule(
 
 @router.get(
     "",
-    response_model=list[RecurringScheduleResponse],
+    response_model=RecurringScheduleListResponse,
 )
 async def list_schedules(
     schedule_status: str | None = Query(
@@ -57,6 +59,7 @@ async def list_schedules(
     db: AsyncSession = Depends(get_db),
 ):
     _, workspace = auth
+
     schedules, total = await service.list_schedules(
         db,
         workspace,
@@ -65,7 +68,13 @@ async def list_schedules(
         limit=limit,
         offset=offset,
     )
-    return schedules
+
+    return RecurringScheduleListResponse(
+        items=schedules,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get(
@@ -78,7 +87,12 @@ async def get_schedule(
     db: AsyncSession = Depends(get_db),
 ):
     _, workspace = auth
-    return await service.get_schedule(db, workspace, schedule_id)
+
+    return await service.get_schedule(
+        db,
+        workspace,
+        schedule_id,
+    )
 
 
 @router.patch(
@@ -92,6 +106,7 @@ async def update_schedule(
     db: AsyncSession = Depends(get_db),
 ):
     _, workspace = auth
+
     return await service.update_schedule(
         db,
         workspace,
@@ -110,6 +125,7 @@ async def pause_schedule(
     db: AsyncSession = Depends(get_db),
 ):
     _, workspace = auth
+
     return await service.pause_schedule(
         db,
         workspace,
@@ -128,6 +144,7 @@ async def resume_schedule(
     db: AsyncSession = Depends(get_db),
 ):
     _, workspace = auth
+
     return await service.resume_schedule(
         db,
         workspace,
@@ -146,6 +163,7 @@ async def cancel_schedule(
     db: AsyncSession = Depends(get_db),
 ):
     _, workspace = auth
+
     return await service.cancel_schedule(
         db,
         workspace,
@@ -155,11 +173,11 @@ async def cancel_schedule(
 
 @router.get(
     "/{schedule_id}/invoices",
-    response_model=list[RecurringOccurrenceResponse],
+    response_model=RecurringOccurrenceListResponse,
 )
 @router.get(
     "/{schedule_id}/occurrences",
-    response_model=list[RecurringOccurrenceResponse],
+    response_model=RecurringOccurrenceListResponse,
     include_in_schema=False,
 )
 async def list_occurrences(
@@ -170,6 +188,7 @@ async def list_occurrences(
     db: AsyncSession = Depends(get_db),
 ):
     _, workspace = auth
+
     invoices, total = await service.list_generated_invoices(
         db,
         workspace,
@@ -179,20 +198,25 @@ async def list_occurrences(
     )
 
     items = [
-        {
-            "invoice_id": invoice.id,
-            "invoice_number": invoice.invoice_number,
-            "invoice_status": invoice.status,
-            "period_key": invoice.recurring_period_key,
-            "period_start": invoice.recurring_period_start,
-            "period_end": invoice.recurring_period_end,
-            "recurring_label": invoice.recurring_label,
-            "due_date": invoice.due_date,
-            "total_minor": invoice.total_minor,
-            "currency": invoice.currency,
-            "created_at": invoice.created_at,
-        }
+        RecurringOccurrenceResponse(
+            invoice_id=invoice.id,
+            invoice_number=invoice.invoice_number,
+            invoice_status=invoice.status,
+            period_key=invoice.recurring_period_key,
+            period_start=invoice.recurring_period_start,
+            period_end=invoice.recurring_period_end,
+            recurring_label=invoice.recurring_label,
+            due_date=invoice.due_date,
+            total_minor=invoice.total_minor,
+            currency=invoice.currency,
+            created_at=invoice.created_at,
+        )
         for invoice in invoices
     ]
 
-    return items
+    return RecurringOccurrenceListResponse(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )

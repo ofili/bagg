@@ -1,634 +1,2036 @@
-# Bagg design system
+Bagg Design System
 
-Version 0.2 · 22 October 2026 · Owner: Lewis
-
-This file is the source of truth for how Bagg looks, reads and behaves. Designers, engineers and AI coding tools should read it before building or changing any screen, email, PDF or marketing page. If a screen and this file disagree, fix the screen or update this file in the same change.
-
-Bagg helps creatives, freelancers and independent consultants get paid. The product is warm and playful at the edges and calm and exact wherever money is involved. Everything below serves that one idea.
-
-Status notes:
-- Values marked "estimate" were calculated by hand during design and must be re-checked in the real build.
-- Currency glyph coverage for the chosen font must be verified in the build (see section 4.4).
-- Dropbox, Box and Microsoft integration rules are not covered here.
-- Section 14.7 maps this document to the code that implements it.
+Version: 0.3
+Date: 11 November 2026
+Owner: Product and Engineering
+Status: Design and implementation contract
+Supersedes: Version 0.2
 
 ---
 
-## 1. Principles
+1. Purpose and authority
 
-1. **Money first, joy around.** Colour, stickers and humour live at the edges: onboarding, empty states, success moments, marketing. Amounts, tables and client documents stay clean.
-2. **Calm when it matters.** Payment screens, failures and overdue notices are plain, white or cream, and reassuring. Never alarming, never cute.
-3. **Show every cost before it is paid.** Fees, conversion and the amount received appear above the confirm button, and the button repeats the amount.
-4. **Status is text, not just colour.** Every status has a word. Colour only reinforces it.
-5. **Clients never need an account.** Client-facing pages are public, mobile first, and work with no sign-in.
-6. **One family, one voice.** One typeface, one tone (the friendly big sister), one way of doing each thing.
-7. **Spend boldness in one place.** The orange is the memorable thing. Everything around it stays quiet. When in doubt, remove a decoration.
-8. **Never claim what is not built.** Trust and security copy ships only when it is true.
+This document defines how Bagg looks, reads, and behaves across the product.
+
+It is the shared design contract for:
+
+- Product designers and frontend engineers.
+- Product managers and domain designers.
+- AI coding tools contributing to the frontend.
+- Anyone creating Bagg emails, PDFs, marketing pages, or client-facing experiences.
+
+A screen must not introduce a new visual or interaction convention without either reusing an existing pattern or updating this document.
+
+When implementation and this document disagree, the discrepancy must be resolved deliberately. Do not silently create a third convention.
+
+1.1 Product context
+
+Bagg is an invoicing and get-paid workspace for African freelancers, creators, and independent consultants.
+
+Its central promise is:
+
+Invoice like a pro. Get paid without chasing.
+
+The product supports a commercial workflow that extends beyond document creation:
+
+1. Agree work and commercial terms.
+2. Create and send quotes.
+3. Obtain client acceptance.
+4. Organise projects and milestones.
+5. Issue invoices.
+6. Receive and reconcile payments.
+7. Generate receipts.
+8. Follow up on outstanding payments.
+9. Deliver work and manage client approval.
+
+The design system must support this broader lifecycle without making the application feel like a complicated enterprise accounting suite.
+
+1.2 Core design principle
+
+Personality around the work. Precision in the work.
+
+Bagg should feel distinctive, warm and confident. However, money, payment status, document details, client commitments and financial actions must always be clear and dependable.
+
+1.3 Experience contexts
+
+Bagg has three related but distinct visual contexts.
+
+Context| Primary objective| Visual character
+Public marketing| Explain value and drive activation| Expressive, bold, neo-brutalist
+Authenticated workspace| Help freelancers manage commercial work| Functional, structured, financially precise
+Client-facing experience| Build trust and make client actions easy| Calm, professional, mobile-first
+
+All three share brand tokens, typography, iconography, accessibility rules and interaction principles. They do not need identical layouts or visual density.
 
 ---
 
-## 2. Brand
+2. Design principles
 
-**Name.** bagg, always lowercase in the wordmark and in headlines.
-
-**Logo.** Two lockups, used in different places.
-- **App icon and favicon:** the sticker coin. An orange circle with a dashed dark-brown border, a lowercase b in dark brown, rotated about 8 degrees counter-clockwise.
-- **Wordmark lockup (website, documents, emails, footers):** lowercase "bagg" in the brand typeface at weight 800, with a pink squiggle underneath.
-- The bag mark (orange rounded bag with a pink handle and a small smile) is the product character, not a logo. It appears in empty states and the 404 page, not in navigation.
-
-**Clear space.** Keep at least the height of the lowercase letter "g" free on every side of the wordmark. Minimum wordmark height is 16 px on screen.
-
-**Never.** Recolour the coin, stretch the wordmark, place the wordmark on a busy photo, or put the squiggle under anything except the wordmark and one headline per screen.
+3. Money first. Financial values, payment status and next actions must be immediately understandable.
+4. Personality around the work. Use brand expression in onboarding, empty states, marketing and celebrations—not in ways that compromise financial clarity.
+5. One obvious next action. A screen should have one visually dominant primary action.
+6. Status is explicit. Never communicate financial or workflow status through colour alone.
+7. Clients do not need an account. Public document and payment experiences must work without client registration.
+8. Show the full cost. Fees, conversion rates and amounts received must be visible before a payment-related confirmation.
+9. No false certainty. A click, payment claim or pending provider event must never be presented as confirmed payment.
+10. Progressive complexity. Keep common tasks simple; reveal advanced controls when needed.
+11. Responsive by design. Mobile is a first-class product experience, not a compressed desktop layout.
+12. Trust is factual. Do not make security, compliance or payment claims that the implementation cannot substantiate.
+13. Consistency over novelty. Prefer a familiar component over a bespoke one unless the workflow has a genuine need.
+14. Accessibility is part of correctness. A component is not complete if it cannot be used with a keyboard or assistive technology.
 
 ---
 
-## 3. Colour
+3. Brand identity
 
-### 3.1 Brand palette (Mango Sunrise)
+3.1 Name
 
-| Token | Hex | Role |
-|---|---|---|
-| mango | #FF7A1A | Anchor colour. Primary buttons, selected states, the earnings card. |
-| pink | #FF4F8B | Accent. Squiggles, secondary primary actions in the freelancer app, rare highlights. |
-| sun | #FFC933 | Due soon, awaiting, caution (non-blocking). |
-| leaf | #1FA971 | Paid. Used only for paid and success meaning. |
-| cocoa | #3A1F0A | Text on light surfaces, outlines, the dark ink for stickers. |
-| cream | #FFF8EE | Page background in the freelancer app and marketing. |
-| danger | #B3261E | Destructive actions only. Sits outside the playful palette on purpose. |
+The brand name is "bagg".
+
+- Use lowercase in the wordmark and brand headlines.
+- Use normal sentence case in product copy.
+- Do not use all-uppercase branding.
+
+3.2 Logo system
+
+There are two primary logo treatments.
+
+Bag mark
+
+- The current official Bagg symbol.
+- Used for the app icon, favicon, and compact brand identification.
+- Must use the approved Bag mark artwork.
+- Do not recreate, approximate, rotate, or distort the mark.
+
+Wordmark
+
+- Lowercase "bagg".
+- Bricolage Grotesque, weight 800.
+- Pink squiggle beneath the wordmark.
+- Used on marketing pages, documents, emails and footers.
+
+The Bag mark and wordmark form the primary brand identity. The Bag mark may be used independently where space is limited.
+
+3.3 Brand assets
+
+The brand asset family includes:
+
+- Bag mark.
+- Wordmark.
+- Squiggle.
+- Bag character, where distinct from the Bag mark.
+- Paid stamp.
+- Milestone star.
+- Empty-state illustrations.
+- Marketing and Open Graph artwork.
+
+Do not create inconsistent alternatives to these assets for individual pages.
+
+**Retired asset:** The former orange circular coin mark with a lowercase b is deprecated. It must not be
+used in new designs or reintroduced as a fallback.
+
+3.4 Clear space
+
+Maintain clear space around the Bag mark equal to at least 25% of its displayed width.
+
+Never stretch, recolour or distort the logo. Do not place it over visually busy photography.
+
+---
+
+4. Colour system
+
+4.1 Brand palette
+
+Token| Value| Purpose
+mango| "#FF7A1A"| Primary brand action and highlights
+pink| "#FF4F8B"| Secondary brand accent
+sun| "#FFC933"| Due-soon and caution indicators
+leaf| "#1FA971"| Paid and successful completion
+danger| "#B3261E"| Errors and destructive actions
+ink| "#2B1405"| Neo-brutalist outlines, shadows and dark labels
+
+The brand palette is not a licence to use every colour everywhere.
+
+4.2 Light neutrals
+
+Token| Value| Purpose
+cream| "#FFF8EE"| Main application background
+surface| "#FFFFFF"| Cards, inputs and client-facing surfaces
+surface-sunken| "#FBF1E2"| Recessed areas and table headers
+surface-tint| "#F6E8D4"| Selected tracks and subtle backgrounds
+line| "#E3D6C4"| Borders and input outlines
+line-subtle| "#F1DFC6"| Low-emphasis separators
+peach| "#FFE9D6"| Highlight and hover surfaces
+peach-chip| "#FFE3CC"| Chips and avatar backgrounds
+text| "#3A1F0A"| Primary text
+text-soft| "#6B5642"| Secondary text
+text-muted| "#8A6A50"| Captions and hints
+link| "#8A3D0C"| Text links and quiet actions
+
+4.3 Text-on-brand tokens
+
+Token| Value
+on-mango| "#2B1405"
+on-pink| "#3D0618"
+
+Never use white text on mango or pink.
+
+Mango and pink are not suitable for ordinary text on cream or white surfaces. Use "link", "text" or "ink" for readable text.
+
+4.4 Status colours
+
+Status| Background| Foreground
+Paid| "#1FA971"| "#052E1B"
+Paid soft| "#D8F5E6"| "#0F6B45"
+Due soon| "#FFC933"| "#4A3200"
+Late| "#FFB3B3"| "#5A1010"
+Draft| "#E6DAC6"| "#5A4A35"
+Awaiting approval| "#FFC933"| "#4A3200"
+Pending transfer| "#FFF1C2"| "#8A6200"
+Upcoming| "#E6DAC6"| "#5A4A35"
+Accepted| "#E6DAC6"| "#5A4A35"
+Voided or inactive| "#EFE6D8"| "#8A6A50"
 
 Rules:
-- Text on mango uses #2B1405. Text on pink uses #3D0618. Never white on mango or pink.
-- **Never use mango or pink as text colour or as a thin outline on cream or white.** Mango on white is about 2.6 to 1 and on cream about 2.5 to 1 (estimates), which fails text and UI contrast. Use the link brown (#8A3D0C) for coloured text and cocoa for outlines.
-- A selected state must never rely on mango alone against a light surface. Add a second cue: a dark label, a check icon or a dark outline.
-- Green means paid or success. Do not use it for decoration or for generic "good" states that are not about money or completion.
-- Danger red is for destructive buttons and errors that need action. Overdue states use the soft late tones below, not danger.
-- Pink and mango never touch as large adjacent fills. Separate them with cream, white or cocoa.
 
-### 3.2 Neutrals (light)
+- Every status includes visible text.
+- Green is reserved for paid or successful completion.
+- Overdue is not a destructive error. Use late tones.
+- Red is reserved for destructive actions and errors requiring attention.
+- A status must remain understandable in monochrome.
 
-| Token | Hex | Use |
-|---|---|---|
-| bg | #FFF8EE | App and marketing background |
-| surface | #FFFFFF | Cards, rows, inputs, client pages |
-| surface-sunken | #FBF1E2 | Table headers, info strips, locked rows |
-| surface-tint | #F6E8D4 | Segmented control track, skeleton base |
-| border | #E3D6C4 | Inputs and outlines |
-| border-subtle | #F1DFC6 | Card and row borders |
-| text | #3A1F0A | Primary text |
-| text-soft | #6B5642 | Secondary body text |
-| text-muted | #8A6A50 | Captions, labels, placeholders |
-| link | #8A3D0C | Text links and quiet actions |
-| peach | #FFE9D6 | Highlight strips, suggested reminder, nudge cards |
-| peach-chip | #FFE3CC | Variable chips, avatars, default tag |
+4.5 Dark mode
 
-### 3.3 Status tokens
+Dark mode uses warm brown-black surfaces rather than pure black.
 
-Each status has a pill background and text colour. The word is always shown.
+Token| Light| Dark
+cream| "#FFF8EE"| "#1A110A"
+surface| "#FFFFFF"| "#261A12"
+surface-sunken| "#FBF1E2"| "#1F150E"
+surface-tint| "#F6E8D4"| "#33241A"
+line| "#E3D6C4"| "#3A2A1E"
+line-subtle| "#F1DFC6"| "#3A2A1E"
+text| "#3A1F0A"| "#FFF1E0"
+text-soft| "#6B5642"| "#DCC6AB"
+text-muted| "#8A6A50"| "#BFA88F"
+link| "#8A3D0C"| "#FFB27A"
+peach| "#FFE9D6"| "#3A2616"
+peach-chip| "#FFE3CC"| "#4A3220"
 
-| Status | Pill background | Pill text | Notes |
-|---|---|---|---|
-| paid | #1FA971 | #052E1B | Solid pill. Soft variant: #D8F5E6 with #0F6B45. |
-| due soon | #FFC933 | #4A3200 | |
-| late | #FFB3B3 | #5A1010 | Row highlight is warm (#FFF4E6), never red. Text-only mentions use #B3261E. |
-| draft | #E6DAC6 | #5A4A35 | |
-| awaiting approval | #FFC933 | #4A3200 | Used for milestones. |
-| pending (transfer) | #FFF1C2 | #8A6200 | |
-| upcoming | #E6DAC6 | #5A4A35 | |
-| accepted | #E6DAC6 | #5A4A35 | Quotes. |
-| voided or not active | #EFE6D8 | #8A6A50 | |
+The current implementation supports dark mode through the "data-theme="dark"" selector configured in Tailwind. The root layout does not itself implement automatic operating-system theme detection.
 
-### 3.4 Dark mode tokens
+Theme selection and persistence must be implemented by the application theme provider or equivalent mechanism. Do not claim automatic system detection until it is implemented and verified.
 
-Dark mode is a warm brown-black, never pure black. Brand colours stay the same. Neutrals and status text swap.
+Client-facing pages should respect the selected viewer theme where appropriate. PDFs remain light.
 
-| Token | Light | Dark |
-|---|---|---|
-| bg | #FFF8EE | #1A110A |
-| surface | #FFFFFF | #261A12 |
-| border | #E3D6C4 | #3A2A1E |
-| surface-sunken | #FBF1E2 | #2F2118 |
-| surface-tint | #F6E8D4 | #33241A |
-| border-subtle | #F1DFC6 | #33241A |
-| text | #3A1F0A | #FFF1E0 |
-| text-soft | #6B5642 | #D9C3A8 |
-| text-muted | #8A6A50 | #BFA88F |
-| link | #8A3D0C | #FFB27A |
-| paid text | #0F6B45 | #3DD598 |
-| late text | #B3261E | #FFB3A8 |
-| overdue card | #FFE9E6 | #3A1F1B (border #5A2E28) |
-| peach | #FFE9D6 | #3A2616 |
-| peach-chip | #FFE3CC | #4A2E1A |
+4.6 Contrast
 
-Mango and pink buttons keep their dark label text in dark mode. Client-facing pages follow the viewer's device setting. PDFs are always light.
+Minimum requirements:
 
-### 3.5 Contrast (estimates)
+- Normal text: WCAG AA, 4.5:1.
+- Large text: 3:1.
+- Meaningful UI boundaries and focus indicators: 3:1 against adjacent colours.
+- Do not reduce muted text contrast to make a layout appear lighter.
 
-- Cocoa-dark text on mango: about 6.7 to 1.
-- Dark text on pink: about 5.5 to 1.
-- Dark text on the green paid pill: about 4.9 to 1.
-- Muted text (#8A6A50) on cream: about 4.7 to 1. This only just passes AA for normal text, so muted text must never go lighter.
-
-- Link brown (#8A3D0C) on cream: about 7 to 1.
-- Mango as a colour against white or cream: about 2.6 to 1 (fails). See the rules in 3.1.
-
-Re-check all pairs with a contrast tool in the real build. Any new colour pair must reach 4.5 to 1 for text under 18 px and 3 to 1 for large text and UI outlines.
-
-### 3.6 User accent colour (documents and emails)
-
-Freelancers can choose an accent in Settings. Options: mango (default), pink, green, plum (#5B3FA8), charcoal (#2B2B2B). The accent colours the word "invoice", the pay button and small highlights on documents and emails. Button text switches to white automatically on plum and charcoal. The picker must reject any accent that fails 4.5 to 1 against its button label.
+Contrast estimates in older design work are not certification. Verify actual rendered pairs.
 
 ---
 
-## 4. Typography
+5. Typography
 
-### 4.1 Family
+5.1 Typeface
 
-**Bricolage Grotesque**, one family for everything in the product, the marketing site and PDFs. Weights used: 400 (body), 500 (labels and names), 800 (headlines, amounts, buttons). Do not use other weights.
+Primary family: Bricolage Grotesque.
 
-Fallback stack for the web: `"Bricolage Grotesque", "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Arial, sans-serif`.
+Current application loading uses "next/font/google" with "latin" and "latin-ext" subsets.
 
-Email uses system fonts only (see section 12), because most email apps ignore web fonts.
+Fallback stack:
 
-No script or handwritten fonts anywhere. Hand-drawn character comes from doodles and stickers, never from lettering.
+""Bricolage Grotesque", "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Arial, sans-serif"
 
-### 4.2 Scale
+Weights:
 
-Sizes are real product sizes, not the shrunken sizes in early previews.
+- 400: body copy.
+- 500: labels and names.
+- 600–700: emphasis where required by component implementation.
+- 800: display, headings, amounts and primary action labels.
 
-| Style | Size / line height | Weight | Use |
-|---|---|---|---|
-| display | 40 / 40 desktop, 32 / 34 phone | 800 | Marketing hero, lowercase |
-| title-l | 28 / 30 | 800 | Screen titles, lowercase |
-| title | 22 / 26 | 800 | Section titles, modal titles |
-| heading | 18 / 22 | 800 | Card titles |
-| body-l | 16 / 24 | 400 | Default body |
-| body | 14 / 20 | 400 | Rows, secondary text |
-| label | 14 / 18 | 500 | Names, field labels |
-| caption | 12 / 16 | 400 | Captions, helper text. The smallest allowed size. |
+The established scale uses weight 800 for headings and financial amount styles.
 
-Amounts:
+5.2 Type scale
 
-| Style | Size / line height | Weight |
-|---|---|---|
-| amount-xl | 40 / 44 | 800 |
-| amount-l | 28 / 32 | 800 |
-| amount-m | 20 / 24 | 800 |
-| amount-s | 16 / 20 | 800 |
+Style| Size / line height| Intended use
+display| 40 / 40 desktop; 32 / 34 mobile| Marketing hero
+title-l| 28 / 30| Page title
+title| 22 / 26| Section and modal title
+heading| 18 / 22| Card and panel title
+body-l| 16 / 24| Main body copy
+body| 14 / 20| Rows and secondary content
+label| 14 / 18| Field labels and names
+caption| 12 / 16| Helper text and metadata
 
-### 4.3 Rules
+Financial amounts:
 
-- Headlines and screen titles are lowercase (for example "hey ada", "send. chase. get paid."). Buttons, labels and body copy use sentence case.
-- No all-caps labels. No tracked-out eyebrow text above headings.
-- Keep body lines under 70 characters on wide screens.
-- Use tabular numerals for amounts in tables so digits align (`tabular-nums`, if the font provides them).
-- Right-align amounts in tables and lists.
-- Never accent a single word in a headline with a different colour or italic.
+Style| Size / line height
+amount-xl| 40 / 44
+amount-l| 28 / 32
+amount-m| 20 / 24
+amount-s| 16 / 20
 
-### 4.4 Currency glyph check (required)
+The existing Tailwind configuration includes the amount scale. The "label" style should be implemented as a shared typography utility or component if it is not already present.
 
-Bagg shows ₦, $, £ and €. Every one must render in Bricolage Grotesque itself, not a fallback font. Verify in the build, in every weight used. A quick browser test: measure the glyph with a serif fallback and a monospace fallback; if the widths differ, the font is missing the glyph.
+5.3 Typography rules
 
-```js
-function hasGlyph(font, ch) {
-  const c = document.createElement('canvas').getContext('2d');
-  c.font = `800 40px "${font}", serif`;
-  const a = c.measureText(ch).width;
-  c.font = `800 40px "${font}", monospace`;
-  const b = c.measureText(ch).width;
-  return Math.abs(a - b) < 0.5;
-}
-['₦','$','£','€'].every(ch => hasGlyph('Bricolage Grotesque', ch));
-```
+- Screen titles and brand headlines use lowercase where appropriate.
+- Buttons, field labels and body copy use sentence case.
+- No all-caps labels.
+- No tracked-out eyebrow headings.
+- Body lines should generally remain below 70 characters on wide screens.
+- Use tabular numerals for financial tables.
+- Amounts align to the right in financial lists and tables.
+- Do not use colour or italics to accent isolated words in headings.
 
-If any glyph is missing, switch the family to Plus Jakarta Sans (after running the same test) or add a subset font that supplies the missing symbol and matches the weight. Do not let the browser silently substitute.
+5.4 Currency glyph verification
 
----
+The application must verify that Bricolage Grotesque renders:
 
-## 5. Layout, spacing and shape
+- ₦
+- $
+- £
+- €
 
-### 5.1 Spacing
+Verify all four glyphs at the weights used in the product.
 
-Base unit 4 px. Allowed steps: 4, 8, 12, 16, 20, 24, 32, 40, 48, 64. Screen padding is 16 px on phone, 24 px on tablet, 32 px on desktop.
-
-### 5.2 Breakpoints
-
-| Name | Width | Navigation | Lists |
-|---|---|---|---|
-| phone | under 640 | Bottom tab bar | Cards, one per document |
-| tablet | 640 to 1023 | Icon rail on the left | Table with 3 or 4 columns |
-| desktop | 1024 and up | Labelled sidebar | Full table plus a side panel on row click |
-
-Max content width 1200 px. Client pages: payment 480 px, documents and portal 720 px, centred.
-
-Implementation note: the app shell switches at Tailwind's md (768 px) and lg (1024 px) breakpoints, so the icon rail starts at 768 px.
-
-### 5.3 Radius
-
-| Token | Value | Use |
-|---|---|---|
-| pill | 999 px | Buttons, chips, segmented controls, toggles |
-| card | 16 px | Summary cards, hero cards, earnings card |
-| row | 12 px | List rows, document cards, file rows |
-| input | 10 px | Text fields, selects |
-| small | 8 px | Status pills, stickers, thumbnails |
-| sheet | 20 px (top corners) | Bottom sheets and modals |
-
-Do not use one radius for everything. Radius follows the size and role of the element.
-
-### 5.4 Borders and elevation
-
-Prefer borders to shadows. Cards and rows use a 0.5 to 1 px border in `border-subtle`. Inputs use `border`. The only shadow is for sheets and modals: `0 -8px 24px rgba(58, 31, 10, 0.12)`. Modal backdrop is `#7A6A58` at 70 percent (light) or black at 60 percent (dark).
+If any glyph is missing, use a verified fallback font or a compatible font subset. Do not silently accept inconsistent fallback rendering.
 
 ---
 
-## 6. Iconography and illustration
+6. Layout, spacing and shape
 
-### 6.1 Icons
+6.1 Spacing scale
 
-Use `lucide-react` (already a dependency of the web app) in its outline style at 16, 18 or 22 px with a stroke width of 1.5 to 1.75. Icons always sit beside or inside a label unless the action is universally known (close, back, search). Icon-only buttons need an accessible name and a 44 px hit area.
+Base unit: 4 px.
 
-Standard icons (lucide names): Home, FileCheck (quotes), FileText (invoices), Users (clients), Wallet (balance), Settings, Plus, Check, CircleCheck, CircleAlert, TriangleAlert, Clock, Lock, Link2Off, WifiOff, ShieldCheck, Landmark (bank), CreditCard, Smartphone.
+Approved spacing steps:
 
-### 6.2 Stickers and doodles
+"4, 8, 12, 16, 20, 24, 32, 40, 48, 64"
 
-Stickers are the signature playful element. They follow strict rules.
+Default horizontal page padding:
 
-| Sticker | Look | Where it appears |
-|---|---|---|
-| Paid stamp | The word "paid" in a double-border box, green on soft green, rotated about 6 to 9 degrees | Paid invoice rows, receipts, the success page |
-| Milestone star | Yellow five-point star with a dark outline, rotated about 8 degrees | First invoice sent, first payment received, project completed |
-| Locked milestone | The same star in grey with a dashed outline | Onboarding empty state |
-| Bag character | Orange rounded bag, pink handle, dot eyes, pink cheeks, small smile | Empty states, onboarding, 404 (sleepy eyes) |
-| Squiggle | Pink wavy line under a headline | One per screen, under the greeting or main title |
+Viewport| Padding
+Phone| 16 px
+Tablet| 24 px
+Desktop| 32 px
+
+Spacing should express hierarchy, not merely fill available space.
+
+6.2 Breakpoints
+
+The product's intended responsive model is:
+
+Range| Layout
+Under 640 px| Phone
+640–767 px| Compact tablet / large phone
+768–1023 px| Tablet navigation and adapted content
+1024 px and above| Desktop
+
+The current shell uses Tailwind "md" (768 px) and "lg" (1024 px) conventions. The 640 px boundary is a content adaptation threshold, not necessarily a navigation transition.
+
+Do not introduce custom breakpoints without a demonstrated layout need.
+
+6.3 Content width
+
+- Main authenticated content: maximum 1200 px.
+- Payment pages: maximum 480 px.
+- Client documents and portals: maximum 720 px.
+- Marketing content: use a deliberate editorial width; avoid stretching paragraphs across the full viewport.
+
+6.4 Radius
+
+The current Tailwind configuration is the implementation baseline.
+
+Token| Current value| Intended use
+btn| 10 px| Buttons
+card| 12 px| Cards
+row| 8 px| Compact rows
+input| 8 px| Inputs
+small| 6 px| Small elements
+sheet| 16 px| Sheets and overlays
+full| 999 px| Pills and circular controls
+
+Do not use the older v0.2 radius values as if they were already implemented. In particular, "rounded-card", "rounded-row" and "rounded-input" must not be assumed to match the current Tailwind configuration.
+
+6.5 Neo-brutalist borders and shadows
+
+The authenticated application uses the neo-brutalist foundation already established in the repository.
+
+Current Tailwind shadow tokens:
+
+- "shadow-brut-sm": 2 px × 2 px hard offset.
+- "shadow-brut": 3 px × 3 px hard offset.
+- "shadow-brut-lg": 5 px × 5 px hard offset.
+- "shadow-sheet": soft overlay shadow.
 
 Rules:
-- Stickers never carry meaning alone. A paid stamp always sits beside the word status or amount.
-- Never put stickers on a client-facing invoice or quote. A small paid stamp is allowed on receipts and the success page.
-- Never use more than one celebratory element on screen at a time.
-- Every sticker has a text description for screen readers, or is marked decorative.
-- Doodles are drawn with simple rounded strokes, 2 to 2.5 px, in pink or cocoa.
 
-### 6.3 Photography
-
-Marketing uses real freelancers in their own settings (Lagos, Nairobi, Accra and beyond). No stock handshake photos. Until real customer stories exist, show the product itself (a live invoice preview) instead of stock imagery.
+- Hard shadows are reserved for deliberate emphasis.
+- Do not apply hard shadows to every card.
+- Prefer a strong border or a hard offset shadow—not both at maximum intensity on every element.
+- Avoid decorative blur shadows.
+- Use the soft sheet shadow for overlays where appropriate.
+- A component's shadow must not make its text or boundary difficult to distinguish.
 
 ---
 
-## 7. Motion
+7. Iconography and illustration
 
-| Moment | Duration | Easing | Notes |
-|---|---|---|---|
-| Micro (press, toggle) | 120 ms | ease-out | |
-| Standard (expand, tab change) | 200 ms | cubic-bezier(0.2, 0.8, 0.2, 1) | |
-| Sheets and modals | 320 ms | cubic-bezier(0.2, 0.8, 0.2, 1) | Slide up on phone, fade and scale on desktop |
-| Paid stamp | 400 ms | spring | Scales down and settles into place, once |
-| Confetti | up to 1.5 s | | Only for first invoice paid and project completion |
+7.1 Icon library
+
+The repository currently includes both "lucide-react" and "@phosphor-icons/react".
+
+Standardisation decision: use Lucide React as the default icon library for new shared UI components. Existing Phosphor usage may remain until migrated; do not mix icon families within one component or interaction surface.
+
+Icon guidelines:
+
+- Prefer outline icons.
+- Standard sizes: 16, 18 and 22 px.
+- Typical stroke width: 1.5–1.75.
+- Icon-only controls require an accessible name.
+- Icon-only controls have a minimum 44 × 44 px interactive area.
+- Icons supplement labels; they do not replace important financial or workflow text.
+
+7.2 Brand illustrations
+
+Approved illustration types:
+
+- Bag character.
+- Paid stamp.
+- Milestone star.
+- Squiggle.
+- Empty-state illustrations.
+- Onboarding illustrations.
 
 Rules:
-- Motion answers a user action or marks a milestone. No entrance animations on every section and no hover transitions on every card.
-- Honour reduced motion. With it on, celebrations become a static sticker and sheets simply appear.
-- Never animate amounts counting up on a money screen.
+
+- Illustrations never carry essential meaning alone.
+- Every meaningful illustration has an accessible description.
+- Decorative illustrations are hidden from assistive technology.
+- Never use more than one major celebratory illustration on a screen.
+- Do not put playful stickers on client invoices or quotes.
+- A small paid stamp is acceptable on receipts and payment success pages.
+
+7.3 Photography
+
+Marketing photography should show real freelancers and their working environments.
+
+Avoid generic handshake imagery and stock corporate photography.
+
+Until authentic customer stories are available, use product demonstrations and real interface previews rather than fabricated testimonials or implied customer proof.
 
 ---
 
-## 8. Components
+8. Motion and feedback
 
-All interactive targets are at least 44 by 44 px, even when the visible element is smaller.
+Interaction| Duration| Behaviour
+Press and toggle| 120 ms| Immediate response
+Expand and tab change| 200 ms| Controlled transition
+Modal and sheet| 320 ms| Slide or fade based on viewport
+Paid stamp| 400 ms| One-time settling motion
+Celebration| Up to 1.5 s| Limited to meaningful milestones
 
-### 8.1 Buttons
+Rules:
 
-| Variant | Fill | Label | Use |
-|---|---|---|---|
-| primary | mango | #2B1405, weight 800 | The one main action on a screen |
-| accent | pink | #3D0618, weight 800 | The main action on freelancer-side home screens (for example New invoice). Never on client pages. |
-| outline | transparent, 1.5 px cocoa border | cocoa, weight 800 | Secondary action |
-| link | none | link colour, weight 800 | Tertiary actions (Send a nudge, Edit) |
-| danger | #B3261E | white | Destructive confirmations only |
-
-Shape is pill, height 44 (48 for the main action on a phone). One primary per screen. Disabled buttons use 40 percent opacity and keep their label. Loading buttons keep their width and show a spinner before the label. Client pages use mango only, never pink.
-
-### 8.2 Text fields
-
-Height 44, radius 10, 1 px `border`, white or surface fill, 16 px text (so mobile browsers do not zoom). Label above in `caption` or `label`. Placeholder in muted text, never the only label. Focus: 2 px cocoa border plus the standard focus ring (section 11). Error: danger border plus a message below that says what is wrong and how to fix it. Verified values (for example an account name) show a check icon with the verified text.
-
-### 8.3 Chips and segmented controls
-
-Selected chip: mango fill, dark label, weight 800, and a check icon or 1.5 px cocoa border as the second cue. Unselected: white fill, 1 px border, regular label. Segmented control: track in `surface-tint`, selected segment in mango with a dark, bold label. Use chips for 2 to 4 short options (currency, due date, tone). Use a select for longer lists.
-
-### 8.4 Toggles
-
-Visible size 28 by 16, hit area 44 by 44. On: mango with a white knob on the right. Off: #D9C3A5 with the knob on the left. A toggle always has a visible label and, when the effect is not obvious, a one-line helper below it. Because mango is low contrast against light surfaces, the on state must also change the helper or label text (for example "On") or add a dark outline.
-
-### 8.5 Status pill
-
-Radius 8, padding 2 by 8, caption size, weight 800, colours from section 3.3. Shows a word such as paid, due in 3 days, 2 days late, draft, awaiting approval. Never colour alone.
-
-### 8.6 Money (amount) component
-
-- Symbol before the amount, no space (₦450,000, $850.00).
-- Show the ISO code when the symbol is ambiguous or when several currencies share a screen.
-- Two decimals on documents; no decimals on naira in lists. Always two decimals for USD, GBP and EUR.
-- Large amounts use amount-xl on documents, amount-l on summaries, amount-s in rows.
-- Right-aligned in tables and rows.
-- Each amount carries its own currency. Never add or compare different currencies silently, and never convert without showing the rate and the result.
-
-### 8.7 Cards and rows
-
-Summary card (card radius): earnings card in mango with dark text, other cards in white with a subtle border. Overdue card uses the late tone (soft red tint), not danger. List row (row radius): white, subtle border, name and status on the left, amount on the right, 12 px padding. Rows show a chevron only if the whole row opens something.
-
-### 8.8 Avatars
-
-Circular. Use initials on a soft tint when there is no logo or photo. Client avatars cycle through peach, soft pink, soft yellow and soft green tints with a dark matching letter.
-
-### 8.9 Navigation
-
-- **Bottom tab bar (phone):** four items. The design target is Home, Docs, Clients, Balance. Until a combined Documents page and a Balance page exist, the tab bar shows Home, Quotes, Invoices and Clients. Settings opens from the avatar in the header. The selected item shows its icon inside a mango pill, with the label in cocoa at weight 800 (mango text on a white bar fails contrast).
-- **Icon rail (tablet):** coin at the top, then icons. The selected icon sits in a mango rounded square with a dark icon.
-- **Sidebar (desktop):** same items with labels, plus a New invoice button at the top. The selected item has a mango fill and dark label.
-- **Back link:** a plain "Back" or the parent name with an arrow, in link colour.
-
-### 8.10 Documents list and tables
-
-Header row on `surface-sunken`, caption size. Columns on desktop: client and number, status, issued, due, currency, amount, actions. Phone shows cards instead. Hover on desktop highlights the row with a warm tint and reveals actions (remind, duplicate, mark paid, PDF). Sort defaults to needs attention first: overdue, due soon, draft, paid. Pagination footer shows the range.
-
-### 8.11 Side panel (desktop)
-
-Opens on row click beside the table, about 360 px wide. Contains status, client, amount, due date, actions, a suggested reminder, and an activity timeline (latest first, cocoa dot for the latest event, grey dots for earlier ones). Close with the X or Escape.
-
-### 8.12 Modals and sheets
-
-Phone uses bottom sheets with a drag handle; desktop uses centred modals (max 440 px). Title in `title` lowercase, one or two lines of explanation, then buttons. The safe action sits on the left, the committing action on the right. Confirm modals that send something in the user's name show the exact message. Destructive modals say what will happen and that it cannot be undone, with the default action being Keep it.
-
-### 8.13 Banners and toasts
-
-- **Offline banner:** cocoa background, cream text, wifi-off icon, at the top of the screen.
-- **Warning strip (inline):** #FFF1C2 with a dark-gold border and an alert-triangle icon, with the fix link in the strip.
-- **Info strip:** peach background with a shield or info icon.
-- **Toast:** bottom of the screen, 4 seconds, cocoa background. The wording repeats the action's verb (Publish then Published). Errors never use toasts alone; they also appear where the problem is.
-
-### 8.14 Skeletons
-
-Skeleton bars use `surface-tint` and `border-subtle`, copy the real layout (row height, widths), and appear after 300 ms of waiting. No shimmer animation when reduced motion is on.
-
-### 8.15 Empty states
-
-Bag character, a lowercase headline, one sentence on what to do, one primary action. Example: "all set, ada. Send your first invoice and earn a sticker." Empty states are invitations to act, not apologies.
-
-### 8.16 Progress
-
-- Step bar for flows (onboarding, invoice builder): equal segments, cocoa or mango for done, `border-subtle` for remaining.
-- Project progress: a thin bar showing the share of money paid, in green, with a text line such as "$255 of $850 paid".
-
-### 8.17 Project components (Phase 2)
-
-- **Milestone card:** name, amount, status pill. The current milestone has a 1.5 px cocoa border and a mango accent. Upcoming milestones are at 75 percent opacity. A lock icon and a one-line note appear when final files are tied to that milestone.
-- **Approval block:** previews of the delivered work, a plain-language note about what approval does, an Approve button (primary) and Request changes (outline). Shows revision round counts.
-- **Change order summary:** a peach block listing what changes (total, new milestone, delivery date).
-- **Contract key terms card:** two-column rows (term and value). Each value needs confirmation before it is relied on.
-- **File row:** file icon, name, source and size. Locked state: lock icon on a sunken background and the unlock condition in plain words. Unavailable state: link-off icon with the reason and a contact action.
+- Motion must communicate a response or change.
+- Do not animate every card on entry.
+- Do not animate financial amounts counting up.
+- Respect "prefers-reduced-motion".
+- Under reduced motion, replace celebrations with static illustrations and remove unnecessary transitions.
+- Do not use animation to imply payment confirmation or background completion before the server confirms it.
 
 ---
 
-## 9. Patterns
+9. Component and interface vocabulary
 
-### 9.1 Two moods
+The following definitions are normative. Designers and engineers should use these terms consistently.
 
-| | Freelancer views | Client views |
-|---|---|---|
-| Background | cream | white |
-| Tone | warm and playful | calm and professional |
-| Primary action | mango (pink for main home action) | mango only |
-| Stickers | allowed | paid stamp on receipts and success only |
-| Branding | full | one small "Sent with bagg" line |
+9.1 Application
 
-### 9.2 Document family
+The complete product experience for a particular user context.
 
-Quotes, invoices and receipts share one layout: sender (logo or initials and name) at the top, an amount-xl block with its label and date, line items, a total, then one action, then the footer. Only the status and the action change.
+Examples:
 
-- Quote: validity date, deposit line if any, Accept quote (primary) and Ask a question (outline).
-- Invoice: due date, Pay (primary).
-- Receipt: small paid stamp, payment date and method, reference, Download PDF (outline).
+- Authenticated freelancer workspace.
+- Public marketing website.
+- Client-facing document experience.
 
-### 9.3 Builders and forms
+An application contains routes, shared shell elements, pages, overlays and global feedback.
 
-Break long forms into 3 or fewer short steps with a step bar. Show the running total as soon as there is one. Keep optional things behind links (Add discount, Add tax). Defaults come from Settings and apply to new documents only. Line items suggest from past line items, including the last rate.
+9.2 Route
 
-### 9.4 Money flows
+A navigable URL representing a resource or workflow.
 
-- Fees and the amount received appear above the button.
-- The confirm button repeats the amount ("Withdraw ₦500,000", "Pay $850.00").
-- Verified account names appear before any payout.
-- Failed payments say the card was not charged, if true.
-- Pending transfers show a reference and an expected time.
+Examples:
 
-### 9.5 Reminders
+- "/invoices"
+- "/invoices/{invoice_id}"
+- "/clients"
+- "/settings/business"
 
-Schedule rows with toggles, then a message editor with tone options, variable chips (client, number, amount, date, link) and a preview. Manual reminders show the exact message in a confirm modal. Reminders stop automatically when paid.
+A route may render a full page, a page with a contextual panel, or a workflow step.
 
-### 9.6 Delivery and release on payment
+9.3 Page
 
-The client delivery page shows low-resolution previews first, then a locked final-files row, then one button that does both jobs: "Pay $255.00 to unlock". After payment, the row unlocks without any manual step. When a file is added, a public link triggers a warning that anyone with the link could skip the lock, with an offer to make it private.
+The primary content surface rendered for a route.
 
----
+A page normally contains:
 
-## 10. Content and voice
+1. Application shell, where applicable.
+2. Breadcrumb or back navigation, where applicable.
+3. Page header.
+4. Primary action.
+5. Main content sections.
+6. Contextual feedback or secondary actions.
 
-### 10.1 Voice
+A page is not a modal. A complex workflow should generally have a route and a page.
 
-The friendly big sister: warm, direct, never gushing and never scolding. Playful about wins, calm and clear about late payments, plain about money.
+9.4 Page header
 
-### 10.2 Writing rules
+The top-level identification and action area of a page.
 
-- Sentence case for buttons, labels and body. Lowercase for screen titles and headlines.
-- Active voice. A button says exactly what happens: "Send invoice", "Save message", not "Submit".
-- Keep one verb for one action through the flow (Withdraw produces "Withdrawn", not "Transfer started").
-- Name things in the user's words (documents, clients, balance), not system words.
-- Errors say what happened, what did not happen, and what to do next. They do not apologise and are never vague.
-- One idea per line. Cut filler.
-- No exclamation marks on money screens. One is allowed on a milestone ("northwind paid you!").
+It can contain:
 
-### 10.3 Tone by situation
+- Breadcrumb or back link.
+- Title.
+- Supporting description.
+- Status.
+- Primary action.
+- Secondary actions.
+- Contextual metadata.
 
-| Situation | Example |
-|---|---|
-| Payment received | "Tolu paid. Go eat something nice." |
-| Onboarding done | "all set, ada" |
-| Invoice a few days late | "Tolu is 2 days late. Want me to send a nudge?" |
-| Payment failed (client) | "that didn't go through. Your card wasn't charged." |
-| Pending transfer | "waiting for your transfer. We'll confirm as soon as it lands." |
-| Link not active | "this invoice isn't active. Ask Ada for a fresh link." |
-| Destructive | "void invoice 0041? Tolu Studio won't be able to pay it. This can't be undone." |
-| Offline | "You're offline. Changes will sync later." |
-| 404 | "this page took the day off" |
+A page header should not become a second navigation system.
 
-### 10.4 Reminder tone ladder
+9.5 Section
 
-- **Before due (friendly):** "Hi Tolu, a heads up: invoice 0041 for ₦450,000 is due on 22 Oct."
-- **On due date (friendly):** "Hi Tolu, invoice 0041 for ₦450,000 is due today. Here's the link."
-- **3 days after (friendly or direct):** "Hi Tolu, a quick nudge: invoice 0041 was due on 19 Oct. Here's the link whenever you're ready."
-- **7 days after (direct):** "Hi Tolu, invoice 0041 is now 7 days overdue. Please pay today or reply to let me know the plan."
+A meaningful grouping of related content within a page.
 
-All reminders end with "Already paid? Please ignore this note." and are editable per reminder.
+A section has a clear purpose and may have:
 
-### 10.5 Formats
+- A heading.
+- Supporting text.
+- A section-level action.
+- One or more panels, cards, lists or forms.
 
-- Currency: ₦1,240,000, $850.00, £320.00, €210.00. Symbol first, comma thousands, ISO code when ambiguous.
-- Dates: 4 Nov 2026. Never numeric-only dates (04/11/2026). Relative text for near dates ("due in 3 days", "2 days late").
-- Times: local to the viewer, 24-hour or 12-hour by locale.
-- Document numbers: four digits with leading zeros (0043), per document type.
-- Reminders send at a sensible local hour for the client, not the freelancer.
+Sections organise information; they are not necessarily bordered containers.
 
----
+9.6 Panel
 
-## 11. Accessibility
+A bounded area used to display related information or controls.
 
-- Meet WCAG 2.1 AA as the floor.
-- Contrast: 4.5 to 1 for text under 18 px, 3 to 1 for large text and UI outlines.
-- Tap targets of 44 by 44 px.
-- **Focus ring:** every interactive element shows a 2 px outline in the text colour (cocoa in light mode, cream in dark mode) with a 2 px offset. Mango is not used for focus because it is too low contrast on light surfaces.
-- Status never by colour alone.
-- Respect reduced motion (section 7).
-- Inputs have real labels; placeholders are hints only.
-- Table reading order: client, status, amount, actions. Row actions are reachable by keyboard.
-- Stickers and illustrations have text descriptions or are marked decorative.
-- Text scales to 200 percent without loss of content or function.
-- Errors move focus to the first problem and are announced to screen readers.
-- Dialogs trap focus and return it on close.
+Use a panel when grouping improves comprehension or establishes a distinct working area.
 
----
+Examples:
 
-## 12. Email and PDF
+- Invoice summary.
+- Client details.
+- Payment breakdown.
+- Activity history.
 
-### 12.1 Email
+Do not wrap every section in a panel.
 
-- System font stack (`-apple-system, "Segoe UI", Helvetica, Arial, sans-serif`). Brand shows through colour, the large amount and one orange button.
-- Layout: sender name first ("Ada Okafor Design via bagg"), short subject with number, amount and due date, a small logo or initials circle, one sentence, the amount, one solid mango button with a 6 px radius, a PDF note, and a footer ("Sent with bagg").
-- Solid-colour buttons only (no gradients, no images for buttons).
-- Reminder emails add "Already paid? Please ignore this note."
-- Receipt emails use a small green check, the amount, three details (receipt number, date, method) and an outline Download receipt button.
-- Keep total width at 600 px or less and test in light and dark clients.
+9.7 Card
 
-### 12.2 PDF
+A compact, visually bounded component representing a discrete item or summary.
 
-- A4 by default, US Letter for US clients. Margins at least 16 mm.
-- Embedded Bricolage Grotesque (verify currency glyphs).
-- Black and white with one accent (the word "invoice" and highlights). Prints well in black and white.
-- Contents: logo or initials and business name, document number and dates, billed-to, line items, tax lines, total in amount-l, payment link and QR code, optional bank details only if the freelancer turned them on, footer "Sent with bagg" (unless removed).
-- No stickers except a small paid stamp on receipts.
+Examples:
 
----
+- Earnings summary.
+- Invoice preview.
+- Client summary.
+- Project milestone.
 
-## 13. Marketing site
+Cards should not be used as a substitute for a proper table or list when users need to compare many records.
 
-- Hero: a lowercase headline ("send. chase. get paid."), one sentence, one Start free button, and a live piece of product (a paid invoice card) in place of a stock image.
-- Proof: real freelancer stories and numbers as they become available. Until then, show product proof only.
-- Fees page: plain list of what is free and what costs money, with an example showing the fee and the amount received. Rates remain placeholders until pricing is set.
-- Trust page: four safeguards (encryption, account-name checks, change alerts, no stored card numbers), each only if true at launch, and a link to the help centre.
-- 404: sleepy bag character, "this page took the day off", Take me home.
-- Same palette, same font, same voice as the product, with a little more room and more playfulness than the app.
+9.8 Widget
 
----
+A self-contained functional unit that presents a summary or a small interaction.
 
-## 14. Implementation notes
+Examples:
 
-### 14.1 Tokens
+- Outstanding balance.
+- Recent activity.
+- Payment performance.
+- Upcoming milestones.
 
-Tokens are CSS variables in `apps/web/src/app/globals.css`, mapped to Tailwind names in `apps/web/tailwind.config.ts`. Dark mode applies with `data-theme="dark"` or automatically from the device setting unless `data-theme="light"` is set.
+A widget must have a clear data source, loading state and failure state.
 
-| Token in this document | Tailwind name | Example class |
-|---|---|---|
-| bg | canvas | `bg-canvas` |
-| surface | surface | `bg-surface` |
-| surface-sunken | sunken | `bg-sunken` |
-| surface-tint | tint | `bg-tint` |
-| border | line | `border-line` |
-| border-subtle | line-subtle | `border-line-subtle` |
-| text | ink | `text-ink` |
-| text-soft | ink-soft | `text-ink-soft` |
-| text-muted | ink-muted | `text-ink-muted` |
-| link | link | `text-link` |
-| peach | peach | `bg-peach` |
-| peach-chip | peach-chip | `bg-peach-chip` |
-| mango, pink, sun, leaf, cocoa, danger | same | `bg-mango`, `text-cocoa` |
-| text on mango, text on pink | on-mango, on-pink | `text-on-mango` |
-| status pills | pill-paid, pill-paid-fg, and so on | `bg-pill-late text-pill-late-fg` |
+9.9 List
 
-Type sizes are Tailwind font sizes with the names in section 4.2 (`text-display`, `text-title-l`, `text-title`, `text-heading`, `text-body-l`, `text-body`, `text-label`, `text-caption`, `text-amount-xl`, `text-amount-l`, `text-amount-m`, `text-amount-s`). Radii: `rounded-card`, `rounded-row`, `rounded-input`, `rounded-small`, `rounded-sheet`, and `rounded-full` for pills.
+An ordered or unordered collection of related items.
 
-The old `brand-*` scale is kept as an alias of the mango scale so existing classes keep working while pages are migrated. Remove it once nothing uses it.
+Use lists for navigation, activity, compact records and mobile document collections.
 
-### 14.2 Fonts
+9.10 Table
 
-The web app loads Bricolage Grotesque through `next/font/google` with the latin and latin-ext subsets, so U+20A6 (₦) is included if the font has it. Run the glyph test in section 4.4 against the built app.
+A structured, column-based representation used for comparison and scanning.
 
-### 14.3 Money in code
+Use tables when column relationships matter and the viewport supports them.
 
-Store amounts as integers in minor units with a currency code. Format with the locale-aware Intl number formatter, then apply the Bagg rules (symbol first, decimals by currency and context, ISO code when ambiguous). Never format with string concatenation.
+Tables must define:
 
-### 14.4 Build checklist for any new screen
+- Column headings.
+- Alignment.
+- Sorting behaviour where applicable.
+- Empty state.
+- Loading state.
+- Error state.
+- Pagination or virtualisation where appropriate.
+- Keyboard access to row actions.
 
-1. Is it a freelancer view (cream, warm) or a client view (white, calm)?
-2. One primary action only?
-3. Every status has a word?
-4. Every amount carries its own currency?
-5. Any fee or conversion shown before the confirm button?
-6. Empty, loading, error and offline states designed?
-7. Works at phone, tablet and desktop widths?
-8. Light and dark checked?
-9. Focus order, labels and contrast checked?
-10. Copy follows section 10?
+9.11 Form
 
-### 14.5 Assets to produce
+A collection of controls used to create, edit or submit a coherent resource.
 
-Coin and wordmark (SVG, light and dark), app icon sizes, favicon, bag character in four expressions (default, sleepy, cheering, confused), paid stamp, milestone star (earned and locked), squiggle, email header, PDF template, and Open Graph image. The coin, wordmark, squiggle, bag character (default and sleepy), paid stamp and milestone star exist as React components (section 14.7).
+A form owns validation, dirty state, submission state and error presentation.
 
-### 14.6 Known open items
+Related fields should be grouped into sections. A form should not be broken into a multi-step workflow unless there is a genuine sequencing or complexity requirement.
 
-- Verify ₦ $ £ € glyphs in the chosen font and weights.
-- Re-check all contrast estimates in the build.
-- Dark-mode values are a first pass and need a full pass on real screens.
-- Dropbox, Box and OneDrive picker styling is not defined yet.
-- WhatsApp message formatting is not defined yet.
-- Existing pages still use the old emerald and neutral classes and are being migrated screen by screen.
-- End-to-end tests assert some old copy (for example the marketing headline and "Dashboard"). Update them in the same change as the copy.
+9.12 Modal
 
-### 14.7 Code map
+A blocking dialog that requires the user to respond before returning to the underlying context.
 
-| What | Where |
-|---|---|
-| Tokens (CSS) | `apps/web/src/app/globals.css` |
-| Tokens (Tailwind) | `apps/web/tailwind.config.ts` |
-| Font loading and root layout | `apps/web/src/app/layout.tsx` |
-| Class merge helper | `apps/web/src/lib/cn.ts` |
-| Brand pieces (coin, wordmark, squiggle, bag, paid stamp, milestone star) | `apps/web/src/components/brand/index.tsx` |
-| Button styles and component | `apps/web/src/components/ui/button.tsx` |
-| Status pill | `apps/web/src/components/ui/status-pill.tsx` |
-| App shell (sidebar, rail, tab bar) | `apps/web/src/app/(app)/layout.tsx` |
-| 404 page | `apps/web/src/app/not-found.tsx` |
+Use for:
 
----
+- Short confirmations.
+- Simple destructive-action confirmation.
+- Small, focused forms.
+- Brief decisions.
 
-## 15. Do and don't
+Do not use a modal for a complex resource editor.
 
-**Do**
-- Let the mango carry the screen and keep everything else quiet.
-- Put the amount first on every money screen.
-- Show the word for every status.
-- Write like a friendly big sister: warm, direct, plain.
-- Keep client pages white, calm and branded lightly.
+9.13 Drawer
 
-**Don't**
-- Put white text on mango or pink, or mango text on cream or white.
-- Use green for anything other than paid or success.
-- Put stickers on client invoices.
-- Use all-caps labels, script fonts or tracked eyebrow text.
-- Convert currencies without showing the rate and result.
-- Make failure screens cute.
-- Claim a security feature that is not built.
+A contextual panel entering from the side of the screen.
+
+Use primarily on desktop for:
+
+- Record previews.
+- Quick details.
+- Contextual actions.
+- Activity timelines.
+
+On mobile, a drawer should become a full-screen route or an appropriate bottom sheet.
+
+9.14 Bottom sheet
+
+A mobile-oriented overlay that enters from the bottom of the viewport.
+
+Use for:
+
+- Short confirmations.
+- Action menus.
+- Simple selections.
+- Small contextual forms.
+
+A bottom sheet must respect device safe areas and provide an obvious close or dismissal action.
+
+9.15 Popover
+
+A small anchored surface associated with a control.
+
+Use for:
+
+- Short option lists.
+- Date or filter selections.
+- Contextual actions.
+
+A popover must not contain a large workflow or lengthy form.
+
+9.16 Tooltip
+
+A short explanation associated with an element.
+
+Use only for supplementary information. Never hide essential instructions, field labels or status meanings inside a tooltip.
+
+9.17 Toast
+
+A transient notification that confirms a completed action or reports a non-blocking event.
+
+A toast must not be the only place where important information appears.
+
+9.18 Banner
+
+A persistent or semi-persistent message displayed within a page or application shell.
+
+Use for:
+
+- Account or payment warnings.
+- Important configuration requirements.
+- Service availability.
+- Actionable notices.
+
+9.19 Empty state
+
+A designed response to a resource collection with no relevant records.
+
+It must explain why the area is empty and, where appropriate, provide a next action.
+
+9.20 Skeleton
+
+A temporary visual representation of expected content while data is loading.
+
+Use skeletons when the shape of the content is predictable. Use a spinner for a local operation that does not justify a skeleton.
 
 ---
 
-## 16. Changelog
+10. Component catalogue
 
-- 0.2 (22 October 2026): aligned with the repo (lucide-react icons, Tailwind token names, code map). Fixed contrast problems found while implementing: mango is no longer used as text or thin outline on light surfaces, focus ring is now cocoa, and the selected tab uses a mango pill with a dark label.
-- 0.1 (22 October 2026): first version, written from the design discussion covering core billing, projects, contracts and delivery.
+This catalogue defines the shared component families required by the product. Individual components should be introduced as reusable primitives or domain compositions rather than implemented independently on every page.
+
+10.1 Foundations
+
+Component| Purpose
+Typography| Standard text hierarchy
+Colour tokens| Consistent colour application
+Spacing utilities| Layout rhythm
+Radius utilities| Consistent shape
+Border utilities| Boundaries and emphasis
+Shadow utilities| Elevation and neo-brutalist emphasis
+Icon wrapper| Consistent icon sizing
+Avatar| Person or organisation identity
+Logo| Brand identification
+Brand illustration| Brand personality
+MoneyAmount| Correct financial formatting
+DateDisplay| Consistent date presentation
+RelativeTime| Relative timestamps
+CopyToClipboard| Copy references and values
+ExternalLink| Clearly identified external navigation
+
+10.2 Application shell and navigation
+
+Component| Purpose
+AppShell| Authenticated application structure
+Sidebar| Desktop primary navigation
+NavigationRail| Tablet primary navigation
+BottomTabBar| Mobile primary navigation
+HeaderBar| Global page controls
+WorkspaceSwitcher| Workspace selection
+AccountMenu| User and account actions
+Breadcrumbs| Hierarchical navigation
+BackLink| Return to parent context
+PageHeader| Page title and actions
+CommandMenu| Global command or search entry point, if implemented
+
+Navigation must reflect actual available product capabilities. Do not expose placeholder destinations as though they are functional.
+
+10.3 Buttons and actions
+
+Component| Purpose
+Button| Primary action control
+IconButton| Compact icon action
+ButtonGroup| Related actions
+SplitButton| Primary action with alternatives
+LinkButton| Navigation styled as an action
+MenuButton| Opens an action menu
+FloatingActionButton| Mobile quick action where justified
+DestructiveAction| Explicitly destructive operation
+
+Button variants:
+
+- Primary.
+- Secondary or outline.
+- Accent.
+- Tertiary or link.
+- Danger.
+- Ghost.
+- Icon-only.
+
+Not every variant needs to appear on every page.
+
+10.4 Form controls
+
+Component| Purpose
+TextInput| Single-line text
+TextArea| Multi-line text
+EmailInput| Email entry
+PhoneInput| Telephone entry
+NumberInput| Numeric entry
+MoneyInput| Amount and currency entry
+DatePicker| Date selection
+DateRangePicker| Date range selection
+Select| Single selection
+Combobox| Searchable selection
+MultiSelect| Multiple selection
+Checkbox| Independent boolean choice
+RadioGroup| Mutually exclusive choice
+Switch| Immediate boolean setting
+SegmentedControl| Short set of alternatives
+SearchInput| Search query
+FileUpload| File selection and upload
+FormField| Label, control, hint and error composition
+FormSection| Grouped related fields
+FormActions| Submit and cancel controls
+ValidationSummary| Consolidated validation feedback
+
+10.5 Data display
+
+Component| Purpose
+DataTable| Structured desktop records
+DataList| Compact record collection
+DataCard| Mobile record presentation
+StatCard| Key metric
+SummaryPanel| Grouped summary
+StatusBadge| Status with explicit label
+AvatarGroup| Multiple identities
+ProgressBar| Progress measurement
+ProgressSteps| Sequential workflow
+Timeline| Chronological activity
+KeyValueList| Label-value pairs
+DefinitionList| Structured metadata
+Pagination| Page navigation
+SortControl| Sorting
+FilterBar| Applied filter controls
+FilterPopover| Filter selection
+SearchAndFilter| Combined record discovery
+EmptyState| No-data presentation
+Skeleton| Loading placeholder
+ErrorState| Failed data presentation
+
+10.6 Financial and document components
+
+Component| Purpose
+MoneyAmount| Currency-aware display
+MoneyInput| Currency-aware entry
+CurrencySelect| Currency selection
+ExchangeRateDisplay| Explicit conversion rate
+FeeBreakdown| Charges and deductions
+PaymentSummary| Amount due, received and outstanding
+PaymentMethodCard| Payment method presentation
+PaymentStatus| Payment lifecycle status
+PaymentClaimCard| User-reported payment awaiting verification
+InvoiceCard| Invoice summary
+InvoicePreview| Document preview
+QuoteCard| Quote summary
+QuotePreview| Quote preview
+ReceiptCard| Receipt summary
+ReceiptPreview| Receipt preview
+DocumentNumber| Document identifier
+DocumentStatus| Document lifecycle status
+DocumentActions| Document-level actions
+DueDateDisplay| Due-date presentation
+OverdueIndicator| Late payment indicator
+ReminderComposer| Payment reminder composition
+PaymentLink| Client payment action
+BankDetails| Configured bank payment information
+FinancialActivity| Financial event timeline
+
+10.7 Client and project components
+
+Component| Purpose
+ClientCard| Client summary
+ClientSelector| Client selection
+ClientProfileHeader| Client identity and overview
+ProjectCard| Project summary
+ProjectHeader| Project identity and status
+MilestoneCard| Milestone details and progress
+MilestoneTimeline| Milestone sequence
+ContractSummary| Contract status and key terms
+FileCard| Uploaded or linked file
+FileList| Project file collection
+DeliveryPreview| Preview of deliverable
+RevisionThread| Revision and feedback history
+ApprovalPanel| Client approval interaction
+DeliveryStatus| Delivery lifecycle status
+
+10.8 Feedback and system state
+
+Component| Purpose
+Toast| Transient feedback
+Banner| Persistent notice
+InlineAlert| Contextual feedback
+ConfirmationDialog| Confirmation
+LoadingIndicator| Local loading
+ProgressIndicator| Long-running operation
+ErrorBoundary| Unexpected rendering failure
+OfflineNotice| Connectivity issue
+SessionNotice| Authentication or session issue
+PermissionNotice| Access restriction
+FeatureGate| Plan or entitlement restriction
+SecurityChallenge| Additional verification
+UnsavedChangesDialog| Navigation with unsaved changes
+
+10.9 Overlays and contextual controls
+
+Component| Purpose
+Modal| Blocking dialog
+Drawer| Contextual side panel
+BottomSheet| Mobile overlay
+Popover| Anchored surface
+Tooltip| Supplementary explanation
+DropdownMenu| Action list
+ContextMenu| Contextual action list
+CommandMenu| Searchable action interface
+DatePopover| Anchored date selection
+
+10.10 Brand and onboarding
+
+Component| Purpose
+BagIllustration| Brand character
+PaidStamp| Payment celebration
+MilestoneStar| Achievement marker
+Squiggle| Brand accent
+OnboardingStep| Guided setup
+OnboardingChecklist| Activation progress
+Celebration| Meaningful milestone feedback
+ProductPreview| Product demonstration
+
+---
+
+11. Component contracts
+
+Every reusable component must have a documented contract.
+
+At minimum, define:
+
+1. Purpose.
+2. Appropriate use.
+3. Inappropriate use.
+4. Variants.
+5. Sizes.
+6. Supported states.
+7. Responsive behaviour.
+8. Keyboard behaviour.
+9. Accessibility requirements.
+10. State ownership.
+11. Data and API boundary.
+12. Composition rules.
+
+11.1 Component state ownership
+
+Shared UI primitives own presentation and local interaction state only.
+
+Examples:
+
+- A modal owns whether it is open.
+- A select owns its open and highlighted-option state.
+- A button owns its visual loading presentation when given a loading state.
+- A form controller owns dirty and validation state.
+
+Domain components may interpret domain data, but must not invent or mutate business rules.
+
+For example:
+
+- "StatusBadge" renders a supplied status.
+- "PaymentSummary" displays supplied financial totals.
+- A payment domain workflow determines whether a payment is confirmed.
+- A UI component must not infer payment confirmation from a button click.
+
+11.2 Button contract
+
+A button must define:
+
+- Variant.
+- Size.
+- Label.
+- Optional leading or trailing icon.
+- Disabled state.
+- Loading state.
+- Accessible name.
+- Action behaviour.
+
+Rules:
+
+- One visually dominant primary action per page or modal.
+- Standard minimum height: 44 px.
+- Main mobile action may use 48 px.
+- Loading must not cause width changes.
+- Disabled controls must remain understandable.
+- Destructive actions require explicit confirmation when the consequence is material.
+- Do not use a button for navigation when a link is semantically correct.
+
+11.3 Input contract
+
+Every input must support:
+
+- Label.
+- Value.
+- Placeholder, where useful.
+- Helper text.
+- Required indication.
+- Disabled state.
+- Read-only state.
+- Error state.
+- Focus state.
+- Accessible description.
+
+Rules:
+
+- Labels are visible.
+- Placeholder text is never the only label.
+- Input text is at least 16 px on mobile.
+- Controls have a minimum practical height of 44 px.
+- Errors explain the problem and how to resolve it.
+- Validation must not depend only on colour.
+
+11.4 MoneyAmount contract
+
+Every financial amount must have an explicit currency.
+
+The component receives a numeric amount, currency code and formatting context.
+
+Rules:
+
+- Never concatenate currency symbols and numeric strings manually.
+- Use locale-aware formatting.
+- Symbol precedes the amount where the symbol is unambiguous.
+- Show ISO currency codes where ambiguity exists.
+- Documents show two decimal places.
+- Naira lists may omit decimals where the value is an ordinary whole-naira amount.
+- USD, GBP and EUR use two decimals.
+- Amounts align consistently in tables.
+- Do not compare or aggregate different currencies without an explicit conversion model.
+
+11.5 StatusBadge contract
+
+A status badge receives a domain status and a display label.
+
+It must not determine the domain status itself.
+
+Rules:
+
+- Text is always visible.
+- Colour is supplementary.
+- Unknown statuses have a safe neutral presentation.
+- A new domain status requires an explicit visual mapping.
+- Do not silently map unknown states to paid, accepted or successful.
+
+11.6 DataTable contract
+
+A table must define:
+
+- Column model.
+- Column alignment.
+- Sortable columns.
+- Row action behaviour.
+- Pagination or virtualisation.
+- Loading state.
+- Empty state.
+- Filtered-empty state.
+- Error state.
+- Responsive alternative.
+
+Financial columns are right-aligned.
+
+On mobile, use a data card or list that preserves the information needed to identify, compare and act on the record. Do not simply hide important columns.
+
+11.7 Modal and bottom-sheet contract
+
+A modal or sheet must define:
+
+- Title.
+- Description.
+- Primary action.
+- Secondary or cancel action.
+- Dismissal behaviour.
+- Focus management.
+- Escape behaviour where applicable.
+- Loading and error presentation.
+
+A blocking operation must not be dismissible in a way that leaves the user uncertain about whether it completed.
+
+11.8 Toast contract
+
+Toasts are for short-lived confirmation or non-blocking notices.
+
+They must not be used for:
+
+- Critical payment failure.
+- Important security warnings.
+- Required user decisions.
+- Long explanations.
+- Errors that disappear before the user can act.
+
+Important outcomes must also be reflected in persistent page state.
+
+---
+
+12. State model
+
+Every page and interactive component must define the states relevant to its behaviour.
+
+Do not implement only the happy path.
+
+12.1 Page data states
+
+State| Meaning| Expected presentation
+Initial| No request has started| Stable page structure
+Loading| Request is in progress| Skeleton or loading indicator
+Loaded| Data successfully retrieved| Normal content
+Empty| No records exist| Empty state and useful next action
+Filtered empty| Records exist but filters exclude them| Explain filters and offer reset
+Partial| Some data is unavailable| Show available data and disclose missing sections
+Stale| Displayed data may be outdated| Refresh or stale-data indication
+Error| Request failed| Recovery action and error explanation
+Not found| Resource does not exist| Not-found presentation
+Forbidden| User lacks permission| Permission explanation
+Unauthenticated| Session is missing or invalid| Authentication recovery
+
+12.2 Interaction states
+
+Interactive components should support the states relevant to their role:
+
+- Default.
+- Hover.
+- Focus.
+- Active or pressed.
+- Selected.
+- Disabled.
+- Read-only.
+- Loading.
+- Success.
+- Error.
+- Dirty.
+- Validating.
+- Invalid.
+
+Not every component needs every state. The component contract must state which apply.
+
+12.3 Form states
+
+A form must account for:
+
+1. Pristine.
+2. Dirty.
+3. Valid.
+4. Invalid.
+5. Validating.
+6. Submitting.
+7. Submission success.
+8. Submission failure.
+9. Server validation failure.
+10. Session expired.
+11. Conflict or stale version.
+12. Unsaved changes.
+
+A successful submission must be based on the server response, not on the fact that the submit handler ran.
+
+12.4 Network and session states
+
+The application must account for:
+
+- Online.
+- Offline.
+- Reconnecting.
+- Request timeout.
+- Server unavailable.
+- Authentication required.
+- Session expired.
+- Session revoked.
+
+Do not assume that a failed request means the underlying action failed. For operations with uncertain outcomes, provide a safe way to verify the resulting server state before retrying.
+
+12.5 Permission and entitlement states
+
+The UI must be able to represent:
+
+- Owner.
+- Administrator.
+- Member.
+- Read-only.
+- Insufficient permission.
+- Feature unavailable on current plan.
+- Additional security verification required.
+- Explicit confirmation required.
+
+Permission and entitlement decisions must come from authoritative application data. Hiding a button is not an access-control mechanism.
+
+---
+
+13. Financial and document lifecycle states
+
+The backend is the source of truth for financial and document state.
+
+The frontend may display and request transitions, but must not independently invent a successful transition.
+
+13.1 Invoice and quote presentation
+
+The design system must support the relevant lifecycle labels, including:
+
+- Draft.
+- Issued.
+- Sent.
+- Viewed.
+- Awaiting approval.
+- Accepted.
+- Awaiting payment.
+- Payment claimed.
+- Partially paid.
+- Paid.
+- Overdue.
+- Cancelled.
+- Recalled.
+- Expired.
+- Refunded, where supported.
+
+The exact state model is owned by the relevant domain. This list is a presentation catalogue, not a declaration that every document supports every state.
+
+13.2 Payment integrity
+
+The UI must distinguish:
+
+- Payment initiated.
+- Payment processing.
+- Payment claimed by a client.
+- Payment verified by a provider or authorised reconciliation process.
+- Payment confirmed.
+- Payment failed.
+- Payment reversed or refunded.
+
+A payment claim is not a confirmed payment.
+
+A client clicking a payment button is not a confirmed payment.
+
+A success redirect is not, by itself, authoritative confirmation.
+
+Only a server-confirmed financial state may be presented as paid.
+
+13.3 Financial action confirmations
+
+Before a consequential financial action, show:
+
+- What is about to happen.
+- The affected document or payment.
+- The amount and currency, where relevant.
+- Whether the action is reversible.
+- Any material downstream effect.
+
+The confirmation action should use an explicit label. Avoid generic labels such as "Yes" or "Continue" where the consequence is significant.
+
+13.4 Payment presentation
+
+Payment pages must show:
+
+- Amount due.
+- Currency.
+- Relevant document reference.
+- Payment methods actually available.
+- Fees and conversion details, if applicable.
+- Amount expected to be received, where relevant.
+- Clear pending, successful or failed outcomes.
+
+Do not display a payment method as available when it is not configured or supported for that transaction.
+
+---
+
+14. Page architecture and composition
+
+14.1 Standard authenticated page
+
+A standard authenticated page is composed as follows:
+
+AppShell
+  HeaderBar / Navigation
+  Main
+    Breadcrumb (optional)
+    PageHeader
+    PageContent
+      Section
+        Panel / Card / Table / Form
+      Section
+        Panel / List / Timeline
+
+Pages should not introduce arbitrary nesting simply to achieve a visual effect.
+
+14.2 Page templates
+
+The following page templates should cover most application routes.
+
+Dashboard
+
+- Greeting or concise title.
+- Key financial summary.
+- Important actions.
+- Outstanding work.
+- Recent activity.
+- Upcoming milestones or due dates.
+
+Resource list
+
+- Page header.
+- Create action.
+- Search and filters.
+- Data table on desktop.
+- Data cards or list on mobile.
+- Pagination or load-more behaviour.
+- Empty and filtered-empty states.
+
+Resource detail
+
+- Resource identity and status.
+- Main financial or operational summary.
+- Primary actions.
+- Supporting information.
+- Activity history.
+- Related resources.
+
+Creation and editing
+
+- Page or focused modal depending on complexity.
+- Clear field grouping.
+- Inline validation.
+- Persistent submit actions where useful.
+- Unsaved-change handling.
+
+Client-facing document
+
+- Brand identification.
+- Business identity.
+- Document metadata.
+- Line items.
+- Totals and taxes.
+- Payment or acceptance action.
+- Clear status and next step.
+
+Client portal
+
+- Client identity and project context.
+- Deliverable or milestone status.
+- Available previews and files.
+- Revision or approval actions.
+- Payment state where relevant.
+
+14.3 Choosing a page or overlay
+
+Task| Preferred presentation
+Complex creation| Dedicated page
+Complex editing| Dedicated page
+Quick confirmation| Modal on desktop; sheet on mobile
+Destructive confirmation| Modal or sheet with explicit consequence
+Record preview| Desktop drawer; mobile detail page
+Quick selection| Popover or select
+Multi-step workflow| Dedicated page with progress
+Short action menu| Dropdown or bottom sheet
+Long-running operation| Persistent progress presentation
+
+Do not put a complex workflow inside a modal simply to avoid creating a route.
+
+---
+
+15. Navigation and application shell
+
+15.1 Mobile
+
+The current navigation direction is a four-item bottom navigation.
+
+The intended eventual structure is:
+
+- Home.
+- Documents.
+- Clients.
+- Balance.
+
+Until the combined Documents and Balance destinations exist, use the implemented destinations rather than exposing dead navigation items.
+
+Settings should remain accessible from the account or avatar menu.
+
+15.2 Tablet
+
+Use a compact navigation rail with icons and clear selected-state treatment.
+
+The rail must not reduce the main content area to an unusable width.
+
+15.3 Desktop
+
+Use a labelled sidebar with:
+
+- Brand mark.
+- Primary navigation.
+- New invoice or equivalent primary creation action.
+- Account access.
+- Settings access.
+
+15.4 Navigation behaviour
+
+- Selected state must be visually clear.
+- Keyboard navigation must work.
+- Every icon-only destination has an accessible name.
+- Navigation must reflect permissions and available product features.
+- Back navigation must preserve expected list or workflow context where possible.
+
+---
+
+16. Forms and validation
+
+16.1 Form design
+
+Forms should be divided into meaningful groups.
+
+For example, an invoice form may have:
+
+1. Client and document details.
+2. Line items.
+3. Tax and discount.
+4. Payment terms.
+5. Notes and delivery.
+
+Do not create unnecessary steps for short forms.
+
+16.2 Validation
+
+- Validate required fields.
+- Validate data format.
+- Validate domain constraints.
+- Validate server-side constraints.
+- Display field-level errors.
+- Provide a summary when multiple errors require attention.
+- Move focus to the first invalid field when appropriate.
+- Preserve entered data after recoverable failures.
+
+Client-side validation improves usability but does not replace server validation.
+
+16.3 Financial fields
+
+Money inputs must make currency explicit.
+
+Do not allow an amount to be submitted without a currency when the domain requires one.
+
+Show formatting and precision expectations before the user submits.
+
+16.4 Unsaved changes
+
+Where a user can lose meaningful work:
+
+- Track dirty state.
+- Warn before leaving.
+- Provide a clear stay or discard decision.
+- Do not display a warning after a successful save.
+- Do not discard a form because a transient request failed.
+
+---
+
+17. Responsive behaviour
+
+17.1 General rules
+
+- No horizontal page overflow.
+- No clipped primary actions.
+- No inaccessible hover-only controls.
+- No essential information hidden on mobile.
+- No truncated financial values.
+- Adequate touch targets.
+- Content-driven layout changes.
+
+17.2 Tables
+
+Desktop tables may become:
+
+- Stacked data cards.
+- Compact lists.
+- Horizontally scrollable tables only where preserving a tabular relationship is essential and the scrolling behaviour is clear.
+
+Do not solve mobile layout by simply hiding status, currency, amount or key action information.
+
+17.3 Drawers and sheets
+
+- Desktop contextual drawers may become mobile detail pages.
+- Mobile sheets must respect safe-area insets.
+- Full-screen mobile overlays must have clear dismissal and navigation behaviour.
+
+17.4 Forms
+
+- Single-column layout on narrow screens.
+- Multi-column layout only for logically related fields.
+- Full-width primary action where appropriate.
+- No fixed-width form controls that overflow.
+
+---
+
+18. Accessibility
+
+Target: WCAG 2.1 AA as a minimum.
+
+Requirements:
+
+- Semantic HTML.
+- Keyboard-accessible controls.
+- Visible focus indicators.
+- Accessible names for icon-only controls.
+- Labels associated with inputs.
+- Status conveyed through text as well as colour.
+- Meaningful image descriptions.
+- Decorative images hidden from assistive technology.
+- Dialog focus management.
+- Focus returned to the invoking control after a dialog closes.
+- Screen-reader announcements for relevant async feedback.
+- Text zoom to 200% without loss of content or functionality.
+- Reduced-motion support.
+- Adequate colour contrast.
+- Logical heading hierarchy.
+- No keyboard traps except correctly managed modal focus.
+
+The current CSS uses a mango focus outline. Retain it only where the rendered contrast is sufficient against the adjacent surface. Test actual focus states rather than assuming the brand colour always passes.
+
+---
+
+19. Content and voice
+
+19.1 Voice
+
+Bagg is warm, direct, plain-spoken and confident.
+
+The voice should feel human without being childish.
+
+19.2 Writing rules
+
+- Use short, clear sentences.
+- Explain financial consequences plainly.
+- Use familiar language.
+- Avoid unnecessary technical language in customer-facing copy.
+- Use humour sparingly.
+- Do not shame users for late payments.
+- Do not blame clients.
+- Avoid vague success messages.
+- Tell users what happened and what happens next.
+
+19.3 Examples
+
+Prefer:
+
+- "Your invoice is ready."
+- "Payment is being verified."
+- "This invoice is 3 days overdue."
+- "We couldn't send the reminder. Try again."
+- "Your changes haven't been saved."
+
+Avoid:
+
+- "Oopsie!"
+- "Something magical happened."
+- "Payment successful" when the payment is only pending.
+- "Error 500" as the only explanation.
+
+19.4 Financial communication
+
+Financial copy must be precise about:
+
+- Amount.
+- Currency.
+- Payment state.
+- Due date.
+- Fees.
+- Exchange rate.
+- Expected receipt.
+- Next action.
+
+---
+
+20. Client-facing experience
+
+Client-facing pages are public, mobile-first and trust-oriented.
+
+They should be visually simpler than the authenticated freelancer workspace.
+
+20.1 Document pages
+
+A client-facing invoice or quote should contain:
+
+- Freelancer or business identity.
+- Document type and number.
+- Issue and due dates.
+- Client details.
+- Line items.
+- Tax and discount breakdowns.
+- Total amount and currency.
+- Current document status.
+- Relevant acceptance or payment action.
+
+20.2 Payment pages
+
+Payment pages should prioritise:
+
+1. Amount due.
+2. Document reference.
+3. Available payment methods.
+4. Fees and conversion information.
+5. Payment action.
+6. Confirmation or recovery state.
+
+Do not add unnecessary account registration steps.
+
+20.3 Client actions
+
+Acceptance, revision requests, payment claims and approvals must have clear consequences.
+
+After submission, show the server-confirmed result.
+
+Do not imply that a document has been accepted or a payment confirmed until the backend establishes that state.
+
+20.4 Client trust
+
+Only display trust and security statements that are accurate for the deployed system.
+
+---
+
+21. Email and PDF
+
+21.1 Email
+
+Use system fonts:
+
+"-apple-system, "Segoe UI", Helvetica, Arial, sans-serif"
+
+Email layout should be simple and robust across email clients.
+
+A typical invoice email contains:
+
+- Sender identity.
+- Document number.
+- Amount.
+- Due date.
+- Short explanation.
+- One clear primary action.
+- PDF attachment or download reference.
+- Bagg footer.
+
+Reminder emails should include a polite instruction to disregard the reminder if payment has already been made.
+
+Receipt emails should show:
+
+- Receipt number.
+- Amount and currency.
+- Payment date.
+- Payment method.
+- Download receipt action.
+
+21.2 PDF
+
+Default format: A4. Use US Letter where appropriate for the recipient.
+
+Requirements:
+
+- Minimum 16 mm margins.
+- Embedded and verified font.
+- Print-friendly design.
+- Clear business identity.
+- Document number and dates.
+- Billed-to information.
+- Line items.
+- Tax and discount breakdown.
+- Total.
+- Payment instructions or link.
+- QR code where supported.
+- Bank details only when configured by the freelancer.
+- Bagg attribution where applicable.
+
+PDFs should remain legible when printed in black and white.
+
+---
+
+22. Marketing site
+
+The marketing experience may use more expressive neo-brutalist styling than the authenticated application.
+
+22.1 Hero
+
+The hero should communicate the product outcome, not merely its feature set.
+
+The product preview should show a real or representative Bagg interface.
+
+Do not use fabricated customer metrics or testimonials.
+
+22.2 Proof
+
+Use:
+
+- Real customer stories.
+- Verified product outcomes.
+- Real product demonstrations.
+- Accurate feature descriptions.
+
+Until customer proof exists, use product proof.
+
+22.3 Pricing
+
+Pricing must clearly explain:
+
+- What is included.
+- What is limited.
+- What costs extra.
+- Billing period.
+- Applicable currency.
+- Any payment-related fees.
+
+Do not publish placeholder rates as final pricing.
+
+22.4 Trust
+
+Security claims must correspond to deployed controls.
+
+The marketing site must not imply that a planned feature is already available.
+
+---
+
+23. Frontend architecture and implementation conventions
+
+23.1 Current technical baseline
+
+The inspected frontend uses:
+
+- Next.js 15.
+- React 19.
+- TypeScript.
+- Tailwind CSS 3.
+- "lucide-react".
+- "@phosphor-icons/react" (existing dependency).
+- "vaul".
+- "clsx".
+- "tailwind-merge".
+
+Do not introduce a new UI framework without an explicit architecture decision.
+
+23.2 Token ownership
+
+The canonical design token values live in:
+
+"apps/web/src/app/globals.css"
+
+Tailwind maps those CSS variables in:
+
+"apps/web/tailwind.config.ts"
+
+The CSS variables are the source of truth for runtime theme values.
+
+The current Tailwind names include:
+
+Design role| Tailwind class
+Brand mango| "bg-mango"
+Brand pink| "bg-pink"
+Brand sun| "bg-sun"
+Brand leaf| "bg-leaf"
+Danger| "bg-danger"
+Ink| "text-ink"
+Cream background| "bg-cream"
+Surface| "bg-surface"
+Sunken surface| "bg-surface-sunken"
+Tinted surface| "bg-surface-tint"
+Border| "border-line"
+Subtle border| "border-line-subtle"
+Main text| "text-text"
+Secondary text| "text-text-soft"
+Muted text| "text-text-muted"
+Link| "text-link"
+
+Do not use the old v0.2 names "canvas", "sunken", "tint", "ink-soft" or "ink-muted" unless those aliases are deliberately introduced.
+
+23.3 Radius and shadow mapping
+
+Use the actual configured Tailwind names:
+
+- "rounded-btn"
+- "rounded-card"
+- "rounded-row"
+- "rounded-input"
+- "rounded-small"
+- "rounded-sheet"
+- "rounded-full"
+- "shadow-brut-sm"
+- "shadow-brut"
+- "shadow-brut-lg"
+- "shadow-sheet"
+
+Do not assume old semantic names exist.
+
+23.4 Component architecture
+
+Use three layers.
+
+Layer 1: Primitives
+
+Generic reusable UI components:
+
+- Button.
+- Input.
+- Select.
+- Dialog.
+- Sheet.
+- Badge.
+- Table.
+- Card.
+- Typography.
+
+Primitives must not contain Bagg business rules.
+
+Layer 2: Domain components
+
+Reusable components that express Bagg concepts:
+
+- MoneyAmount.
+- InvoiceStatus.
+- PaymentSummary.
+- QuotePreview.
+- MilestoneCard.
+- ClientSelector.
+- ReminderComposer.
+
+Domain components may understand domain presentation semantics but must use authoritative domain data.
+
+Layer 3: Page compositions
+
+Route-specific composition of primitives and domain components.
+
+Pages own orchestration, data loading and workflow composition—not duplicate styling or business rules.
+
+23.5 API boundaries
+
+- Use the established API client.
+- Keep API requests out of generic UI primitives.
+- Separate server data from local interaction state.
+- Treat backend validation and permissions as authoritative.
+- Handle loading, failure and stale data explicitly.
+- Do not fabricate successful state transitions optimistically.
+- Refresh or reconcile authoritative state after consequential mutations.
+
+23.6 File and component conventions
+
+- Prefer one clear responsibility per component.
+- Use shared primitives before creating near-duplicate controls.
+- Keep domain-specific compositions in domain-oriented locations.
+- Avoid oversized page components that own unrelated workflows.
+- Avoid prop interfaces that expose internal implementation details.
+- Do not add global CSS for a one-off page treatment unless it is genuinely reusable.
+
+---
+
+24. Testing and acceptance criteria
+
+A component or page is not complete because it looks correct in one screenshot.
+
+24.1 Component acceptance
+
+Every shared component must be checked for:
+
+- Correct default appearance.
+- All supported variants.
+- Disabled state.
+- Loading state, where applicable.
+- Error state, where applicable.
+- Keyboard interaction.
+- Focus visibility.
+- Screen-reader semantics.
+- Responsive behaviour.
+- Dark mode where supported.
+- Reduced motion where relevant.
+
+24.2 Page acceptance
+
+Every new or materially changed page must be checked for:
+
+1. Loading state.
+2. Empty state.
+3. Filtered-empty state, where applicable.
+4. Error state.
+5. Permission or unauthenticated state, where applicable.
+6. Responsive layout.
+7. Keyboard access.
+8. Financial accuracy.
+9. Correct domain status.
+10. Unsaved-change behaviour, where applicable.
+11. Dark mode.
+12. Accessible contrast.
+
+24.3 Financial acceptance
+
+For any financial workflow, verify:
+
+- Currency is explicit.
+- Amount formatting is correct.
+- Fees are disclosed before confirmation.
+- Conversion is explicit.
+- Payment claims are not presented as confirmed payments.
+- Server-confirmed status is used.
+- Retry behaviour cannot create misleading duplicate actions.
+- Error messages explain recovery.
+
+24.4 Visual regression
+
+Visual tests should cover representative screens at:
+
+- Phone width.
+- Tablet width.
+- Desktop width.
+
+Include at least one light and one dark-mode screen in the regression suite.
+
+24.5 Definition of done
+
+A UI change is complete when:
+
+- It follows this document.
+- It uses shared tokens and components.
+- It has all relevant states.
+- It works at supported breakpoints.
+- It passes accessibility checks.
+- It uses correct backend state.
+- It has appropriate automated tests.
+- Any new design convention is documented.
+
+---
+
+25. Implementation roadmap
+
+The design system should be implemented in the following order.
+
+Phase 1 — Foundations
+
+- Verify colour tokens and contrast.
+- Verify font and currency glyph coverage.
+- Standardise typography utilities.
+- Confirm radius and shadow conventions.
+- Standardise icon usage.
+- Confirm light and dark theme behaviour.
+
+Phase 2 — Application shell
+
+- AppShell.
+- HeaderBar.
+- Sidebar.
+- NavigationRail.
+- BottomTabBar.
+- PageHeader.
+- Breadcrumbs.
+
+Phase 3 — Core primitives
+
+- Button.
+- IconButton.
+- Card.
+- Badge.
+- Input.
+- Select.
+- Checkbox.
+- RadioGroup.
+- Switch.
+- TextArea.
+- Dialog.
+- Sheet.
+- Popover.
+- Toast.
+- Banner.
+
+Phase 4 — Data presentation
+
+- DataTable.
+- DataCard.
+- DataList.
+- StatCard.
+- Timeline.
+- Pagination.
+- FilterBar.
+- EmptyState.
+- Skeleton.
+- ErrorState.
+
+Phase 5 — Financial and document components
+
+- MoneyAmount.
+- MoneyInput.
+- CurrencySelect.
+- PaymentSummary.
+- StatusBadge.
+- InvoiceCard.
+- QuoteCard.
+- ReceiptCard.
+- DocumentPreview.
+- PaymentClaimCard.
+- ReminderComposer.
+
+Phase 6 — Client and delivery components
+
+- ClientCard.
+- ProjectCard.
+- MilestoneCard.
+- ContractSummary.
+- FileCard.
+- DeliveryPreview.
+- RevisionThread.
+- ApprovalPanel.
+
+Phase 7 — Page templates and migration
+
+- Dashboard.
+- Resource list.
+- Resource detail.
+- Create/edit workflow.
+- Client-facing document.
+- Client payment page.
+- Project and delivery views.
+
+Migrate existing screens incrementally. Avoid a broad redesign that changes unrelated business behaviour.
+
+---
+
+26. Open implementation items
+
+The following items remain verification or implementation work. Their presence in this document does not imply they are already complete.
+
+1. Verify currency glyphs in Bricolage Grotesque.
+2. Run contrast checks on actual rendered component states.
+3. Verify dark mode across representative application pages.
+4. Confirm theme selection and persistence implementation.
+5. Audit existing use of Phosphor icons and standardise new work on Lucide.
+6. Audit old Tailwind classes and remove obsolete aliases when safe.
+7. Verify responsive navigation against the actual route structure.
+8. Define consistent styling for Dropbox, Box and OneDrive integrations.
+9. Define WhatsApp message presentation and preview patterns.
+10. Verify all client-facing payment and document states against backend domain behaviour.
+11. Ensure existing pages migrate to the current token names and neo-brutalist foundation.
+
+---
+
+27. Repository implementation map
+
+Concern| Location
+Design system| "DESIGN.md"
+CSS variables and global styles| "apps/web/src/app/globals.css"
+Tailwind token mapping| "apps/web/tailwind.config.ts"
+Font loading and root layout| "apps/web/src/app/layout.tsx"
+Class merge helper| "apps/web/src/lib/cn.ts"
+Brand components| "apps/web/src/components/brand/index.tsx"
+Button component| "apps/web/src/components/ui/button.tsx"
+Status pill| "apps/web/src/components/ui/status-pill.tsx"
+Application shell| "apps/web/src/app/(app)/layout.tsx"
+404 page| "apps/web/src/app/not-found.tsx"
+
+This map should be updated whenever shared implementation locations change.
+
+---
+
+28. Changelog
+
+0.3 — 11 November 2026
+
+- Reconciled the design document with the current CSS and Tailwind implementation.
+- Adopted the repository's neo-brutalist foundation as the implementation baseline.
+- Corrected Tailwind token naming and radius/shadow references.
+- Clarified the three experience contexts.
+- Defined page, section, panel, card, widget, modal, drawer, sheet, popover, toast and banner terminology.
+- Expanded the component catalogue.
+- Added component contracts and state ownership rules.
+- Formalised page, form, network, permission and interaction states.
+- Clarified payment and financial state integrity.
+- Added page templates, architecture conventions and acceptance criteria.
+- Corrected the dark-mode description to reflect the current "data-theme="dark"" implementation.
+
+0.2 — 22 October 2026
+
+- Introduced Mango Sunrise palette and Bricolage Grotesque.
+- Added financial formatting, document, payment and client-facing design guidance.
+- Added responsive navigation and accessibility principles.
+- Added initial implementation mapping.
+
+0.1 — 22 October 2026
+
+- Initial design system covering core billing, projects, contracts and delivery.
+
+---
+
+Final rule: Bagg should be recognisable at a glance, easy to operate on a phone, and trustworthy wherever money or client commitments are involved. Every component and page should reinforce those outcomes.
