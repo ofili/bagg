@@ -18,7 +18,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Info, Loader2 } from 'lucide-react';
 
-import { BagCharacter, Wordmark } from '@/components/brand';
+import { BagCharacter, BagMark, Wordmark } from '@/components/brand';
 import { buttonStyles } from '@/components/ui/button';
 
 const API_BASE = '/api';
@@ -176,7 +176,7 @@ function LoginPageContent() {
       <div className="flex min-h-dvh flex-col bg-cream">
         <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-4">
           <Link href="/" aria-label="Bagg home" className="inline-flex min-h-11 items-center gap-2">
-            <BagCharacter size={32} decorative />
+            <BagMark size={32} />
             <Wordmark />
           </Link>
           <Link href="/i/token_demo_sample_ngn" className="inline-flex min-h-11 items-center text-label font-bold text-link hover:underline">

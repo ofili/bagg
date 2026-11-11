@@ -137,7 +137,7 @@ body {
 
 /* Visible focus on every interactive element (WCAG): 2px mango, 2px offset */
 :focus-visible {
-  outline: 2px solid var(--bagg-mango);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
@@ -251,9 +251,9 @@ textarea {
 }
 
 .bagg-select__trigger:focus-visible {
-  outline: 2px solid var(--bagg-mango);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
-  border-color: var(--bagg-mango);
+  border-color: var(--ink);
 }
 
 .bagg-select__trigger:disabled {

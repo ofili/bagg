@@ -128,7 +128,7 @@ const itemClass = cn(
   'flex w-full items-center rounded-row px-3 py-3',
   'text-left text-body font-semibold text-ink',
   'hover:bg-surface-tint',
-  'focus-visible:outline-none focus-visible:bg-surface-tint',
+  'focus-visible:bg-surface-tint',
 );
 
 export function MenuBody({

@@ -47,6 +47,58 @@ const YELLOW = '#FFC933';
 const TEAR = '#8FD3FF';
 const GREEN = '#1FA971';
 
+/** Fixed brand mark for compact navigation and identity placements. */
+export function BagMark({
+  size = 32,
+  decorative = true,
+  className,
+}: {
+  size?: number;
+  decorative?: boolean;
+  className?: string;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 40 40"
+      className={className}
+      role={decorative ? undefined : 'img'}
+      aria-label={decorative ? undefined : 'Bagg'}
+      aria-hidden={decorative ? true : undefined}
+    >
+      <path
+        d="M13 13 Q13 4 20 4 Q27 4 27 13"
+        fill="none"
+        stroke={PINK}
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <rect
+        x="5"
+        y="13"
+        width="30"
+        height="24"
+        rx="9"
+        fill={MANGO}
+        stroke={INK}
+        strokeWidth="2"
+      />
+      <circle cx="15" cy="23" r="2.2" fill={INK} />
+      <circle cx="25" cy="23" r="2.2" fill={INK} />
+      <circle cx="11" cy="28" r="2.5" fill={PINK} />
+      <circle cx="29" cy="28" r="2.5" fill={PINK} />
+      <path
+        d="M16 28 Q20 32 24 28"
+        fill="none"
+        stroke={INK}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 const LABELS: Record<BagMood, string> = {
   happy: 'Happy bagg character',
   sleepy: 'Sleepy bagg character',
