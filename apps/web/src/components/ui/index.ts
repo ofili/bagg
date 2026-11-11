@@ -21,3 +21,15 @@ export type { FilterConfig } from './TableToolbar';
 
 export { EmptyState, emptyStates } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
+
+export { StatusPill } from './status-pill';
+export type { Status } from './status-pill';
+
+export { PageHeader } from './PageHeader';
+export type { PageHeaderProps } from './PageHeader';
+
+export { SectionHeader } from './SectionHeader';
+export type { SectionHeaderProps } from './SectionHeader';
+
+export { Skeleton, SkeletonText } from './Skeleton';
+export type { SkeletonProps } from './Skeleton';

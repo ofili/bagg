@@ -35,6 +35,25 @@
   /* Legacy aliases, remove once nothing reads them */
   --foreground: var(--text);
   --background: var(--bg);
+
+    /* Semantic status surfaces and foregrounds */
+  --status-paid-bg: #d8f5e6;
+  --status-paid-fg: #0f6b45;
+
+  --status-due-bg: #fff0c2;
+  --status-due-fg: #6b4d00;
+
+  --status-late-bg: #fce0de;
+  --status-late-fg: #8a1c14;
+
+  --status-draft-bg: #ede7df;
+  --status-draft-fg: #5b4a3b;
+
+  --status-pending-bg: #dcebff;
+  --status-pending-fg: #174a7e;
+
+  --status-void-bg: #eee9e3;
+  --status-void-fg: #75685c;
 }
 
 /* Dark mode is a first pass: warm brown-black, brand colours unchanged.
@@ -54,6 +73,25 @@
   --text-soft: #dcc6ab;
   --text-muted: #bfa88f;
   --link: #ffb27a;
+
+    /* Semantic statuses: preserve legibility on dark surfaces */
+  --status-paid-bg: #173c2c;
+  --status-paid-fg: #a8edc8;
+
+  --status-due-bg: #493914;
+  --status-due-fg: #ffe29a;
+
+  --status-late-bg: #4a211e;
+  --status-late-fg: #ffb4ad;
+
+  --status-draft-bg: #3b3027;
+  --status-draft-fg: #e5d4c2;
+
+  --status-pending-bg: #1c3550;
+  --status-pending-fg: #b7d9ff;
+
+  --status-void-bg: #39312b;
+  --status-void-fg: #c9bbae;
 }
 
 html {
@@ -128,6 +166,9 @@ textarea {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .animate-pulse {
+    animation: none !important;
   }
 }
 
