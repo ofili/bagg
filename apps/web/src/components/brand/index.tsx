@@ -250,11 +250,19 @@ export function BagCharacter({
 }
 
 /** Paid stamp. Always sits beside the status word or amount, never alone. */
-export function PaidStamp({ label = 'paid', className }: { label?: string; className?: string }) {
+export function PaidStamp({
+  label = 'paid',
+  className,
+}: {
+  label?: string;
+  className?: string;
+}) {
   return (
     <span
       className={cn(
-        'inline-block -rotate-6 rounded-small border-[3px] border-double border-[#0F6B45] bg-[#D8F5E6] px-2.5 text-body font-extrabold text-[#0F6B45]',
+        'inline-block -rotate-6 rounded-small border-[3px] border-double',
+        'border-status-paid-fg bg-status-paid px-2.5',
+        'text-body font-extrabold text-status-paid-fg',
         className,
       )}
     >

@@ -16,6 +16,27 @@
   --on-pink: #3d0618;
   --brut-shadow: #2b1405;
 
+   /* Text on brand surfaces */
+  --on-sun: #4a3200;
+
+  /* Shape */
+  --radius-btn: 10px;
+  --radius-card: 12px;
+  --radius-row: 8px;
+  --radius-input: 8px;
+  --radius-small: 6px;
+  --radius-sheet: 16px;
+
+  /* Borders */
+  --border-width-brut: 2px;
+  --border-width-brut-thin: 1.5px;
+
+  /* Elevation */
+  --shadow-sheet: 0 -8px 24px rgb(58 31 10 / 12%);
+  --shadow-menu:
+    0 8px 24px rgb(43 20 5 / 10%),
+    0 2px 6px rgb(43 20 5 / 5%);
+
   /* Neutrals */
   --bg: #fff8ee;
   --surface: #ffffff;
@@ -73,6 +94,10 @@
   --text-soft: #dcc6ab;
   --text-muted: #bfa88f;
   --link: #ffb27a;
+
+  --shadow-menu:
+  0 8px 24px rgb(0 0 0 / 24% ),
+  0 2px 6px rgb(0 0 0 / 16% );
 
     /* Semantic statuses: preserve legibility on dark surfaces */
   --status-paid-bg: #173c2c;

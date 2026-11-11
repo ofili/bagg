@@ -172,6 +172,7 @@ link| "#8A3D0C"| Text links and quiet actions
 Token| Value
 on-mango| "#2B1405"
 on-pink| "#3D0618"
+on-sun | "#4A3200"
 
 Never use white text on mango or pink.
 
@@ -217,9 +218,7 @@ link| "#8A3D0C"| "#FFB27A"
 peach| "#FFE9D6"| "#3A2616"
 peach-chip| "#FFE3CC"| "#4A3220"
 
-The current implementation supports dark mode through the "data-theme="dark"" selector configured in Tailwind. The root layout does not itself implement automatic operating-system theme detection.
-
-Theme selection and persistence must be implemented by the application theme provider or equivalent mechanism. Do not claim automatic system detection until it is implemented and verified.
+The application supports system, light and dark theme preferences. The root layout applies the stored preference before hydration to minimize theme flash. The ThemeProvider manages preference changes, operating-system changes while in system mode, and cross-tab synchronization. Tailwind dark-mode utilities are activated through [data-theme="dark"].
 
 Client-facing pages should respect the selected viewer theme where appropriate. PDFs remain light.
 
@@ -277,7 +276,7 @@ amount-l| 28 / 32
 amount-m| 20 / 24
 amount-s| 16 / 20
 
-The existing Tailwind configuration includes the amount scale. The "label" style should be implemented as a shared typography utility or component if it is not already present.
+The existing Tailwind configuration includes the amount scale.
 
 5.3 Typography rules
 
@@ -305,7 +304,7 @@ If any glyph is missing, use a verified fallback font or a compatible font subse
 
 ---
 
-6. Layout, spacing and shape
+1. Layout, spacing and shape
 
 6.1 Spacing scale
 
@@ -358,8 +357,6 @@ small| 6 px| Small elements
 sheet| 16 px| Sheets and overlays
 full| 999 px| Pills and circular controls
 
-Do not use the older v0.2 radius values as if they were already implemented. In particular, "rounded-card", "rounded-row" and "rounded-input" must not be assumed to match the current Tailwind configuration.
-
 6.5 Neo-brutalist borders and shadows
 
 The authenticated application uses the neo-brutalist foundation already established in the repository.
@@ -382,7 +379,7 @@ Rules:
 
 ---
 
-7. Iconography and illustration
+1. Iconography and illustration
 
 7.1 Icon library
 

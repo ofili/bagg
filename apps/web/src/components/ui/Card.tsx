@@ -8,7 +8,7 @@ const TONES: Record<CardTone, string> = {
   surface: 'bg-surface text-text',
   mango: 'bg-mango text-on-mango',
   peach: 'bg-peach text-text',
-  sun: 'bg-sun text-[#4A3200]',
+  sun: 'bg-sun text-on-sun',
   pink: 'bg-pink text-on-pink',
 };
 

@@ -36,72 +36,72 @@ const STATUS_META: Record<
 > = {
   draft: {
     label: 'Draft',
-    className: 'bg-[#E6DAC6] text-[#5A4A35]',
+    className: 'bg-status-draft text-status-draft-fg',
     icon: FileEdit,
   },
   issued: {
     label: 'Issued',
-    className: 'bg-peach-chip text-text',
+    className: 'bg-surface-tint text-text',
     icon: FileEdit,
   },
   sent: {
     label: 'Open',
-    className: 'bg-peach-chip text-text',
+    className: 'bg-surface-tint text-text',
     icon: Send,
   },
   viewed: {
     label: 'Open',
-    className: 'bg-peach-chip text-text',
+    className: 'bg-surface-tint text-text',
     icon: Eye,
   },
   payment_claimed: {
     label: 'Needs review',
-    className: 'bg-sun text-[#4A3200]',
+    className: 'bg-status-pending text-status-pending-fg',
     icon: Clock3,
   },
   partially_paid: {
     label: 'Partially paid',
-    className: 'bg-[#FFF1C2] text-[#8A6200]',
+    className: 'bg-status-due text-status-due-fg',
     icon: CircleDashed,
   },
   paid: {
     label: 'Paid',
-    className: 'bg-leaf text-[#052E1B]',
+    className: 'bg-status-paid text-status-paid-fg',
     icon: CheckCircle2,
   },
   cancelled: {
     label: 'Cancelled',
-    className: 'bg-[#EFE6D8] text-[#8A6A50]',
+    className: 'bg-status-void text-status-void-fg',
     icon: XCircle,
   },
   overdue: {
     label: 'Overdue',
-    className: 'bg-[#FFB3B3] text-[#5A1010]',
+    className: 'bg-status-late text-status-late-fg',
     icon: AlertTriangle,
   },
   processing: {
     label: 'Processing',
-    className: 'bg-[#FFF1C2] text-[#8A6200]',
+    className: 'bg-status-pending text-status-pending-fg',
     icon: Loader2,
   },
   accepted: {
     label: 'Accepted',
-    className: 'bg-[#E6DAC6] text-[#5A4A35]',
+    className: 'bg-status-draft text-status-draft-fg',
     icon: ThumbsUp,
   },
   declined: {
     label: 'Declined',
-    className: 'bg-[#EFE6D8] text-[#8A6A50]',
+    className: 'bg-status-void text-status-void-fg',
     icon: ThumbsDown,
   },
   expired: {
     label: 'Expired',
-    className: 'bg-[#EFE6D8] text-[#8A6A50]',
+    className: 'bg-status-void text-status-void-fg',
     icon: TimerOff,
   },
   converted: {
     label: 'Converted to invoice',
-    className: 'bg-[#E6DAC6] text-[#5A4A35]',
+    className: 'bg-status-draft text-status-draft-fg',
     icon: ArrowRightCircle,
   },
 };

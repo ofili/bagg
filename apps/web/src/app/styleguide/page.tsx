@@ -69,7 +69,7 @@ export default function StyleguidePage() {
                 </div>
                 <div className="mt-2 w-full border-t border-ink/10 pt-2">
                   <p className="font-extrabold text-ink">{mood}</p>
-                  <p className="mt-1 text-[11px] leading-tight text-text-muted">{info.moment}</p>
+                  <p className="mt-1 text-caption leading-tight text-text-muted">{info.moment}</p>
                 </div>
               </div>
             );
@@ -108,7 +108,7 @@ export default function StyleguidePage() {
             ))}
           </div>
 
-          <div className="rounded-card border border-ink/15 bg-canvas/40">
+          <div className="rounded-card border border-ink/15 bg-surface-sunken/40">
             <EmptyState
               mood={activeMood}
               title={`Demo: ${activeMood} empty state`}

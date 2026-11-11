@@ -1,10 +1,11 @@
+
 import type { Config } from 'tailwindcss';
 
 /**
  * Bagg design tokens.
- * 
- * CSS variables are the source of truth for colors and theme-dependent values.
- * Tailwind exposes the semantic utility classes used by components.
+ *
+ * CSS variables are the source of truth for theme-dependent values
+ * and shared visual primitives. Tailwind exposes semantic utilities.
  */
 const config: Config = {
   content: [
@@ -23,10 +24,11 @@ const config: Config = {
         leaf: 'var(--bagg-leaf)',
         danger: 'var(--bagg-danger)',
 
-        // Ink: outlines, hard shadows and the darkest text
+        // Text on brand surfaces
         ink: 'var(--ink)',
         'on-mango': 'var(--on-mango)',
         'on-pink': 'var(--on-pink)',
+        'on-sun': 'var(--on-sun)',
 
         // Neutrals
         cream: 'var(--bg)',
@@ -60,25 +62,25 @@ const config: Config = {
       },
 
       borderRadius: {
-        btn: '10px',
-        card: '12px',
-        row: '8px',
-        input: '8px',
-        small: '6px',
-        sheet: '16px',
+        btn: 'var(--radius-btn)',
+        card: 'var(--radius-card)',
+        row: 'var(--radius-row)',
+        input: 'var(--radius-input)',
+        small: 'var(--radius-small)',
+        sheet: 'var(--radius-sheet)',
       },
 
       borderWidth: {
-        brut: '2px',
-        'brut-thin': '1.5px',
+        brut: 'var(--border-width-brut)',
+        'brut-thin': 'var(--border-width-brut-thin)',
       },
 
       boxShadow: {
-        // Hard offset shadows: no blur, ever.
         'brut-sm': '2px 2px 0 0 var(--brut-shadow)',
         brut: '3px 3px 0 0 var(--brut-shadow)',
         'brut-lg': '5px 5px 0 0 var(--brut-shadow)',
-        sheet: '0 -8px 24px rgba(58, 31, 10, 0.12)',
+        sheet: 'var(--shadow-sheet)',
+        menu: 'var(--shadow-menu)',
       },
 
       fontFamily: {
@@ -95,12 +97,13 @@ const config: Config = {
 
       fontSize: {
         display: ['40px', { lineHeight: '40px', fontWeight: '800' }],
-        'title-l': [ '28px', { lineHeight: '30px', fontWeight: '800'}],
+        'title-l': ['28px', { lineHeight: '30px', fontWeight: '800' }],
         title: ['22px', { lineHeight: '26px', fontWeight: '800' }],
-        caption: ['12px', { lineHeight: '16px' }],
-        body: ['14px', { lineHeight: '20px' }],
-        'body-l': ['16px', { lineHeight: '24px' }],
         heading: ['18px', { lineHeight: '22px', fontWeight: '800' }],
+        'body-l': ['16px', { lineHeight: '24px' }],
+        body: ['14px', { lineHeight: '20px' }],
+        label: ['14px', { lineHeight: '18px', fontWeight: '500' }],
+        caption: ['12px', { lineHeight: '16px' }],
         'amount-s': ['16px', { lineHeight: '20px', fontWeight: '800' }],
         'amount-m': ['20px', { lineHeight: '24px', fontWeight: '800' }],
         'amount-l': ['28px', { lineHeight: '32px', fontWeight: '800' }],
