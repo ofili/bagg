@@ -149,6 +149,23 @@ async function getApiError(
   return fallback;
 }
 
+function getSafeEvidenceUrl(value?: string | null): string | null {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+
+    // Only allow secure, absolute evidence URLs.
+    if (url.protocol !== 'https:') {
+      return null;
+    }
+
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
 export default function InvoicesPage() {
   const table = useDataTable<Invoice>({
     endpoint: '/invoices',
@@ -718,22 +735,7 @@ export default function InvoicesPage() {
             ]}
         />
 
-        {/* Invoice table */}
-        <DataTable
-            columns={columns}
-            rows={invoices}
-            getRowKey={(invoice) => invoice.id}
-            loading={table.loading}
-            emptyState={emptyState}
-            sortBy={table.sortBy}
-            sortOrder={table.sortOrder}
-            onSort={table.toggleSort}
-            renderMobileCard={renderMobileCard}
-            tableClassName="min-w-[900px]"
-            caption="Invoices table"
-        />
-
-                {table.error && (
+        {table.error && (
           <Card
             zone="calm"
             className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
@@ -757,6 +759,21 @@ export default function InvoicesPage() {
             </Button>
           </Card>
         )}
+
+        {/* Invoice table */}
+          <DataTable
+            columns={columns}
+            rows={invoices}
+            getRowKey={(invoice) => invoice.id}
+            loading={table.loading}
+            emptyState={table.error ? undefined : emptyState}
+            sortBy={table.sortBy}
+            sortOrder={table.sortOrder}
+            onSort={table.toggleSort}
+            renderMobileCard={renderMobileCard}
+            tableClassName="min-w-[900px]"
+            caption="Invoices table"
+        />
 
         {/* Pagination */}
         {table.data && (
@@ -905,6 +922,36 @@ export default function InvoicesPage() {
                                       </dd>
                                     </div>
                                   </dl>
+
+                                                                    {/* Submitted payment evidence */}
+                                  {(() => {
+                                    const evidenceUrl = getSafeEvidenceUrl(
+                                      claim.proof_file_url,
+                                    );
+
+                                    return (
+                                      <div className="space-y-1">
+                                        <p className="text-caption font-semibold text-text-muted">
+                                          Payment evidence
+                                        </p>
+
+                                        {evidenceUrl ? (
+                                          <a
+                                            href={evidenceUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center font-bold text-text underline underline-offset-4 hover:text-text-soft"
+                                          >
+                                            View submitted proof
+                                          </a>
+                                        ) : (
+                                          <p className="text-body text-text-soft">
+                                            No accessible proof attachment.
+                                          </p>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
 
                                   {/* Rejection reason */}
                                   {claim.status === 'rejected' &&
