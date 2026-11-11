@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ChatDots,
@@ -17,7 +17,6 @@ import {
   SheetContent,
 } from '@/components/ui/sheet';
 
-
 import {
   Button,
   Card,
@@ -33,7 +32,6 @@ import {
 } from '@/components/ui';
 
 import { StatusPill } from '@/components/status/StatusPill';
-
 import { Money } from '@/components/money/Money';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
@@ -69,14 +67,14 @@ interface Invoice {
   issue_date: string;
   due_date: string;
   status:
-      | 'draft'
-      | 'issued'
-      | 'sent'
-      | 'viewed'
-      | 'payment_claimed'
-      | 'partially_paid'
-      | 'paid'
-      | 'cancelled';
+    | 'draft'
+    | 'issued'
+    | 'sent'
+    | 'viewed'
+    | 'payment_claimed'
+    | 'partially_paid'
+    | 'paid'
+    | 'cancelled';
   effective_status?: string | null;
   is_overdue?: boolean;
   days_overdue?: number;
@@ -122,8 +120,8 @@ const CURRENCY_OPTIONS = [
  * Extract a useful API error message.
  */
 async function getApiError(
-    response: Response,
-    fallback: string,
+  response: Response,
+  fallback: string,
 ): Promise<string> {
   try {
     const data = await response.json();
@@ -133,10 +131,12 @@ async function getApiError(
     }
 
     if (Array.isArray(data?.detail)) {
-      return data.detail
+      return (
+        data.detail
           .map((item: { msg?: string }) => item.msg)
           .filter(Boolean)
-          .join(', ') || fallback;
+          .join(', ') || fallback
+      );
     }
 
     if (typeof data?.message === 'string') {
@@ -149,13 +149,15 @@ async function getApiError(
   return fallback;
 }
 
+/**
+ * Only allow secure, absolute evidence URLs.
+ */
 function getSafeEvidenceUrl(value?: string | null): string | null {
   if (!value) return null;
 
   try {
     const url = new URL(value);
 
-    // Only allow secure, absolute evidence URLs.
     if (url.protocol !== 'https:') {
       return null;
     }
@@ -192,10 +194,14 @@ export default function InvoicesPage() {
 
   // Payment claim review state.
   const [reviewingInvoice, setReviewingInvoice] =
-      useState<Invoice | null>(null);
+    useState<Invoice | null>(null);
 
   const [claimsList, setClaimsList] = useState<PaymentClaim[]>([]);
   const [loadingClaims, setLoadingClaims] = useState(false);
+  const [claimsLoadError, setClaimsLoadError] = useState<string | null>(null);
+
+  // Prevent stale claim requests from overwriting a newer review.
+  const claimsRequestId = useRef(0);
 
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
@@ -209,36 +215,37 @@ export default function InvoicesPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   /**
-   * Open the payment claim review sheet.
+   * Open the payment claim review sheet and load its claims.
    */
   const handleOpenReview = async (invoice: Invoice) => {
+    const requestId = ++claimsRequestId.current;
+
     setReviewingInvoice(invoice);
     setClaimsList([]);
+    setClaimsLoadError(null);
+    setLoadingClaims(true);
 
     setShowRejectInput(false);
     setShowPartialInput(false);
-
     setActionClaimId(null);
     setRejectReason('');
     setPartialAmount('');
     setActionError(null);
 
-    setLoadingClaims(true);
-
     try {
       const response = await fetch(
-          `${API_BASE}/invoices/${encodeURIComponent(invoice.id)}/claims`,
-          {
-            credentials: 'include',
-            headers: {
-              Accept: 'application/json',
-            },
+        `${API_BASE}/invoices/${encodeURIComponent(invoice.id)}/claims`,
+        {
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
           },
+        },
       );
 
       if (!response.ok) {
         throw new Error(
-            await getApiError(response, 'Unable to load payment claims.'),
+          await getApiError(response, 'Unable to load payment claims.'),
         );
       }
 
@@ -248,15 +255,25 @@ export default function InvoicesPage() {
         throw new Error('Invalid payment claims response from server.');
       }
 
+      if (requestId !== claimsRequestId.current) {
+        return;
+      }
+
       setClaimsList(data as PaymentClaim[]);
     } catch (error) {
-      setActionError(
-          error instanceof Error
-              ? error.message
-              : 'Unable to load payment claims.',
+      if (requestId !== claimsRequestId.current) {
+        return;
+      }
+
+      setClaimsLoadError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to load payment claims.',
       );
     } finally {
-      setLoadingClaims(false);
+      if (requestId === claimsRequestId.current) {
+        setLoadingClaims(false);
+      }
     }
   };
 
@@ -271,31 +288,32 @@ export default function InvoicesPage() {
 
     try {
       const response = await fetch(
-          `${API_BASE}/invoices/${encodeURIComponent(reviewingInvoice.id)}/claims/${encodeURIComponent(claimId)}/confirm`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({}),
+        `${API_BASE}/invoices/${encodeURIComponent(reviewingInvoice.id)}/claims/${encodeURIComponent(claimId)}/confirm`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
           },
+          credentials: 'include',
+          body: JSON.stringify({}),
+        },
       );
 
       if (!response.ok) {
         throw new Error(
-            await getApiError(response, 'Failed to confirm payment claim.'),
+          await getApiError(response, 'Failed to confirm payment claim.'),
         );
       }
 
+      claimsRequestId.current += 1;
       setReviewingInvoice(null);
       await table.reload();
     } catch (error) {
       setActionError(
-          error instanceof Error
-              ? error.message
-              : 'Error confirming payment.',
+        error instanceof Error
+          ? error.message
+          : 'Error confirming payment.',
       );
     } finally {
       setProcessingAction(false);
@@ -305,9 +323,8 @@ export default function InvoicesPage() {
   /**
    * Confirm a partial payment.
    *
-   * The amount entered is converted to minor units.
-   * Replace the precision with your shared currency configuration
-   * if the application supports zero- or three-decimal currencies.
+   * The amount entered is converted to minor units using the
+   * shared currency configuration.
    */
   const handleConfirmPartial = async (claimId: string) => {
     if (!reviewingInvoice || processingAction) return;
@@ -334,9 +351,13 @@ export default function InvoicesPage() {
       return;
     }
 
-    if (minorValue > reviewingInvoice.total_minor -
-        reviewingInvoice.amount_paid_minor) {
-      setActionError('The amount cannot exceed the outstanding invoice balance.');
+    const outstandingMinor =
+      reviewingInvoice.total_minor - reviewingInvoice.amount_paid_minor;
+
+    if (minorValue > outstandingMinor) {
+      setActionError(
+        'The amount cannot exceed the outstanding invoice balance.',
+      );
       return;
     }
 
@@ -345,33 +366,34 @@ export default function InvoicesPage() {
 
     try {
       const response = await fetch(
-          `${API_BASE}/invoices/${encodeURIComponent(reviewingInvoice.id)}/claims/${encodeURIComponent(claimId)}/confirm`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-              amount_paid_minor: minorValue,
-            }),
+        `${API_BASE}/invoices/${encodeURIComponent(reviewingInvoice.id)}/claims/${encodeURIComponent(claimId)}/confirm`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
           },
+          credentials: 'include',
+          body: JSON.stringify({
+            amount_paid_minor: minorValue,
+          }),
+        },
       );
 
       if (!response.ok) {
         throw new Error(
-            await getApiError(response, 'Failed to confirm partial payment.'),
+          await getApiError(response, 'Failed to confirm partial payment.'),
         );
       }
 
+      claimsRequestId.current += 1;
       setReviewingInvoice(null);
       await table.reload();
     } catch (error) {
       setActionError(
-          error instanceof Error
-              ? error.message
-              : 'Error confirming partial payment.',
+        error instanceof Error
+          ? error.message
+          : 'Error confirming partial payment.',
       );
     } finally {
       setProcessingAction(false);
@@ -386,7 +408,7 @@ export default function InvoicesPage() {
 
     if (!rejectReason.trim()) {
       setActionError(
-          'Please provide an explanation for rejecting this payment claim.',
+        'Please provide an explanation for rejecting this payment claim.',
       );
       return;
     }
@@ -396,33 +418,34 @@ export default function InvoicesPage() {
 
     try {
       const response = await fetch(
-          `${API_BASE}/invoices/${encodeURIComponent(reviewingInvoice.id)}/claims/${encodeURIComponent(claimId)}/reject`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-              rejection_reason: rejectReason.trim(),
-            }),
+        `${API_BASE}/invoices/${encodeURIComponent(reviewingInvoice.id)}/claims/${encodeURIComponent(claimId)}/reject`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
           },
+          credentials: 'include',
+          body: JSON.stringify({
+            rejection_reason: rejectReason.trim(),
+          }),
+        },
       );
 
       if (!response.ok) {
         throw new Error(
-            await getApiError(response, 'Failed to reject payment claim.'),
+          await getApiError(response, 'Failed to reject payment claim.'),
         );
       }
 
+      claimsRequestId.current += 1;
       setReviewingInvoice(null);
       await table.reload();
     } catch (error) {
       setActionError(
-          error instanceof Error
-              ? error.message
-              : 'Error rejecting payment claim.',
+        error instanceof Error
+          ? error.message
+          : 'Error rejecting payment claim.',
       );
     } finally {
       setProcessingAction(false);
@@ -437,9 +460,7 @@ export default function InvoicesPage() {
       return invoice.is_overdue;
     }
 
-    if (
-        ['paid', 'draft', 'cancelled'].includes(invoice.status)
-    ) {
+    if (['paid', 'draft', 'cancelled'].includes(invoice.status)) {
       return false;
     }
 
@@ -451,14 +472,12 @@ export default function InvoicesPage() {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     dueDate.setHours(0, 0, 0, 0);
 
     return dueDate < today;
   };
 
   const invoices = table.data?.items ?? [];
-
   const overdueCount = invoices.filter(isInvoiceOverdue).length;
 
   /**
@@ -471,24 +490,24 @@ export default function InvoicesPage() {
       align: 'left',
       sortable: true,
       render: (invoice) => (
-          <div className="flex items-center gap-2">
-            <Link
-                href={`/invoices/${encodeURIComponent(invoice.id)}`}
-                className="font-bold underline-offset-4 hover:underline"
-            >
-              {invoice.invoice_number}
-            </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/invoices/${encodeURIComponent(invoice.id)}`}
+            className="font-bold underline-offset-4 hover:underline"
+          >
+            {invoice.invoice_number}
+          </Link>
 
-            {(invoice.comment_count ?? 0) > 0 && (
-                <span
-                    title={`${invoice.comment_count} comment${(invoice.comment_count ?? 0) > 1 ? 's' : ''}`}
-                    className="inline-flex items-center gap-1 rounded border border-border bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
-                >
+          {(invoice.comment_count ?? 0) > 0 && (
+            <span
+              title={`${invoice.comment_count} comment${(invoice.comment_count ?? 0) > 1 ? 's' : ''}`}
+              className="inline-flex items-center gap-1 rounded border border-border bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
+            >
               <ChatDots className="h-3 w-3 text-ink-muted" />
               <span>{invoice.comment_count}</span>
             </span>
-            )}
-          </div>
+          )}
+        </div>
       ),
     },
     {
@@ -515,7 +534,7 @@ export default function InvoicesPage() {
         const overdue = isInvoiceOverdue(invoice);
 
         return (
-            <span className={overdue ? 'font-bold text-danger' : ''}>
+          <span className={overdue ? 'font-bold text-danger' : ''}>
             {formatDate(invoice.due_date)}
           </span>
         );
@@ -528,11 +547,11 @@ export default function InvoicesPage() {
       sortable: true,
       cellClassName: 'whitespace-nowrap',
       render: (invoice) => (
-          <Money
-              amountMinor={invoice.total_minor}
-              currency={invoice.currency}
-              hideCurrencyCode
-          />
+        <Money
+          amountMinor={invoice.total_minor}
+          currency={invoice.currency}
+          hideCurrencyCode
+        />
       ),
     },
     {
@@ -541,11 +560,11 @@ export default function InvoicesPage() {
       align: 'right',
       cellClassName: 'whitespace-nowrap',
       render: (invoice) => (
-          <Money
-              amountMinor={invoice.amount_paid_minor}
-              currency={invoice.currency}
-              hideCurrencyCode
-          />
+        <Money
+          amountMinor={invoice.amount_paid_minor}
+          currency={invoice.currency}
+          hideCurrencyCode
+        />
       ),
     },
     {
@@ -554,14 +573,14 @@ export default function InvoicesPage() {
       align: 'right',
       cellClassName: 'whitespace-nowrap font-semibold',
       render: (invoice) => (
-          <Money
-              amountMinor={Math.max(
-                  0,
-                  invoice.total_minor - invoice.amount_paid_minor,
-              )}
-              currency={invoice.currency}
-              hideCurrencyCode
-          />
+        <Money
+          amountMinor={Math.max(
+            0,
+            invoice.total_minor - invoice.amount_paid_minor,
+          )}
+          currency={invoice.currency}
+          hideCurrencyCode
+        />
       ),
     },
     {
@@ -589,27 +608,27 @@ export default function InvoicesPage() {
       header: 'Actions',
       align: 'center',
       render: (invoice) => (
-          <div className="flex items-center justify-center gap-2">
-            <Link
-                href={`/invoices/${encodeURIComponent(invoice.id)}`}
-                className={buttonStyles({
-                  variant: 'outline',
-                  zone: 'calm',
-                })}
-            >
-              View
-            </Link>
+        <div className="flex items-center justify-center gap-2">
+          <Link
+            href={`/invoices/${encodeURIComponent(invoice.id)}`}
+            className={buttonStyles({
+              variant: 'outline',
+              zone: 'calm',
+            })}
+          >
+            View
+          </Link>
 
-            {invoice.latest_claim?.status === 'pending' && (
-                <Button
-                    variant="outline"
-                    zone="calm"
-                    onClick={() => void handleOpenReview(invoice)}
-                >
-                  Review payment
-                </Button>
-            )}
-          </div>
+          {invoice.latest_claim?.status === 'pending' && (
+            <Button
+              variant="outline"
+              zone="calm"
+              onClick={() => void handleOpenReview(invoice)}
+            >
+              Review payment
+            </Button>
+          )}
+        </div>
       ),
     },
   ];
@@ -617,522 +636,558 @@ export default function InvoicesPage() {
   /**
    * Empty state.
    */
-    const hasActiveFilters =
-      Boolean(table.search.trim()) ||
-      Boolean(table.filters.status) ||
-      Boolean(table.filters.currency);
+  const hasActiveFilters =
+    Boolean(table.search.trim()) ||
+    Boolean(table.filters.status) ||
+    Boolean(table.filters.currency);
 
-    const emptyState = hasActiveFilters ? (
-      <EmptyState
-        mood="confused"
-        title="No matching invoices"
-        body="Try a different search or clear your filters to see more invoices."
-        compact
-      />
-    ) : (
-      <EmptyState
-        mood="happy"
-        title="No invoices yet"
-        body="Create your first invoice and send it to your client."
-        action={{
-          label: 'Create invoice',
-          href: '/invoices/new',
-        }}
-      />
-    );
+  const emptyState = hasActiveFilters ? (
+    <EmptyState
+      mood="confused"
+      title="No matching invoices"
+      body="Try a different search or clear your filters to see more invoices."
+      compact
+    />
+  ) : (
+    <EmptyState
+      mood="happy"
+      title="No invoices yet"
+      body="Create your first invoice and send it to your client."
+      action={{
+        label: 'Create invoice',
+        href: '/invoices/new',
+      }}
+    />
+  );
 
   /**
    * Mobile invoice card rendering.
    */
   const renderMobileCard = (invoice: Invoice) => (
-      <InvoiceRow
-          inv={invoice}
-          overdue={isInvoiceOverdue(invoice)}
-          onReview={() => void handleOpenReview(invoice)}
-      />
+    <InvoiceRow
+      inv={invoice}
+      overdue={isInvoiceOverdue(invoice)}
+      onReview={() => void handleOpenReview(invoice)}
+    />
   );
 
   /**
    * Main page.
    */
   return (
-      <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
-        {/* Header */}
-        <PageHeader
-          eyebrow="Documents"
-          title="Invoices"
-          description="Create, send and track what clients owe you."
-          actions={
-            <Link
-              href="/invoices/new"
-              className={cn(
-                buttonStyles({ variant: 'accent' }),
-                'hidden sm:inline-flex',
-              )}
-            >
-              <Plus aria-hidden className="h-4 w-4" />
-              New invoice
-            </Link>
-          }
-        />
-
-        {/* Document navigation */}
-        <DocTabs className="mt-3" />
-
-        {/* Overdue notice */}
-        {overdueCount > 0 && (
-            <Card
-                zone="calm"
-                tone="peach"
-                className="flex flex-wrap items-center justify-between gap-3"
-            >
-              <p className="flex items-center gap-2 text-body">
-                <WarningCircle
-                    aria-hidden
-                    className="h-4 w-4 shrink-0"
-                />
-
-                <span>
-                  <span className="font-extrabold">
-                    {overdueCount} overdue{' '}
-                    {overdueCount === 1 ? 'invoice' : 'invoices'} on this page.
-                  </span>{' '}
-                      A friendly nudge on WhatsApp usually gets you paid faster.
-                </span>
-              </p>
-
-              {table.filters['status'] !== 'overdue' && (
-                  <Button
-                      variant="link"
-                      onClick={() => table.setFilter('status', 'overdue')}
-                  >
-                    Show overdue
-                  </Button>
-              )}
-            </Card>
-        )}
-
-        {/* Toolbar */}
-        <TableToolbar
-            chips={FILTER_CHIPS.map((chip) => ({
-              value: chip.value,
-              label: chip.label,
-            }))}
-            chipValue={table.filters['status'] || ''}
-            onChipChange={(value) => table.setFilter('status', value)}
-            chipLabel="Filter invoices by status"
-            search={table.search}
-            onSearchChange={table.setSearch}
-            searchPlaceholder="Search invoice number, customer or status"
-            filters={[
-              {
-                key: 'currency',
-                label: 'Currency',
-                value: table.filters['currency'] || '',
-                onChange: (value) => table.setFilter('currency', value),
-                options: CURRENCY_OPTIONS,
-              },
-            ]}
-        />
-
-        {table.error && (
-          <Card
-            zone="calm"
-            className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+    <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
+      {/* Header */}
+      <PageHeader
+        eyebrow="Documents"
+        title="Invoices"
+        description="Create, send and track what clients owe you."
+        actions={
+          <Link
+            href="/invoices/new"
+            className={cn(
+              buttonStyles({ variant: 'accent' }),
+              'hidden sm:inline-flex',
+            )}
           >
-            <div>
-              <p className="font-extrabold text-danger">
-                We couldn't load your invoices
-              </p>
-              <p className="text-body text-text-soft">
-                {table.error}. Your invoice records have not been changed.
-              </p>
-            </div>
+            <Plus aria-hidden className="h-4 w-4" />
+            New invoice
+          </Link>
+        }
+      />
 
-            <Button
-              variant="outline"
-              zone="calm"
-              onClick={() => void table.reload()}
-              loading={table.loading}
-            >
-              Try again
-            </Button>
-          </Card>
-        )}
+      {/* Document navigation */}
+      <DocTabs className="mt-3" />
 
-                {/* Invoice table */}
-        {(!table.error || invoices.length > 0) && (
-          <DataTable
-            columns={columns}
-            rows={invoices}
-            getRowKey={(invoice) => invoice.id}
-            loading={table.loading}
-            emptyState={emptyState}
-            sortBy={table.sortBy}
-            sortOrder={table.sortOrder}
-            onSort={table.toggleSort}
-            renderMobileCard={renderMobileCard}
-            tableClassName="min-w-[900px]"
-            caption="Invoices table"
-          />
-        )}
-
-        {/* Pagination */}
-        {table.data && (
-            <Pagination
-                page={table.page}
-                totalPages={table.data.total_pages}
-                total={table.data.total}
-                perPage={table.perPage}
-                onPageChange={table.setPage}
-                onPerPageChange={table.setPerPage}
+      {/* Overdue notice */}
+      {overdueCount > 0 && (
+        <Card
+          zone="calm"
+          tone="peach"
+          className="flex flex-wrap items-center justify-between gap-3"
+        >
+          <p className="flex items-center gap-2 text-body">
+            <WarningCircle
+              aria-hidden
+              className="h-4 w-4 shrink-0"
             />
-        )}
 
-        {/* Payment claim review sheet */}
-        {reviewingInvoice && (
-            <Sheet
-                open
-                onOpenChange={(open) => {
-                  if (!open && !processingAction) {
-                    setReviewingInvoice(null);
-                  }
-                }}
+            <span>
+              <span className="font-extrabold">
+                {overdueCount} overdue{' '}
+                {overdueCount === 1 ? 'invoice' : 'invoices'} on this page.
+              </span>{' '}
+              A friendly nudge on WhatsApp usually gets you paid faster.
+            </span>
+          </p>
+
+          {table.filters.status !== 'overdue' && (
+            <Button
+              variant="link"
+              onClick={() => table.setFilter('status', 'overdue')}
             >
-              <SheetContent
-                  title="Review payment claim"
-                  className="overflow-y-auto"
-              >
-                <div className="space-y-4 p-4 pb-8">
-                  {/* Sheet header */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="text-title">
-                        review claim
-                      </h2>
+              Show overdue
+            </Button>
+          )}
+        </Card>
+      )}
 
-                      <p className="text-body text-text-soft">
-                        {reviewingInvoice.invoice_number}
-                        {' · '}
-                        {reviewingInvoice.client_name || 'Client'}
-                        {' · total '}
+      {/* Toolbar */}
+      <TableToolbar
+        chips={FILTER_CHIPS.map((chip) => ({
+          value: chip.value,
+          label: chip.label,
+        }))}
+        chipValue={table.filters.status || ''}
+        onChipChange={(value) => table.setFilter('status', value)}
+        chipLabel="Filter invoices by status"
+        search={table.search}
+        onSearchChange={table.setSearch}
+        searchPlaceholder="Search invoice number, customer or status"
+        filters={[
+          {
+            key: 'currency',
+            label: 'Currency',
+            value: table.filters.currency || '',
+            onChange: (value) => table.setFilter('currency', value),
+            options: CURRENCY_OPTIONS,
+          },
+        ]}
+      />
 
-                        <Money
-                            amountMinor={reviewingInvoice.total_minor}
-                            currency={reviewingInvoice.currency}
-                            variant="inherit"
-                            className="font-extrabold"
-                        />
-                      </p>
-                    </div>
+      {/* Invoice loading error */}
+      {table.error && (
+        <Card
+          zone="calm"
+          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <p className="font-extrabold text-danger">
+              We couldn't load your invoices
+            </p>
+            <p className="text-body text-text-soft">
+              {table.error}. Your invoice records have not been changed.
+            </p>
+          </div>
 
-                    <SheetClose asChild>
-                      <button
-                          type="button"
-                          aria-label="Close"
-                          disabled={processingAction}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn hover:bg-surface-tint"
-                      >
-                        <X aria-hidden className="h-5 w-5" />
-                      </button>
-                    </SheetClose>
-                  </div>
+          <Button
+            variant="outline"
+            zone="calm"
+            onClick={() => void table.reload()}
+            loading={table.loading}
+          >
+            Try again
+          </Button>
+        </Card>
+      )}
 
-                  {/* Errors */}
-                  {actionError && (
-                      <p
-                          role="alert"
-                          className="rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]"
-                      >
-                        {actionError}
-                      </p>
-                  )}
+      {/* Invoice table */}
+      {(!table.error || invoices.length > 0) && (
+        <DataTable
+          columns={columns}
+          rows={invoices}
+          getRowKey={(invoice) => invoice.id}
+          loading={table.loading}
+          emptyState={emptyState}
+          sortBy={table.sortBy}
+          sortOrder={table.sortOrder}
+          onSort={table.toggleSort}
+          renderMobileCard={renderMobileCard}
+          tableClassName="min-w-[900px]"
+          caption="Invoices table"
+        />
+      )}
 
-                  {/* Loading */}
-                  {loadingClaims ? (
-                      <div
-                          role="status"
-                          className="flex justify-center py-6 text-text-muted"
-                      >
-                        <CircleNotch
-                            aria-hidden
-                            className="h-6 w-6 animate-spin"
-                        />
+      {/* Pagination */}
+      {table.data && (
+        <Pagination
+          page={table.page}
+          totalPages={table.data.total_pages}
+          total={table.data.total}
+          perPage={table.perPage}
+          onPageChange={table.setPage}
+          onPerPageChange={table.setPerPage}
+        />
+      )}
 
-                        <span className="sr-only">
-                    Loading claims
-                  </span>
-                      </div>
-                  ) : claimsList.length === 0 ? (
-                      <p className="py-4 text-center text-body text-text-soft">
-                        No payment claims on record.
-                      </p>
-                  ) : (
-                      <ul className="space-y-3">
-                        {claimsList.map((claim) => {
-                          const isPending = claim.status === 'pending';
-                          const formOpen = actionClaimId === claim.id;
-                          const evidenceUrl = getSafeEvidenceUrl(claim.proof_file_url);
+      {/* Payment claim review sheet */}
+      {reviewingInvoice && (
+        <Sheet
+          open
+          onOpenChange={(open) => {
+            if (!open && !processingAction) {
+              // Invalidate any claim request still in flight.
+              claimsRequestId.current += 1;
+              setLoadingClaims(false);
+              setReviewingInvoice(null);
+            }
+          }}
+        >
+          <SheetContent
+            title="Review payment claim"
+            className="overflow-y-auto"
+          >
+            <div className="space-y-4 p-4 pb-8">
+              {/* Sheet header */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-title">
+                    Review claim
+                  </h2>
 
-                          return (
-                              <li key={claim.id}>
-                                <Card zone="calm" className="space-y-4">
-                                  {/* Claim amount and status */}
-                                  <div className="flex items-center justify-between gap-3">
-                                    <Money
-                                        amountMinor={claim.amount_minor}
-                                        currency={reviewingInvoice.currency}
-                                        className="text-amount-m"
-                                    />
+                  <p className="text-body text-text-soft">
+                    {reviewingInvoice.invoice_number}
+                    {' · '}
+                    {reviewingInvoice.client_name || 'Client'}
+                    {' · total '}
 
-                                    <span
-                                        className={cn(
-                                            'rounded-full px-2.5 py-0.5 text-caption font-extrabold',
-                                            claim.status === 'confirmed'
-                                                ? 'bg-leaf text-[#052E1B]'
-                                                : claim.status === 'rejected'
-                                                    ? 'bg-[#FFB3B3] text-[#5A1010]'
-                                                    : 'bg-sun text-[#4A3200]',
-                                        )}
-                                    >
-                              {claim.status === 'pending'
+                    <Money
+                      amountMinor={reviewingInvoice.total_minor}
+                      currency={reviewingInvoice.currency}
+                      variant="inherit"
+                      className="font-extrabold"
+                    />
+                  </p>
+                </div>
+
+                <SheetClose asChild>
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    disabled={processingAction}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn hover:bg-surface-tint"
+                  >
+                    <X aria-hidden className="h-5 w-5" />
+                  </button>
+                </SheetClose>
+              </div>
+
+              {/* Payment action errors */}
+              {actionError && (
+                <p
+                  role="alert"
+                  className="rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]"
+                >
+                  {actionError}
+                </p>
+              )}
+
+              {/* Claims loading error */}
+              {claimsLoadError && (
+                <div
+                  role="alert"
+                  className="space-y-3 rounded-row border border-danger p-3"
+                >
+                  <p className="text-body text-danger">
+                    {claimsLoadError}
+                  </p>
+
+                  <Button
+                    variant="outline"
+                    zone="calm"
+                    onClick={() => {
+                      if (reviewingInvoice) {
+                        void handleOpenReview(reviewingInvoice);
+                      }
+                    }}
+                    loading={loadingClaims}
+                  >
+                    Try again
+                  </Button>
+                </div>
+              )}
+
+              {/* Claims loading */}
+              {loadingClaims && (
+                <div
+                  role="status"
+                  className="flex justify-center py-6 text-text-muted"
+                >
+                  <CircleNotch
+                    aria-hidden
+                    className="h-6 w-6 animate-spin"
+                  />
+                  <span className="sr-only">Loading claims</span>
+                </div>
+              )}
+
+              {/* Claims empty state */}
+              {!loadingClaims &&
+                !claimsLoadError &&
+                claimsList.length === 0 && (
+                  <p className="py-4 text-center text-body text-text-soft">
+                    No payment claims on record.
+                  </p>
+                )}
+
+              {/* Claims */}
+              {!loadingClaims &&
+                !claimsLoadError &&
+                claimsList.length > 0 && (
+                  <ul className="space-y-3">
+                    {claimsList.map((claim) => {
+                      const isPending = claim.status === 'pending';
+                      const formOpen = actionClaimId === claim.id;
+                      const evidenceUrl = getSafeEvidenceUrl(
+                        claim.proof_file_url,
+                      );
+
+                      return (
+                        <li key={claim.id}>
+                          <Card zone="calm" className="space-y-4">
+                            {/* Claim amount and status */}
+                            <div className="flex items-center justify-between gap-3">
+                              <Money
+                                amountMinor={claim.amount_minor}
+                                currency={reviewingInvoice.currency}
+                                className="text-amount-m"
+                              />
+
+                              <span
+                                className={cn(
+                                  'rounded-full px-2.5 py-0.5 text-caption font-extrabold',
+                                  claim.status === 'confirmed'
+                                    ? 'bg-leaf text-[#052E1B]'
+                                    : claim.status === 'rejected'
+                                      ? 'bg-[#FFB3B3] text-[#5A1010]'
+                                      : 'bg-sun text-[#4A3200]',
+                                )}
+                              >
+                                {claim.status === 'pending'
                                   ? 'Waiting for you'
                                   : claim.status === 'confirmed'
-                                      ? 'Confirmed'
-                                      : 'Rejected'}
-                            </span>
-                                  </div>
+                                    ? 'Confirmed'
+                                    : 'Rejected'}
+                              </span>
+                            </div>
 
-                                  {/* Claim details */}
-                                  <dl className="grid grid-cols-2 gap-3 text-body">
-                                    <div>
-                                      <dt className="text-caption text-text-muted">
-                                        Payment date
-                                      </dt>
+                            {/* Claim details */}
+                            <dl className="grid grid-cols-2 gap-3 text-body">
+                              <div>
+                                <dt className="text-caption text-text-muted">
+                                  Payment date
+                                </dt>
+                                <dd>
+                                  {formatDate(claim.payment_date)}
+                                </dd>
+                              </div>
 
-                                      <dd>
-                                        {formatDate(claim.payment_date)}
-                                      </dd>
-                                    </div>
+                              <div className="min-w-0">
+                                <dt className="text-caption text-text-muted">
+                                  Reference
+                                </dt>
+                                <dd className="tabular truncate font-medium">
+                                  {claim.reference || 'None'}
+                                </dd>
+                              </div>
+                            </dl>
 
-                                    <div className="min-w-0">
-                                      <dt className="text-caption text-text-muted">
-                                        Reference
-                                      </dt>
+                            {/* Submitted payment evidence */}
+                            <div className="space-y-1">
+                              <p className="text-caption font-semibold text-text-muted">
+                                Payment evidence
+                              </p>
 
-                                      <dd className="tabular truncate font-medium">
-                                        {claim.reference || 'None'}
-                                      </dd>
-                                    </div>
-                                  </dl>
+                              {evidenceUrl ? (
+                                <a
+                                  href={evidenceUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center font-bold text-text underline underline-offset-4 hover:text-text-soft"
+                                >
+                                  View submitted proof
+                                </a>
+                              ) : (
+                                <p className="text-body text-text-soft">
+                                  No accessible proof attachment.
+                                </p>
+                              )}
+                            </div>
 
-                                  {/* Submitted payment evidence */}
-                                  <div className="space-y-1">
-                                    <p className="text-caption font-semibold text-text-muted">
-                                      Payment evidence
-                                    </p>
+                            {/* Rejection reason */}
+                            {claim.status === 'rejected' &&
+                              claim.rejection_reason && (
+                                <p className="text-body text-text-soft">
+                                  Reason: {claim.rejection_reason}
+                                </p>
+                              )}
 
-                                    {evidenceUrl ? (
-                                      <a
-                                        href={evidenceUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center font-bold text-text underline underline-offset-4 hover:text-text-soft"
+                            {/* Pending claim actions */}
+                            {isPending && (
+                              <div className="space-y-3 border-t border-line-subtle pt-4">
+                                <Button
+                                  zone="calm"
+                                  size="lg"
+                                  fullWidth
+                                  loading={processingAction}
+                                  disabled={processingAction}
+                                  onClick={() =>
+                                    void handleConfirmFull(claim.id)
+                                  }
+                                >
+                                  <CheckCircle
+                                    aria-hidden
+                                    className="h-4 w-4"
+                                  />
+                                  Confirm funds received
+                                </Button>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                  <Button
+                                    variant="outline"
+                                    zone="calm"
+                                    fullWidth
+                                    disabled={processingAction}
+                                    onClick={() => {
+                                      setActionError(null);
+                                      setActionClaimId(claim.id);
+                                      setShowRejectInput(false);
+                                      setShowPartialInput(true);
+                                    }}
+                                  >
+                                    Different amount
+                                  </Button>
+
+                                  <Button
+                                    variant="outline"
+                                    zone="calm"
+                                    fullWidth
+                                    disabled={processingAction}
+                                    onClick={() => {
+                                      setActionError(null);
+                                      setActionClaimId(claim.id);
+                                      setShowPartialInput(false);
+                                      setShowRejectInput(true);
+                                      setRejectReason('');
+                                    }}
+                                  >
+                                    Reject
+                                  </Button>
+                                </div>
+
+                                {/* Partial payment form */}
+                                {formOpen && showPartialInput && (
+                                  <div className="space-y-3">
+                                    <MoneyInput
+                                      id={`partial-${claim.id}`}
+                                      label="Amount you actually received"
+                                      value={partialAmount}
+                                      onChange={setPartialAmount}
+                                      currency={reviewingInvoice.currency}
+                                    />
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <Button
+                                        variant="outline"
+                                        zone="calm"
+                                        fullWidth
+                                        disabled={processingAction}
+                                        onClick={() => {
+                                          setShowPartialInput(false);
+                                          setActionClaimId(null);
+                                          setActionError(null);
+                                        }}
                                       >
-                                        View submitted proof
-                                      </a>
-                                    ) : (
-                                      <p className="text-body text-text-soft">
-                                        No accessible proof attachment.
-                                      </p>
-                                    )}
+                                        Cancel
+                                      </Button>
+
+                                      <Button
+                                        zone="calm"
+                                        fullWidth
+                                        loading={processingAction}
+                                        disabled={processingAction}
+                                        onClick={() =>
+                                          void handleConfirmPartial(claim.id)
+                                        }
+                                      >
+                                        Confirm amount
+                                      </Button>
+                                    </div>
                                   </div>
+                                )}
 
-                                  {/* Rejection reason */}
-                                  {claim.status === 'rejected' &&
-                                      claim.rejection_reason && (
-                                          <p className="text-body text-text-soft">
-                                            Reason: {claim.rejection_reason}
-                                          </p>
+                                {/* Reject form */}
+                                {formOpen && showRejectInput && (
+                                  <div className="space-y-3">
+                                    <Field
+                                      label="Why are you rejecting this?"
+                                      hint="Say what is wrong so your client can fix it."
+                                    >
+                                      {(a11y) => (
+                                        <textarea
+                                          rows={3}
+                                          value={rejectReason}
+                                          disabled={processingAction}
+                                          onChange={(event) =>
+                                            setRejectReason(event.target.value)
+                                          }
+                                          className={cn(
+                                            inputStyles,
+                                            'min-h-24 py-2',
+                                          )}
+                                          {...a11y}
+                                        />
                                       )}
+                                    </Field>
 
-                                  {/* Pending claim actions */}
-                                  {isPending && (
-                                      <div className="space-y-3 border-t border-line-subtle pt-4">
-                                        <Button
-                                            zone="calm"
-                                            size="lg"
-                                            fullWidth
-                                            loading={processingAction}
-                                            disabled={processingAction}
-                                            onClick={() =>
-                                                void handleConfirmFull(claim.id)
-                                            }
-                                        >
-                                          <CheckCircle
-                                              aria-hidden
-                                              className="h-4 w-4"
-                                          />
-                                          Confirm funds received
-                                        </Button>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <Button
+                                        variant="outline"
+                                        zone="calm"
+                                        fullWidth
+                                        disabled={processingAction}
+                                        onClick={() => {
+                                          setShowRejectInput(false);
+                                          setActionClaimId(null);
+                                          setActionError(null);
+                                        }}
+                                      >
+                                        Cancel
+                                      </Button>
 
-                                        <div className="grid grid-cols-2 gap-3">
-                                          <Button
-                                              variant="outline"
-                                              zone="calm"
-                                              fullWidth
-                                              disabled={processingAction}
-                                              onClick={() => {
-                                                setActionError(null);
-                                                setActionClaimId(claim.id);
-                                                setShowRejectInput(false);
-                                                setShowPartialInput(true);
-                                              }}
-                                          >
-                                            Different amount
-                                          </Button>
+                                      <Button
+                                        variant="danger"
+                                        zone="calm"
+                                        fullWidth
+                                        loading={processingAction}
+                                        disabled={processingAction}
+                                        onClick={() =>
+                                          void handleRejectClaim(claim.id)
+                                        }
+                                      >
+                                        Reject claim
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </Card>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
 
-                                          <Button
-                                              variant="outline"
-                                              zone="calm"
-                                              fullWidth
-                                              disabled={processingAction}
-                                              onClick={() => {
-                                                setActionError(null);
-                                                setActionClaimId(claim.id);
-                                                setShowPartialInput(false);
-                                                setShowRejectInput(true);
-                                                setRejectReason('');
-                                              }}
-                                          >
-                                            Reject
-                                          </Button>
-                                        </div>
-
-                                        {/* Partial payment form */}
-                                        {formOpen && showPartialInput && (
-                                            <div className="space-y-3">
-                                              <MoneyInput
-                                                  id={`partial-${claim.id}`}
-                                                  label="Amount you actually received"
-                                                  value={partialAmount}
-                                                  onChange={setPartialAmount}
-                                                  currency={reviewingInvoice.currency}
-                                              />
-
-                                              <div className="grid grid-cols-2 gap-3">
-                                                <Button
-                                                    variant="outline"
-                                                    zone="calm"
-                                                    fullWidth
-                                                    disabled={processingAction}
-                                                    onClick={() => {
-                                                      setShowPartialInput(false);
-                                                      setActionClaimId(null);
-                                                      setActionError(null);
-                                                    }}
-                                                >
-                                                  Cancel
-                                                </Button>
-
-                                                <Button
-                                                    zone="calm"
-                                                    fullWidth
-                                                    loading={processingAction}
-                                                    disabled={processingAction}
-                                                    onClick={() =>
-                                                        void handleConfirmPartial(claim.id)
-                                                    }
-                                                >
-                                                  Confirm amount
-                                                </Button>
-                                              </div>
-                                            </div>
-                                        )}
-
-                                        {/* Reject form */}
-                                        {formOpen && showRejectInput && (
-                                            <div className="space-y-3">
-                                              <Field
-                                                  label="Why are you rejecting this?"
-                                                  hint="Say what is wrong so your client can fix it."
-                                              >
-                                                {(a11y) => (
-                                                    <textarea
-                                                        rows={3}
-                                                        value={rejectReason}
-                                                        disabled={processingAction}
-                                                        onChange={(event) =>
-                                                            setRejectReason(event.target.value)
-                                                        }
-                                                        className={cn(
-                                                            inputStyles,
-                                                            'min-h-24 py-2',
-                                                        )}
-                                                        {...a11y}
-                                                    />
-                                                )}
-                                              </Field>
-
-                                              <div className="grid grid-cols-2 gap-3">
-                                                <Button
-                                                    variant="outline"
-                                                    zone="calm"
-                                                    fullWidth
-                                                    disabled={processingAction}
-                                                    onClick={() => {
-                                                      setShowRejectInput(false);
-                                                      setActionClaimId(null);
-                                                      setActionError(null);
-                                                    }}
-                                                >
-                                                  Cancel
-                                                </Button>
-
-                                                <Button
-                                                    variant="danger"
-                                                    zone="calm"
-                                                    fullWidth
-                                                    loading={processingAction}
-                                                    disabled={processingAction}
-                                                    onClick={() =>
-                                                        void handleRejectClaim(claim.id)
-                                                    }
-                                                >
-                                                  Reject claim
-                                                </Button>
-                                              </div>
-                                            </div>
-                                        )}
-                                      </div>
-                                  )}
-                                </Card>
-                              </li>
-                          );
-                        })}
-                      </ul>
-                  )}
-                </div>
-              </SheetContent>
-            </Sheet>
-        )}
-
-        {/* Mobile floating action */}
-        <div className="fixed bottom-5 right-5 z-30 sm:hidden">
-          <Link
-              href="/invoices/new"
-              aria-label="Create invoice"
-              className={cn(
-                  buttonStyles({
-                    variant: 'accent',
-                    size: 'lg',
-                  }),
-                  'h-14 w-14 rounded-full p-0 shadow-lg',
-              )}
-          >
-            <Plus className="h-6 w-6" aria-hidden />
-          </Link>
-        </div>
+      {/* Mobile floating action */}
+      <div className="fixed bottom-5 right-5 z-30 sm:hidden">
+        <Link
+          href="/invoices/new"
+          aria-label="Create invoice"
+          className={cn(
+            buttonStyles({
+              variant: 'accent',
+              size: 'lg',
+            }),
+            'h-14 w-14 rounded-full p-0 shadow-lg',
+          )}
+        >
+          <Plus className="h-6 w-6" aria-hidden />
+        </Link>
       </div>
+    </div>
   );
 }
