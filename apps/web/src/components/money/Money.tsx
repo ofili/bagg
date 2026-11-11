@@ -15,24 +15,12 @@ interface MoneyProps {
 
 function compactNumber(value: number, locale: string): string {
   const abs = Math.abs(value);
+  const formatter = (maximumFractionDigits: number) =>
+    new Intl.NumberFormat(locale, { maximumFractionDigits });
 
-  if (abs >= 1_000_000_000) {
-    return `${new Intl.NumberFormat(locale, {
-      maximumFractionDigits: 2,
-    }).format(value / 1_000_000_000)}B`;
-  }
-
-  if (abs >= 1_000_000) {
-    return `${new Intl.NumberFormat(locale, {
-      maximumFractionDigits: 2,
-    }).format(value / 1_000_000)}M`;
-  }
-
-  if (abs >= 1_000) {
-    return `${new Intl.NumberFormat(locale, {
-      maximumFractionDigits: 1,
-    }).format(value / 1_000)}K`;
-  }
+  if (abs >= 1_000_000_000) return `${formatter(2).format(value / 1_000_000_000)}B`;
+  if (abs >= 1_000_000) return `${formatter(2).format(value / 1_000_000)}M`;
+  if (abs >= 1_000) return `${formatter(1).format(value / 1_000)}K`;
 
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: 0,
@@ -45,6 +33,7 @@ export function Money({
   currency,
   variant = 'total',
   className,
+  hideCurrencyCode = false,
   showCurrencyCode = false,
   compact = false,
   nowrap = true,
@@ -58,8 +47,7 @@ export function Money({
 
   const safeAmount = Number.isFinite(amountMinor) ? amountMinor : 0;
   const major = safeAmount / factor;
-
-  const isNegative = major < 0;
+  const negative = major < 0;
   const absolute = Math.abs(major);
 
   const formatted = compact
@@ -78,14 +66,17 @@ export function Money({
     outstanding: 'text-text',
   }[variant];
 
+  const currencySuffix =
+    showCurrencyCode && !hideCurrencyCode ? ` ${currency}` : '';
+
   return (
     <span
       title={
         compact
-          ? `${isNegative ? '−' : ''}${symbol}${new Intl.NumberFormat(locale, {
+          ? `${negative ? '−' : ''}${symbol}${new Intl.NumberFormat(locale, {
               minimumFractionDigits: decimals,
               maximumFractionDigits: decimals,
-            }).format(absolute)}`
+            }).format(absolute)}${currencySuffix}`
           : undefined
       }
       className={cn(
@@ -95,10 +86,10 @@ export function Money({
         className,
       )}
     >
-      {isNegative ? '−' : ''}
+      {negative ? '−' : ''}
       {symbol}
       {formatted}
-      {showCurrencyCode ? ` ${currency}` : ''}
+      {currencySuffix}
     </span>
   );
 }

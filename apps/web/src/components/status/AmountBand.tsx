@@ -101,6 +101,7 @@ export function ReceiptStub({
   );
 }
 
+
 export function PaymentProgress({
   totalMinor,
   paidMinor,
@@ -110,26 +111,46 @@ export function PaymentProgress({
   paidMinor: number;
   currency: string;
 }) {
-  	const safeTotal = Math.max(totalMinor, 1);
-	const safePaid = Math.max(0, paidMinor);
+  const safeTotal = Number.isFinite(totalMinor)
+    ? Math.max(0, totalMinor)
+    : 0;
 
-	const percentage = Math.min(
-	100,
-	Math.max(0, Math.round((safePaid / safeTotal) * 100)),
-	);
+  const safePaidInput = Number.isFinite(paidMinor)
+    ? Math.max(0, paidMinor)
+    : 0;
 
-	const remaining = Math.max(0, totalMinor - safePaid);
+  const safePaid = Math.min(safePaidInput, safeTotal);
+  const remaining = safeTotal - safePaid;
 
-  	return (
+  const percentage =
+    safeTotal > 0
+      ? Math.round((safePaid / safeTotal) * 100)
+      : 0;
+
+  return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-3 text-body">
         <span className="text-text-soft">
-          <Money amountMinor={paidMinor} currency={currency} variant="inherit" hideCurrencyCode /> paid
+          <Money
+            amountMinor={safePaid}
+            currency={currency}
+            variant="inherit"
+            hideCurrencyCode
+          />{' '}
+          paid
         </span>
+
         <span className="font-extrabold">
-          <Money amountMinor={remaining} currency={currency} variant="inherit" hideCurrencyCode /> outstanding
+          <Money
+            amountMinor={remaining}
+            currency={currency}
+            variant="inherit"
+            hideCurrencyCode
+          />{' '}
+          outstanding
         </span>
       </div>
+
       <div
         role="progressbar"
         aria-label="Share of the invoice paid"
@@ -138,7 +159,10 @@ export function PaymentProgress({
         aria-valuenow={percentage}
         className="h-2.5 overflow-hidden rounded-full border border-ink bg-surface-tint"
       >
-        <div className="h-full bg-leaf" style={{ width: `${percentage}%` }} />
+        <div
+          className="h-full bg-leaf"
+          style={{ width: `${percentage}%` }}
+        />
       </div>
     </div>
   );
