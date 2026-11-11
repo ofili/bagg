@@ -431,6 +431,14 @@ export default function DashboardPage() {
     counts.claims === 0 &&
     counts.overdue === 0;
 
+  const handleClaimsCount = useCallback((count: number) => {
+  setCounts((current) => ({ ...current, claims: count }));
+  }, []);
+
+  const handleOverdueCount = useCallback((count: number) => {
+    setCounts((current) => ({ ...current, overdue: count }));
+  }, []);
+
   return (
     <div className="mx-auto w-full max-w-[1200px] space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
@@ -557,9 +565,7 @@ export default function DashboardPage() {
               status="payment_claimed"
               currency={metric.currency}
               actionLabel="Review"
-              onCount={(count) =>
-                setCounts((current) => ({ ...current, claims: count }))
-              }
+              onCount={handleClaimsCount}
             />
 
             <AttentionList
@@ -567,9 +573,7 @@ export default function DashboardPage() {
               status="overdue"
               currency={metric.currency}
               actionLabel="Follow up"
-              onCount={(count) =>
-                setCounts((current) => ({ ...current, overdue: count }))
-              }
+              onCount={handleOverdueCount}
             />
 
             {caughtUp && (
