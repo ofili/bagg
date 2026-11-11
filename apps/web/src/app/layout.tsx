@@ -1,8 +1,10 @@
-
 import './globals.css';
+
 import type { Metadata, Viewport } from 'next';
 import { Bricolage_Grotesque } from 'next/font/google';
 import React from 'react';
+
+import { ThemeProvider } from '@/components/theme/theme-provider';
 
 const bricolage = Bricolage_Grotesque({
   subsets: ['latin', 'latin-ext'],
@@ -12,14 +14,25 @@ const bricolage = Bricolage_Grotesque({
 
 const themeInitScript = `
 (() => {
+  const STORAGE_KEY = 'bagg-theme';
+  const VALID_THEMES = ['system', 'light', 'dark'];
+
   try {
+    const storedPreference = localStorage.getItem(STORAGE_KEY);
+    const preference = VALID_THEMES.includes(storedPreference)
+      ? storedPreference
+      : 'system';
+
     const prefersDark = window.matchMedia(
       '(prefers-color-scheme: dark)'
     ).matches;
 
-    document.documentElement.dataset.theme = prefersDark
-      ? 'dark'
-      : 'light';
+    const resolvedTheme =
+      preference === 'system'
+        ? (prefersDark ? 'dark' : 'light')
+        : preference;
+
+    document.documentElement.dataset.theme = resolvedTheme;
   } catch {
     document.documentElement.dataset.theme = 'light';
   }
@@ -76,8 +89,9 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
+
       <body className="min-h-dvh bg-cream font-sans text-text antialiased selection:bg-sun">
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

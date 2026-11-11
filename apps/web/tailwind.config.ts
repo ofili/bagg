@@ -1,8 +1,10 @@
 import type { Config } from 'tailwindcss';
 
 /**
- * Bagg design tokens (neo-brutalist, see docs/adr/0002-neo-brutalist-ui.md).
- * Values live in CSS variables (globals.css) so light and dark mode share one config.
+ * Bagg design tokens.
+ * 
+ * CSS variables are the source of truth for colors and theme-dependent values.
+ * Tailwind exposes the semantic utility classes used by components.
  */
 const config: Config = {
   content: [
@@ -20,10 +22,12 @@ const config: Config = {
         sun: 'var(--bagg-sun)',
         leaf: 'var(--bagg-leaf)',
         danger: 'var(--bagg-danger)',
+
         // Ink: outlines, hard shadows and the darkest text
         ink: 'var(--ink)',
         'on-mango': 'var(--on-mango)',
         'on-pink': 'var(--on-pink)',
+
         // Neutrals
         cream: 'var(--bg)',
         surface: 'var(--surface)',
@@ -33,11 +37,13 @@ const config: Config = {
         'line-subtle': 'var(--border-subtle)',
         peach: 'var(--peach)',
         'peach-chip': 'var(--peach-chip)',
+
         // Text
         text: 'var(--text)',
         'text-soft': 'var(--text-soft)',
         'text-muted': 'var(--text-muted)',
         link: 'var(--link)',
+
         // Semantic statuses
         'status-paid': 'var(--status-paid-bg)',
         'status-paid-fg': 'var(--status-paid-fg)',
@@ -52,6 +58,7 @@ const config: Config = {
         'status-void': 'var(--status-void-bg)',
         'status-void-fg': 'var(--status-void-fg)',
       },
+
       borderRadius: {
         btn: '10px',
         card: '12px',
@@ -60,10 +67,12 @@ const config: Config = {
         small: '6px',
         sheet: '16px',
       },
+
       borderWidth: {
         brut: '2px',
         'brut-thin': '1.5px',
       },
+
       boxShadow: {
         // Hard offset shadows: no blur, ever.
         'brut-sm': '2px 2px 0 0 var(--brut-shadow)',
@@ -71,6 +80,7 @@ const config: Config = {
         'brut-lg': '5px 5px 0 0 var(--brut-shadow)',
         sheet: '0 -8px 24px rgba(58, 31, 10, 0.12)',
       },
+
       fontFamily: {
         sans: [
           'var(--font-bricolage)',
@@ -82,14 +92,15 @@ const config: Config = {
           'sans-serif',
         ],
       },
+
       fontSize: {
+        display: ['40px', { lineHeight: '40px', fontWeight: '800' }],
+        'title-l': [ '28px', { lineHeight: '30px', fontWeight: '800'}],
+        title: ['22px', { lineHeight: '26px', fontWeight: '800' }],
         caption: ['12px', { lineHeight: '16px' }],
         body: ['14px', { lineHeight: '20px' }],
         'body-l': ['16px', { lineHeight: '24px' }],
         heading: ['18px', { lineHeight: '22px', fontWeight: '800' }],
-        title: ['22px', { lineHeight: '26px', fontWeight: '800' }],
-        'title-l': ['28px', { lineHeight: '30px', fontWeight: '800' }],
-        display: ['40px', { lineHeight: '40px', fontWeight: '800' }],
         'amount-s': ['16px', { lineHeight: '20px', fontWeight: '800' }],
         'amount-m': ['20px', { lineHeight: '24px', fontWeight: '800' }],
         'amount-l': ['28px', { lineHeight: '32px', fontWeight: '800' }],

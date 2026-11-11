@@ -4,7 +4,7 @@ import { MarketingHeader } from '@/components/marketing/header';
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-canvas">
+    <div className="flex min-h-dvh flex-col bg-cream">
       <a
         href="#main"
         className="sr-only rounded-small bg-surface px-3 py-2 text-body font-extrabold text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50"

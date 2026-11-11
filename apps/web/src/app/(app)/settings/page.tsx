@@ -22,6 +22,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { BagCharacter } from '@/components/brand';
+import { ThemePreferenceSection } from '@/components/theme/theme-preference';
 import { Button } from '@/components/ui/button';
 import { BaggSelect, Dialog } from '@/components/ui';
 import { Sheet, SheetContent, SheetFooter } from '@/components/ui/sheet';
@@ -579,6 +580,8 @@ export default function SettingsPage() {
           your business details, payment rails and account controls.
         </p>
       </div>
+
+      <ThemePreferenceSection/>
 
       {notice && (
         <div role="status" className="flex items-center gap-2 rounded-input bg-pill-paid/20 px-3 py-2 text-body text-paid-text">

@@ -180,16 +180,16 @@ Mango and pink are not suitable for ordinary text on cream or white surfaces. Us
 4.4 Status colours
 
 Status| Background| Foreground
-Paid| "#1FA971"| "#052E1B"
+Paid| "#D8F5E6"| "#0F6B45"
 Paid soft| "#D8F5E6"| "#0F6B45"
-Due soon| "#FFC933"| "#4A3200"
-Late| "#FFB3B3"| "#5A1010"
-Draft| "#E6DAC6"| "#5A4A35"
-Awaiting approval| "#FFC933"| "#4A3200"
-Pending transfer| "#FFF1C2"| "#8A6200"
-Upcoming| "#E6DAC6"| "#5A4A35"
-Accepted| "#E6DAC6"| "#5A4A35"
-Voided or inactive| "#EFE6D8"| "#8A6A50"
+Due soon| "#FFF0C2"| "#6B4D00"
+Late| "#FCE0DE"| "#8A1C14"
+Draft| "#EDE7DF"| "#5B4A3B"
+Awaiting approval| "#FFF0C2"| "#6B4D00"
+Pending transfer| "#DCEBFF"| "#174A7E"
+Upcoming| "#EDE7DF"| "#174A7E"
+Accepted| "#EDE7DF"| "#5B4A3B"
+Voided or inactive| "#EFE9E3"| "#75685C"
 
 Rules:
 
@@ -266,7 +266,7 @@ title| 22 / 26| Section and modal title
 heading| 18 / 22| Card and panel title
 body-l| 16 / 24| Main body copy
 body| 14 / 20| Rows and secondary content
-label| 14 / 18| Field labels and names
+label| 14 / 18| Field labels and names. Implemented in Tailwind as text-label with 14px font-size, 18px line height 500 weight.
 caption| 12 / 16| Helper text and metadata
 
 Financial amounts:

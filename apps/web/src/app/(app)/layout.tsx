@@ -15,6 +15,7 @@ import { SessionGuard } from '@/components/navigation/SessionGuard';
 import { AppBreadcrumbs } from '@/components/navigation/AppBreadcrumbs';
 import {
   BreadcrumbProvider} from '@/components/navigation/BreadcrumbContext';
+import { ThemeSwitcher } from '@/components/navigation/ThemeSwitcher';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { buttonStyles } from '@/components/ui';
 import { cn } from '@/lib/cn';
@@ -171,6 +172,7 @@ function DesktopHeader({
 
       <div className="flex items-center gap-3">
         <ClientOnly>
+          <ThemeSwitcher />
           <NotificationCenter />
           <UserMenu />
         </ClientOnly>
@@ -193,6 +195,7 @@ function MobileHeader() {
 
       <div className="flex items-center gap-2">
         <ClientOnly>
+          <ThemeSwitcher />
           <NotificationCenter />
           <UserMenu />
         </ClientOnly>

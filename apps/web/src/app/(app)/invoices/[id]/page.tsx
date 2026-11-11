@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -16,6 +15,7 @@ import {
   CheckCircleIcon,
   ClockCounterClockwiseIcon,
   CopyIcon,
+  DotsThreeIcon,
   FileTextIcon,
   ReceiptIcon,
   ScrollIcon,
@@ -455,6 +455,7 @@ export default function InvoiceDetailPage() {
       invoice.status !== 'draft' &&
       !TERMINAL_STATUSES.includes(invoice.status) &&
       !hasPendingClaims &&
+      !claimsError &&
       balanceMinor > 0,
   );
 
@@ -462,7 +463,8 @@ export default function InvoiceDetailPage() {
     invoice &&
       ['issued', 'sent', 'viewed', 'overdue'].includes(invoice.status) &&
       paidMinor === 0 &&
-      !hasPendingClaims,
+      !hasPendingClaims &&
+      !claimsError,
   );
 
   const shareUrl =
@@ -1093,6 +1095,20 @@ export default function InvoiceDetailPage() {
     safeAmount(invoice.wht_minor) > 0 ||
     Boolean(invoice.wht_credit_note_number);
 
+  const primaryReceipt =
+    invoice.status === 'paid' && invoice.latest_receipt?.id
+      ? invoice.latest_receipt
+      : null;
+
+  const scrollToClaims = () => {
+    document.getElementById('claims')?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+      block: 'start',
+    });
+  };
+
   const invoiceDoc = (
     <InvoiceDocument
       variant="issuer"
@@ -1106,22 +1122,19 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
-      {/* Page heading and primary actions */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-3">
+      {/* Compact invoice header */}
+      <header className="flex flex-col gap-4 border-b border-line-subtle pb-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-3">
           <Link
             href="/invoices"
-            className={buttonStyles({
-              variant: 'outline',
-              zone: 'calm',
-            })}
+            className="inline-flex min-h-10 items-center gap-2 text-body font-semibold text-text-soft transition-colors hover:text-text"
           >
             <ArrowLeftIcon aria-hidden className="h-4 w-4" />
             All invoices
           </Link>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-title-l sm:text-display">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="break-words text-title-l sm:text-display">
               {invoice.invoice_number}
             </h1>
 
@@ -1142,20 +1155,17 @@ export default function InvoiceDetailPage() {
                 className="inline-flex items-center gap-1.5 rounded-full border border-ink bg-sun/40 px-2.5 py-0.5 text-caption font-bold text-ink transition-colors hover:bg-sun"
                 title="View recurring schedule"
               >
-                <span aria-hidden>
-                  ↻
-                </span>
-                <span>
-                  {invoice.recurring_label || 'Recurring'}
-                </span>
+                <span aria-hidden>↻</span>
+                <span>{invoice.recurring_label || 'Recurring'}</span>
               </Link>
             )}
           </div>
 
-          <p className="hidden text-body text-text-soft sm:block">
-            {invoice.client_name || 'Client'} · Due{' '}
-            {formatDate(invoice.due_date)}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-text-soft">
+            <span>{invoice.client_name || 'Client'}</span>
+            <span aria-hidden>·</span>
+            <span>Due {formatDate(invoice.due_date)}</span>
+          </div>
 
           {invoice.recurring_period_key && (
             <p className="text-caption text-text-muted">
@@ -1164,175 +1174,174 @@ export default function InvoiceDetailPage() {
           )}
         </div>
 
-        <div className="hidden flex-wrap gap-3 sm:flex">
-          {invoice.status === 'draft' && (
+        <div className="flex shrink-0 items-center gap-2 self-start">
+          {hasPendingClaims ? (
+            <Button zone="calm" onClick={scrollToClaims}>
+              <WarningCircleIcon aria-hidden className="h-4 w-4" />
+              Review payment{pendingClaims.length === 1 ? '' : 's'}
+            </Button>
+          ) : invoice.status === 'draft' ? (
             <Button
               zone="calm"
               loading={sendingInvoice}
               onClick={handleFinalizeInvoice}
             >
-              Approve & issue invoice
+              Approve & issue
             </Button>
-          )}
-
-          {['issued', 'sent', 'viewed'].includes(invoice.status) && (
+          ) : ['issued', 'sent', 'viewed'].includes(invoice.status) ? (
             <Button
               zone="calm"
               loading={sendingInvoice}
               onClick={openInvoiceDelivery}
             >
-              {invoice.status === 'issued'
-                ? 'Send invoice'
-                : 'Send invoice again'}
+              {invoice.status === 'issued' ? 'Send invoice' : 'Send again'}
             </Button>
-          )}
-
-          {invoice.share_token && invoice.status !== 'draft' && (
-            <>
-              <Button
-                variant="outline"
-                zone="calm"
-                onClick={copyShareLink}
-              >
-                {copied ? (
-                  <CheckIcon aria-hidden className="h-4 w-4" />
-                ) : (
-                  <CopyIcon aria-hidden className="h-4 w-4" />
-                )}
-                {copied ? 'Copied' : 'Copy link'}
-              </Button>
-
-              <Link
-                href={`/i/${invoice.share_token}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={buttonStyles({
-                  variant: 'outline',
-                  zone: 'calm',
-                })}
-              >
-                <ArrowSquareOutIcon aria-hidden className="h-4 w-4" />
-                Client view
-              </Link>
-
-              {whatsappHref && (
-                <a
-                  href={whatsappHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={buttonStyles({
-                    variant: 'outline',
-                    zone: 'calm',
-                  })}
-                >
-                  <ShareNetworkIcon aria-hidden className="h-4 w-4" />
-                  WhatsApp
-                </a>
-              )}
-            </>
-          )}
-
-          {hasPendingClaims && (
-            <Button
-              variant="outline"
-              zone="calm"
-              onClick={() =>
-                document.getElementById('claims')?.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'start',
-                })
-              }
-            >
-              Review payment claim
-            </Button>
-          )}
-
-          {canRecordPayment && (
-            <Button
-              zone="calm"
-              onClick={openReceiptModal}
-            >
+          ) : canRecordPayment ? (
+            <Button zone="calm" onClick={openReceiptModal}>
               <ReceiptIcon aria-hidden className="h-4 w-4" />
               Record payment
             </Button>
-          )}
-
-          {invoice.status !== 'draft' && (
-            <Button
-              variant="outline"
-              zone="calm"
-              onClick={() => window.print()}
+          ) : primaryReceipt ? (
+            <Link
+              href={`/receipts/${encodeURIComponent(primaryReceipt.id)}`}
+              className={buttonStyles({
+                variant: 'primary',
+                zone: 'calm',
+              })}
             >
-              <FileTextIcon aria-hidden className="h-4 w-4" />
-              Print / save
-            </Button>
-          )}
+              <ReceiptIcon aria-hidden className="h-4 w-4" />
+              View receipt
+            </Link>
+          ) : null}
 
-          {[
-            'issued',
-            'sent',
-            'viewed',
-            'overdue',
-            'partially_paid',
-            'payment_claimed',
-          ].includes(invoice.status) && (
-            <Button
-              variant="outline"
-              zone="calm"
-              loading={nudgingWhatsApp}
-              onClick={handleWhatsAppNudge}
+          <details className="relative">
+            <summary
+              aria-label="More invoice actions"
+              title="More actions"
+              className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-btn border border-line bg-surface px-3 text-text transition-colors hover:bg-surface-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink [&::-webkit-details-marker]:hidden"
             >
-              <ChatCircleIcon aria-hidden className="h-4 w-4" />
-              Nudge
-            </Button>
-          )}
+              <DotsThreeIcon aria-hidden className="h-6 w-6" />
+              <span className="sr-only">More actions</span>
+            </summary>
 
-          {canRecall && (
-            <Button
-              variant="outline"
-              zone="calm"
-              onClick={() => setShowRecallDialog(true)}
-            >
-              <ArrowUUpLeftIcon aria-hidden className="h-4 w-4" />
-              Recall
-            </Button>
-          )}
+            <div className="absolute right-0 z-30 mt-2 w-64 rounded-card border-brut border-ink bg-surface p-2 shadow-brut">
+              {invoice.share_token && invoice.status !== 'draft' && (
+                <div className="space-y-1 border-b border-line-subtle pb-2">
+                  <p className="px-3 py-1 text-caption font-bold uppercase tracking-wide text-text-muted">
+                    Share
+                  </p>
 
-          {showWhtAction && (
-            <Button
-              variant="outline"
-              zone="calm"
-              onClick={() => {
-                setWhtCreditNoteNumber(
-                  invoice.wht_credit_note_number || '',
-                );
-                setShowWhtDialog(true);
-              }}
-            >
-              <ScrollIcon aria-hidden className="h-4 w-4" />
-              {invoice.wht_credit_note_number
-                ? 'WHT reference'
-                : 'Record WHT'}
-            </Button>
-          )}
+                  <button
+                    type="button"
+                    onClick={copyShareLink}
+                    className="flex min-h-10 w-full items-center gap-2 rounded-row px-3 text-left text-body font-medium hover:bg-surface-tint"
+                  >
+                    {copied ? (
+                      <CheckIcon aria-hidden className="h-4 w-4" />
+                    ) : (
+                      <CopyIcon aria-hidden className="h-4 w-4" />
+                    )}
+                    {copied ? 'Copied link' : 'Copy invoice link'}
+                  </button>
 
-          {invoice.share_token && invoice.status !== 'draft' && (
-            <Button
-              variant="outline"
-              zone="calm"
-              loading={regeneratingLink}
-              onClick={handleRegenerateShareLink}
-              title="Generate a new public link"
-            >
-              <ArrowCounterClockwiseIcon
-                aria-hidden
-                className="h-4 w-4"
-              />
-              Regenerate link
-            </Button>
-          )}
+                  <Link
+                    href={`/i/${invoice.share_token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-h-10 items-center gap-2 rounded-row px-3 text-body font-medium hover:bg-surface-tint"
+                  >
+                    <ArrowSquareOutIcon aria-hidden className="h-4 w-4" />
+                    Open client view
+                  </Link>
+
+                  {whatsappHref && (
+                    <a
+                      href={whatsappHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex min-h-10 items-center gap-2 rounded-row px-3 text-body font-medium hover:bg-surface-tint"
+                    >
+                      <ShareNetworkIcon aria-hidden className="h-4 w-4" />
+                      Share on WhatsApp
+                    </a>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-1 border-b border-line-subtle py-2">
+                <p className="px-3 py-1 text-caption font-bold uppercase tracking-wide text-text-muted">
+                  Document
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="flex min-h-10 w-full items-center gap-2 rounded-row px-3 text-left text-body font-medium hover:bg-surface-tint"
+                >
+                  <FileTextIcon aria-hidden className="h-4 w-4" />
+                  Print / save as PDF
+                </button>
+              </div>
+
+              {(canRecall ||
+                showWhtAction ||
+                (invoice.share_token && invoice.status !== 'draft')) && (
+                <div className="space-y-1 pt-2">
+                  <p className="px-3 py-1 text-caption font-bold uppercase tracking-wide text-text-muted">
+                    Manage
+                  </p>
+
+                  {canRecall && (
+                    <button
+                      type="button"
+                      onClick={() => setShowRecallDialog(true)}
+                      className="flex min-h-10 w-full items-center gap-2 rounded-row px-3 text-left text-body font-medium hover:bg-surface-tint"
+                    >
+                      <ArrowUUpLeftIcon aria-hidden className="h-4 w-4" />
+                      Recall invoice
+                    </button>
+                  )}
+
+                  {showWhtAction && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWhtCreditNoteNumber(
+                          invoice.wht_credit_note_number || '',
+                        );
+                        setShowWhtDialog(true);
+                      }}
+                      className="flex min-h-10 w-full items-center gap-2 rounded-row px-3 text-left text-body font-medium hover:bg-surface-tint"
+                    >
+                      <ScrollIcon aria-hidden className="h-4 w-4" />
+                      {invoice.wht_credit_note_number
+                        ? 'WHT reference'
+                        : 'Record WHT'}
+                    </button>
+                  )}
+
+                  {invoice.share_token && invoice.status !== 'draft' && (
+                    <button
+                      type="button"
+                      disabled={regeneratingLink}
+                      onClick={handleRegenerateShareLink}
+                      className="flex min-h-10 w-full items-center gap-2 rounded-row px-3 text-left text-body font-medium hover:bg-surface-tint disabled:opacity-50"
+                    >
+                      <ArrowCounterClockwiseIcon
+                        aria-hidden
+                        className="h-4 w-4"
+                      />
+                      {regeneratingLink
+                        ? 'Regenerating link…'
+                        : 'Regenerate share link'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </details>
         </div>
-      </div>
+      </header>
 
       {/* Action feedback */}
       {actionError && (
@@ -1531,7 +1540,6 @@ export default function InvoiceDetailPage() {
                 </p>
 
                 <Button
-                  size="sm"
                   variant="outline"
                   zone="calm"
                   onClick={() => void loadInvoice()}
@@ -1803,6 +1811,27 @@ export default function InvoiceDetailPage() {
                 </dd>
               </div>
             </dl>
+
+            {balanceMinor > 0 &&
+              [
+                'issued',
+                'sent',
+                'viewed',
+                'overdue',
+                'partially_paid',
+                'payment_claimed',
+              ].includes(invoice.status) && (
+                <Button
+                  fullWidth
+                  variant="outline"
+                  zone="calm"
+                  loading={nudgingWhatsApp}
+                  onClick={handleWhatsAppNudge}
+                >
+                  <ChatCircleIcon aria-hidden className="h-4 w-4" />
+                  Send WhatsApp reminder
+                </Button>
+              )}
           </Card>
 
           {claimsError && (
@@ -1814,7 +1843,6 @@ export default function InvoiceDetailPage() {
               </p>
 
               <Button
-                size="sm"
                 variant="outline"
                 zone="calm"
                 onClick={() => void loadInvoice()}
