@@ -17,7 +17,6 @@ import {
   SheetContent,
 } from '@/components/ui/sheet';
 
-import { BagCharacter } from '@/components/brand';
 
 import {
   Button,
@@ -29,7 +28,11 @@ import {
   type ColumnDef,
   Pagination,
   TableToolbar,
+  EmptyState,
+  PageHeader,
 } from '@/components/ui';
+
+import { StatusPill } from '@/components/status/StatusPill';
 
 import { Money } from '@/components/money/Money';
 import { formatDate } from '@/lib/date';
@@ -554,20 +557,13 @@ export default function InvoicesPage() {
         const overdue = isInvoiceOverdue(invoice);
 
         return (
-            <span
-                className={cn(
-                    'inline-flex rounded-full px-2.5 py-1 text-caption font-bold',
-                    overdue
-                        ? 'bg-[#FFB3B3] text-[#5A1010]'
-                        : invoice.status === 'paid'
-                            ? 'bg-leaf text-[#052E1B]'
-                            : 'bg-surface-tint',
-                )}
-            >
-            {overdue
-                ? 'Overdue'
-                : (invoice.effective_status || invoice.status).replaceAll('_', ' ')}
-          </span>
+          <StatusPill
+            status={
+              overdue
+                ? 'overdue'
+                : invoice.effective_status || invoice.status
+            }
+          />
         );
       },
     },
@@ -604,34 +600,29 @@ export default function InvoicesPage() {
   /**
    * Empty state.
    */
-  const emptyState = (
-      <Card tone="peach" className="space-y-4 p-8 text-center">
-        <BagCharacter
-            size={48}
-            mood="happy"
-            className="mx-auto"
-            decorative
-        />
+    const hasActiveFilters =
+      Boolean(table.search.trim()) ||
+      Boolean(table.filters.status) ||
+      Boolean(table.filters.currency);
 
-        <h2 className="text-title">no invoices here</h2>
-
-        <p className="mx-auto max-w-sm text-body text-text-soft">
-          {table.search.trim() ||
-          table.filters['status'] ||
-          table.filters['currency']
-              ? 'No invoices match your current search and filters.'
-              : 'Create your first invoice in under a minute.'}
-        </p>
-
-        <Link
-            href="/invoices/new"
-            className={buttonStyles({ size: 'lg' })}
-        >
-          <Plus aria-hidden className="h-4 w-4" />
-          Create an invoice
-        </Link>
-      </Card>
-  );
+    const emptyState = hasActiveFilters ? (
+      <EmptyState
+        mood="confused"
+        title="No matching invoices"
+        body="Try a different search or clear your filters to see more invoices."
+        compact
+      />
+    ) : (
+      <EmptyState
+        mood="happy"
+        title="No invoices yet"
+        body="Create your first invoice and send it to your client."
+        action={{
+          label: 'Create invoice',
+          href: '/invoices/new',
+        }}
+      />
+    );
 
   /**
    * Mobile invoice card rendering.
@@ -650,28 +641,23 @@ export default function InvoicesPage() {
   return (
       <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
         {/* Header */}
-        <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-title-l sm:text-display">
-              invoices
-            </h1>
-
-            <p className="mt-1 text-body text-text-soft">
-              Create, send and track what clients owe you.
-            </p>
-          </div>
-
-          <Link
+        <PageHeader
+          eyebrow="Documents"
+          title="Invoices"
+          description="Create, send and track what clients owe you."
+          actions={
+            <Link
               href="/invoices/new"
               className={cn(
-                  buttonStyles({ variant: 'accent' }),
-                  'hidden sm:inline',
+                buttonStyles({ variant: 'accent' }),
+                'hidden sm:inline-flex',
               )}
-          >
-            <Plus aria-hidden className="h-4 w-4" />
-            New invoice
-          </Link>
-        </header>
+            >
+              <Plus aria-hidden className="h-4 w-4" />
+              New invoice
+            </Link>
+          }
+        />
 
         {/* Document navigation */}
         <DocTabs className="mt-3" />
@@ -690,12 +676,12 @@ export default function InvoicesPage() {
                 />
 
                 <span>
-              <span className="font-extrabold">
-                {overdueCount} overdue{' '}
-                {overdueCount === 1 ? 'invoice' : 'invoices'} on this page.
-              </span>{' '}
-                  A friendly nudge on WhatsApp usually gets you paid faster.
-            </span>
+                  <span className="font-extrabold">
+                    {overdueCount} overdue{' '}
+                    {overdueCount === 1 ? 'invoice' : 'invoices'} on this page.
+                  </span>{' '}
+                      A friendly nudge on WhatsApp usually gets you paid faster.
+                </span>
               </p>
 
               {table.filters['status'] !== 'overdue' && (
@@ -746,6 +732,31 @@ export default function InvoicesPage() {
             tableClassName="min-w-[900px]"
             caption="Invoices table"
         />
+
+                {table.error && (
+          <Card
+            zone="calm"
+            className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div>
+              <p className="font-extrabold text-danger">
+                We couldn't load your invoices
+              </p>
+              <p className="text-body text-text-soft">
+                {table.error}. Your invoice records have not been changed.
+              </p>
+            </div>
+
+            <Button
+              variant="outline"
+              zone="calm"
+              onClick={() => void table.reload()}
+              loading={table.loading}
+            >
+              Try again
+            </Button>
+          </Card>
+        )}
 
         {/* Pagination */}
         {table.data && (

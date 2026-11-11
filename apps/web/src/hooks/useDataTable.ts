@@ -79,25 +79,21 @@ export function useDataTable<T>(config: UseDataTableConfig) {
     setPageRaw(1);
   }, []);
 
-  const toggleSort = useCallback(
+    const toggleSort = useCallback(
     (key: string) => {
-      setSortBy((previous) => {
-        if (previous !== key) {
-          setSortOrder("desc");
-          return key;
-        }
-
+      if (sortBy !== key) {
+        setSortBy(key);
+        setSortOrder('desc');
+      } else {
         setSortOrder((order) =>
-          order === "desc" ? "asc" : "desc",
+          order === 'desc' ? 'asc' : 'desc',
         );
-
-        return previous;
-      });
+      }
 
       setPageRaw(1);
     },
-    [],
-  );
+    [sortBy],
+  ); 
 
   const extraParamsKey = JSON.stringify(extraParams);
 
