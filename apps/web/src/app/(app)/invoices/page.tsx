@@ -760,20 +760,22 @@ export default function InvoicesPage() {
           </Card>
         )}
 
-        {/* Invoice table */}
+                {/* Invoice table */}
+        {(!table.error || invoices.length > 0) && (
           <DataTable
             columns={columns}
             rows={invoices}
             getRowKey={(invoice) => invoice.id}
             loading={table.loading}
-            emptyState={table.error ? undefined : emptyState}
+            emptyState={emptyState}
             sortBy={table.sortBy}
             sortOrder={table.sortOrder}
             onSort={table.toggleSort}
             renderMobileCard={renderMobileCard}
             tableClassName="min-w-[900px]"
             caption="Invoices table"
-        />
+          />
+        )}
 
         {/* Pagination */}
         {table.data && (
@@ -870,6 +872,7 @@ export default function InvoicesPage() {
                         {claimsList.map((claim) => {
                           const isPending = claim.status === 'pending';
                           const formOpen = actionClaimId === claim.id;
+                          const evidenceUrl = getSafeEvidenceUrl(claim.proof_file_url);
 
                           return (
                               <li key={claim.id}>
@@ -923,35 +926,27 @@ export default function InvoicesPage() {
                                     </div>
                                   </dl>
 
-                                                                    {/* Submitted payment evidence */}
-                                  {(() => {
-                                    const evidenceUrl = getSafeEvidenceUrl(
-                                      claim.proof_file_url,
-                                    );
+                                  {/* Submitted payment evidence */}
+                                  <div className="space-y-1">
+                                    <p className="text-caption font-semibold text-text-muted">
+                                      Payment evidence
+                                    </p>
 
-                                    return (
-                                      <div className="space-y-1">
-                                        <p className="text-caption font-semibold text-text-muted">
-                                          Payment evidence
-                                        </p>
-
-                                        {evidenceUrl ? (
-                                          <a
-                                            href={evidenceUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center font-bold text-text underline underline-offset-4 hover:text-text-soft"
-                                          >
-                                            View submitted proof
-                                          </a>
-                                        ) : (
-                                          <p className="text-body text-text-soft">
-                                            No accessible proof attachment.
-                                          </p>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
+                                    {evidenceUrl ? (
+                                      <a
+                                        href={evidenceUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center font-bold text-text underline underline-offset-4 hover:text-text-soft"
+                                      >
+                                        View submitted proof
+                                      </a>
+                                    ) : (
+                                      <p className="text-body text-text-soft">
+                                        No accessible proof attachment.
+                                      </p>
+                                    )}
+                                  </div>
 
                                   {/* Rejection reason */}
                                   {claim.status === 'rejected' &&
