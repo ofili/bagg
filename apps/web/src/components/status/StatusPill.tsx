@@ -16,6 +16,7 @@ import {
 
 export type DocumentStatus =
   | 'draft'
+  | 'issued'
   | 'sent'
   | 'viewed'
   | 'payment_claimed'
@@ -36,6 +37,11 @@ const STATUS_META: Record<
   draft: {
     label: 'Draft',
     className: 'bg-[#E6DAC6] text-[#5A4A35]',
+    icon: FileEdit,
+  },
+  issued: {
+    label: 'Issued',
+    className: 'bg-peach-chip text-text',
     icon: FileEdit,
   },
   sent: {
@@ -102,6 +108,7 @@ const STATUS_META: Record<
 
 const SUB_LABELS: Record<DocumentStatus, string | null> = {
   draft: null,
+  issued: null,
   sent: 'Sent',
   viewed: 'Viewed',
   payment_claimed: null,

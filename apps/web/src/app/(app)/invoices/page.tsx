@@ -38,6 +38,7 @@ import { DocTabs } from '@/components/mobile/DocTabs';
 import { InvoiceRow } from '@/components/mobile/InvoiceRow';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { useDataTable } from '@/hooks/useDataTable';
+import { CURRENCIES } from '@/lib/money';
 
 const API_BASE = '/api';
 
@@ -285,7 +286,6 @@ export default function InvoicesPage() {
    * Confirm a partial payment.
    *
    * The amount entered is converted to minor units.
-   * This currently assumes a two-decimal currency.
    * Replace the precision with your shared currency configuration
    * if the application supports zero- or three-decimal currencies.
    */
@@ -299,7 +299,15 @@ export default function InvoicesPage() {
       return;
     }
 
-    const minorValue = Math.round(amountValue * 100);
+    const currencyConfig =
+      CURRENCIES[reviewingInvoice.currency as keyof typeof CURRENCIES];
+
+    if (!currencyConfig) {
+      setActionError('Unsupported invoice currency.');
+      return;
+    }
+
+    const minorValue = Math.round(amountValue * currencyConfig.factor);
 
     if (!Number.isSafeInteger(minorValue) || minorValue <= 0) {
       setActionError('The payment amount is invalid.');
