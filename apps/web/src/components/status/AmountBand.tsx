@@ -110,11 +110,17 @@ export function PaymentProgress({
   paidMinor: number;
   currency: string;
 }) {
-  const safeTotal = Math.max(totalMinor, 1);
-  const percentage = Math.min(100, Math.round((paidMinor / safeTotal) * 100));
-  const remaining = Math.max(0, totalMinor - paidMinor);
+  	const safeTotal = Math.max(totalMinor, 1);
+	const safePaid = Math.max(0, paidMinor);
 
-  return (
+	const percentage = Math.min(
+	100,
+	Math.max(0, Math.round((safePaid / safeTotal) * 100)),
+	);
+
+	const remaining = Math.max(0, totalMinor - safePaid);
+
+  	return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-3 text-body">
         <span className="text-text-soft">
@@ -168,19 +174,45 @@ export function AmountBand({
   const isPaid = status === 'paid' || paymentState === 'paid';
 
   if (isPaid) {
+    if (receipt) {
+      return (
+        <ReceiptStub
+          receipt={receipt}
+          currency={currency}
+          href={receiptHref}
+          compact={compact}
+        />
+      );
+    }
+
     return (
-      <ReceiptStub
-        receipt={
-          receipt || {
-            amount_paid_minor: Math.max(paidMinor, totalMinor),
-            balance_remaining_minor: 0,
-            confirmation_source: 'issuer_manual',
-          }
-        }
-        currency={currency}
-        href={receiptHref}
-        compact={compact}
-      />
+      <div
+        className={cn(
+          'rounded-card border border-line bg-surface',
+          compact ? 'p-3' : 'p-4',
+        )}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-caption text-text-muted">
+              Payment confirmed
+            </p>
+
+            <Money
+              amountMinor={paidMinor > 0 ? paidMinor : totalMinor}
+              currency={currency}
+              variant="paid"
+              className="text-amount-m"
+            />
+          </div>
+
+          <StatusPill status="paid" />
+        </div>
+
+        <p className="mt-2 text-caption text-text-soft">
+          The invoice is paid. The receipt record is not available here.
+        </p>
+      </div>
     );
   }
 
