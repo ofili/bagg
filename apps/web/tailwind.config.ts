@@ -1,4 +1,3 @@
-
 import type { Config } from 'tailwindcss';
 
 /**
@@ -59,6 +58,19 @@ const config: Config = {
         'status-pending-fg': 'var(--status-pending-fg)',
         'status-void': 'var(--status-void-bg)',
         'status-void-fg': 'var(--status-void-fg)',
+
+        // Transitional marketing compatibility aliases.
+        // Do not use these in new components.
+        // Remove after legacy marketing classes are migrated.
+        canvas: 'var(--bg)',
+        sunken: 'var(--surface-sunken)',
+        tint: 'var(--surface-tint)',
+        'ink-soft': 'var(--text-soft)',
+        'ink-muted': 'var(--text-muted)',
+        cocoa: 'var(--ink)',
+        'paid-text': 'var(--status-paid-fg)',
+        'pill-paid': 'var(--status-paid-bg)',
+        'pill-paid-fg': 'var(--status-paid-fg)',
       },
 
       borderRadius: {

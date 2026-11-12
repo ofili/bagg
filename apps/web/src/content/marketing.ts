@@ -12,7 +12,9 @@ export const footerGroups = [
     title: 'Product',
     links: [
       { label: 'Features', href: '/features' },
-      { label: 'For creatives', href: '/creatives' },
+      { label: 'For freelancers', href: '/freelancers' },
+      { label: 'For consultants', href: '/consultants' },
+      { label: 'For creative studios', href: '/studios' },
       { label: 'Pricing', href: '/pricing' },
       { label: 'Security', href: '/security' },
       { label: 'Client invoice demo', href: demoInvoiceHref },
