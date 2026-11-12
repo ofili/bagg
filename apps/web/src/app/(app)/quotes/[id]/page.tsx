@@ -16,14 +16,14 @@ import {
   PaperPlaneTilt,
   Pencil,
   Plus,
-  WarningCircle,
+  
 } from '@phosphor-icons/react';
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { QuoteMobileSummary } from '@/components/mobile/QuoteMobileSummary';
 import { QuoteActionBar } from '@/components/mobile/QuoteActionBar';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
-import { BaggSelect, Button, Card, Dialog, Field, Input, buttonStyles } from '@/components/ui';
+import { Alert, BaggSelect, Button, Card, Dialog, ErrorState, Field, Input, buttonStyles } from '@/components/ui';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import { formatDate } from '@/lib/date';
 
@@ -570,20 +570,21 @@ export default function QuoteDetailPage() {
   if (pageError || !quote) {
     return (
       <div className="space-y-4 p-4 sm:p-6 lg:p-8">
-        <Link href="/quotes" className={buttonStyles({ variant: 'outline' })}>
-          <ArrowLeft aria-hidden className="h-4 w-4" />
-          Back to quotes
-        </Link>
-        <Card zone="calm" className="space-y-3 p-6">
-          <WarningCircle aria-hidden className="h-6 w-6" />
-          <h1 className="text-title">quote unavailable</h1>
-          <p className="text-body text-text-soft">
-            {pageError || 'This quotes could not be found.'}
-          </p>
-          <Button variant="outline" zone="calm" onClick={() => void loadQuote()}>
-            Try again
-          </Button>
-        </Card>
+        <ErrorState
+          title="Quote unavailable"
+          description={pageError || 'This quote could not be found.'}
+          onRetry={() => void loadQuote()}
+          retryLabel="Try again"
+          action={
+            <Link
+              href="/quotes"
+              className={buttonStyles({ variant: 'outline' })}
+            >
+              <ArrowLeft aria-hidden className="h-4 w-4" />
+              Back to quotes
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -655,23 +656,15 @@ export default function QuoteDetailPage() {
         </div>
       </div>
 
-      {notice && (
-        <div
-          role={notice.kind === 'error' ? 'alert' : 'status'}
-          className={
-            notice.kind === 'error'
-              ? 'flex items-start gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]'
-              : 'flex items-start gap-2 rounded-row bg-peach p-3 text-body'
-          }
-        >
-          {notice.kind === 'error' ? (
-            <WarningCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-          ) : (
-            <CheckCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-          )}
-          <span>{notice.message}</span>
-        </div>
-      )}
+        {notice && (
+            <Alert
+                variant={notice.kind === 'error' ? 'error' : 'success'}
+                dismissible
+                onDismiss={() => setNotice(null)}
+            >
+              {notice.message}
+            </Alert>
+        )}
 
       <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>

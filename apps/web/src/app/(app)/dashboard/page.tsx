@@ -16,11 +16,12 @@ import { ArrowClockwiseIcon } from '@phosphor-icons/react';
 import { SetupChecklist } from '@/components/mobile/SetupChecklist';
 import { Money } from '@/components/money/Money';
 import {
-  Button,
   Card,
   EmptyState,
+  ErrorState,
   PageHeader,
   SectionHeader,
+  StatCard,
   buttonStyles,
   chipStyles,
 } from '@/components/ui';
@@ -225,19 +226,16 @@ function AttentionList({
 
   if (table.error) {
     return (
-      <Card zone="calm" className="space-y-2">
+      <section aria-label={title} className="space-y-3">
         <SectionHeader title={title} />
-        <p role="alert" className="text-body text-text-soft">
-          This list could not be loaded. Your other dashboard information is still available.
-        </p>
-        <Button
-          zone="calm"
-          variant="outline"
-          onClick={() => void table.reload()}
-        >
-          Retry
-        </Button>
-      </Card>
+        <ErrorState
+          compact
+          title="Could not load this list"
+          description="Your other dashboard information is still available."
+          retryLabel="Retry"
+          onRetry={() => void table.reload()}
+        />
+      </section>
     );
   }
 
@@ -461,15 +459,12 @@ export default function DashboardPage() {
       {loading && <DashboardSkeleton />}
 
       {failed && (
-        <Card zone="calm" className="space-y-3 p-6">
-          <h2 className="text-heading">We couldn’t load your numbers</h2>
-          <p className="text-body text-text-soft">
-            Check your connection and try again. Nothing was changed.
-          </p>
-          <Button zone="calm" variant="outline" onClick={() => void load()}>
-            Try again
-          </Button>
-        </Card>
+        <ErrorState
+          title="We couldn’t load your numbers"
+          description="Check your connection and try again. Nothing was changed."
+          retryLabel="Try again"
+          onRetry={() => void load()}
+        />
       )}
 
       {isEmpty && (
@@ -531,32 +526,34 @@ export default function DashboardPage() {
           <QuickActions />
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Card zone="calm" className="space-y-2">
-              <p className="text-caption text-text-muted">Paid this month</p>
-              <Money
-                amountMinor={metric.paid_this_month_minor}
-                currency={metric.currency}
-                variant="paid"
-                className="block text-amount-m"
-              />
-              <p className="text-caption text-text-soft">
-                Confirmed payments this month
-              </p>
-            </Card>
+            <StatCard
+              zone="calm"
+              label="Paid this month"
+              value={
+                <Money
+                  amountMinor={metric.paid_this_month_minor}
+                  currency={metric.currency}
+                  variant="paid"
+                  className="text-amount-m"
+                />
+              }
+              description="Confirmed payments this month"
+            />
 
-            <Card zone="calm" className="space-y-2">
-              <p className="text-caption text-text-muted">Invoices created</p>
-              <p className="text-amount-m font-extrabold tabular-nums">
-                {metric.invoices_count.toLocaleString()}
-              </p>
-              <Link
-                href={`/invoices?currency=${encodeURIComponent(metric.currency)}`}
-                className={buttonStyles({ variant: 'link' })}
-              >
-                View invoices
-                <ArrowUpRight aria-hidden className="h-4 w-4" />
-              </Link>
-            </Card>
+            <StatCard
+              zone="calm"
+              label="Invoices created"
+              value={metric.invoices_count.toLocaleString()}
+              description={
+                <Link
+                  href={`/invoices?currency=${encodeURIComponent(metric.currency)}`}
+                  className={buttonStyles({ variant: 'link' })}
+                >
+                  View invoices
+                  <ArrowUpRight aria-hidden className="h-4 w-4" />
+                </Link>
+              }
+            />
           </div>
 
           <div className="space-y-5">

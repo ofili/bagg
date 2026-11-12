@@ -18,8 +18,10 @@ import {
 } from '@/components/ui/sheet';
 
 import {
+  Alert,
   Button,
   Card,
+  ErrorState,
   Field,
   buttonStyles,
   inputStyles,
@@ -756,28 +758,12 @@ export default function InvoicesPage() {
 
       {/* Invoice loading error */}
       {table.error && (
-        <Card
-          zone="calm"
-          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div>
-            <p className="font-extrabold text-danger">
-              We couldn't load your invoices
-            </p>
-            <p className="text-body text-text-soft">
-              {table.error}. Your invoice records have not been changed.
-            </p>
-          </div>
-
-          <Button
-            variant="outline"
-            zone="calm"
-            onClick={() => void table.reload()}
-            loading={table.loading}
-          >
-            Try again
-          </Button>
-        </Card>
+        <ErrorState
+          title="We couldn’t load your invoices"
+          description={`${table.error}. Your invoice records have not been changed.`}
+          retryLabel="Try again"
+          onRetry={() => void table.reload()}
+        />
       )}
 
       {/* Invoice table */}
@@ -863,37 +849,33 @@ export default function InvoicesPage() {
 
               {/* Payment action errors */}
               {actionError && (
-                <p
-                  role="alert"
-                  className="rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]"
-                >
+                <Alert variant="error">
                   {actionError}
-                </p>
+                </Alert>
               )}
 
               {/* Claims loading error */}
               {claimsLoadError && (
-                <div
-                  role="alert"
-                  className="space-y-3 rounded-row border border-danger p-3"
+                <Alert
+                  variant="error"
+                  title="Could not load payment claims"
+                  action={
+                    <Button
+                      variant="outline"
+                      zone="calm"
+                      onClick={() => {
+                        if (reviewingInvoice) {
+                          void handleOpenReview(reviewingInvoice);
+                        }
+                      }}
+                      loading={loadingClaims}
+                    >
+                      Try again
+                    </Button>
+                  }
                 >
-                  <p className="text-body text-danger">
-                    {claimsLoadError}
-                  </p>
-
-                  <Button
-                    variant="outline"
-                    zone="calm"
-                    onClick={() => {
-                      if (reviewingInvoice) {
-                        void handleOpenReview(reviewingInvoice);
-                      }
-                    }}
-                    loading={loadingClaims}
-                  >
-                    Try again
-                  </Button>
-                </div>
+                  {claimsLoadError}
+                </Alert>
               )}
 
               {/* Claims loading */}

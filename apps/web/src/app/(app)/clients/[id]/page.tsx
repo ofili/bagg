@@ -23,19 +23,23 @@ import {
   Scroll,
   User,
   Users,
-  WarningCircle,
 } from '@phosphor-icons/react';
 
 import { BagCharacter } from '@/components/brand';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
 import {
+  Alert,
   BaggSelect,
   Button,
   Card,
   DataTable,
+  ErrorState,
   Field,
   Input,
+  PageHeader,
+  ProgressBar,
+  StatCard,
   buttonStyles,
 } from '@/components/ui';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
@@ -450,114 +454,115 @@ export default function ClientDetailPage() {
   if (loadError || !client) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
-        <Card zone="calm" className="mx-auto max-w-lg space-y-3 p-8 text-center">
-          <WarningCircle aria-hidden className="mx-auto h-9 w-9 text-danger" />
-          <h1 className="text-title">Client not found</h1>
-          <p role="alert" className="text-body text-text-soft">{loadError || 'This client could not be loaded.'}</p>
-          <Link href="/clients" className={buttonStyles({ variant: 'outline' })}>
-            <ArrowLeft aria-hidden className="h-4 w-4" /> Back to clients
-          </Link>
-        </Card>
+        <ErrorState
+          title="Client unavailable"
+          description={loadError || 'This client could not be loaded.'}
+          retryLabel="Try again"
+          onRetry={() => void fetchClient()}
+          action={
+            <Link
+              href="/clients"
+              className={buttonStyles({ variant: 'outline' })}
+            >
+              <ArrowLeft aria-hidden className="h-4 w-4" />
+              Back to clients
+            </Link>
+          }
+        />
       </div>
     );
   }
 
-  return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6 sm:pb-6 lg:p-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <Link href="/clients" className={buttonStyles({ variant: 'outline' })}>
-            <ArrowLeft aria-hidden className="h-4 w-4" /> All clients
-          </Link>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-title-l sm:text-display">{client.name}</h1>
-            <span className="rounded-full bg-peach-chip px-3 py-1 text-caption font-extrabold text-ink-soft">
-              {client.client_type === 'BUSINESS' ? (
-                <span className="flex items-center gap-1.5"><Buildings className="h-3.5 w-3.5" /> Company</span>
-              ) : (
-                <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> Person</span>
-              )}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-4 text-body text-text-soft">
-            {client.email && (
-              <span className="flex items-center gap-1.5"><Envelope className="h-4 w-4 text-text-muted" /> {client.email}</span>
-            )}
-            {client.phone && (
-              <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-text-muted" /> {client.phone}</span>
-            )}
-            {client.address && (
-              <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-text-muted" /> {client.address}</span>
-            )}
-          </div>
-        </div>
+//   
 
-        {/* Create New Dropdown */}
-        <div ref={createDropdownRef} className="relative inline-block text-left">
-          <button
-            type="button"
-            onClick={() => setCreateDropdownOpen((prev) => !prev)}
-            className={cn(buttonStyles({ variant: 'accent' }), 'flex items-center gap-1.5')}
-            aria-haspopup="true"
-            aria-expanded={createDropdownOpen}
+return (
+  <div className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6 sm:pb-6 lg:p-8">
+    <PageHeader
+      title={client.name}
+      description={[
+        client.email,
+        client.phone,
+        client.address,
+      ].filter(Boolean).join(' · ')}
+      eyebrow={client.client_type === 'BUSINESS' ? 'Company' : 'Individual'}
+      actions={
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/clients"
+            className={buttonStyles({ variant: 'outline' })}
           >
-            <Plus aria-hidden className="h-4 w-4" />
-            <span>Create new</span>
-            <CaretDown
-              aria-hidden
-              className={cn(
-                'h-3.5 w-3.5 transition-transform duration-150',
-                createDropdownOpen && 'rotate-180',
-              )}
-            />
-          </button>
+            <ArrowLeft aria-hidden className="h-4 w-4" />
+            All clients
+          </Link>
 
-          {createDropdownOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 z-30 mt-2 w-56 rounded-card border-brut bg-surface p-1.5 shadow-brut animate-in fade-in zoom-in-95 duration-100"
+          <div ref={createDropdownRef} className="relative inline-block text-left">
+            <button
+              type="button"
+              onClick={() => setCreateDropdownOpen((prev) => !prev)}
+              className={cn(buttonStyles({ variant: 'accent' }), 'flex items-center gap-1.5')}
+              aria-haspopup="true"
+              aria-expanded={createDropdownOpen}
             >
-              <Link
-                href={`/invoices/new?client_id=${client.id}`}
-                role="menuitem"
-                onClick={() => setCreateDropdownOpen(false)}
-                className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
+              <Plus aria-hidden className="h-4 w-4" />
+              Create new
+              <CaretDown
+                aria-hidden
+                className={cn(
+                  'h-3.5 w-3.5 transition-transform duration-150',
+                  createDropdownOpen && 'rotate-180',
+                )}
+              />
+            </button>
+
+            {createDropdownOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 z-30 mt-2 w-56 rounded-card border-brut bg-surface p-1.5 shadow-brut animate-in fade-in zoom-in-95 duration-100"
               >
-                <Receipt aria-hidden className="h-4 w-4 shrink-0 text-ink" />
-                <div>
-                  <div className="font-extrabold text-ink">Invoice</div>
-                  <p className="text-[11px] font-normal text-text-soft">Bill this client</p>
-                </div>
-              </Link>
-              <Link
-                href={`/quotes/new?client_id=${client.id}`}
-                role="menuitem"
-                onClick={() => setCreateDropdownOpen(false)}
-                className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
-              >
-                <Scroll aria-hidden className="h-4 w-4 shrink-0 text-ink" />
-                <div>
-                  <div className="font-extrabold text-ink">Quote</div>
-                  <p className="text-[11px] font-normal text-text-soft">Send estimate with expiry</p>
-                </div>
-              </Link>
-              <Link
-                href={`/recurring-invoices/new?client_id=${client.id}`}
-                role="menuitem"
-                onClick={() => setCreateDropdownOpen(false)}
-                className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
-              >
-                <ArrowsClockwise aria-hidden className="h-4 w-4 shrink-0 text-ink" />
-                <div>
-                  <div className="font-extrabold text-ink">Recurring schedule</div>
-                  <p className="text-[11px] font-normal text-text-soft">Repeat invoice on a cadence</p>
-                </div>
-              </Link>
-            </div>
-          )}
+                <Link
+                  href={`/invoices/new?client_id=${client.id}`}
+                  role="menuitem"
+                  onClick={() => setCreateDropdownOpen(false)}
+                  className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
+                >
+                  <Receipt aria-hidden className="h-4 w-4 shrink-0 text-ink" />
+                  <div>
+                    <div className="font-extrabold text-ink">Invoice</div>
+                    <p className="text-[11px] font-normal text-text-soft">Bill this client</p>
+                  </div>
+                </Link>
+
+                <Link
+                  href={`/quotes/new?client_id=${client.id}`}
+                  role="menuitem"
+                  onClick={() => setCreateDropdownOpen(false)}
+                  className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
+                >
+                  <Scroll aria-hidden className="h-4 w-4 shrink-0 text-ink" />
+                  <div>
+                    <div className="font-extrabold text-ink">Quote</div>
+                    <p className="text-[11px] font-normal text-text-soft">Send estimate with expiry</p>
+                  </div>
+                </Link>
+
+                <Link
+                  href={`/recurring-invoices/new?client_id=${client.id}`}
+                  role="menuitem"
+                  onClick={() => setCreateDropdownOpen(false)}
+                  className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
+                >
+                  <ArrowsClockwise aria-hidden className="h-4 w-4 shrink-0 text-ink" />
+                  <div>
+                    <div className="font-extrabold text-ink">Recurring schedule</div>
+                    <p className="text-[11px] font-normal text-text-soft">Repeat invoice on a cadence</p>
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      }
+    />
 
       {/* Mini Financial Dashboard */}
       {(() => {
@@ -596,116 +601,74 @@ export default function ClientDetailPage() {
             : 0;
 
         return (
-          <section
-            aria-label="Client financial overview"
-            className="rounded-card border-brut bg-surface p-5 shadow-brut-sm sm:p-6"
-          >
-            <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr_1fr_0.8fr] lg:divide-x-2 lg:divide-line">
-              {/* Main Hero: Total Invoiced & Collection Progress */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-caption font-black uppercase tracking-wider text-text-soft">
-                    Total Invoiced
-                  </span>
-                  <span className="rounded-full bg-surface-tint px-2 py-0.5 text-caption font-bold text-text-soft">
-                    {invoiceCount} {invoiceCount === 1 ? 'invoice' : 'invoices'}
-                  </span>
-                </div>
-                <div>
-                  <p
-                    className="text-title-l font-black text-ink sm:text-display"
-                    title={formatFullAmount(totalInvoiced, client.preferred_currency)}
-                  >
-                    {formatCompactAmount(totalInvoiced, client.preferred_currency)}
-                  </p>
-                  <p className="text-caption text-text-muted">
-                    Lifetime billing volume
-                  </p>
-                </div>
+          <section aria-label="Client financial overview" className="space-y-3">
+			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+			<StatCard
+				zone="expressive"
+				label="Total invoiced"
+				value={
+				<Money
+					amountMinor={totalInvoiced}
+					currency={client.preferred_currency}
+					className="text-amount-m"
+				/>
+				}
+				description={`${invoiceCount} ${invoiceCount === 1 ? 'invoice' : 'invoices'}`}
+			/>
 
-                {/* Collection Progress Bar */}
-                {totalInvoiced > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    <div className="flex justify-between text-caption font-bold">
-                      <span className="text-text-soft">Collection rate</span>
-                      <span className="text-ink">{paidPercentage}% collected</span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full border border-ink bg-[#FAF6EF]">
-                      <div
-                        className="h-full bg-leaf transition-all duration-300"
-                        style={{ width: `${paidPercentage}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+			<StatCard
+				zone="calm"
+				label="Total paid"
+				value={
+				<Money
+					amountMinor={totalPaid}
+					currency={client.preferred_currency}
+					variant="paid"
+					className="text-amount-m"
+				/>
+				}
+				description="Received and verified"
+			/>
 
-              {/* Stat 2: Total Paid */}
-              <div className="flex flex-col justify-between space-y-2 lg:pl-6">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full border border-ink bg-leaf" />
-                  <span className="text-caption font-black uppercase tracking-wider text-text-soft">
-                    Total Paid
-                  </span>
-                </div>
-                <div>
-                  <p
-                    className="text-title font-black text-[#052E1B] sm:text-title-l"
-                    title={formatFullAmount(totalPaid, client.preferred_currency)}
-                  >
-                    {formatCompactAmount(totalPaid, client.preferred_currency)}
-                  </p>
-                  <p className="text-caption text-text-muted">
-                    Received &amp; verified
-                  </p>
-                </div>
-              </div>
+			<StatCard
+				zone="calm"
+				label="Outstanding"
+				value={
+				<Money
+					amountMinor={totalOutstanding}
+					currency={client.preferred_currency}
+					variant={totalOutstanding > 0 ? 'negative' : 'muted'}
+					className="text-amount-m"
+				/>
+				}
+				description={totalOutstanding > 0 ? 'Pending client payment' : 'Fully settled'}
+			/>
 
-              {/* Stat 3: Total Outstanding */}
-              <div className="flex flex-col justify-between space-y-2 lg:pl-6">
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={cn(
-                      'h-2.5 w-2.5 rounded-full border border-ink',
-                      totalOutstanding > 0 ? 'bg-mango' : 'bg-surface-tint',
-                    )}
-                  />
-                  <span className="text-caption font-black uppercase tracking-wider text-text-soft">
-                    Outstanding
-                  </span>
-                </div>
-                <div>
-                  <p
-                    className={cn(
-                      'text-title font-black sm:text-title-l',
-                      totalOutstanding > 0 ? 'text-[#8A2400]' : 'text-text-soft',
-                    )}
-                    title={formatFullAmount(totalOutstanding, client.preferred_currency)}
-                  >
-                    {formatCompactAmount(totalOutstanding, client.preferred_currency)}
-                  </p>
-                  <p className="text-caption text-text-muted">
-                    {totalOutstanding > 0 ? 'Pending client payment' : 'Fully settled'}
-                  </p>
-                </div>
-              </div>
+			<StatCard
+				zone="calm"
+				label="Invoices"
+				value={invoiceCount.toLocaleString()}
+				description="Lifetime invoice count"
+			/>
+			</div>
 
-              {/* Stat 4: Invoices Summary */}
-              <div className="flex flex-col justify-between space-y-2 lg:pl-6">
-                <span className="text-caption font-black uppercase tracking-wider text-text-soft">
-                  Invoices
-                </span>
-                <div>
-                  <p className="text-title font-black text-ink sm:text-title-l">
-                    {invoiceCount}
-                  </p>
-                  <p className="text-caption text-text-muted">
-                    {statement?.entries?.length || invoiceCount} on record
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
+			{totalInvoiced > 0 && (
+			<Card zone="calm" className="space-y-2 p-4">
+				<div className="flex items-center justify-between gap-3">
+				<p className="text-body font-bold">Collection progress</p>
+				<p className="text-caption font-bold text-text-muted">
+					{paidPercentage}% collected
+				</p>
+				</div>
+				<ProgressBar
+				value={paidPercentage}
+				label="Client collection progress"
+				showValue={false}
+				tone="success"
+				/>
+			</Card>
+			)}
+		</section>
         );
       })()}
 
@@ -1077,14 +1040,15 @@ export default function ClientDetailPage() {
       {activeTab === 'edit' && (
         <form onSubmit={handleUpdateClient} className="space-y-6">
           {successMessage && (
-            <div role="status" className="flex items-center gap-2 rounded-row bg-pill-paid/20 p-3 text-body text-paid-text font-bold">
-              <Check className="h-4 w-4" /> {successMessage}
-            </div>
+            <Alert variant="success">
+              {successMessage}
+            </Alert>
           )}
+
           {errorMessage && (
-            <div role="alert" className="flex items-center gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010] font-bold">
-              <WarningCircle className="h-4 w-4" /> {errorMessage}
-            </div>
+            <Alert variant="error">
+              {errorMessage}
+            </Alert>
           )}
 
           <Card zone="calm" className="space-y-4">

@@ -1,5 +1,4 @@
-﻿﻿﻿
-'use client';
+﻿'use client';
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -11,8 +10,17 @@ import {
   FloppyDisk,
   User,
 } from '@phosphor-icons/react';
-import { Button, buttonStyles } from '@/components/ui/button';
-import { BaggSelect } from '@/components/ui';
+import {
+  Alert,
+  Button,
+  BaggSelect,
+  ErrorState,
+  Field,
+  Input,
+  PageHeader,
+  TextArea,
+  buttonStyles,
+} from '@/components/ui';
 import { cn } from '@/lib/cn';
 
 const API_BASE = (
@@ -182,10 +190,19 @@ export default function NewClientPage() {
           </Link>
 
           <div>
-            <h1 className="text-title-l text-ink">Add client</h1>
-            <p className="mt-1 text-body text-ink-soft">
-              Save client details once to reuse them on future invoices.
-            </p>
+            <PageHeader
+                title="Add client"
+                description="Save client details once to reuse them on future invoices."
+                actions={
+                  <Link
+                      href="/clients"
+                      className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                  >
+                    <ArrowLeft aria-hidden className="h-4 w-4" />
+                    Back to clients
+                  </Link>
+                }
+            />
           </div>
         </div>
       </header>
@@ -485,12 +502,9 @@ export default function NewClientPage() {
         </section>
 
         {errorMessage && (
-          <div
-            role="alert"
-            className="rounded-input bg-pill-late/40 px-4 py-3 text-body text-late-text"
-          >
-            {errorMessage}
-          </div>
+            <Alert variant="error">
+              {errorMessage}
+            </Alert>
         )}
 
         <div className="flex flex-col-reverse gap-3 border-t border-line-subtle pt-5 sm:flex-row sm:justify-end">

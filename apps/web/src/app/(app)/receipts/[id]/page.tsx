@@ -17,7 +17,14 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react';
 
-import { Card, Button, buttonStyles } from '@/components/ui';
+import {
+  Alert,
+  Card,
+  Button,
+  ErrorState,
+  PageHeader,
+  buttonStyles,
+} from '@/components/ui';
 import { ReceiptActionBar } from '@/components/mobile/ReceiptActionBar';
 import { Money } from '@/components/money/Money';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
@@ -187,108 +194,98 @@ export default function ReceiptDetailPage() {
 
   if (error || !receipt) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8">
-        <Card
-          zone="calm"
-          className="mx-auto max-w-lg space-y-3 p-8 text-center"
-        >
-          <WarningCircle aria-hidden className="mx-auto h-9 w-9" />
-          <h1 className="text-title">receipt unavailable</h1>
-          <p role="alert" className="text-body text-text-soft">
-            {error || 'Receipt not found.'}
-          </p>
-          <Link
-            href="/receipts"
-            className={buttonStyles({ variant: 'outline' })}
-          >
-            <ArrowLeft aria-hidden className="h-4 w-4" />
-            Back to receipts
-          </Link>
-        </Card>
-      </div>
+        <div className="p-4 sm:p-6 lg:p-8">
+          <ErrorState
+              title="Receipt unavailable"
+              description={error || 'Receipt not found.'}
+              retryLabel="Try again"
+              onRetry={() => void loadReceipt()}
+              action={
+                <Link
+                    href="/receipts"
+                    className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                >
+                  <ArrowLeft aria-hidden className="h-4 w-4" />
+                  Back to receipts
+                </Link>
+              }
+          />
+        </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-        <div className="space-y-3">
-          <Link
-            href="/receipts"
-            className={buttonStyles({ variant: 'outline' })}
-          >
-            <ArrowLeft aria-hidden className="h-4 w-4" />
-            All receipts
-          </Link>
+      <PageHeader
+          eyebrow="Payment receipt"
+          title={receipt.receipt_number}
+          description={`Issued payment receipt · ${formatDate(receipt.payment_date)}`}
+          actions={
+            <>
+              <Link
+                  href="/receipts"
+                  className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+              >
+                <ArrowLeft aria-hidden className="h-4 w-4" />
+                All receipts
+              </Link>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Receipt aria-hidden className="h-7 w-7" />
-            <h1 className="text-title-l sm:text-display">
-              {receipt.receipt_number}
-            </h1>
-          </div>
+              <div className="hidden flex-wrap gap-2 sm:flex print:hidden">
+                <Button
+                    zone="calm"
+                    variant="outline"
+                    onClick={() => window.print()}
+                >
+                  <Printer aria-hidden className="h-4 w-4" />
+                  Print
+                </Button>
 
-          <p className="text-body text-text-soft">
-            Issued payment receipt · {formatDate(receipt.payment_date)}
-          </p>
-        </div>
+                <a
+                    href={`${API_BASE}/receipts/${receipt.id}/pdf`}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                >
+                  <DownloadSimple aria-hidden className="h-4 w-4" />
+                  PDF
+                </a>
 
-        <div className="hidden flex-wrap gap-2 sm:flex print:hidden">
-          <Button
-            zone="calm"
-            variant="outline"
-            onClick={() => window.print()}
-          >
-            <Printer aria-hidden className="h-4 w-4" />
-            Print
-          </Button>
-          <a
-            href={`${API_BASE}/receipts/${receipt.id}/pdf`}
-            download
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonStyles({
-              variant: 'outline',
-              zone: 'calm',
-            })}
-          >
-            <DownloadSimple aria-hidden className="h-4 w-4" />
-            PDF
-          </a>
+                <Button
+                    zone="calm"
+                    variant="outline"
+                    onClick={() => void copyReceiptLink()}
+                    disabled={!receipt.share_url}
+                >
+                  {copied ? (
+                      <Check aria-hidden className="h-4 w-4" />
+                  ) : (
+                      <Copy aria-hidden className="h-4 w-4" />
+                  )}
+                  {copied ? 'Copied' : 'Copy link'}
+                </Button>
 
-
-          <Button
-            zone="calm"
-            variant="outline"
-            onClick={() => void copyReceiptLink()}
-            disabled={!receipt.share_url}
-          >
-            {copied ? (
-              <Check aria-hidden className="h-4 w-4" />
-            ) : (
-              <Copy aria-hidden className="h-4 w-4" />
-            )}
-            {copied ? 'Copied' : 'Copy link'}
-          </Button>
-
-          <Button
-            zone="calm"
-            onClick={() => void shareReceipt()}
-            disabled={!receipt.share_url}
-          >
-            <ShareNetwork aria-hidden className="h-4 w-4" />
-            Share
-          </Button>
-        </div>
-      </header>
+                <Button
+                    zone="calm"
+                    onClick={() => void shareReceipt()}
+                    disabled={!receipt.share_url}
+                >
+                  <ShareNetwork aria-hidden className="h-4 w-4" />
+                  Share
+                </Button>
+              </div>
+            </>
+          }
+      />
 
       {shareError && (
-        <p
-          role="alert"
-          className="rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010] print:hidden"
-        >
-          {shareError}
-        </p>
+          <Alert
+              variant="error"
+              dismissible
+              onDismiss={() => setShareError(null)}
+          >
+            {shareError}
+          </Alert>
       )}
 
       <Card zone="calm" className="space-y-6 p-5 sm:p-8">

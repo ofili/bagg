@@ -59,7 +59,7 @@ export function ThemePreferenceSection() {
       </div>
 
       <fieldset className="pt-4">
-        <legend className="mb-3 text-label font-bold text-ink">
+        <legend className="mb-3 mt-3 text-label font-bold text-ink">
           Theme
         </legend>
 

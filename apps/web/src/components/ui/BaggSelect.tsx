@@ -1,11 +1,15 @@
-"use client";
+
+'use client';
 
 import {
   useEffect,
   useId,
   useRef,
   useState,
-} from "react";
+  type KeyboardEvent,
+} from 'react';
+
+import { cn } from '@/lib/cn';
 
 export type BaggSelectOption = {
   label: string;
@@ -13,59 +17,111 @@ export type BaggSelectOption = {
   disabled?: boolean;
 };
 
-type BaggSelectProps = {
+export interface BaggSelectProps {
   label: string;
   value: string;
   options: BaggSelectOption[];
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  readOnly?: boolean;
+  required?: boolean;
+  optional?: boolean;
+  error?: string;
+  hint?: string;
   className?: string;
   hideLabel?: boolean;
-};
+  name?: string;
+  id?: string;
+}
 
 export function BaggSelect({
   label,
   value,
   options,
   onChange,
-  placeholder = "Select an option",
+  placeholder = 'Select an option',
   disabled = false,
-  className = "",
+  readOnly = false,
+  required = false,
+  optional = false,
+  error,
+  hint,
+  className,
   hideLabel = false,
+  name,
+  id: suppliedId,
 }: BaggSelectProps) {
+  const generatedId = useId();
+  const id = suppliedId ?? generatedId;
+
+  const labelId = `${id}-label`;
+  const listboxId = `${id}-listbox`;
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+
   const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listboxRef = useRef<HTMLUListElement>(null);
+  const typeaheadRef = useRef('');
+  const typeaheadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
-  const id = useId();
-  const labelId = `${id}-label`;
-  const listboxId = `${id}-listbox`;
+  const enabledOptions = options
+    .map((option, originalIndex) => ({
+      option,
+      originalIndex,
+    }))
+    .filter(({ option }) => !option.disabled);
 
   const selectedOption = options.find(
     (option) => option.value === value,
   );
 
-  const enabledOptions = options.filter(
-    (option) => !option.disabled,
+  const selectedEnabledIndex = enabledOptions.findIndex(
+    ({ option }) => option.value === value,
   );
 
-  const selectedIndex = enabledOptions.findIndex(
-    (option) => option.value === value,
-  );
+  const activeOption = enabledOptions[activeIndex]?.option;
+  const activeOptionEntry = enabledOptions[activeIndex];
 
-  function openMenu() {
-    if (disabled) return;
+  const describedBy = [
+    hint ? hintId : undefined,
+    error ? errorId : undefined,
+  ]
+    .filter(Boolean)
+    .join(' ') || undefined;
 
-    setActiveIndex(Math.max(selectedIndex, 0));
+  const isDisabled = disabled || readOnly;
+
+  function openMenu(position: 'selected' | 'first' | 'last' = 'selected') {
+    if (isDisabled || enabledOptions.length === 0) return;
+
+    const nextIndex =
+      position === 'first'
+        ? 0
+        : position === 'last'
+          ? enabledOptions.length - 1
+          : selectedEnabledIndex >= 0
+            ? selectedEnabledIndex
+            : 0;
+
+    setActiveIndex(nextIndex);
     setOpen(true);
   }
 
   function closeMenu(restoreFocus = false) {
     setOpen(false);
+    typeaheadRef.current = '';
+
+    if (typeaheadTimerRef.current) {
+      clearTimeout(typeaheadTimerRef.current);
+      typeaheadTimerRef.current = null;
+    }
 
     if (restoreFocus) {
       requestAnimationFrame(() => triggerRef.current?.focus());
@@ -73,7 +129,7 @@ export function BaggSelect({
   }
 
   function chooseOption(option: BaggSelectOption) {
-    if (option.disabled) return;
+    if (isDisabled || option.disabled) return;
 
     onChange(option.value);
     closeMenu(true);
@@ -83,78 +139,148 @@ export function BaggSelect({
     if (enabledOptions.length === 0) return;
 
     setActiveIndex((current) => {
-      const next = current + direction;
+      if (current < 0) {
+        return direction === 1 ? 0 : enabledOptions.length - 1;
+      }
 
-      if (next < 0) return enabledOptions.length - 1;
-      if (next >= enabledOptions.length) return 0;
-
-      return next;
+      return (
+        current + direction + enabledOptions.length
+      ) % enabledOptions.length;
     });
   }
 
-  function handleKeyDown(
-    event: React.KeyboardEvent<HTMLButtonElement>,
-  ) {
-    if (disabled) return;
+  function findTypeaheadMatch(character: string) {
+    const normalizedCharacter = character.toLocaleLowerCase();
+    const currentQuery = typeaheadRef.current + normalizedCharacter;
+
+    typeaheadRef.current = currentQuery;
+
+    if (typeaheadTimerRef.current) {
+      clearTimeout(typeaheadTimerRef.current);
+    }
+
+    typeaheadTimerRef.current = setTimeout(() => {
+      typeaheadRef.current = '';
+      typeaheadTimerRef.current = null;
+    }, 700);
+
+    const search = (query: string, startIndex: number) => {
+      for (let offset = 0; offset < enabledOptions.length; offset += 1) {
+        const index = (startIndex + offset) % enabledOptions.length;
+        const label = enabledOptions[index].option.label.toLocaleLowerCase();
+
+        if (label.startsWith(query)) return index;
+      }
+
+      return -1;
+    };
+
+    const startIndex = open
+      ? Math.max(activeIndex, 0)
+      : Math.max(selectedEnabledIndex, 0);
+
+    // Repeated single-character input cycles through matching options.
+    const query = [...currentQuery].every(
+      (item) => item === currentQuery[0],
+    )
+      ? currentQuery[0]
+      : currentQuery;
+
+    let match = search(query, startIndex);
+
+    // If a multi-character query has no match, retry using the latest key.
+    if (match < 0 && query.length > 1) {
+      typeaheadRef.current = normalizedCharacter;
+      match = search(normalizedCharacter, startIndex);
+    }
+
+    if (match >= 0) {
+      setActiveIndex(match);
+      setOpen(true);
+    }
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (isDisabled) return;
 
     switch (event.key) {
-      case "ArrowDown":
+      case 'ArrowDown':
         event.preventDefault();
 
         if (!open) {
-          openMenu();
+          openMenu('selected');
         } else {
           moveActive(1);
         }
         break;
 
-      case "ArrowUp":
+      case 'ArrowUp':
         event.preventDefault();
 
         if (!open) {
-          openMenu();
+          openMenu('selected');
         } else {
           moveActive(-1);
         }
         break;
 
-      case "Enter":
-      case " ":
+      case 'Home':
         event.preventDefault();
 
         if (!open) {
-          openMenu();
-        } else if (enabledOptions[activeIndex]) {
-          chooseOption(enabledOptions[activeIndex]);
+          openMenu('first');
+        } else if (enabledOptions.length > 0) {
+          setActiveIndex(0);
         }
         break;
 
-      case "Escape":
+      case 'End':
+        event.preventDefault();
+
+        if (!open) {
+          openMenu('last');
+        } else if (enabledOptions.length > 0) {
+          setActiveIndex(enabledOptions.length - 1);
+        }
+        break;
+
+      case 'Enter':
+      case ' ':
+        event.preventDefault();
+
+        if (!open) {
+          openMenu('selected');
+        } else if (activeOption) {
+          chooseOption(activeOption);
+        }
+        break;
+
+      case 'Escape':
         if (open) {
           event.preventDefault();
           closeMenu(true);
         }
         break;
 
-      case "Home":
-        if (open) {
-          event.preventDefault();
-          setActiveIndex(0);
-        }
-        break;
-
-      case "End":
-        if (open) {
-          event.preventDefault();
-          setActiveIndex(enabledOptions.length - 1);
-        }
-        break;
-
-      case "Tab":
+      case 'Tab':
         closeMenu();
         break;
 
       default:
+        if (
+          event.key.length === 1 &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.altKey
+        ) {
+          event.preventDefault();
+
+          if (!open) {
+            openMenu('selected');
+          }
+
+          findTypeaheadMatch(event.key);
+        }
         break;
     }
   }
@@ -171,57 +297,97 @@ export function BaggSelect({
       }
     }
 
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        closeMenu(true);
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
+    document.addEventListener('pointerdown', handlePointerDown);
 
     return () => {
-      document.removeEventListener(
-        "pointerdown",
-        handlePointerDown,
-      );
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener('pointerdown', handlePointerDown);
     };
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || activeIndex < 0) return;
 
-    const activeOption = listboxRef.current?.querySelector(
+    const activeElement = listboxRef.current?.querySelector(
       `[data-option-index="${activeIndex}"]`,
     );
 
-    activeOption?.scrollIntoView({ block: "nearest" });
+    activeElement?.scrollIntoView({ block: 'nearest' });
   }, [activeIndex, open]);
+
+  useEffect(() => {
+    return () => {
+      if (typeaheadTimerRef.current) {
+        clearTimeout(typeaheadTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (open && enabledOptions.length === 0) {
+      closeMenu();
+    }
+
+    if (activeIndex >= enabledOptions.length) {
+      setActiveIndex(Math.max(enabledOptions.length - 1, -1));
+    }
+  }, [options, open, activeIndex, enabledOptions.length]);
 
   return (
     <div
       ref={rootRef}
-      className={`bagg-select ${className}`}
+      className={cn('bagg-select', className)}
     >
-      <span id={labelId} className={hideLabel ? "sr-only" : "bagg-select__label"}>
+      <label
+        id={labelId}
+        htmlFor={`${id}-trigger`}
+        className={hideLabel ? 'sr-only' : 'bagg-select__label'}
+      >
         {label}
-      </span>
+
+        {required && (
+          <span className="ml-1 text-danger" aria-hidden="true">
+            *
+          </span>
+        )}
+
+        {optional && !required && (
+          <span className="ml-1 text-caption font-normal text-text-muted">
+            (optional)
+          </span>
+        )}
+      </label>
 
       <button
         ref={triggerRef}
+        id={`${id}-trigger`}
         type="button"
-        className="bagg-select__trigger"
+        role="combobox"
+        className={cn(
+          'bagg-select__trigger',
+          error && 'border-danger',
+          readOnly && 'cursor-default opacity-80',
+        )}
         aria-labelledby={labelId}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
+        aria-activedescendant={
+          open && activeOptionEntry
+            ? `${id}-option-${activeOptionEntry.originalIndex}`
+            : undefined
+        }
+        aria-required={required || undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        aria-readonly={readOnly || undefined}
         disabled={disabled}
         onClick={() => {
+          if (isDisabled) return;
+
           if (open) {
             closeMenu();
           } else {
-            openMenu();
+            openMenu('selected');
           }
         }}
         onKeyDown={handleKeyDown}
@@ -229,20 +395,21 @@ export function BaggSelect({
         <span
           className={
             selectedOption
-              ? "bagg-select__value"
-              : "bagg-select__placeholder"
+              ? 'bagg-select__value'
+              : 'bagg-select__placeholder'
           }
         >
           {selectedOption?.label ?? placeholder}
         </span>
 
         <svg
-          className={`bagg-select__chevron ${
-            open ? "bagg-select__chevron--open" : ""
-          }`}
+          aria-hidden="true"
+          className={cn(
+            'bagg-select__chevron',
+            open && 'bagg-select__chevron--open',
+          )}
           viewBox="0 0 20 20"
           fill="none"
-          aria-hidden="true"
         >
           <path
             d="m5 7.5 5 5 5-5"
@@ -254,6 +421,15 @@ export function BaggSelect({
         </svg>
       </button>
 
+      {name && (
+        <input
+          type="hidden"
+          name={name}
+          value={value}
+          disabled={disabled}
+        />
+      )}
+
       {open && (
         <ul
           ref={listboxRef}
@@ -261,43 +437,40 @@ export function BaggSelect({
           className="bagg-select__menu"
           role="listbox"
           aria-labelledby={labelId}
+          aria-required={required || undefined}
         >
-          {options.map((option) => {
-            const index = enabledOptions.findIndex(
-              (item) => item.value === option.value,
+          {options.map((option, index) => {
+            const enabledIndex = enabledOptions.findIndex(
+              ({ option: enabledOption }) =>
+                enabledOption.value === option.value,
             );
 
             const selected = option.value === value;
-            const active = index === activeIndex;
+            const active = enabledIndex === activeIndex;
 
             return (
               <li
                 key={option.value}
-                className={[
-                  "bagg-select__option",
-                  selected
-                    ? "bagg-select__option--selected"
-                    : "",
-                  active ? "bagg-select__option--active" : "",
-                  option.disabled
-                    ? "bagg-select__option--disabled"
-                    : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                id={`${id}-option-${index}`}
+                className={cn(
+                  'bagg-select__option',
+                  selected && 'bagg-select__option--selected',
+                  active && 'bagg-select__option--active',
+                  option.disabled && 'bagg-select__option--disabled',
+                )}
                 role="option"
                 aria-selected={selected}
                 aria-disabled={option.disabled || undefined}
                 data-option-index={
-                  index >= 0 ? index : undefined
+                  enabledIndex >= 0 ? enabledIndex : undefined
                 }
                 onMouseEnter={() => {
-                  if (!option.disabled && index >= 0) {
-                    setActiveIndex(index);
+                  if (!option.disabled && enabledIndex >= 0) {
+                    setActiveIndex(enabledIndex);
                   }
                 }}
                 onPointerDown={(event) => {
-                  // Keep focus on the trigger until selection.
+                  // Keep DOM focus on the combobox trigger.
                   event.preventDefault();
                 }}
                 onClick={() => chooseOption(option)}
@@ -306,10 +479,10 @@ export function BaggSelect({
 
                 {selected && (
                   <svg
+                    aria-hidden="true"
                     className="bagg-select__check"
                     viewBox="0 0 20 20"
                     fill="none"
-                    aria-hidden="true"
                   >
                     <path
                       d="m4 10 4 4 8-8"
@@ -324,6 +497,22 @@ export function BaggSelect({
             );
           })}
         </ul>
+      )}
+
+      {hint && (
+        <p id={hintId} className="text-caption text-text-muted">
+          {hint}
+        </p>
+      )}
+
+      {error && (
+        <p
+          id={errorId}
+          role="alert"
+          className="text-caption font-medium text-danger"
+        >
+          {error}
+        </p>
       )}
     </div>
   );

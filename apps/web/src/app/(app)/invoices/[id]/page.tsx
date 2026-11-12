@@ -37,10 +37,12 @@ import {
   type StatusEvent,
 } from '@/components/status';
 import {
+  Alert,
   BaggSelect,
   Button,
   Card,
   Dialog,
+  ErrorState,
   Field,
   Input,
   buttonStyles,
@@ -1043,46 +1045,28 @@ export default function InvoiceDetailPage() {
   }
 
   if (error || !invoice || invoice.id !== invoiceId) {
-    return (
-      <div className="p-4 sm:p-6 lg:p-8">
-        <Card
-          zone="calm"
-          className="mx-auto max-w-lg space-y-4 p-8 text-center"
-        >
-          <WarningCircleIcon
-            aria-hidden
-            className="mx-auto h-9 w-9"
-          />
-
-          <h1 className="text-title">invoice unavailable</h1>
-
-          <p className="text-body text-text-soft">
-            {error || 'Invoice could not be found.'}
-          </p>
-
-          <div className="flex flex-col justify-center gap-3 sm:flex-row">
-            <Button
-              zone="calm"
-              onClick={() => void loadInvoice()}
-            >
-              Try again
-            </Button>
-
-            <Link
-              href="/invoices"
-              className={buttonStyles({
-                variant: 'outline',
-                zone: 'calm',
-              })}
-            >
-              <ArrowLeftIcon aria-hidden className="h-4 w-4" />
-              Back to invoices
-            </Link>
-          </div>
-        </Card>
-      </div>
-    );
-  }
+  return (
+    <div className="p-4 sm:p-6 lg:p-8">
+      <ErrorState
+        title="Invoice unavailable"
+        description={error || 'Invoice could not be found.'}
+        onRetry={() => void loadInvoice()}
+        retryLabel="Try again"
+        action={
+          <Link
+            href="/invoices"
+            className={buttonStyles({
+              variant: 'outline',
+              zone: 'calm',
+            })}
+          >
+            Back to invoices
+          </Link>
+        }
+      />
+    </div>
+  );
+}
 
   const overdue =
     balanceMinor > 0 &&
@@ -1345,39 +1329,23 @@ export default function InvoiceDetailPage() {
 
       {/* Action feedback */}
       {actionError && (
-        <div
-          role="alert"
-          className="flex items-start justify-between gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]"
+        <Alert
+          variant="error"
+          dismissible
+          onDismiss={() => setActionError(null)}
         >
-          <span className="pt-2">{actionError}</span>
-
-          <button
-            type="button"
-            aria-label="Dismiss message"
-            onClick={() => setActionError(null)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn"
-          >
-            <XIcon aria-hidden className="h-5 w-5" />
-          </button>
-        </div>
+          {actionError}
+        </Alert>
       )}
 
       {actionNotice && (
-        <div
-          role="status"
-          className="flex items-start justify-between gap-2 rounded-row bg-peach p-3 text-body"
+        <Alert
+          variant="success"
+          dismissible
+          onDismiss={() => setActionNotice(null)}
         >
-          <span className="pt-2">{actionNotice}</span>
-
-          <button
-            type="button"
-            aria-label="Dismiss message"
-            onClick={() => setActionNotice(null)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn"
-          >
-            <XIcon aria-hidden className="h-5 w-5" />
-          </button>
-        </div>
+          {actionNotice}
+        </Alert>
       )}
 
       {/* Mobile financial summary */}

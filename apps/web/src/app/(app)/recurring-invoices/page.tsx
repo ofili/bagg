@@ -4,8 +4,6 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowsClockwise,
-  Calendar,
   CheckCircle,
   CircleNotch,
   Clock,
@@ -18,7 +16,12 @@ import { DocTabs } from '@/components/mobile/DocTabs';
 import { Money } from '@/components/money/Money';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
-import { buttonStyles } from '@/components/ui';
+import {
+  Alert,
+  ErrorState,
+  PageHeader,
+  buttonStyles,
+} from '@/components/ui'
 
 const API_BASE = '/api';
 
@@ -130,7 +133,13 @@ export default function RecurringInvoicesPage() {
           throw new Error('Failed to load recurring invoice schedules');
         }
 
-        const schedulesData: RecurringSchedule[] = await schedulesRes.json();
+        const schedulesPayload = await schedulesRes.json();
+        const schedulesData: RecurringSchedule[] = await schedulesPayload.items;
+
+        if (!Array.isArray(schedulesData)) {
+          throw new Error('Failed to load recurring invoice schedules');
+        }
+
 
         let clientMap: Record<string, string> = {};
         if (clientsRes.ok) {
@@ -171,21 +180,19 @@ export default function RecurringInvoicesPage() {
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-title-l sm:text-display">recurring schedules</h1>
-          <p className="mt-1 text-body text-text-soft">
-            Automate ongoing invoices with scheduled generation and draft lead times.
-          </p>
-        </div>
-        <Link
-          href="/recurring-invoices/new"
-          className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
-        >
-          <Plus aria-hidden className="h-4 w-4" />
-          <span>New schedule</span>
-        </Link>
-      </header>
+      <PageHeader
+          title="Recurring invoices"
+          description="Automate ongoing invoices with scheduled generation and draft lead times."
+          actions={
+            <Link
+                href="/recurring-invoices/new"
+                className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
+            >
+              <Plus aria-hidden className="h-4 w-4" />
+              New schedule
+            </Link>
+          }
+      />
 
       {/* Mobile document navigation */}
       <DocTabs className="mt-3" />
@@ -214,10 +221,9 @@ export default function RecurringInvoicesPage() {
 
       {/* Error state */}
       {error && (
-        <div className="flex items-center gap-3 rounded-card border-brut border-danger bg-[#FFB3B3]/20 p-4 text-danger">
-          <WarningCircle className="h-5 w-5 shrink-0" />
-          <p className="text-body font-bold">{error}</p>
-        </div>
+          <Alert variant="error">
+            {error}
+          </Alert>
       )}
 
       {/* Content */}

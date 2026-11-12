@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, ChatDots, Plus, WarningCircle } from '@phosphor-icons/react';
+import { ChatDots, Plus } from '@phosphor-icons/react';
 import { BagCharacter } from '@/components/brand';
 import { type QuoteCardData } from '@/components/mobile/QuoteCard';
 import { QuoteRow } from '@/components/mobile/QuoteRow';
@@ -12,15 +12,18 @@ import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
 import { formatDate } from '@/lib/date';
 import {
+  Alert,
   Button,
   Card,
   Dialog,
+  ErrorState,
   Field,
   Input,
   buttonStyles,
   DataTable,
   type ColumnDef,
   Pagination,
+  PageHeader,
   TableToolbar,
 } from '@/components/ui';
 import { useDataTable } from '@/hooks/useDataTable';
@@ -364,38 +367,26 @@ export default function QuotesPage() {
 
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-title-l sm:text-display">quotes</h1>
-          <p className="mt-1 text-body text-text-soft">
-            Pitch with a clear expiry date, then turn an accepted quote into an invoice in one tap.
-          </p>
-        </div>
-
-        <Link href="/quotes/new" className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}>
-          <Plus aria-hidden className="h-4 w-4" />
-          New quote
-        </Link>
-      </header>
+      <PageHeader
+        title="quotes"
+        description="Pitch with a clear expiry date, then turn an accepted quote into an invoice in one tap."
+        actions={
+          <Link
+            href="/quotes/new"
+            className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
+          >
+            <Plus aria-hidden className="h-4 w-4" />
+            New quote
+          </Link>
+        }
+      />
 
       <DocTabs className="mt-3" />
 
       {notice && (
-        <div
-          role={notice.kind === 'error' ? 'alert' : 'status'}
-          className={
-            notice.kind === 'error'
-              ? 'flex items-start gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]'
-              : 'flex items-start gap-2 rounded-row bg-peach p-3 text-body'
-          }
-        >
-          {notice.kind === 'error' ? (
-            <WarningCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-          ) : (
-            <CheckCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-          )}
-          <span>{notice.text}</span>
-        </div>
+        <Alert variant={notice.kind}>
+          {notice.text}
+        </Alert>
       )}
 
       {/* Unified Toolbar: Chips, Search */}
@@ -410,15 +401,12 @@ export default function QuotesPage() {
       />
 
       {table.error && (
-        <Card zone="calm" className="space-y-3 p-6">
-          <h2 className="text-heading">we couldn&rsquo;t load your quotes</h2>
-          <p className="text-body text-text-soft">
-            Check your connection and try again.
-          </p>
-          <Button variant="outline" zone="calm" onClick={() => table.reload()}>
-            Try again
-          </Button>
-        </Card>
+        <ErrorState
+          title="We couldn’t load your quotes"
+          description="Check your connection and try again."
+          retryLabel="Try again"
+          onRetry={() => void table.reload()}
+        />
       )}
 
       {/* DataTable */}

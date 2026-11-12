@@ -3,14 +3,17 @@
 import Link from 'next/link';
 import {
   ArrowUpRight,
-  FileText,
   Receipt,
-  WarningCircle,
+
 } from '@phosphor-icons/react';
 import {
+  Alert,
   Card,
   buttonStyles,
   DataTable,
+  ErrorState,
+  PageHeader,
+  StatCard,
   type ColumnDef,
   Pagination,
   TableToolbar,
@@ -190,41 +193,26 @@ export default function ReceiptsPage() {
 
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-title-l sm:text-display">receipts</h1>
-          <p className="mt-1 text-body text-text-soft">
-            Find payment receipts and trace them back to their invoices.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+          title="Receipts"
+          description="Find payment receipts and trace them back to their invoices."
+      />
 
       <DocTabs className="mt-3" />
 
       <div className="hidden gap-3 sm:grid sm:grid-cols-2">
-        <Card zone="calm" className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-row bg-peach">
-            <Receipt aria-hidden className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-caption text-text-soft">
-              {table.filters['currency'] ? `${table.filters['currency']} receipts` : 'Total receipts'}
-            </p>
-            <p className="text-title">{totalReceipts}</p>
-          </div>
-        </Card>
-
-        <Card zone="calm" className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-row bg-peach">
-            <FileText aria-hidden className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-caption text-text-soft">Current currency filter</p>
-            <p className="text-title">
-              {table.filters['currency'] || 'All'}
-            </p>
-          </div>
-        </Card>
+        <StatCard
+            zone="calm"
+            label={table.filters['currency'] ? `${table.filters['currency']} receipts` : 'Total receipts'}
+            value={totalReceipts.toLocaleString()}
+            description="Matching your current filters"
+        />
+        <StatCard
+            zone="calm"
+            label="Currency filter"
+            value={table.filters['currency'] || 'All currencies'}
+            description="Use the toolbar to filter receipts"
+        />
       </div>
 
       {/* Unified Toolbar: Search + Currency dropdown */}
@@ -244,20 +232,13 @@ export default function ReceiptsPage() {
       />
 
       {table.error && (
-        <Card zone="calm" className="space-y-3 p-6">
-          <WarningCircle aria-hidden className="h-6 w-6 text-danger" />
-          <h2 className="text-heading">we couldn’t load your receipts</h2>
-          <p role="alert" className="text-body text-text-soft">
-            {table.error}
-          </p>
-          <button
-            type="button"
-            className={buttonStyles({ variant: 'outline', zone: 'calm' })}
-            onClick={() => table.reload()}
-          >
-            Try again
-          </button>
-        </Card>
+          <ErrorState
+              title="We couldn't load your receipts"
+              description={`${table.error}. Your receipt records have not been changed.`}
+              retryLabel="Try again"
+              onRetry={() => table.reload()}
+              compact
+          />
       )}
 
       {/* DataTable */}

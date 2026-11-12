@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  AlertCircle,
-  Check,
   ContactRound,
   Building2,
   Edit2,
@@ -23,8 +21,10 @@ import { ClientRow } from '@/components/mobile/ClientRow';
 import { Money } from '@/components/money/Money';
 
 import {
+  Alert,
   buttonStyles,
   DataTable,
+  PageHeader,
   type ColumnDef,
   SearchInput,
 } from '@/components/ui';
@@ -670,77 +670,55 @@ export default function ClientsPage() {
       <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
         {/* Header */}
 
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-title-l sm:text-display text-ink">
-              clients &amp; contacts
-            </h1>
-
-            <p className="mt-1 text-body text-text-soft">
-              Keep client details and the people you work with in one place.
-            </p>
-          </div>
-
-          {activeTab === 'clients' ? (
+        <PageHeader
+          title="clients & contacts"
+          description="Keep client details and the people you work with in one place."
+          actions={
+            activeTab === 'clients' ? (
               <Link
-                  href="/clients/new"
-                  className={cn(
-                      buttonStyles({ variant: 'accent' }),
-                      'hidden sm:inline-flex',
-                  )}
+                href="/clients/new"
+                className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Add client
               </Link>
-          ) : (
+            ) : (
               <Link
-                  href="/clients/contacts/new"
-                  className={buttonStyles({ variant: 'accent' })}
+                href="/clients/contacts/new"
+                className={buttonStyles({ variant: 'accent' })}
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Add contact
               </Link>
-          )}
-        </header>
+            )
+          }
+        />
 
         {/* Success message */}
 
         {successMessage && (
-            <div
-                role="status"
-                className="flex items-center gap-2 rounded-row bg-leaf/20 px-3 py-2 text-body text-[#052E1B]"
-            >
-              <Check
-                  className="h-4 w-4 shrink-0"
-                  aria-hidden="true"
-              />
-              {successMessage}
-            </div>
+          <Alert variant="success">
+            {successMessage}
+          </Alert>
         )}
 
         {/* Error message */}
 
         {loadError && (
-            <div
-                role="alert"
-                className="flex items-center justify-between gap-3 rounded-row bg-[#FFB3B3] px-3 py-2 text-body text-[#5A1010]"
-            >
-          <span className="flex items-center gap-2">
-            <AlertCircle
-                className="h-4 w-4 shrink-0"
-                aria-hidden="true"
-            />
-            {loadError}
-          </span>
-
+          <Alert
+            variant="error"
+            action={
               <button
-                  type="button"
-                  onClick={() => void refreshDirectory()}
-                  className="shrink-0 font-bold hover:underline"
+                type="button"
+                onClick={() => void refreshDirectory()}
+                className="font-bold underline underline-offset-4"
               >
                 Try again
               </button>
-            </div>
+            }
+          >
+            {loadError}
+          </Alert>
         )}
 
         {/* Tabs and search */}

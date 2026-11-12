@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import {
-  AlertCircle,
   AlertTriangle,
   Bell,
-  Check,
   Coins,
   CreditCard,
   Download,
@@ -24,7 +22,14 @@ import {
 import { BagCharacter } from '@/components/brand';
 import { ThemePreferenceSection } from '@/components/theme/theme-preference';
 import { Button } from '@/components/ui/button';
-import { BaggSelect, Dialog } from '@/components/ui';
+import {
+  Alert,
+  BaggSelect,
+  Dialog,
+  Field,
+  Input,
+  PageHeader,
+} from '@/components/ui';
 import { Sheet, SheetContent, SheetFooter } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { formatMoney } from '@/lib/money';
@@ -575,26 +580,32 @@ export default function SettingsPage() {
   return (
     <div className="w-full max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
       <div>
-        <h1 className="text-title-l text-ink">settings</h1>
-        <p className="mt-1 text-body text-ink-soft">
-          your business details, payment rails and account controls.
-        </p>
+        <PageHeader
+            title="Settings"
+            description="Your business details, payment rails and account controls."
+        />
       </div>
 
       <ThemePreferenceSection/>
 
       {notice && (
-        <div role="status" className="flex items-center gap-2 rounded-input bg-pill-paid/20 px-3 py-2 text-body text-paid-text">
-          <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {notice}
-        </div>
+          <Alert
+              variant="success"
+              dismissible
+              onDismiss={() => setNotice(null)}
+          >
+            {notice}
+          </Alert>
       )}
 
       {error && (
-        <div role="alert" className="flex items-center gap-2 rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text">
-          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {error}
-        </div>
+          <Alert
+              variant="error"
+              dismissible
+              onDismiss={() => setError(null)}
+          >
+            {error}
+          </Alert>
       )}
 
       <Section
@@ -612,97 +623,104 @@ export default function SettingsPage() {
           </Button>
         }
       >
-        <form id="business-profile-form" onSubmit={handleSaveProfile} className="space-y-4">
+        <form
+            id="business-profile-form"
+            onSubmit={handleSaveProfile}
+            className="space-y-4"
+        >
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="business-name" className={labelClass}>
-                business name
-              </label>
-              <input
-                id="business-name"
-                type="text"
-                required
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="business-tax" className={labelClass}>
-                tax ID or TIN <span className="font-normal text-ink-muted">(optional)</span>
-              </label>
-              <input
-                id="business-tax"
-                type="text"
-                placeholder="e.g. TIN-98765432-0001"
-                value={taxId}
-                onChange={(e) => setTaxId(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <BaggSelect
-                label="default currency"
+            <Field label="Business name">
+              {({ id, ...a11y }) => (
+                  <Input
+                      id={id}
+                      {...a11y}
+                      type="text"
+                      required
+                      value={businessName}
+                      onChange={(e) => setBusinessName(e.target.value)}
+                  />
+              )}
+            </Field>
+
+            <Field label="Tax ID or TIN" hint="Optional">
+              {({ id, ...a11y }) => (
+                  <Input
+                      id={id}
+                      {...a11y}
+                      type="text"
+                      placeholder="e.g. TIN-98765432-0001"
+                      value={taxId}
+                      onChange={(e) => setTaxId(e.target.value)}
+                  />
+              )}
+            </Field>
+
+            <BaggSelect
+                label="Default currency"
                 className="w-full"
                 value={defaultCurrency}
                 onChange={setDefaultCurrency}
                 options={CURRENCY_OPTIONS}
-              />
-            </div>
-            <div>
-              <label htmlFor="business-country" className={labelClass}>
-                country
-              </label>
-              <input
-                id="business-country"
-                type="text"
-                autoComplete="country"
-                placeholder="e.g. NG"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className={inputClass}
-              />
-            </div>
+            />
+
+            <Field label="Country">
+              {({ id, ...a11y }) => (
+                  <Input
+                      id={id}
+                      {...a11y}
+                      type="text"
+                      autoComplete="country"
+                      placeholder="e.g. NG"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                  />
+              )}
+            </Field>
+
             <div className="sm:col-span-2">
-              <label htmlFor="business-address" className={labelClass}>
-                billing address
-              </label>
-              <input
-                id="business-address"
-                type="text"
-                autoComplete="street-address"
-                placeholder="Street, city, state"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className={inputClass}
-              />
+              <Field label="Billing address">
+                {({ id, ...a11y }) => (
+                    <Input
+                        id={id}
+                        {...a11y}
+                        type="text"
+                        autoComplete="street-address"
+                        placeholder="Street, city, state"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                    />
+                )}
+              </Field>
             </div>
-            <div className="sm:col-span-2">
+
+            <div className="sm:col-span-2 space-y-2">
               <label htmlFor="brand-color" className={labelClass}>
-                document accent
+                Document accent
               </label>
               <div className="flex items-center gap-3">
                 <input
-                  id="brand-color"
-                  type="color"
-                  value={brandColor}
-                  onChange={(e) => setBrandColor(e.target.value)}
-                  className="h-11 w-14 cursor-pointer rounded-input border border-line bg-surface p-1"
+                    id="brand-color"
+                    type="color"
+                    value={brandColor}
+                    onChange={(e) => setBrandColor(e.target.value)}
+                    className="h-11 w-14 cursor-pointer rounded-input border border-line bg-surface p-1"
                 />
-                <input
-                  type="text"
-                  aria-label="Document accent hex value"
-                  value={brandColor}
-                  onChange={(e) => setBrandColor(e.target.value)}
-                  className={cn(inputClass, 'max-w-40 font-mono uppercase')}
+                <Input
+                    aria-label="Document accent hex value"
+                    value={brandColor}
+                    onChange={(e) => setBrandColor(e.target.value)}
+                    className="max-w-40 font-mono uppercase"
                 />
-                <span className="text-caption text-ink-muted">used on public quote and receipt pages</span>
+                <span className="text-caption text-ink-muted">
+          Used on public quote and receipt pages
+        </span>
               </div>
             </div>
           </div>
+
           <p className="text-caption text-ink-muted">
-            Changes apply to new and draft invoices. Invoices already sent keep their original
-            snapshot.
+            Changes apply to new and draft invoices. Invoices already sent keep their
+            original snapshot.
           </p>
         </form>
       </Section>
@@ -1211,9 +1229,7 @@ export default function SettingsPage() {
               </label>
 
               {profileError && (
-                <div role="alert" className="rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text">
-                  {profileError}
-                </div>
+                  <Alert variant="error">{profileError}</Alert>
               )}
             </div>
 
@@ -1274,9 +1290,7 @@ export default function SettingsPage() {
             </div>
 
             {deleteError && (
-              <div role="alert" className="rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text">
-                {deleteError}
-              </div>
+                <Alert variant="error">{deleteError}</Alert>
             )}
 
             <SheetFooter>
@@ -1333,7 +1347,7 @@ export default function SettingsPage() {
           </div>
 
           {stepUpError && (
-            <p className="text-caption font-bold text-danger">{stepUpError}</p>
+              <Alert variant="error">{stepUpError}</Alert>
           )}
 
           <div className="flex justify-end gap-2 pt-2">
