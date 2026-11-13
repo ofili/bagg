@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.errors import NotFoundException
+
 from app.domains.workspaces.schemas import (
     WorkspaceResponse,
     WorkspaceUpdate,
@@ -11,9 +11,37 @@ from app.domains.workspaces.schemas import (
 )
 from app.domains.workspaces.models import Workspace
 from app.domains.auth.dependencies import get_current_user_and_workspace
-from app.domains.workspaces.dependencies import resolve_active_workspace
 
-router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
+from app.domains.onboarding.service import OnboardingService
+
+
+router = APIRouter(
+    prefix="/workspaces",
+    tags=["Workspaces"],
+)
+
+
+def build_workspace_response(ws: Workspace) -> WorkspaceResponse:
+
+    return WorkspaceResponse(
+        id=ws.id,
+        owner_id=ws.owner_id,
+        name=ws.name,
+        business_name=ws.business_name,
+        brand_color=ws.brand_color,
+        country=ws.country,
+        default_currency=ws.default_currency,
+        tax_id=ws.tax_id,
+        address=ws.address,
+        logo_url=ws.logo_url,
+        invoice_prefix=ws.invoice_prefix,
+        quote_prefix=ws.quote_prefix,
+        receipt_prefix=ws.receipt_prefix,
+        onboarding_completed=ws.onboarding_completed,
+        next_invoice_number=ws.next_invoice_number,
+        next_quote_number=ws.next_quote_number,
+        next_receipt_number=ws.next_receipt_number,
+    )
 
 
 @router.post(
@@ -22,63 +50,50 @@ router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
     status_code=status.HTTP_200_OK,
 )
 async def complete_current_workspace_onboarding(
-    payload: WorkspaceOnboardingRequest,
-    auth_data=Depends(get_current_user_and_workspace),
-    db: AsyncSession = Depends(get_db),
+        payload: WorkspaceOnboardingRequest,
+        auth_data=Depends(get_current_user_and_workspace),
+        db: AsyncSession = Depends(get_db),
 ):
-    """Save the initial business profile and mark onboarding complete."""
+    """Legacy-compatible endpoint backed by the onboarding domain."""
 
-    # Never complete onboarding against the demo or an arbitrary workspace.
     if not auth_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Please sign in to complete onboarding.",
         )
 
-    _, ws = auth_data
+    _, workspace = auth_data
 
-    business_name = payload.business_name.strip()
-    country = payload.country.strip().upper()
-    currency = payload.default_currency.strip().upper()
-    address = payload.address.strip() if payload.address else None
-
-    if not business_name:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Business name is required.",
+    try:
+        await OnboardingService(db).complete_business_profile(
+            workspace=workspace,
+            payload=payload,
         )
 
-    ws.business_name = business_name
-    ws.country = country
-    ws.default_currency = currency
-    ws.address = address
-    ws.onboarding_completed = True
+        await db.commit()
+        await db.refresh(workspace)
 
-    await db.commit()
-    await db.refresh(ws)
+    except ValueError as exc:
+        await db.rollback()
 
-    return WorkspaceResponse(
-        id=ws.id,
-        owner_id=ws.owner_id,
-        name=ws.name,
-        business_name=ws.business_name,
-        brand_color=ws.brand_color,
-        country=ws.country,
-        default_currency=ws.default_currency,
-        tax_id=ws.tax_id,
-        address=ws.address,
-        logo_url=ws.logo_url,
-        invoice_prefix=ws.invoice_prefix,
-        onboarding_completed=ws.onboarding_completed,
-        next_invoice_number=ws.next_invoice_number,
-        next_quote_number=ws.next_quote_number,
-        next_receipt_number=ws.next_receipt_number,
-    )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    except Exception:
+        await db.rollback()
+        raise
+
+    return build_workspace_response(workspace)
 
 
-@router.get("/current", response_model=WorkspaceResponse)
+@router.get(
+    "/current",
+    response_model=WorkspaceResponse,
+)
 async def get_current_workspace(
-    auth_data=Depends(get_current_user_and_workspace),
+        auth_data=Depends(get_current_user_and_workspace),
 ):
     if not auth_data:
         raise HTTPException(
@@ -87,72 +102,43 @@ async def get_current_workspace(
         )
 
     _, workspace = auth_data
-    return WorkspaceResponse(
-        id=workspace.id,
-        owner_id=workspace.owner_id,
-        name=workspace.name,
-        business_name=workspace.business_name,
-        logo_url=workspace.logo_url,
-        brand_color=workspace.brand_color,
-        country=workspace.country,
-        default_currency=workspace.default_currency,
-        tax_id=workspace.tax_id,
-        address=workspace.address,
-        invoice_prefix=workspace.invoice_prefix,
-        onboarding_completed=workspace.onboarding_completed,
-        next_invoice_number=workspace.next_invoice_number,
-        next_quote_number=workspace.next_quote_number,
-        next_receipt_number=workspace.next_receipt_number,
-    )
+
+    return build_workspace_response(workspace)
 
 
-@router.patch("/current", response_model=WorkspaceResponse)
+@router.patch(
+    "/current",
+    response_model=WorkspaceResponse,
+)
 async def update_current_workspace(
-    payload: WorkspaceUpdate,
-    auth_data=Depends(get_current_user_and_workspace),
-    db: AsyncSession = Depends(get_db),
+        payload: WorkspaceUpdate,
+        auth_data=Depends(get_current_user_and_workspace),
+        db: AsyncSession = Depends(get_db),
 ):
     """
-    Updates workspace branding, logo, default currency, TIN, and address (US-ONB-02).
-    Immutability guarantee: Drafts will reflect these changes, but already-sent invoices
-    remain locked to their historical revision snapshot.
+    Update workspace branding and business information.
+
+    Existing document revision snapshots remain immutable.
     """
+
     if not auth_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required. Please sign in.",
         )
 
-    _, ws = auth_data
+    _, workspace = auth_data
 
-    if auth_data:
-        _, ws = auth_data
-    else:
-        stmt = select(Workspace).limit(1)
-        res = await db.execute(stmt)
-        ws = res.scalars().first()
-
-    if not ws:
+    if not workspace:
         raise NotFoundException("Workspace not found")
 
     update_dict = payload.model_dump(exclude_unset=True)
+
     for field, value in update_dict.items():
         if value is not None:
-            setattr(ws, field, value)
+            setattr(workspace, field, value)
 
     await db.commit()
-    await db.refresh(ws)
+    await db.refresh(workspace)
 
-    return WorkspaceResponse(
-        id=ws.id,
-        owner_id=ws.owner_id,
-        name=ws.name,
-        business_name=ws.business_name,
-        logo_url=ws.logo_url,
-        brand_color=ws.brand_color,
-        country=ws.country,
-        default_currency=ws.default_currency,
-        tax_id=ws.tax_id,
-        address=ws.address,
-        invoice_prefix=ws.invoice_prefix,
-    )
+    return build_workspace_response(workspace)

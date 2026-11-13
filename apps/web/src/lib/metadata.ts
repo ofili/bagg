@@ -61,7 +61,7 @@ export function marketingMetadata({
 export const defaultMarketingMetadata: Metadata = {
   title: {
     absolute:
-        'Bagg | Invoice like a pro. Get paid without chasing.',
+        'Invoicing and Payment Workspace for Independent Professionals | Bagg',
   },
 
   description: siteDescription,
