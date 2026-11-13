@@ -41,6 +41,7 @@ class Subscription(Base):
         String, nullable=False, default="active", index=True
     )  # active, past_due, canceled, downgraded
     plan_code = Column(String, nullable=True)
+    processor_plan_code = Column(String(128), nullable=True)
     currency = Column(String, nullable=False, default="NGN")
     amount_minor = Column(BigInteger, nullable=False, default=0)
     billing_interval = Column(
@@ -138,7 +139,7 @@ class BillingCheckout(Base):
     provider_reference = Column(String(128), nullable=False, unique=True)
     purchase_type = Column(String(32), nullable=False)
     plan_code = Column(String(64), nullable=True)
-    pack_code = Column(String(64), nullable=True)
+    processor_plan_code = Column(String(128), nullable=True)
     credits = Column(Integer, nullable=True)
     currency = Column(String(3), nullable=False)
     amount_minor = Column(BigInteger, nullable=False)

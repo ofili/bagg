@@ -130,17 +130,16 @@ class BillingRepository:
         result = await self.db.execute(statement)
         return result.scalar_one_or_none()
 
-    async def get_subscription_by_customer_code(
+    async def get_checkout_by_id(
             self,
-            provider: str,
-            customer_code: str,
+            workspace_id: str,
+            checkout_id: str,
             *,
             lock: bool = False,
-    ) -> Subscription | None:
-        statement = select(Subscription).where(
-            Subscription.processor == provider,
-            Subscription.processor_customer_code == customer_code,
-            Subscription.processor_subscription_code.is_(None),
+    ) -> BillingCheckout | None:
+        statement = select(BillingCheckout).where(
+            BillingCheckout.id == checkout_id,
+            BillingCheckout.workspace_id == workspace_id,
             )
 
         if lock:

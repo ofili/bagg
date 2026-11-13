@@ -188,7 +188,13 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
         # 3. US-SUB-02 & US-SUB-03: Paystack Checkout & Instant Upgrade Provisioning
         checkout_res = await client.post(
             "/billing/checkout",
-            json={"plan": "creator_pro", "currency": "NGN"},
+            json={
+                "plan": "creator_pro",
+                "billing_interval": "annual",
+            },
+            headers={
+                "Idempotency-Key": f"test-{uuid.uuid4().hex}",
+            },
         )
         assert checkout_res.status_code in {200, 201}
         sub_ref = checkout_res.json()["reference"]

@@ -17,7 +17,8 @@ class PaystackError(RuntimeError):
 class PaystackClient:
     BASE_URL = "https://api.paystack.co"
 
-    def _headers(self) -> dict[str, str]:
+    @staticmethod
+    def _headers() -> dict[str, str]:
         secret = settings.PAYSTACK_SECRET_KEY
         if not secret:
             raise PaystackError("PAYSTACK_SECRET_KEY is not configured.")
@@ -45,10 +46,7 @@ class PaystackClient:
         if not email or not reference:
             raise ValueError("Email and reference are required.")
 
-        if plan_code:
-            if amount_minor is not None and amount_minor <= 0:
-                raise ValueError("Payment amount must be positive.")
-        elif amount_minor is None or amount_minor <= 0:
+        if amount_minor is None or amount_minor <= 0:
             raise ValueError("A positive payment amount is required.")
 
         payload: dict[str, Any] = {
@@ -58,10 +56,16 @@ class PaystackClient:
             "metadata": metadata or {},
         }
 
+        payload: dict[str, Any] = {
+            "email": email,
+            "amount": int(amount_minor),
+            "currency": currency.upper(),
+            "reference": reference,
+            "metadata": metadata or {},
+        }
+
         if plan_code:
             payload["plan"] = plan_code
-        else:
-            payload["amount"] = int(amount_minor)
 
         if callback_url:
             payload["callback_url"] = callback_url

@@ -13,7 +13,6 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.billing.catalog import (
-    ANNUAL_PERIOD_DAYS,
     FREE_TIER_MONTHLY_SENDS_LIMIT,
     GRACE_PERIOD_DAYS,
 )
@@ -250,8 +249,10 @@ async def activate_subscription(
         subscription = Subscription(workspace_id=workspace_id)
         await repository.add(subscription)
 
+    subscription.plan_code = plan
+
     if processor_plan_code:
-        subscription.plan_code = processor_plan_code
+        subscription.processor_plan_code = processor_plan_code
 
     subscription.tier = plan
     subscription.status = "active"
