@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
-import { FeaturePageLink, FeatureSubnav} from "@/components/marketing/feature-sub-nav";
+import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { buttonStyles } from '@/components/ui/button';
 import { marketingMetadata } from '@/lib/metadata';
 import {Metadata} from "next";
@@ -54,19 +54,19 @@ const sharingOptions = [
         icon: MessageCircle,
         title: 'WhatsApp',
         copy: 'Share the receipt link with your client when their phone number is available.',
-        tone: 'bg-mango',
+        tone: 'bg-mango text-on-mango',
     },
     {
         icon: ArrowUpRight,
         title: 'Public receipt link',
         copy: 'Give your client a link to view the receipt without signing in to Bagg.',
-        tone: 'bg-pink',
+        tone: 'bg-pink text-on-pink',
     },
     {
         icon: ClipboardList,
         title: 'Printable record',
         copy: 'Open the receipt in a clean, printable format for your records.',
-        tone: 'bg-sun',
+        tone: 'bg-sun text-on-sun',
     },
 ];
 
@@ -80,17 +80,17 @@ export default function ReceiptsFeaturePage() {
             ]} />
 
             <FeatureSubnav currentPath="/features/receipts" />
-            <main className="overflow-hidden bg-cream">
+            <div className="overflow-hidden bg-cream">
                 <section className="relative pb-16 pt-12 sm:pb-20 sm:pt-16 lg:pb-24 lg:pt-20">
                     <Container>
                         <div className="grid items-center gap-12 lg:grid-cols-[1fr_0.95fr] lg:gap-16">
                             <div className="relative z-10">
-                                <div className="mb-6 inline-flex items-center gap-2 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase tracking-[0.12em] shadow-brut">
+                                <div className="inline-flex items-center gap-2 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase tracking-[0.12em] text-on-sun shadow-brut">
                                     <ReceiptText aria-hidden className="h-4 w-4" />
                                     Receipts and records
                                 </div>
 
-                                <h1 className="max-w-3xl text-title-l font-extrabold leading-[0.98] tracking-[-0.055em] text-ink">
+                                <h1 className="mt-7 max-w-3xl text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem]">
                                     Payment received.
                                     <span className="mt-2 block text-pink">
                   Proof provided.
@@ -326,10 +326,10 @@ export default function ReceiptsFeaturePage() {
 
                                 <div className="mt-6 space-y-3">
                                     <div className="flex items-center gap-4 border-brut border-ink bg-cream p-4">
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center border-brut border-ink bg-sun">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center border-brut border-ink bg-sun text-on-sun">
                                             <ClipboardList
                                                 aria-hidden
-                                                className="h-5 w-5 text-ink"
+                                                className="h-5 w-5"
                                             />
                                         </div>
                                         <div className="min-w-0 flex-1">
@@ -430,10 +430,10 @@ export default function ReceiptsFeaturePage() {
                                         >
                                             <Icon
                                                 aria-hidden
-                                                className="h-9 w-9 text-ink"
+                                                className="h-9 w-9"
                                                 strokeWidth={2.2}
                                             />
-                                            <span className="text-title-l font-extrabold text-ink">
+                                            <span className="text-title-l font-extrabold">
                       0{index + 1}
                     </span>
                                         </div>
@@ -596,7 +596,7 @@ export default function ReceiptsFeaturePage() {
                         </div>
                     </Container>
                 </section>
-            </main>
+            </div>
         </>
     );
 }

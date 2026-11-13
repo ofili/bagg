@@ -174,12 +174,12 @@ export function AudiencePage({ audience }: { audience: Audience }) {
             <section className="overflow-hidden bg-cream">
                 <Container className="grid gap-10 py-16 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
                     <div>
-                        <p className="text-label font-extrabold uppercase tracking-wide text-ink-soft">
+                        <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
                             {content.eyebrow}
                         </p>
                         <h1 className="mt-5 max-w-3xl text-title-l text-ink sm:text-[3.5rem] sm:leading-[1.02]">
                             {content.title}{' '}
-                            <span className="inline-block bg-mango px-2">{content.emphasis}</span>
+                            <span className="inline-block bg-mango px-2 text-on-mango">{content.emphasis}</span>
                         </h1>
                         <p className="mt-6 max-w-2xl text-body-l text-text-soft">
                             {content.description}
@@ -190,7 +190,7 @@ export function AudiencePage({ audience }: { audience: Audience }) {
                             </Link>
                             <Link
                                 href="/features"
-                                className="inline-flex min-h-11 items-center border-2 border-ink bg-surface px-5 text-label font-extrabold text-ink hover:bg-surface-tint"
+                                className={buttonStyles({ variant: 'outline', size: 'lg' })}
                             >
                                 Explore features
                             </Link>
@@ -198,8 +198,8 @@ export function AudiencePage({ audience }: { audience: Audience }) {
                     </div>
 
                     <div className="relative">
-                        <div className="absolute inset-3 translate-x-3 translate-y-3 border-2 border-ink bg-pink" />
-                        <div className="relative border-2 border-ink bg-surface p-6 shadow-brut-lg sm:p-8">
+                        <div className="absolute inset-3 translate-x-3 translate-y-3 border-brut border-ink bg-pink" />
+                        <div className="relative border-brut border-ink bg-surface p-6 shadow-brut-lg sm:p-8">
                             <div className="flex items-center justify-between border-b-2 border-ink pb-4">
                                 <div>
                                     <p className="text-caption font-extrabold uppercase text-text-muted">
@@ -211,30 +211,30 @@ export function AudiencePage({ audience }: { audience: Audience }) {
                             </div>
 
                             <div className="mt-6 space-y-3">
-                                <div className="border-2 border-ink bg-cream p-4">
+                                <div className="border-brut border-ink bg-cream p-4">
                                     <p className="text-caption font-bold text-text-soft">Invoice status</p>
                                     <div className="mt-2 flex items-center justify-between gap-3">
                                         <span className="text-body font-extrabold text-ink">Payment tracked</span>
-                                        <span className="border-2 border-ink bg-mango px-2 py-1 text-caption font-extrabold text-ink">
+                                        <span className="rounded-full border-brut border-ink bg-mango px-2 py-1 text-caption font-extrabold text-on-mango">
                       LIVE
                     </span>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="border-2 border-ink bg-surface-tint p-3">
+                                    <div className="border-brut border-ink bg-surface-tint p-3">
                                         <FileText className="h-5 w-5 text-ink" aria-hidden="true" />
                                         <p className="mt-3 text-caption font-bold text-text-soft">Invoices</p>
                                         <p className="mt-1 text-body font-extrabold text-ink">Created</p>
                                     </div>
-                                    <div className="border-2 border-ink bg-surface-tint p-3">
+                                    <div className="border-brut border-ink bg-surface-tint p-3">
                                         <BellRing className="h-5 w-5 text-ink" aria-hidden="true" />
                                         <p className="mt-3 text-caption font-bold text-text-soft">Reminders</p>
                                         <p className="mt-1 text-body font-extrabold text-ink">Scheduled</p>
                                     </div>
                                 </div>
-                                <div className="border-2 border-ink bg-mango p-4">
-                                    <p className="text-caption font-extrabold text-ink">The record stays connected</p>
-                                    <p className="mt-1 text-body text-ink">
+                                <div className="border-brut border-ink bg-mango p-4 text-on-mango">
+                                    <p className="text-caption font-extrabold">The record stays connected</p>
+                                    <p className="mt-1 text-body">
                                         Invoice → Payment → Receipt
                                     </p>
                                 </div>
@@ -272,10 +272,10 @@ export function AudiencePage({ audience }: { audience: Audience }) {
                             <Link
                                 key={workflow.title}
                                 href={workflow.href}
-                                className="group border-2 border-ink bg-surface p-5 shadow-brut transition-transform hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-4"
+                                className="group border-brut border-ink bg-surface p-5 shadow-brut transition-transform hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-4"
                             >
                                 <div className="flex items-center justify-between">
-                  <span className="flex h-11 w-11 items-center justify-center border-2 border-ink bg-mango text-ink">
+                  <span className="flex h-11 w-11 items-center justify-center border-brut border-ink bg-mango text-on-mango">
                     {workflow.icon}
                   </span>
                                     <span className="text-caption font-extrabold text-text-muted">
@@ -297,10 +297,10 @@ export function AudiencePage({ audience }: { audience: Audience }) {
                 <Container className="py-16 sm:py-20">
                     <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
                         <div>
-                            <p className="text-caption font-extrabold uppercase tracking-wide text-ink">
+                            <p className="text-caption font-extrabold uppercase tracking-wide text-on-pink">
                                 Why Bagg
                             </p>
-                            <h2 className="mt-3 text-title-l text-ink">
+                            <h2 className="mt-3 text-title-l text-on-pink">
                                 A more dependable way to handle the get-paid work.
                             </h2>
                         </div>
@@ -308,9 +308,9 @@ export function AudiencePage({ audience }: { audience: Audience }) {
                             {content.benefits.map((benefit) => (
                                 <li
                                     key={benefit}
-                                    className="flex gap-3 border-2 border-ink bg-surface p-4 text-body font-semibold text-ink"
+                                    className="flex gap-3 border-brut border-ink bg-surface p-4 text-body font-semibold text-ink"
                                 >
-                                    <span className="mt-0.5 font-black" aria-hidden="true">+</span>
+                                    <span className="mt-0.5 font-extrabold" aria-hidden="true">+</span>
                                     {benefit}
                                 </li>
                             ))}
@@ -321,12 +321,12 @@ export function AudiencePage({ audience }: { audience: Audience }) {
 
             <section className="bg-cream">
                 <Container className="py-16 sm:py-20">
-                    <div className="border-2 border-ink bg-mango p-7 shadow-brut-lg sm:p-10">
-                        <h2 className="max-w-3xl text-title-l text-ink">{content.closingTitle}</h2>
-                        <p className="mt-3 max-w-2xl text-body-l text-ink">
+                    <div className="border-brut border-ink bg-mango p-7 shadow-brut-lg sm:p-10">
+                        <h2 className="max-w-3xl text-title-l text-on-mango">{content.closingTitle}</h2>
+                        <p className="mt-3 max-w-2xl text-body-l text-on-mango">
                             {content.closingCopy}
                         </p>
-                        <Link href="/signup" className={`${buttonStyles()} mt-6`}>
+                        <Link href="/signup" className={`${buttonStyles({ variant: 'ink', size: 'lg' })} mt-6`}>
                             Start free <ArrowRight className="h-4 w-4" aria-hidden="true" />
                         </Link>
                     </div>

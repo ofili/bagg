@@ -34,7 +34,7 @@ export function EarlyAccessForm() {
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor="early-name" className={fieldLabelClassName}>
-            your name
+            Your name
           </label>
           <input
             id="early-name"
@@ -50,7 +50,7 @@ export function EarlyAccessForm() {
         </div>
         <div>
           <label htmlFor="early-email" className={fieldLabelClassName}>
-            email address
+            Email address
           </label>
           <input
             id="early-email"
@@ -68,7 +68,7 @@ export function EarlyAccessForm() {
 
       <div>
         <label htmlFor="early-work" className={fieldLabelClassName}>
-          what do you do?
+          What do you do?
         </label>
         <input
           id="early-work"
@@ -84,7 +84,7 @@ export function EarlyAccessForm() {
 
       <div>
         <label htmlFor="early-note" className={fieldLabelClassName}>
-          anything we should know? (optional)
+          Anything we should know? (optional)
         </label>
         <textarea
           id="early-note"
@@ -110,13 +110,13 @@ export function EarlyAccessForm() {
         </a>
       </div>
 
-      <p className="text-caption text-ink-muted">
+      <p className="text-caption text-text-muted">
         This opens your email app with the note filled in. Nothing sends until you press send
         there.
       </p>
 
       {opened && (
-        <p role="status" className="rounded-row bg-peach px-3 py-2 text-body text-ink-soft">
+        <p role="status" className="border-brut border-ink bg-peach px-3 py-2 text-body text-text-soft">
           Your email app should be opening. If it did not, email{' '}
           <a href={`mailto:${contactEmail}`} className="font-extrabold text-link hover:underline">
             {contactEmail}

@@ -100,7 +100,7 @@ export default function AboutPage() {
           <Container className="py-12 sm:py-16 lg:py-20">
             <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
               <div className="min-w-0">
-                <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] shadow-brut">
+                <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut">
                   Why Bagg exists
                 </div>
 
@@ -126,7 +126,7 @@ export default function AboutPage() {
 
                   <Link
                       href="/features"
-                      className="inline-flex min-h-11 items-center gap-2 font-extrabold text-link underline decoration-2 underline-offset-4 hover:no-underline"
+                      className={buttonStyles({ variant: 'link' })}
                   >
                     Explore the product
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -147,7 +147,7 @@ export default function AboutPage() {
                   <span className="text-caption font-extrabold uppercase tracking-[0.14em]">
                     The Bagg workflow
                   </span>
-                    <span className="border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase">
+                    <span className="border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase text-on-sun">
                     04 steps
                   </span>
                   </div>
@@ -199,7 +199,7 @@ export default function AboutPage() {
                   </div>
                 </div>
 
-                <div className="absolute -bottom-1 -left-2 -rotate-3 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase shadow-brut">
+                <div className="absolute -bottom-1 -left-2 -rotate-3 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
                   Less chasing.
                 </div>
               </div>
@@ -386,7 +386,7 @@ export default function AboutPage() {
 
                 <Link
                     href="/signup"
-                    className={`${buttonStyles({ variant: 'outline', size: 'lg' })} mt-7 border-2 border-on-mango bg-transparent text-on-mango hover:bg-on-mango/10`}
+                    className={`${buttonStyles({ variant: 'ink', size: 'lg' })} mt-7`}
                 >
                   Start free
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />

@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn';
 
 export interface PageHeaderProps {
   title: string;
-  description?: string;
+  description?: ReactNode;
   eyebrow?: string;
   actions?: ReactNode;
   metadata?: ReactNode;

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
-import { FeatureSubnav} from "@/components/marketing/feature-sub-nav";
+import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { buttonStyles } from '@/components/ui/button';
 import { currencies } from '@/content/marketing';
 import { marketingMetadata } from '@/lib/metadata';
@@ -80,13 +80,13 @@ export default function FeaturesPage() {
                 { name: 'Features', path: '/features' },
             ]} />
         <FeatureSubnav currentPath="/features" />
-            <main>
+            <div>
                 {/* HERO */}
                 <section className="overflow-hidden border-b-2 border-ink bg-cream">
                     <Container className="py-12 sm:py-16 lg:py-20">
                         <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
                             <div>
-                                <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] shadow-brut">
+                                <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut">
                                     The get-paid workspace
                                 </div>
 
@@ -128,7 +128,7 @@ export default function FeaturesPage() {
                                   <span className="text-caption font-extrabold uppercase tracking-[0.14em]">
                                     The Bagg workflow
                                   </span>
-                                        <span className="border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase">
+                                        <span className="border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase text-on-sun">
                                     04 steps
                                   </span>
                                     </div>
@@ -138,19 +138,19 @@ export default function FeaturesPage() {
                                             number="01"
                                             title="Agree"
                                             description="Set out the work and terms"
-                                            tone="bg-pink"
+                                            tone="bg-pink text-on-pink"
                                         />
                                         <WorkflowLine
                                             number="02"
                                             title="Invoice"
                                             description="Make the amount and due date clear"
-                                            tone="bg-mango"
+                                            tone="bg-mango text-on-mango"
                                         />
                                         <WorkflowLine
                                             number="03"
                                             title="Collect"
                                             description="Share, track and follow up"
-                                            tone="bg-sun"
+                                            tone="bg-sun text-on-sun"
                                         />
                                         <WorkflowLine
                                             number="04"
@@ -169,7 +169,7 @@ export default function FeaturesPage() {
                                     </div>
                                 </div>
 
-                                <div className="absolute -bottom-1 -left-2 -rotate-6 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase shadow-brut">
+                                <div className="absolute -bottom-1 -left-2 -rotate-6 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
                                     Less chasing.
                                 </div>
                             </div>
@@ -329,7 +329,7 @@ export default function FeaturesPage() {
                     <Container>
                         <div className="grid gap-6 md:grid-cols-[0.8fr_1.2fr]">
                             <div>
-              <span className="inline-flex border-brut border-ink bg-sun px-3 py-1 text-caption font-extrabold uppercase shadow-brut">
+              <span className="inline-flex border-brut border-ink bg-sun px-3 py-1 text-caption font-extrabold uppercase text-on-sun shadow-brut">
                 What comes next
               </span>
                                 <h2 className="mt-4 text-title-l font-extrabold tracking-tight text-ink sm:text-4xl">
@@ -349,7 +349,7 @@ export default function FeaturesPage() {
                                             className="flex items-center justify-between gap-3 border-brut border-ink bg-surface p-4 shadow-brut"
                                         >
                                             <span className="font-extrabold text-ink">{name}</span>
-                                            <span className="border border-ink px-2 py-1 text-[10px] font-extrabold uppercase">
+                                            <span className="border-brut-thin border-ink px-2 py-1 text-[10px] font-extrabold uppercase">
                       Planned
                     </span>
                                         </div>
@@ -388,7 +388,7 @@ export default function FeaturesPage() {
                         </div>
                     </Container>
                 </section>
-            </main>
+            </div>
         </>
     );
 }

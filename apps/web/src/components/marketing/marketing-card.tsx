@@ -27,7 +27,7 @@ export function MarketingCard({
     return (
         <div
             className={cn(
-                'rounded-card border-brut border-ink p-5 sm:p-6',
+                'border-brut border-ink p-5 sm:p-6',
                 toneClasses[tone],
                 featured ? 'shadow-brut-lg' : 'shadow-brut',
                 interactive &&

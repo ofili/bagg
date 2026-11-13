@@ -110,7 +110,7 @@ export function MarketingHeader() {
                                 aria-current={isActive(item.href) ? 'page' : undefined}
                                 onClick={() => setOpen(false)}
                                 className={cn(
-                                    'flex min-h-12 items-center rounded-row px-3 text-body font-bold',
+                                    'flex min-h-12 items-center px-3 text-body font-bold',
                                     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
                                     isActive(item.href)
                                         ? 'bg-peach-chip text-ink'

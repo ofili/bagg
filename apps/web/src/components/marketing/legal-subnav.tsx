@@ -25,17 +25,17 @@ export function LegalSubnav() {
                         href={link.href}
                         aria-current={active ? 'page' : undefined}
                         className={[
-                            'group flex min-h-12 items-center justify-between gap-3 border-2 px-3 py-2 transition-colors',
+                            'group flex min-h-12 items-center justify-between gap-3 border-brut px-3 py-2 transition-colors',
                             active
-                                ? 'border-ink bg-sun text-ink shadow-[3px_3px_0_0_#171717]'
-                                : 'border-transparent bg-surface text-ink-soft hover:border-ink hover:bg-peach',
+                                ? 'border-ink bg-sun text-on-sun shadow-brut'
+                                : 'border-transparent bg-surface text-text-soft hover:border-ink hover:bg-peach',
                         ].join(' ')}
                     >
             <span className="flex items-center gap-3">
-              <span className="font-mono text-xs font-bold opacity-60">
+              <span className="text-caption font-bold tabular-nums opacity-60">
                 {link.number}
               </span>
-              <span className="text-sm font-extrabold">{link.label}</span>
+              <span className="text-body font-extrabold">{link.label}</span>
             </span>
 
                         <ArrowUpRight

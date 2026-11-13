@@ -16,7 +16,7 @@ export function PageHero({
   className?: string;
 }) {
   return (
-      <section className={cn('border-b border-line-subtle bg-cream', className)}>
+      <section className={cn('border-b-2 border-ink bg-cream', className)}>
         <Container className="py-12 sm:py-16 lg:py-20">
           <div className="max-w-3xl">
             {kicker && (

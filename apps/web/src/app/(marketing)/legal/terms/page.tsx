@@ -1,15 +1,18 @@
 
-import Link from 'next/link';
-import { ArrowRight, FileText, Scale } from 'lucide-react';
+import { FileText } from 'lucide-react';
 
+import {
+    LegalDocumentFooter,
+    LegalDocumentHeader,
+    LegalSection,
+} from '@/components/marketing/legal-document';
 import { LegalNotice } from '@/components/marketing/legal-notice';
 import { marketingMetadata } from '@/lib/metadata';
 import { contactEmail } from '@/lib/site';
-import React from "react";
-import {Metadata} from "next";
+import { Metadata } from 'next';
 
 export const metadata: Metadata = marketingMetadata({
-    title: 'terms of service',
+    title: 'Terms of service',
     description: 'The plain-language summary of the terms for using bagg.',
     path: '/legal/terms',
     noIndex: true,
@@ -28,17 +31,18 @@ const sections = [
 export default function TermsPage() {
     return (
         <article>
-            <DocumentHeader
+            <LegalDocumentHeader
                 eyebrow="Terms of service"
                 title={<>Clear expectations.<br /><span className="text-pink">Better work.</span></>}
                 description="The rules for using bagg, managing your workspace and working with your clients through the service."
                 icon={<FileText className="h-6 w-6" />}
+                tone="sun"
             />
 
             <LegalNotice />
 
-            <div className="mt-8 border-2 border-ink bg-surface p-5 shadow-[4px_4px_0_0_#171717]">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-ink-muted">
+            <div className="mt-8 border-brut border-ink bg-surface p-5 shadow-brut">
+                <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
                     In this document
                 </p>
                 <div className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -46,9 +50,9 @@ export default function TermsPage() {
                         <a
                             key={section.id}
                             href={`#${section.id}`}
-                            className="flex items-center gap-3 text-sm font-bold text-ink-soft transition hover:text-ink"
+                            className="flex items-center gap-3 text-body font-bold text-text-soft transition hover:text-ink"
                         >
-              <span className="font-mono text-xs text-ink-muted">
+              <span className="text-caption tabular-nums text-text-muted">
                 {section.number}
               </span>
                             <span className="underline decoration-transparent underline-offset-4 hover:decoration-ink">
@@ -158,100 +162,12 @@ export default function TermsPage() {
                 </LegalSection>
             </div>
 
-            <DocumentFooter
+            <LegalDocumentFooter
                 current="terms"
+                eyebrow="Keep reading"
                 copy="Understand how bagg handles your information and browser storage."
+                tone="sun"
             />
         </article>
-    );
-}
-
-function DocumentHeader({
-                            eyebrow,
-                            title,
-                            description,
-                            icon,
-                        }: {
-    eyebrow: string;
-    title: React.ReactNode;
-    description: string;
-    icon: React.ReactNode;
-}) {
-    return (
-        <header className="mb-8">
-            <div className="mb-5 inline-flex items-center gap-2 border-2 border-ink bg-sun px-3 py-2 text-xs font-extrabold uppercase tracking-wider text-ink shadow-[3px_3px_0_0_#171717]">
-                {icon}
-                {eyebrow}
-            </div>
-
-            <h1 className="text-4xl font-black leading-[0.98] tracking-tight text-ink sm:text-5xl lg:text-6xl">
-                {title}
-            </h1>
-
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ink-soft">
-                {description}
-            </p>
-        </header>
-    );
-}
-
-function LegalSection({
-                          id,
-                          number,
-                          title,
-                          children,
-                      }: {
-    id: string;
-    number: string;
-    title: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <section id={id} className="scroll-mt-28 border-t-2 border-ink pt-6">
-            <div className="flex items-start gap-4">
-        <span className="border-2 border-ink bg-peach px-2 py-1 font-mono text-xs font-bold text-ink">
-          {number}
-        </span>
-                <div className="min-w-0 flex-1">
-                    <h2 className="text-2xl font-black tracking-tight text-ink">
-                        {title}
-                    </h2>
-                    <div className="mt-4 space-y-4 text-base leading-8 text-ink-soft">
-                        {children}
-                    </div>
-                </div>
-            </div>
-        </section>
-    );
-}
-
-function DocumentFooter({
-                            current,
-                            copy,
-                        }: {
-    current: 'terms' | 'privacy' | 'cookies';
-    copy: string;
-}) {
-    const next = {
-        terms: { label: 'Privacy', href: '/legal/privacy' },
-        privacy: { label: 'Cookies', href: '/legal/cookies' },
-        cookies: { label: 'Terms', href: '/legal/terms' },
-    }[current];
-
-    return (
-        <div className="mt-14 border-2 border-ink bg-sun p-5 shadow-[5px_5px_0_0_#171717] sm:p-6">
-            <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-ink">
-                <Scale className="h-4 w-4" aria-hidden="true" />
-                Keep reading
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-ink-soft">{copy}</p>
-            <Link
-                href={next.href}
-                className="mt-5 inline-flex items-center gap-2 border-2 border-ink bg-surface px-4 py-3 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_#171717] transition hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none"
-            >
-                Read {next.label}
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-        </div>
     );
 }

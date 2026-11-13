@@ -113,7 +113,7 @@ export default function SecurityPage() {
                 <Container className="py-12 sm:py-16 lg:py-20">
                     <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
                         <div className="min-w-0">
-                            <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] shadow-brut">
+                            <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut">
                                 Trust, in plain words
                             </div>
 
@@ -142,7 +142,7 @@ export default function SecurityPage() {
 
                                 <Link
                                     href="/help"
-                                    className="inline-flex min-h-11 items-center gap-2 font-extrabold text-link underline decoration-2 underline-offset-4 hover:no-underline"
+                                    className={buttonStyles({ variant: 'link' })}
                                 >
                                     Visit the help centre
                                     <ExternalLink className="h-4 w-4" aria-hidden="true" />
@@ -168,7 +168,7 @@ export default function SecurityPage() {
 
                                 <div className="py-5">
                                     <div className="flex items-start gap-4 border-b-2 border-ink/15 pb-5">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center border-brut border-ink bg-sun shadow-brut">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center border-brut border-ink bg-sun text-on-sun shadow-brut">
                       <Lock className="h-5 w-5" aria-hidden="true" />
                     </span>
                                         <div>
@@ -182,7 +182,7 @@ export default function SecurityPage() {
                                     </div>
 
                                     <div className="flex items-start gap-4 border-b-2 border-ink/15 py-5">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center border-brut border-ink bg-mango shadow-brut">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center border-brut border-ink bg-mango text-on-mango shadow-brut">
                       <CreditCard className="h-5 w-5" aria-hidden="true" />
                     </span>
                                         <div>
@@ -196,7 +196,7 @@ export default function SecurityPage() {
                                     </div>
 
                                     <div className="flex items-start gap-4 pt-5">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center border-brut border-ink bg-pink shadow-brut">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center border-brut border-ink bg-pink text-on-pink shadow-brut">
                       <Flag className="h-5 w-5" aria-hidden="true" />
                     </span>
                                         <div>
@@ -220,7 +220,7 @@ export default function SecurityPage() {
                                 </div>
                             </div>
 
-                            <div className="absolute -bottom-1 -left-2 -rotate-3 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase shadow-brut">
+                            <div className="absolute -bottom-1 -left-2 -rotate-3 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
                                 Trust through clarity.
                             </div>
                         </div>
@@ -442,7 +442,7 @@ export default function SecurityPage() {
 
                             <a
                                 href={`mailto:${securityEmail}`}
-                                className={`${buttonStyles({ variant: 'outline', size: 'lg' })} shrink-0 border-2 border-on-mango bg-transparent text-on-mango hover:bg-on-mango/10`}
+                                className={`${buttonStyles({ variant: 'ink', size: 'lg' })} shrink-0`}
                             >
                                 <Mail className="h-4 w-4" aria-hidden="true" />
                                 Contact security

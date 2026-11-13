@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
-import { FeatureSubnav} from "@/components/marketing/feature-sub-nav";
+import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { MarketingBreadcrumbStructuredData } from "@/components/marketing/marketing-structured-data";
 import { buttonStyles } from '@/components/ui/button';
 import { currencies } from '@/content/marketing';
@@ -48,7 +48,7 @@ export default function InvoicingPage() {
 
             <FeatureSubnav currentPath="/features/invoicing" />
 
-            <main>
+            <div>
                 {/* HERO */}
                 <section className="overflow-hidden border-b-2 border-ink bg-cream">
                     <Container className="py-12 sm:py-16 lg:py-20">
@@ -100,7 +100,7 @@ export default function InvoicingPage() {
                                                 INV-0001
                                             </p>
                                         </div>
-                                        <span className="border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase shadow-brut">
+                                        <span className="border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
                                             Sent
                                           </span>
                                     </div>
@@ -204,7 +204,7 @@ export default function InvoicingPage() {
                             <div className="border-brut border-ink bg-cream p-5 shadow-brut-lg sm:p-7">
                                 <div className="flex items-center justify-between border-b-2 border-ink pb-4">
                                     <span className="font-extrabold text-ink">Invoice checklist</span>
-                                    <span className="border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase shadow-brut">
+                                    <span className="border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase text-on-sun shadow-brut">
                       Your details
                     </span>
                                 </div>
@@ -260,7 +260,7 @@ export default function InvoicingPage() {
                     <span className="truncate font-mono text-caption text-text-soft">
                       bagg.app/i/your-invoice
                     </span>
-                                    <span className="shrink-0 border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase">
+                                    <span className="shrink-0 border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase text-on-sun">
                       Link
                     </span>
                                 </div>
@@ -296,27 +296,27 @@ export default function InvoicingPage() {
                             <StatusStep
                                 label="Draft"
                                 copy="Still being prepared"
-                                tone="bg-surface-tint"
+                                tone="bg-surface-tint text-text"
                             />
                             <StatusStep
                                 label="Sent"
                                 copy="The invoice link is live"
-                                tone="bg-sun"
+                                tone="bg-sun text-on-sun"
                             />
                             <StatusStep
                                 label="Viewed"
                                 copy="The client opened it"
-                                tone="bg-pink"
+                                tone="bg-pink text-on-pink"
                             />
                             <StatusStep
                                 label="Part paid"
                                 copy="Some money received"
-                                tone="bg-mango"
+                                tone="bg-mango text-on-mango"
                             />
                             <StatusStep
                                 label="Paid"
                                 copy="The balance is settled"
-                                tone="bg-status-paid"
+                                tone="bg-status-paid text-status-paid-fg"
                             />
                         </div>
 
@@ -400,7 +400,7 @@ export default function InvoicingPage() {
                         </div>
                     </Container>
                 </section>
-            </main>
+            </div>
         </>
     );
 }
@@ -431,8 +431,8 @@ function StatusStep({
 }) {
     return (
         <div className={`min-h-32 border-brut border-ink p-4 shadow-brut ${tone}`}>
-            <p className="text-lg font-extrabold text-ink">{label}</p>
-            <p className="mt-2 text-caption font-semibold text-ink/75">{copy}</p>
+            <p className="text-lg font-extrabold">{label}</p>
+            <p className="mt-2 text-caption font-semibold opacity-75">{copy}</p>
         </div>
     );
 }

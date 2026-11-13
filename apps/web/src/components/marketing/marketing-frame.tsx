@@ -20,7 +20,7 @@ export function MarketingFrame({
     return (
         <figure
             className={cn(
-                'overflow-hidden rounded-card border-brut border-ink',
+                'overflow-hidden border-brut border-ink',
                 'bg-surface shadow-brut-lg',
                 className,
             )}

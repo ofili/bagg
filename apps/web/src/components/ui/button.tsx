@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 export type ButtonVariant =
   | 'primary'
   | 'accent'
+  | 'ink'
   | 'outline'
   | 'link'
   | 'danger'
@@ -36,6 +37,7 @@ export function buttonStyles({
     return cn(
       'inline-flex min-h-11 items-center justify-center gap-1 px-1 text-body font-extrabold',
       'text-link underline underline-offset-4 hover:no-underline',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2',
       'disabled:pointer-events-none disabled:opacity-40',
       fullWidth && 'w-full',
     );
@@ -44,6 +46,7 @@ export function buttonStyles({
   const colour: Record<Exclude<ButtonVariant, 'link'>, string> = {
     primary: 'bg-mango text-on-mango',
     accent: 'bg-pink text-on-pink',
+    ink: 'bg-ink text-surface',
     outline: 'bg-surface text-text',
     danger: 'bg-danger text-white',
     ghost: 'border-transparent bg-transparent text-text shadow-none hover:bg-surface-tint',
@@ -54,6 +57,7 @@ export function buttonStyles({
   return cn(
     'relative inline-flex items-center justify-center gap-2 rounded-btn px-5',
     'font-extrabold whitespace-nowrap select-none',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2',
     size === 'lg' ? 'min-h-12 text-body-l' : 'min-h-11 text-body',
     colour[variant],
     !isGhost &&

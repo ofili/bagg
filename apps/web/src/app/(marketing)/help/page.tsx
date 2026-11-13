@@ -42,7 +42,7 @@ const supportChecklist = [
 ];
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'Help Center for Invoices and Payments',
+  title: 'Help Centre for Invoices and Payments',
   description:
       'Find help with getting started, invoices, quotes, payments, reminders and your Bagg account.',
   path: '/help',
@@ -56,7 +56,7 @@ export default function HelpPage() {
           <Container className="py-12 sm:py-16 lg:py-20">
             <div className="grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
               <div className="max-w-3xl">
-                <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] shadow-brut">
+                <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut">
                   Bagg help centre
                 </div>
 
@@ -93,7 +93,7 @@ export default function HelpPage() {
 
                 <Link
                     href="/contact"
-                    className={`${buttonStyles({ variant: 'outline', size: 'lg' })} mt-5 w-full border-2 border-on-pink bg-transparent text-on-pink hover:bg-on-pink/10`}
+                    className={`${buttonStyles({ variant: 'ink', size: 'lg' })} mt-5 w-full`}
                 >
                   Contact support
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -235,7 +235,7 @@ export default function HelpPage() {
                             </h3>
                           </div>
 
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center border-brut border-ink bg-sun shadow-brut">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center border-brut border-ink bg-sun text-on-sun shadow-brut">
                         <CircleHelp
                             className="h-5 w-5"
                             aria-hidden="true"
@@ -295,7 +295,7 @@ export default function HelpPage() {
 
               <Link
                   href="/contact"
-                  className={`${buttonStyles({ variant: 'outline', size: 'lg' })} mt-7 border-2 border-on-sun bg-transparent text-on-sun hover:bg-on-sun/10`}
+                  className={`${buttonStyles({ variant: 'ink', size: 'lg' })} mt-7`}
               >
                 Contact support
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -313,8 +313,8 @@ export default function HelpPage() {
                         key={item}
                         className="flex items-start gap-3 text-body-l text-text-soft"
                     >
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border-brut border-ink bg-mango text-on-mango">
-                    <span className="text-xs font-extrabold">✓</span>
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-brut border-ink bg-mango text-caption font-extrabold text-on-mango">
+                    ✓
                   </span>
 
                       <span>{item}</span>

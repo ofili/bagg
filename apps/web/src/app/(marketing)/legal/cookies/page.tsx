@@ -1,21 +1,19 @@
 
 import Link from 'next/link';
-import {
-    ArrowRight,
-    Cookie,
-    Monitor,
-    ShieldCheck,
-    Trash2,
-} from 'lucide-react';
+import { Cookie, Monitor, ShieldCheck, Trash2 } from 'lucide-react';
 
+import {
+    LegalDocumentFooter,
+    LegalDocumentHeader,
+    LegalSection,
+} from '@/components/marketing/legal-document';
 import { LegalNotice } from '@/components/marketing/legal-notice';
 import { marketingMetadata } from '@/lib/metadata';
 import { contactEmail } from '@/lib/site';
-import React from "react";
-import {Metadata} from "next";
+import { Metadata } from 'next';
 
 export const metadata: Metadata = marketingMetadata({
-    title: 'cookies',
+    title: 'Cookies',
     description: 'What bagg stores in your browser and why.',
     path: '/legal/cookies',
     noIndex: true,
@@ -24,32 +22,22 @@ export const metadata: Metadata = marketingMetadata({
 export default function CookiesPage() {
     return (
         <article>
-            <header className="mb-8">
-                <div className="mb-5 inline-flex items-center gap-2 border-2 border-ink bg-mango px-3 py-2 text-xs font-extrabold uppercase tracking-wider text-ink shadow-[3px_3px_0_0_#171717]">
-                    <Cookie className="h-5 w-5" aria-hidden="true" />
-                    Cookies and browser storage
-                </div>
-
-                <h1 className="text-4xl font-black leading-[0.98] tracking-tight text-ink sm:text-5xl lg:text-6xl">
-                    Small files.
-                    <br />
-                    <span className="text-mango">Clear purpose.</span>
-                </h1>
-
-                <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ink-soft">
-                    We keep browser storage to a minimum. Here is what bagg stores,
-                    why it is there and how to remove it.
-                </p>
-            </header>
+            <LegalDocumentHeader
+                eyebrow="Cookies and browser storage"
+                title={<>Small files.<br /><span className="text-link">Clear purpose.</span></>}
+                description="We keep browser storage to a minimum. Here is what bagg stores, why it is there and how to remove it."
+                icon={<Cookie className="h-5 w-5" aria-hidden="true" />}
+                tone="mango"
+            />
 
             <LegalNotice />
 
-            <div className="mt-8 border-2 border-ink bg-surface p-5 shadow-[4px_4px_0_0_#171717]">
-                <div className="flex items-center gap-3">
-                    <ShieldCheck className="h-6 w-6 text-ink" aria-hidden="true" />
+            <div className="mt-8 border-brut border-ink bg-surface p-5 shadow-brut">
+                <div className="flex items-start gap-3">
+                    <ShieldCheck className="mt-0.5 h-6 w-6 shrink-0 text-ink" aria-hidden="true" />
                     <div>
-                        <p className="font-black text-ink">Essential storage only</p>
-                        <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+                        <p className="font-extrabold text-ink">Essential storage only</p>
+                        <p className="mt-1 text-body leading-relaxed text-text-soft">
                             The current notice describes essential sign-in storage and
                             remembering your cookie-notice choice. It does not describe
                             advertising cookies or third-party tracking pixels.
@@ -63,6 +51,7 @@ export default function CookiesPage() {
                     number="01"
                     title="Essential sign-in cookie"
                     icon={<Monitor className="h-5 w-5" />}
+                    tone="mango"
                 >
                     <p>
                         When you sign in, bagg sets an essential session cookie so the
@@ -80,6 +69,7 @@ export default function CookiesPage() {
                     number="02"
                     title="Your cookie notice choice"
                     icon={<Cookie className="h-5 w-5" />}
+                    tone="mango"
                 >
                     <p>
                         When you dismiss the cookie notice, we store that choice in your
@@ -97,6 +87,7 @@ export default function CookiesPage() {
                     number="03"
                     title="What we do not use"
                     icon={<ShieldCheck className="h-5 w-5" />}
+                    tone="mango"
                 >
                     <p>
                         The marketing site does not use advertising cookies or
@@ -109,6 +100,7 @@ export default function CookiesPage() {
                     number="04"
                     title="Managing browser storage"
                     icon={<Trash2 className="h-5 w-5" />}
+                    tone="mango"
                 >
                     <p>
                         You can clear cookies and local storage in your browser settings.
@@ -116,22 +108,22 @@ export default function CookiesPage() {
                         notice choice will make the notice appear again.
                     </p>
 
-                    <div className="border-2 border-ink bg-peach p-5">
-                        <h3 className="font-black text-ink">What happens if you clear it?</h3>
-                        <ul className="mt-3 space-y-3 text-sm leading-relaxed text-ink-soft">
+                    <div className="border-brut border-ink bg-peach p-5">
+                        <h3 className="font-extrabold text-ink">What happens if you clear it?</h3>
+                        <ul className="mt-3 space-y-3 text-body leading-relaxed text-text-soft">
                             <li className="flex items-start gap-3">
-                                <span className="mt-0.5 h-2.5 w-2.5 shrink-0 border-2 border-ink bg-mango" />
+                                <span className="mt-2 h-2.5 w-2.5 shrink-0 border-brut border-ink bg-mango" />
                                 <span>
-                  <strong className="text-ink">Session cookie:</strong>{' '}
+                                    <strong className="text-ink">Session cookie:</strong>{' '}
                                     You will be signed out and need to sign in again.
-                </span>
+                                </span>
                             </li>
                             <li className="flex items-start gap-3">
-                                <span className="mt-0.5 h-2.5 w-2.5 shrink-0 border-2 border-ink bg-mango" />
+                                <span className="mt-2 h-2.5 w-2.5 shrink-0 border-brut border-ink bg-mango" />
                                 <span>
-                  <strong className="text-ink">Notice choice:</strong>{' '}
+                                    <strong className="text-ink">Notice choice:</strong>{' '}
                                     The cookie notice will appear again.
-                </span>
+                                </span>
                             </li>
                         </ul>
                     </div>
@@ -152,6 +144,7 @@ export default function CookiesPage() {
                     number="05"
                     title="Questions"
                     icon={<Cookie className="h-5 w-5" />}
+                    tone="mango"
                 >
                     <p>
                         Email{' '}
@@ -166,57 +159,17 @@ export default function CookiesPage() {
                 </LegalSection>
             </div>
 
-            <div className="mt-14 border-2 border-ink bg-mango p-5 shadow-[5px_5px_0_0_#171717] sm:p-6">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-ink">
-                    The bigger picture
-                </p>
-                <h2 className="mt-3 text-2xl font-black tracking-tight text-ink">
-                    Browser storage is only one part of privacy.
-                </h2>
-                <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-soft">
-                    Your workspace information, client records and documents are
-                    covered by our privacy summary.
-                </p>
-                <Link
-                    href="/legal/privacy"
-                    className="mt-5 inline-flex items-center gap-2 border-2 border-ink bg-surface px-4 py-3 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_#171717] transition hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none"
-                >
-                    Read privacy
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-            </div>
+            <LegalDocumentFooter
+                current="cookies"
+                eyebrow="The bigger picture"
+                title="Browser storage is only one part of privacy."
+                copy="Your workspace information, client records and documents are covered by our privacy summary."
+                tone="mango"
+                nextLabel="Privacy"
+                nextHref="/legal/privacy"
+                nextIcon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
+            />
         </article>
-    );
-}
-
-function LegalSection({
-                          number,
-                          title,
-                          icon,
-                          children,
-                      }: {
-    number: string;
-    title: string;
-    icon: React.ReactNode;
-    children: React.ReactNode;
-}) {
-    return (
-        <section className="border-t-2 border-ink pt-6">
-            <div className="flex items-start gap-4">
-        <span className="border-2 border-ink bg-mango px-2 py-1 font-mono text-xs font-bold text-ink">
-          {number}
-        </span>
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 text-ink">
-                        {icon}
-                        <h2 className="text-2xl font-black tracking-tight">{title}</h2>
-                    </div>
-                    <div className="mt-4 space-y-4 text-base leading-8 text-ink-soft">
-                        {children}
-                    </div>
-                </div>
-            </div>
-        </section>
     );
 }
 
@@ -230,14 +183,14 @@ function StorageCard({
     type: string;
 }) {
     return (
-        <div className="border-2 border-ink bg-surface p-4">
+        <div className="border-brut border-ink bg-surface p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <code className="break-all text-sm font-bold text-ink">{name}</code>
-                <span className="border border-ink bg-peach px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-ink">
-          {type}
-        </span>
+                <code className="break-all text-body font-bold text-ink">{name}</code>
+                <span className="rounded-full border-brut border-ink bg-peach px-2 py-1 text-caption font-extrabold uppercase tracking-wider text-ink">
+                    {type}
+                </span>
             </div>
-            <p className="mt-2 text-sm leading-relaxed text-ink-soft">{purpose}</p>
+            <p className="mt-2 text-body leading-relaxed text-text-soft">{purpose}</p>
         </div>
     );
 }

@@ -34,7 +34,7 @@ import {
 
 import { defaultMarketingMetadata } from '@/lib/metadata';
 import { demoInvoiceHref } from '@/lib/site';
-import {Metadata} from "next";
+import { Metadata } from 'next';
 
 export const metadata: Metadata = defaultMarketingMetadata;
 
@@ -136,7 +136,7 @@ export default function MarketingPage() {
                     (item) => (
                         <span
                             key={item}
-                            className="border border-line bg-cream px-3 py-1.5 text-caption font-bold text-text-soft"
+                            className="rounded-full border-brut-thin border-ink bg-cream px-3 py-1.5 text-caption font-bold text-text-soft"
                         >
                     {item}
                   </span>
@@ -215,10 +215,7 @@ export default function MarketingPage() {
 
             <Link
                 href="/signup"
-                className={`${buttonStyles({
-                  variant: 'outline',
-                  size: 'lg',
-                })} border-ink bg-surface text-ink`}
+                className={buttonStyles({ variant: 'ink', size: 'lg' })}
             >
               Get started
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -265,7 +262,7 @@ export default function MarketingPage() {
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
                   href={demoInvoiceHref}
-                  className="inline-flex min-h-11 items-center gap-2 text-label font-extrabold text-link hover:underline"
+                  className={buttonStyles({ variant: 'link' })}
               >
                 Explore the client experience
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -288,7 +285,7 @@ export default function MarketingPage() {
               <div className="flex justify-start lg:justify-end">
                 <Link
                     href="/features"
-                    className="inline-flex min-h-11 items-center gap-2 text-label font-extrabold text-link hover:underline"
+                    className={buttonStyles({ variant: 'link' })}
                 >
                   Explore all features
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -446,7 +443,7 @@ export default function MarketingPage() {
 
               <Link
                   href="/security"
-                  className="mt-6 inline-flex min-h-11 items-center gap-2 text-label font-extrabold text-link hover:underline"
+                  className={`${buttonStyles({ variant: 'link' })} mt-6`}
               >
                 Learn about security
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -504,19 +501,19 @@ export default function MarketingPage() {
                   title="Freelancers"
                   copy="For independent professionals managing clients, projects and payments on their own."
                   label="Independent work"
-                  href="/creatives"
+                  href="/freelancers"
               />
               <AudienceCard
                   title="Consultants"
                   copy="For advisory, strategy and professional services where clear commercial records matter."
                   label="Professional services"
-                  href="/creatives"
+                  href="/consultants"
               />
               <AudienceCard
                   title="Creative studios"
                   copy="For small teams coordinating client work, invoices and payment administration."
                   label="Creative businesses"
-                  href="/creatives"
+                  href="/studios"
               />
             </MarketingGrid>
           </Container>
@@ -602,7 +599,7 @@ export default function MarketingPage() {
                 />
                 <Link
                     href="/help"
-                    className="mt-5 inline-flex min-h-11 items-center gap-2 text-label font-extrabold text-link hover:underline"
+                    className={`${buttonStyles({ variant: 'link' })} mt-5`}
                 >
                   Visit the help centre
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -704,7 +701,7 @@ function CapabilityCard({
           <span className="text-caption font-extrabold text-text-muted">
             {number}
           </span>
-            <span className="border border-line bg-cream px-2 py-0.5 text-caption font-bold text-text-soft">
+            <span className="border-brut-thin border-ink bg-cream px-2 py-0.5 text-caption font-bold text-text-soft">
             {tag}
           </span>
           </div>
@@ -724,7 +721,7 @@ function TrustRow({
 }) {
   return (
       <div className="flex items-start gap-3">
-      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-line bg-cream text-ink">
+      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-brut-thin border-ink bg-cream text-ink">
         <Check className="h-3.5 w-3.5" aria-hidden="true" />
       </span>
         <div>
@@ -755,7 +752,7 @@ function AudienceCard({
         <p className="mt-2 flex-1 text-body text-text-soft">{copy}</p>
         <Link
             href={href}
-            className="mt-5 inline-flex min-h-10 items-center gap-2 text-label font-extrabold text-link hover:underline"
+            className={`${buttonStyles({ variant: 'link' })} mt-5`}
         >
           Explore
           <ArrowRight className="h-4 w-4" aria-hidden="true" />

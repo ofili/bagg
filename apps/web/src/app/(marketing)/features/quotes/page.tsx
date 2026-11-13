@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
-import { FeaturePageLink, FeatureSubnav} from "@/components/marketing/feature-sub-nav";
+import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { buttonStyles } from '@/components/ui/button';
 import { currencies } from '@/content/marketing';
 import { marketingMetadata } from '@/lib/metadata';
@@ -46,7 +46,7 @@ export default function QuotesPage() {
             ]} />
 
             <FeatureSubnav currentPath="/features/quotes" />
-            <main>
+            <div>
                 {/* HERO */}
                 <section className="overflow-hidden border-b-2 border-ink bg-cream">
                     <Container className="py-12 sm:py-16 lg:py-20">
@@ -98,7 +98,7 @@ export default function QuotesPage() {
                                                 QT-0001
                                             </p>
                                         </div>
-                                        <span className="border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase shadow-brut">
+                                        <span className="border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
                     For review
                   </span>
                                     </div>
@@ -254,19 +254,19 @@ export default function QuotesPage() {
                                         icon={<Check className="h-5 w-5" />}
                                         title="Accept the quote"
                                         copy="Confirm the proposed commercial terms."
-                                        tone="bg-mango"
+                                        tone="bg-mango text-on-mango"
                                     />
                                     <ResponseOption
                                         icon={<MessageSquare className="h-5 w-5" />}
                                         title="Request a review"
                                         copy="Ask for a change or clarification."
-                                        tone="bg-sun"
+                                        tone="bg-sun text-on-sun"
                                     />
                                     <ResponseOption
                                         icon={<ArrowRight className="h-5 w-5" />}
                                         title="Decline the quote"
                                         copy="Record that the offer will not proceed."
-                                        tone="bg-pink"
+                                        tone="bg-pink text-on-pink"
                                     />
                                 </div>
 
@@ -493,7 +493,7 @@ export default function QuotesPage() {
                         </div>
                     </Container>
                 </section>
-            </main>
+            </div>
         </>
     );
 }

@@ -18,7 +18,7 @@ export function CtaBand({
     return (
         <section className="py-12 sm:py-16 lg:py-20">
             <Container>
-                <div className="overflow-hidden rounded-card border-2 border-ink bg-mango p-6 text-on-mango shadow-brut sm:p-10 lg:p-12">
+                <div className="overflow-hidden border-brut border-ink bg-mango p-6 text-on-mango shadow-brut sm:p-10 lg:p-12">
                     <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                         <div className="max-w-xl">
                             <h2 className="text-title-l font-extrabold tracking-tight sm:text-[2rem] sm:leading-tight">
@@ -32,9 +32,9 @@ export function CtaBand({
                         <Link
                             href={href}
                             className={`${buttonStyles({
-                                variant: 'outline',
+                                variant: 'ink',
                                 size: 'lg',
-                            })} shrink-0 border-2 border-on-mango bg-transparent text-on-mango hover:bg-on-mango/10`}
+                            })} shrink-0`}
                         >
                             {label}
                             <ArrowRight className="h-4 w-4" aria-hidden="true" />

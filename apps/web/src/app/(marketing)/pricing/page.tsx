@@ -133,8 +133,8 @@ export default function PricingPage() {
         </PageHero>
 
         {/* PLANS */}
-        <section className="bg-canvas">
-          <Container className="py-14 sm:py-18 lg:py-20">
+        <section className="bg-cream">
+          <Container className="py-14 sm:py-16 lg:py-20">
             <div className="mb-9 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <SectionHeading
                   title="Choose your plan."
@@ -208,7 +208,7 @@ export default function PricingPage() {
                   <p className="mt-5 text-caption font-extrabold uppercase tracking-wider text-text-muted">
                     For creative studios and client-facing teams
                   </p>
-                  <h2 className="mt-2 text-title-l font-black text-ink">
+                  <h2 className="mt-2 text-title-l font-extrabold text-ink">
                     Studio
                   </h2>
                   <p className="mt-3 max-w-lg text-body-l text-text-soft">
@@ -226,7 +226,7 @@ export default function PricingPage() {
                         <p className="text-caption font-bold text-text-muted">
                           MONTHLY
                         </p>
-                        <p className="mt-1 text-title font-black text-ink">
+                        <p className="mt-1 text-title font-extrabold text-ink">
                           ₦18,000
                         </p>
                         <p className="text-caption text-text-muted">per month</p>
@@ -235,13 +235,13 @@ export default function PricingPage() {
                         <p className="text-caption font-bold text-text-muted">
                           ANNUAL
                         </p>
-                        <p className="mt-1 text-title font-black text-ink">
+                        <p className="mt-1 text-title font-extrabold text-ink">
                           ₦180,000
                         </p>
                         <p className="text-caption text-text-muted">per year</p>
                       </div>
                     </div>
-                    <p className="mt-3 text-caption font-extrabold text-paid-text">
+                    <p className="mt-3 text-caption font-extrabold text-status-paid-fg">
                       Annual equivalent: ₦15,000/month · Save ₦36,000
                     </p>
                   </div>
@@ -263,7 +263,7 @@ export default function PricingPage() {
                             className="flex items-start gap-2.5 text-body text-text-soft"
                         >
                           <Sparkles
-                              className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted"
+                              className="mt-0.5 h-4 w-4 shrink-0 text-text-muted"
                               aria-hidden="true"
                           />
                           <span>{feature}</span>
@@ -284,7 +284,7 @@ export default function PricingPage() {
                 <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
                   Pay as you go
                 </p>
-                <h2 className="mt-3 text-title-l font-black tracking-tight text-ink">
+                <h2 className="mt-3 text-title-l font-extrabold tracking-tight text-ink">
                   Need more sends without a subscription?
                 </h2>
                 <p className="mt-3 max-w-xl text-body-l text-text-soft">
@@ -299,23 +299,23 @@ export default function PricingPage() {
                   <span className="inline-flex h-11 w-11 items-center justify-center border-brut border-ink bg-mango text-on-mango shadow-brut-sm">
                     <CreditCard className="h-5 w-5" aria-hidden="true" />
                   </span>
-                    <h3 className="mt-4 text-heading font-black text-ink">
+                    <h3 className="mt-4 text-heading font-extrabold text-ink">
                       200 credits
                     </h3>
                     <p className="mt-1 text-body text-text-soft">
                       One optional credit pack.
                     </p>
                   </div>
-                  <span className="border border-line bg-surface px-2.5 py-1 text-caption font-extrabold text-text-muted">
+                  <span className="rounded-full border-brut-thin border-ink bg-surface px-2.5 py-1 text-caption font-extrabold text-text-muted">
                   Pay once
                 </span>
                 </div>
 
-                <div className="mt-6 border border-line bg-surface p-4">
+                <div className="mt-6 border-brut-thin border-ink bg-surface p-4">
                   <p className="text-caption font-bold text-text-muted">
                     NGN billing
                   </p>
-                  <p className="mt-1 text-title font-black text-ink">
+                  <p className="mt-1 text-title font-extrabold text-ink">
                     ₦2,000
                   </p>
                 </div>
@@ -328,8 +328,8 @@ export default function PricingPage() {
         </section>
 
         {/* PRICE PROMISES */}
-        <section className="bg-canvas">
-          <Container className="py-14 sm:py-18">
+        <section className="bg-cream">
+          <Container className="py-14 sm:py-16">
             <SectionHeading
                 title="No surprises around your money."
                 copy="Know what you are buying, what you are paying and what happens when your plan changes."
@@ -357,7 +357,7 @@ export default function PricingPage() {
 
         {/* FAQ */}
         <section className="border-y border-line bg-surface">
-          <Container className="py-14 sm:py-18">
+          <Container className="py-14 sm:py-16">
             <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
               <SectionHeading
                   title="Pricing questions."
@@ -428,7 +428,7 @@ function PlanCard({
             {eyebrow}
           </p>
           <h2
-              className={`mt-2 text-title-l font-black ${
+              className={`mt-2 text-title-l font-extrabold ${
                   featured ? 'text-on-mango' : 'text-ink'
               }`}
           >
@@ -458,7 +458,7 @@ function PlanCard({
                 Monthly
               </p>
               <p
-                  className={`mt-2 text-title-l font-black leading-none tracking-tight ${
+                  className={`mt-2 text-title-l font-extrabold leading-none tracking-tight ${
                       featured ? 'text-on-mango' : 'text-ink'
                   }`}
               >
@@ -485,7 +485,7 @@ function PlanCard({
                 Annual
               </p>
               <p
-                  className={`mt-2 text-title-l font-black leading-none tracking-tight ${
+                  className={`mt-2 text-title-l font-extrabold leading-none tracking-tight ${
                       featured ? 'text-on-mango' : 'text-ink'
                   }`}
               >
@@ -506,19 +506,19 @@ function PlanCard({
                   className={`mt-4 border p-3 ${
                       featured
                           ? 'border-ink/30 bg-surface/70'
-                          : 'border-line bg-canvas'
+                          : 'border-line bg-cream'
                   }`}
               >
                 <p className="text-caption text-text-muted">
                   Annual billing works out to
                 </p>
-                <p className="mt-1 text-heading font-black text-ink">
+                <p className="mt-1 text-heading font-extrabold text-ink">
                   {effectiveMonthly}
                   <span className="ml-1 text-caption font-semibold text-text-muted">
                     / month
                   </span>
                 </p>
-                <p className="mt-1 text-caption font-extrabold text-paid-text">
+                <p className="mt-1 text-caption font-extrabold text-status-paid-fg">
                   Save {annualSaving} per year
                 </p>
               </div>
@@ -538,7 +538,7 @@ function PlanCard({
                 <li key={feature} className="flex items-start gap-2.5 text-body">
                   <Check
                       className={`mt-0.5 h-4 w-4 shrink-0 ${
-                          featured ? 'text-on-mango' : 'text-paid-text'
+                          featured ? 'text-on-mango' : 'text-status-paid-fg'
                       }`}
                       aria-hidden="true"
                   />
@@ -555,7 +555,7 @@ function PlanCard({
               href={href}
               className={
                 featured
-                    ? `${buttonStyles({ variant: 'outline', size: 'lg' })} w-full border-2 border-ink bg-surface text-ink hover:bg-cream`
+                    ? `${buttonStyles({ variant: 'ink', size: 'lg' })} w-full`
                     : `${buttonStyles({ size: 'lg' })} w-full`
               }
           >
@@ -588,7 +588,7 @@ function PricePromise({
       <span className="flex h-10 w-10 items-center justify-center border-brut border-ink bg-peach text-ink">
         {icon}
       </span>
-        <h3 className="mt-4 text-heading font-black text-ink">{title}</h3>
+        <h3 className="mt-4 text-heading font-extrabold text-ink">{title}</h3>
         <p className="mt-2 text-body text-text-soft">{copy}</p>
       </div>
   );

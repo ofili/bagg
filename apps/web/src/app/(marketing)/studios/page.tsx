@@ -1,7 +1,7 @@
 import { AudiencePage } from '@/components/marketing/audience-page';
+import { MarketingBreadcrumbStructuredData } from '@/components/marketing/marketing-structured-data';
 import { marketingMetadata } from '@/lib/metadata';
-import {Metadata} from "next";
-import {MarketingBreadcrumbStructuredData} from "@/components/marketing/marketing-structured-data";
+import { Metadata } from 'next';
 
 export const metadata: Metadata = marketingMetadata({
     title: 'Invoicing Software for Creative Studios',
@@ -18,7 +18,7 @@ export default function StudiosPage() {
                 { name: 'Creative Studios', path: '/studios' },
             ]} />
 
-            <AudiencePage audience="studios" />;
+            <AudiencePage audience="studios" />
         </>
     );
 }

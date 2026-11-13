@@ -17,9 +17,9 @@ export function FeatureSubnav({ currentPath }: FeatureSubnavProps) {
     return (
         <nav
             aria-label="Feature pages"
-            className="border-y border-brut bg-cream"
+            className="border-y-2 border-ink bg-cream"
         >
-            <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[75rem] px-4 py-3 sm:px-6 lg:px-8">
                 <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {featurePages.map((page) => {
                         const isActive = page.href === currentPath;
@@ -30,13 +30,13 @@ export function FeatureSubnav({ currentPath }: FeatureSubnavProps) {
                                 href={page.href}
                                 aria-current={isActive ? 'page' : undefined}
                                 className={[
-                                    'inline-flex min-h-10 shrink-0 items-center justify-center',
-                                    'rounded-control border-2 border-ink px-4',
+                                    'inline-flex min-h-11 shrink-0 items-center justify-center',
+                                    'rounded-full border-brut border-ink px-4',
                                     'text-label font-extrabold transition-[background-color,box-shadow,transform]',
                                     'focus-visible:outline-none focus-visible:ring-2',
                                     'focus-visible:ring-ink focus-visible:ring-offset-2',
                                     isActive
-                                        ? 'bg-mango text-ink shadow-brut'
+                                        ? 'bg-mango text-on-mango shadow-brut'
                                         : 'bg-surface text-text-soft hover:bg-surface-tint',
                                 ].join(' ')}
                             >
@@ -66,11 +66,11 @@ export function FeaturePageLink({
                                     linkLabel,
                                 }: FeaturePageLinkProps) {
     return (
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
+        <div className="mx-auto max-w-[75rem] px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
             <Link
                 href={href}
                 className={[
-                    'group grid gap-4 border-2 border-ink bg-mango p-6',
+                    'group grid gap-4 border-brut border-ink bg-mango p-6',
                     'shadow-brut transition-transform hover:-translate-y-1',
                     'focus-visible:outline-none focus-visible:ring-2',
                     'focus-visible:ring-ink focus-visible:ring-offset-4',
@@ -78,16 +78,16 @@ export function FeaturePageLink({
                 ].join(' ')}
             >
                 <div>
-                    <p className="text-caption font-extrabold uppercase tracking-wide text-ink">
+                    <p className="text-caption font-extrabold uppercase tracking-wide text-on-mango">
                         {eyebrow}
                     </p>
-                    <h2 className="mt-2 text-title-l text-ink">{title}</h2>
-                    <p className="mt-2 max-w-2xl text-body-l text-ink">
+                    <h2 className="mt-2 text-title-l text-on-mango">{title}</h2>
+                    <p className="mt-2 max-w-2xl text-body-l text-on-mango">
                         {copy}
                     </p>
                 </div>
 
-                <span className="inline-flex min-h-11 items-center justify-center border-2 border-ink bg-surface px-5 text-label font-extrabold text-ink transition-colors group-hover:bg-surface-tint">
+                <span className="inline-flex min-h-11 items-center justify-center rounded-btn border-brut border-ink bg-surface px-5 text-label font-extrabold text-ink transition-colors group-hover:bg-surface-tint">
           {linkLabel} <span aria-hidden="true" className="ml-2">→</span>
         </span>
             </Link>

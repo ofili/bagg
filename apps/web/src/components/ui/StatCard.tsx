@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
 export interface StatCardProps {
   label: string;
   value: ReactNode;
-  description?: string;
+  description?: ReactNode;
   icon?: ReactNode;
   trend?: {
     label: string;

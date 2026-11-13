@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
-import { FeaturePageLink, FeatureSubnav} from "@/components/marketing/feature-sub-nav";
+import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { buttonStyles } from '@/components/ui/button';
 import { currencies } from '@/content/marketing';
 import { marketingMetadata } from '@/lib/metadata';
@@ -34,19 +34,19 @@ const paymentMethods = [
         icon: Landmark,
         title: 'Bank transfer',
         copy: 'Show the bank and account details saved for the invoice currency.',
-        tone: 'bg-mango',
+        tone: 'bg-mango text-on-mango',
     },
     {
         icon: Smartphone,
         title: 'Mobile money',
         copy: 'Include supported mobile money details and instructions.',
-        tone: 'bg-pink',
+        tone: 'bg-pink text-on-pink',
     },
     {
         icon: CreditCard,
         title: 'Payment links',
         copy: 'Share an external payment link when you use a supported provider.',
-        tone: 'bg-sun',
+        tone: 'bg-sun text-on-sun',
     },
 ];
 
@@ -79,28 +79,28 @@ const paymentStages = [
         title: 'Payment reported',
         copy: 'Your client submits a payment claim with the amount, date and optional reference.',
         status: 'CLAIM SUBMITTED',
-        tone: 'bg-sun',
+        tone: 'bg-sun text-on-sun',
     },
     {
         number: '02',
         title: 'You review it',
         copy: 'Check the claim against your bank or payment provider before confirming it.',
         status: 'AWAITING REVIEW',
-        tone: 'bg-pink',
+        tone: 'bg-pink text-on-pink',
     },
     {
         number: '03',
         title: 'Payment confirmed',
         copy: 'Bagg records the confirmed amount and updates the invoice balance.',
         status: 'CONFIRMED',
-        tone: 'bg-mango',
+        tone: 'bg-mango text-on-mango',
     },
     {
         number: '04',
         title: 'Receipt created',
         copy: 'A verified receipt is generated and linked to the invoice.',
         status: 'RECEIPT READY',
-        tone: 'bg-surface-tint',
+        tone: 'bg-surface-tint text-text',
     },
 ];
 
@@ -113,17 +113,17 @@ export default function PaymentsFeaturePage() {
                 { name: 'Payments', path: '/features/payments' },
             ]} />
             <FeatureSubnav currentPath="/features/payments" />
-            <main className="overflow-hidden bg-cream">
+            <div className="overflow-hidden bg-cream">
                 <section className="relative pb-16 pt-12 sm:pb-20 sm:pt-16 lg:pb-24 lg:pt-20">
                     <Container>
                         <div className="grid items-center gap-12 lg:grid-cols-[1.02fr_0.98fr] lg:gap-16">
                             <div className="relative z-10">
-                                <div className="mb-6 inline-flex items-center gap-2 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase tracking-[0.12em] shadow-brut">
+                                <div className="inline-flex items-center gap-2 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase tracking-[0.12em] text-on-sun shadow-brut">
                                     <CreditCard aria-hidden className="h-4 w-4" />
                                     Payments and reminders
                                 </div>
 
-                                <h1 className="max-w-3xl text-title-l font-extrabold leading-[0.98] tracking-[-0.055em] text-ink">
+                                <h1 className="mt-7 max-w-3xl text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem]">
                                     Know what came in.
                                     <span className="mt-2 block text-pink">
                   Know what is still owed.
@@ -346,7 +346,7 @@ export default function PaymentsFeaturePage() {
                       {stage.number}
                     </span>
                                             <span
-                                                className={`border-brut border-ink px-2 py-1 text-[0.65rem] font-extrabold tracking-[0.08em] text-ink ${stage.tone}`}
+                                                className={`border-brut border-ink px-2 py-1 text-[0.65rem] font-extrabold tracking-[0.08em] ${stage.tone}`}
                                             >
                       {stage.status}
                     </span>
@@ -394,10 +394,10 @@ export default function PaymentsFeaturePage() {
                                         >
                                             <Icon
                                                 aria-hidden
-                                                className="h-9 w-9 text-ink"
+                                                className="h-9 w-9"
                                                 strokeWidth={2.2}
                                             />
-                                            <span className="text-title-l font-extrabold text-ink">
+                                            <span className="text-title-l font-extrabold">
                       0{index + 1}
                     </span>
                                         </div>
@@ -482,7 +482,7 @@ export default function PaymentsFeaturePage() {
                                                         className="absolute bottom-0 left-[1.1rem] top-10 w-0.5 bg-ink"
                                                     />
                                                 )}
-                                                <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center border-brut border-ink bg-sun text-caption font-extrabold text-ink">
+                                                <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-brut border-ink bg-sun text-caption font-extrabold text-on-sun">
                                                     {index + 1}
                                                 </div>
                                                 <div className="min-w-0 flex-1 border-b border-line pb-5 last:border-0 last:pb-0">
@@ -590,7 +590,7 @@ export default function PaymentsFeaturePage() {
                         </div>
                     </Container>
                 </section>
-            </main>
+            </div>
         </>
     );
 }

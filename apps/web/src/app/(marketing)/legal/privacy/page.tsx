@@ -1,22 +1,20 @@
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
-import {
-    ArrowRight,
-    Database,
-    Eye,
-    FileText,
-    LockKeyhole,
-    ShieldCheck,
-} from 'lucide-react';
+import { Database, Eye, ShieldCheck } from 'lucide-react';
 
+import {
+    LegalDocumentFooter,
+    LegalDocumentHeader,
+    LegalSection,
+} from '@/components/marketing/legal-document';
 import { LegalNotice } from '@/components/marketing/legal-notice';
 import { marketingMetadata } from '@/lib/metadata';
 import { contactEmail } from '@/lib/site';
-import React from "react";
-import {Metadata} from "next";
+import { Metadata } from 'next';
 
 export const metadata: Metadata = marketingMetadata({
-    title: 'privacy',
+    title: 'Privacy',
     description: 'The plain-language summary of how bagg handles personal information.',
     path: '/legal/privacy',
     noIndex: true,
@@ -34,23 +32,13 @@ const contents = [
 export default function PrivacyPage() {
     return (
         <article>
-            <header className="mb-8">
-                <div className="mb-5 inline-flex items-center gap-2 border-2 border-ink bg-pink px-3 py-2 text-xs font-extrabold uppercase tracking-wider text-ink shadow-[3px_3px_0_0_#171717]">
-                    <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-                    Privacy
-                </div>
-
-                <h1 className="text-4xl font-black leading-[0.98] tracking-tight text-ink sm:text-5xl lg:text-6xl">
-                    Your business.
-                    <br />
-                    <span className="text-pink">Your information.</span>
-                </h1>
-
-                <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ink-soft">
-                    A straightforward explanation of the information bagg handles,
-                    why we use it and the choices available to you.
-                </p>
-            </header>
+            <LegalDocumentHeader
+                eyebrow="Privacy"
+                title={<>Your business.<br /><span className="text-pink">Your information.</span></>}
+                description="A straightforward explanation of the information bagg handles, why we use it and the choices available to you."
+                icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}
+                tone="pink"
+            />
 
             <LegalNotice />
 
@@ -67,8 +55,8 @@ export default function PrivacyPage() {
                 />
             </div>
 
-            <div className="mt-8 border-2 border-ink bg-surface p-5 shadow-[4px_4px_0_0_#171717]">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-ink-muted">
+            <div className="mt-8 border-brut border-ink bg-surface p-5 shadow-brut">
+                <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
                     On this page
                 </p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -76,9 +64,9 @@ export default function PrivacyPage() {
                         <a
                             key={id}
                             href={`#${id}`}
-                            className="flex items-center gap-3 text-sm font-bold text-ink-soft hover:text-ink"
+                            className="flex items-center gap-3 text-body font-bold text-text-soft hover:text-ink"
                         >
-                            <span className="font-mono text-xs text-ink-muted">{number}</span>
+                            <span className="text-caption tabular-nums text-text-muted">{number}</span>
                             <span className="underline decoration-transparent underline-offset-4 hover:decoration-ink">
                 {label}
               </span>
@@ -151,7 +139,7 @@ export default function PrivacyPage() {
                         and tell us what you need.
                     </p>
                     <div className="border-l-4 border-pink bg-surface p-4">
-                        <p className="text-sm leading-relaxed text-ink-soft">
+                        <p className="text-body leading-relaxed text-text-soft">
                             For browser cookies and local storage, read the{' '}
                             <Link
                                 href="/legal/cookies"
@@ -178,23 +166,12 @@ export default function PrivacyPage() {
                 </LegalSection>
             </div>
 
-            <div className="mt-14 border-2 border-ink bg-sun p-5 shadow-[5px_5px_0_0_#171717] sm:p-6">
-                <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-ink">
-                    <LockKeyhole className="h-4 w-4" aria-hidden="true" />
-                    Your browser, too
-                </div>
-                <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-                    We explain the cookies and local browser storage used by bagg
-                    separately, so you can understand what stays on your device.
-                </p>
-                <Link
-                    href="/legal/cookies"
-                    className="mt-5 inline-flex items-center gap-2 border-2 border-ink bg-surface px-4 py-3 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_#171717] transition hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none"
-                >
-                    Read the cookie notice
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-            </div>
+            <LegalDocumentFooter
+                current="privacy"
+                eyebrow="Your browser, too"
+                copy="We explain the cookies and local browser storage used by bagg separately, so you can understand what stays on your device."
+                tone="sun"
+            />
         </article>
     );
 }
@@ -204,47 +181,17 @@ function PrivacyPrinciple({
                               title,
                               copy,
                           }: {
-    icon: React.ReactNode;
+    icon: ReactNode;
     title: string;
     copy: string;
 }) {
     return (
-        <div className="border-2 border-ink bg-surface p-4">
+        <div className="border-brut border-ink bg-surface p-4">
             <div className="flex items-center gap-2 text-ink">
                 {icon}
                 <h2 className="font-extrabold">{title}</h2>
             </div>
-            <p className="mt-2 text-sm leading-relaxed text-ink-soft">{copy}</p>
+            <p className="mt-2 text-body leading-relaxed text-text-soft">{copy}</p>
         </div>
-    );
-}
-
-function LegalSection({
-                          id,
-                          number,
-                          title,
-                          children,
-                      }: {
-    id: string;
-    number: string;
-    title: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <section id={id} className="scroll-mt-28 border-t-2 border-ink pt-6">
-            <div className="flex items-start gap-4">
-        <span className="border-2 border-ink bg-pink px-2 py-1 font-mono text-xs font-bold text-ink">
-          {number}
-        </span>
-                <div className="min-w-0 flex-1">
-                    <h2 className="text-2xl font-black tracking-tight text-ink">
-                        {title}
-                    </h2>
-                    <div className="mt-4 space-y-4 text-base leading-8 text-ink-soft">
-                        {children}
-                    </div>
-                </div>
-            </div>
-        </section>
     );
 }

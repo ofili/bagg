@@ -1664,6 +1664,52 @@ Security claims must correspond to deployed controls.
 
 The marketing site must not imply that a planned feature is already available.
 
+22.5 Marketing expression
+
+Marketing pages use the same tokens and primitives as the rest of the product, arranged with more expression. Expression is a composition choice, not a separate palette or a licence to hand-roll components.
+
+Shared primitives:
+
+- `MarketingSticker` for rotated, uppercase labels.
+- `MarketingCard`, `MarketingFrame`, and `MarketingGrid` for surfaces and layout.
+- `PageHero` for page intros.
+- `SectionHeading` for section intros.
+- `CtaBand` for closing calls to action.
+- `buttonStyles()` for every CTA.
+- `LegalDocumentHeader`, `LegalSection`, and `LegalDocumentFooter` for legal documents.
+
+Typography and labels:
+
+- Eyebrows and stickers are uppercase, extrabold, and widely tracked.
+- Hero headlines may be large and tightly tracked, but use the type scale tokens rather than one-off font sizes where a token exists.
+- Body copy uses the shared text tokens. Do not reintroduce legacy names such as `text-ink-soft` or `text-ink-muted`.
+
+Surfaces and colour:
+
+- Brand surfaces use `bg-mango`, `bg-pink`, and `bg-sun` with their matching `text-on-*` tokens.
+- Do not place `text-ink` on a brand surface; `ink` flips with the theme and loses contrast.
+- Neutrals use `cream`, `surface`, `surface-sunken`, `surface-tint`, and `peach`.
+- Rotated stickers and offset shadow layers are allowed on marketing pages, but keep them decorative and out of the reading order.
+
+Calls to action:
+
+- On neutral surfaces, the primary CTA is the default mango `buttonStyles()`.
+- On mango, pink, or sun surfaces, the primary CTA uses `buttonStyles({ variant: 'ink' })`.
+- Secondary CTAs use `variant: 'outline'`; inline text actions use `variant: 'link'`.
+- Do not rebuild button chrome with ad-hoc border, shadow, or height classes.
+
+Borders and elevation:
+
+- Use `border-brut` (2px) for the primary neo-brutalist outline and `border-brut-thin` (1.5px) for compact chips and dividers. Side variants such as `border-t-brut` and `border-b-brut` come from the same scale.
+- Elevation uses `shadow-brut-sm`, `shadow-brut`, and `shadow-brut-lg` from the token set, not arbitrary shadow values.
+- Cards, panels, and legal documents use `rounded-card`; rows and compact controls use `rounded-row`; inputs use `rounded-input`.
+
+Layout:
+
+- Marketing pages compose sections with `Container` and consistent vertical rhythm (`py-12` to `py-24` by breakpoint).
+- Sub-navigation is a horizontally scrollable row of pill links with a minimum 44px touch target and a visible active state.
+- Legal pages share one shell: an index card, a document column, and a shared next-document footer.
+
 ---
 
 23. Frontend architecture and implementation conventions
