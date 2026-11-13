@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     PAYSTACK_PUBLIC_KEY: Optional[str] = None
     PAYSTACK_INVOICE_WEBHOOK_SECRET: Optional[str] = None
 
+    # Paystack recurring subscription plan codes
+    PAYSTACK_PLAN_CREATOR_PRO_MONTHLY: Optional[str] = None
+    PAYSTACK_PLAN_CREATOR_PRO_ANNUAL: Optional[str] = None
+    PAYSTACK_PLAN_PROFESSIONAL_MONTHLY: Optional[str] = None
+    PAYSTACK_PLAN_PROFESSIONAL_ANNUAL: Optional[str] = None
+
+
     # Explicit trusted reverse-proxy addresses or CIDR ranges.
     # Examples:
     #   10.0.0.10

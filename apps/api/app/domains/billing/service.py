@@ -6,7 +6,7 @@ own business rules and transaction decisions; repositories own SQL construction.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import HTTPException
@@ -190,20 +190,52 @@ async def get_or_create_subscription(
     return subscription
 
 
+
+import calendar
+
+
+def _add_billing_period(
+        start: datetime,
+        interval: str,
+) -> datetime:
+    """Add a calendar billing period, clamping month-end dates safely."""
+    if interval == "monthly":
+        year = start.year + (1 if start.month == 12 else 0)
+        month = 1 if start.month == 12 else start.month + 1
+    elif interval == "annual":
+        year = start.year + 1
+        month = start.month
+    else:
+        raise ValueError("Unsupported billing interval.")
+
+    last_day = calendar.monthrange(year, month)[1]
+    day = min(start.day, last_day)
+
+    return start.replace(year=year, month=month, day=day)
+
+
 async def activate_subscription(
-    workspace_id: str,
-    plan: str,
-    currency: str,
-    amount_minor: int,
-    processor: str,
-    processor_subscription_code: Optional[str],
-    processor_customer_code: Optional[str],
-    db: AsyncSession,
-    *,
-    commit: bool = True,
+        workspace_id: str,
+        plan: str,
+        currency: str,
+        amount_minor: int,
+        processor: str,
+        processor_subscription_code: Optional[str],
+        processor_customer_code: Optional[str],
+        db: AsyncSession,
+        *,
+        billing_interval: str = "annual",
+        processor_plan_code: Optional[str] = None,
+        commit: bool = True,
 ) -> Subscription:
     if plan not in {"creator_pro", "professional"}:
         raise ValueError("Unsupported subscription plan.")
+
+    if billing_interval not in {"monthly", "annual"}:
+        raise ValueError("Unsupported billing interval.")
+
+    if currency.upper() != "NGN":
+        raise ValueError("Unsupported subscription currency.")
 
     repository = BillingRepository(db)
     workspace = await repository.lock_workspace(workspace_id)
@@ -212,33 +244,42 @@ async def activate_subscription(
 
     subscription = await repository.get_subscription(workspace_id, lock=True)
     now = datetime.now(timezone.utc)
-    period_end = now + timedelta(days=ANNUAL_PERIOD_DAYS)
+    period_end = _add_billing_period(now, billing_interval)
 
     if subscription is None:
         subscription = Subscription(workspace_id=workspace_id)
         await repository.add(subscription)
 
+    if processor_plan_code:
+        subscription.plan_code = processor_plan_code
+
     subscription.tier = plan
     subscription.status = "active"
     subscription.currency = currency.upper()
     subscription.amount_minor = amount_minor
-    subscription.billing_interval = "annual"
+    subscription.billing_interval = billing_interval
     subscription.processor = processor
+
     if processor_subscription_code:
         subscription.processor_subscription_code = processor_subscription_code
+
     if processor_customer_code:
         subscription.processor_customer_code = processor_customer_code
+
     subscription.current_period_start = now
     subscription.current_period_end = period_end
     subscription.cancel_at_period_end = False
     subscription.grace_period_end = None
     subscription.dunning_attempts = 0
+
     workspace.tier = plan
 
     await repository.flush()
+
     if commit:
         await db.commit()
         await repository.refresh(subscription)
+
     return subscription
 
 
@@ -269,6 +310,121 @@ async def handle_failed_payment(
     if commit:
         await db.commit()
         await repository.refresh(subscription)
+    return subscription
+
+
+from datetime import datetime, timezone
+
+
+def _parse_provider_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+
+    return parsed.astimezone(timezone.utc)
+
+
+async def apply_subscription_renewal(
+        *,
+        subscription_code: str,
+        amount_minor: int,
+        currency: str,
+        period_start: str | None,
+        period_end: str | None,
+        db: AsyncSession,
+        commit: bool = True,
+) -> Subscription:
+    """Apply a verified, successful Paystack recurring invoice."""
+    repository = BillingRepository(db)
+
+    existing = await repository.get_subscription_by_provider_code(
+        "paystack",
+        subscription_code,
+    )
+    if existing is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No Bagg subscription matches this Paystack subscription.",
+        )
+
+    workspace = await repository.lock_workspace(existing.workspace_id)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="Workspace not found.")
+
+    subscription = await repository.get_subscription(
+        existing.workspace_id,
+        lock=True,
+    )
+    if subscription is None:
+        raise HTTPException(status_code=404, detail="Subscription not found.")
+
+    if subscription.processor_subscription_code != subscription_code:
+        raise HTTPException(
+            status_code=409,
+            detail="Provider subscription reference mismatch.",
+        )
+
+    if not period_start or not period_end:
+        raise HTTPException(
+            status_code=409,
+            detail="Paystack renewal invoice is missing its billing period.",
+        )
+
+    if not currency:
+        raise HTTPException(
+            status_code=409,
+            detail="Paystack renewal invoice is missing its currency.",
+        )
+
+    if int(amount_minor) != int(subscription.amount_minor):
+        raise HTTPException(
+            status_code=409,
+            detail="Renewal amount does not match the stored subscription price.",
+        )
+
+    if currency.upper() != subscription.currency.upper():
+        raise HTTPException(
+            status_code=409,
+            detail="Renewal currency does not match the stored subscription currency.",
+        )
+
+    start = _parse_provider_datetime(period_start)
+    end = _parse_provider_datetime(period_end)
+
+    if start and end and end <= start:
+        raise HTTPException(
+            status_code=409,
+            detail="Provider supplied an invalid subscription billing period.",
+        )
+
+    # Ignore stale invoices that would move the subscription period backwards.
+    if (
+            end
+            and subscription.current_period_end
+            and end <= subscription.current_period_end
+    ):
+        return subscription
+
+    if start:
+        subscription.current_period_start = start
+    if end:
+        subscription.current_period_end = end
+
+    subscription.status = "active"
+    subscription.grace_period_end = None
+    subscription.dunning_attempts = 0
+
+    # Do not clear cancel_at_period_end here. A renewal event must not
+    # reverse an independently confirmed provider-side cancellation.
+    await repository.flush()
+
+    if commit:
+        await db.commit()
+        await repository.refresh(subscription)
+
     return subscription
 
 

@@ -109,6 +109,48 @@ class BillingRepository:
         result = await self.db.execute(statement)
         return list(result.scalars().all())
 
+    async def get_subscription_by_customer_code(
+            self,
+            provider: str,
+            customer_code: str,
+            *,
+            lock: bool = False,
+    ) -> Subscription | None:
+        statement = select(Subscription).where(
+            Subscription.processor == provider,
+            Subscription.processor_customer_code == customer_code,
+            Subscription.processor_subscription_code.is_(None),
+            )
+
+        if lock:
+            statement = statement.with_for_update().execution_options(
+                populate_existing=True
+            )
+
+        result = await self.db.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def get_subscription_by_customer_code(
+            self,
+            provider: str,
+            customer_code: str,
+            *,
+            lock: bool = False,
+    ) -> Subscription | None:
+        statement = select(Subscription).where(
+            Subscription.processor == provider,
+            Subscription.processor_customer_code == customer_code,
+            Subscription.processor_subscription_code.is_(None),
+            )
+
+        if lock:
+            statement = statement.with_for_update().execution_options(
+                populate_existing=True
+            )
+
+        result = await self.db.execute(statement)
+        return result.scalar_one_or_none()
+
     async def add(self, entity) -> None:
         self.db.add(entity)
 

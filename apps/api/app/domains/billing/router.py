@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.domains.workspaces.models import Workspace
-from app.domains.workspaces.router import resolve_active_workspace
 from app.domains.billing.catalog import (
     PLAN_PRICING,
     CREDIT_PACK_PRICING,
@@ -136,15 +135,39 @@ async def buy_credit_pack(
     )
 
 
+from app.integrations.paystack import PaystackClient, PaystackError
+
+
 @router.post("/subscription/cancel", response_model=SubscriptionCancelResponse)
 async def cancel_subscription(
-    workspace: Workspace = Depends(resolve_active_workspace),
-    db: AsyncSession = Depends(get_db),
+        workspace: Workspace = Depends(resolve_active_workspace),
+        db: AsyncSession = Depends(get_db),
 ):
-    sub = await cancel_subscription_renewal(workspace.id, db)
+    sub = await get_or_create_subscription(workspace, db)
+
+    if not sub.processor_subscription_code:
+        raise HTTPException(
+            status_code=409,
+            detail="There is no linked Paystack subscription to manage.",
+        )
+
+    try:
+        manage_url = await PaystackClient().get_subscription_manage_link(
+            sub.processor_subscription_code
+        )
+    except PaystackError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not open subscription management. Please try again.",
+        ) from exc
+
     return SubscriptionCancelResponse(
-        message="Subscription auto-renewal canceled. Paid features remain available until the current billing period ends.",
+        message=(
+            "Complete the cancellation on Paystack. Bagg will update your "
+            "subscription after Paystack confirms the change."
+        ),
         tier=sub.tier,
         current_period_end=sub.current_period_end,
-        cancel_at_period_end=True,
+        cancel_at_period_end=sub.cancel_at_period_end,
+        manage_url=manage_url,
     )

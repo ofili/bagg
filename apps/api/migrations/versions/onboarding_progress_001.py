@@ -177,30 +177,27 @@ def upgrade() -> None:
 
             '[]'::json,
 
-            '[]'::json,
-
+            -- started_at
             CASE
                 WHEN w.onboarding_completed = TRUE
                     THEN COALESCE(w.created_at, w.updated_at, NOW())
                 ELSE NULL
                 END,
 
+            -- completed_at
             CASE
                 WHEN w.onboarding_completed = TRUE
                     THEN COALESCE(w.updated_at, w.created_at, NOW())
                 ELSE NULL
                 END,
 
-            CASE
-                WHEN w.onboarding_completed = TRUE
-                    THEN COALESCE(w.updated_at, w.created_at, NOW())
-                ELSE NULL
-                END,
-
+            -- last_activity_at
             COALESCE(w.updated_at, w.created_at, NOW()),
 
+            -- created_at
             COALESCE(w.created_at, NOW()),
 
+            -- updated_at
             COALESCE(w.updated_at, NOW())
 
         FROM workspaces w

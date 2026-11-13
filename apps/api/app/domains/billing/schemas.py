@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import List, Optional
+from typing import List, Optional, Literal
 from datetime import datetime
 
 
@@ -45,8 +45,8 @@ class SubscriptionResponse(BaseModel):
 
 
 class CheckoutRequest(BaseModel):
-    plan: str  # creator_pro or professional
-    currency: str = "NGN"  # NGN or USD
+    plan: str
+    billing_interval: Literal["monthly", "annual"] = "annual"
     callback_url: Optional[str] = None
 
 
@@ -54,8 +54,20 @@ class CheckoutResponse(BaseModel):
     authorization_url: str
     reference: str
     plan: str
+    billing_interval: Optional[str] = None
     amount_minor: int
     currency: str
+
+
+class CheckoutStatusResponse(BaseModel):
+    reference: str
+    purchase_type: str
+    plan: Optional[str] = None
+    billing_interval: Optional[str] = None
+    amount_minor: int
+    currency: str
+    status: str
+    paid_at: Optional[datetime] = None
 
 
 class CreditPackPurchaseRequest(BaseModel):
@@ -69,3 +81,4 @@ class SubscriptionCancelResponse(BaseModel):
     tier: str
     current_period_end: Optional[datetime] = None
     cancel_at_period_end: bool
+    manage_url: Optional[str] = None

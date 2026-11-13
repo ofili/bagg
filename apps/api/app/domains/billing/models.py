@@ -12,6 +12,7 @@ from sqlalchemy import (
     Text,
     JSON,
 )
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -145,6 +146,9 @@ class BillingCheckout(Base):
     provider_transaction_id = Column(String(128), nullable=True)
     paid_at = Column(DateTime(timezone=True), nullable=True)
     failure_reason = Column(Text, nullable=True)
+    billing_interval = Column(String(16), nullable=True)
+    idempotency_key = Column(String(128), nullable=True)
+    authorization_url = Column(Text, nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -168,6 +172,11 @@ class BillingCheckout(Base):
         CheckConstraint(
             "status IN ('initializing', 'pending', 'succeeded', 'failed')",
             name="ck_billing_checkouts_status",
+        ),
+        UniqueConstraint(
+            "workspace_id",
+            "idempotency_key",
+            name="uq_billing_checkout_workspace_idempotency",
         ),
         Index("ix_billing_checkouts_workspace_status", "workspace_id", "status"),
     )
