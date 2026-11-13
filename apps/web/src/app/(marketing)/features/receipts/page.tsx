@@ -17,11 +17,12 @@ import { FeaturePageLink, FeatureSubnav} from "@/components/marketing/feature-su
 import { buttonStyles } from '@/components/ui/button';
 import { marketingMetadata } from '@/lib/metadata';
 import {Metadata} from "next";
+import {MarketingBreadcrumbStructuredData} from "@/components/marketing/marketing-structured-data";
 
 export const metadata: Metadata = marketingMetadata({
-    title: 'Payment receipts',
+    title: 'Payment Receipt Generator for Freelancers',
     description:
-        'Create verified payment receipts, share them with clients and keep every receipt connected to its invoice.',
+        'Create verified payment receipts, share them with clients and keep every receipt connected to its original invoice.',
     path: '/features/receipts',
 });
 
@@ -72,6 +73,12 @@ const sharingOptions = [
 export default function ReceiptsFeaturePage() {
     return (
         <>
+            <MarketingBreadcrumbStructuredData items={[
+                { name: 'Home', path: '/' },
+                { name: 'Features', path: '/features' },
+                { name: 'Receipts', path: '/features/receipts' },
+            ]} />
+
             <FeatureSubnav currentPath="/features/receipts" />
             <main className="overflow-hidden bg-cream">
                 <section className="relative pb-16 pt-12 sm:pb-20 sm:pt-16 lg:pb-24 lg:pt-20">

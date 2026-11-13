@@ -5,6 +5,7 @@ import { Bricolage_Grotesque } from 'next/font/google';
 import React from 'react';
 
 import { ThemeProvider } from '@/components/theme/theme-provider';
+import {siteDescription, siteUrl} from "@/lib/site";
 
 const bricolage = Bricolage_Grotesque({
   subsets: ['latin', 'latin-ext'],
@@ -50,24 +51,33 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Bagg | Invoice like a pro. Get paid without chasing.',
-  description:
-    'Invoicing and get-paid workspace tailored for African freelancers and creators.',
+  metadataBase: new URL(siteUrl),
+
+  title: {
+    default: 'Freelancer Invoicing & Payment Software | Bagg',
+    template: '%s | Bagg',
+  },
+
+  description: siteDescription,
+
+  applicationName: 'Bagg',
+
   manifest: '/manifest.json',
+
   openGraph: {
-    title: 'Bagg | Invoice like a pro. Get paid without chasing.',
-    description:
-      'Invoicing and get-paid workspace tailored for African freelancers and creators.',
+    title: 'Freelancer Invoicing & Payment Software | Bagg',
+    description: siteDescription,
     type: 'website',
     locale: 'en_NG',
     siteName: 'Bagg',
   },
+
   twitter: {
     card: 'summary_large_image',
-    title: 'Bagg | Invoice like a pro. Get paid without chasing.',
-    description:
-      'Invoicing and get-paid workspace tailored for African freelancers and creators.',
+    title: 'Freelancer Invoicing & Payment Software | Bagg',
+    description: siteDescription,
   },
+
   other: {
     'apple-mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-status-bar-style': 'default',
@@ -88,6 +98,7 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <title>Bagg | Invoice like a pro</title>
       </head>
 
       <body className="min-h-dvh bg-cream font-sans text-text antialiased selection:bg-sun">

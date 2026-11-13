@@ -8,7 +8,6 @@ import {
     CircleAlert,
     Clock3,
     CreditCard,
-    FileCheck2,
     Landmark,
     ReceiptText,
     ShieldCheck,
@@ -21,9 +20,10 @@ import { buttonStyles } from '@/components/ui/button';
 import { currencies } from '@/content/marketing';
 import { marketingMetadata } from '@/lib/metadata';
 import {Metadata} from "next";
+import {MarketingBreadcrumbStructuredData} from "@/components/marketing/marketing-structured-data";
 
 export const metadata: Metadata = marketingMetadata({
-    title: 'Payments and reminders',
+    title: 'Payments Tracking and Reminders for Freelancers',
     description:
         'Track payments, confirm transfers, manage partial payments and follow up on outstanding invoices with Bagg.',
     path: '/features/payments',
@@ -107,6 +107,11 @@ const paymentStages = [
 export default function PaymentsFeaturePage() {
     return (
         <>
+            <MarketingBreadcrumbStructuredData items={[
+                { name: 'Home', path: '/' },
+                { name: 'Features', path: '/features' },
+                { name: 'Payments', path: '/features/payments' },
+            ]} />
             <FeatureSubnav currentPath="/features/payments" />
             <main className="overflow-hidden bg-cream">
                 <section className="relative pb-16 pt-12 sm:pb-20 sm:pt-16 lg:pb-24 lg:pt-20">

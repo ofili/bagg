@@ -34,8 +34,9 @@ import {
 
 import { defaultMarketingMetadata } from '@/lib/metadata';
 import { demoInvoiceHref } from '@/lib/site';
+import {Metadata} from "next";
 
-export const metadata = defaultMarketingMetadata;
+export const metadata: Metadata = defaultMarketingMetadata;
 
 export default function MarketingPage() {
   return (

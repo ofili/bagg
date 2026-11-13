@@ -20,11 +20,12 @@ import { currencies } from '@/content/marketing';
 import { marketingMetadata } from '@/lib/metadata';
 import { demoInvoiceHref } from '@/lib/site';
 import {Metadata} from "next";
+import {MarketingBreadcrumbStructuredData} from "@/components/marketing/marketing-structured-data";
 
 export const metadata: Metadata = marketingMetadata({
-    title: 'features',
+    title: 'Invoicing, Quotes and Payment Tracking Features',
     description:
-        'Quotes, invoices, shareable links, payment tracking, reminders and receipts in one workspace for freelancers and creators.',
+        'Explore Bagg features for creating quotes, sending invoices, tracking payments, automating reminders and issuing receipts',
     path: '/features',
 });
 
@@ -74,6 +75,10 @@ const capabilities = [
 export default function FeaturesPage() {
     return (
         <>
+            <MarketingBreadcrumbStructuredData items={[
+                { name: 'Home', path: '/' },
+                { name: 'Features', path: '/features' },
+            ]} />
         <FeatureSubnav currentPath="/features" />
             <main>
                 {/* HERO */}

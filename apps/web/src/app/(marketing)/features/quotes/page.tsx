@@ -17,9 +17,10 @@ import { buttonStyles } from '@/components/ui/button';
 import { currencies } from '@/content/marketing';
 import { marketingMetadata } from '@/lib/metadata';
 import {Metadata} from "next";
+import {MarketingBreadcrumbStructuredData} from "@/components/marketing/marketing-structured-data";
 
 export const metadata: Metadata = marketingMetadata({
-    title: 'quotes',
+    title: 'Quotation Software for Freelancers',
     description:
         'Prepare professional quotes, agree commercial terms with clients, manage revisions and convert accepted quotes into invoices.',
     path: '/features/quotes',
@@ -38,6 +39,12 @@ const quoteContents = [
 export default function QuotesPage() {
     return (
         <>
+            <MarketingBreadcrumbStructuredData items={[
+                { name: 'Home', path: '/' },
+                { name: 'Features', path: '/features' },
+                { name: 'Quotes', path: '/features/quotes' },
+            ]} />
+
             <FeatureSubnav currentPath="/features/quotes" />
             <main>
                 {/* HERO */}

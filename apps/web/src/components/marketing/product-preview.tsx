@@ -131,9 +131,6 @@ export function ProductPreview() {
             <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
               Invoice total
             </p>
-            <span className="text-caption font-bold text-text-muted">
-            Example only
-          </span>
           </div>
 
           <p className="mt-2 text-[clamp(2rem,5vw,2.75rem)] font-extrabold leading-none tracking-tight text-ink">
@@ -287,10 +284,6 @@ export function ProductPreview() {
               );
             })}
           </div>
-
-          <p className="mt-3 text-center text-[11px] leading-relaxed text-text-muted">
-            Illustrative invoice journey. Payment states are examples, not live transaction data.
-          </p>
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-line bg-cream px-4 py-3">

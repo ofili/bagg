@@ -12,6 +12,7 @@ export const footerGroups = [
     title: 'Product',
     links: [
       { label: 'Features', href: '/features' },
+      { label: 'For creatives', href: '/creatives' },
       { label: 'For freelancers', href: '/freelancers' },
       { label: 'For consultants', href: '/consultants' },
       { label: 'For creative studios', href: '/studios' },
@@ -26,7 +27,6 @@ export const footerGroups = [
       { label: 'About', href: '/about' },
       { label: 'Help', href: '/help' },
       { label: 'Contact', href: '/contact' },
-      { label: 'Early access', href: '/early-access' },
     ],
   },
   {
@@ -70,7 +70,7 @@ export const homeFaqs = [
   {
     question: 'Is there a free way to start?',
     answer:
-      'Yes. You can start without a card and use three free PDF or email sends. Paid plans and fees are being finalised, and they will be shown clearly before you are charged.',
+        'Yes. Start with Free and use three PDF or email sends each month without a card. When you need more capacity, Creator Pro is ₦24,000 per year or $39 per year, and Professional is ₦60,000 per year or $99 per year. Studio is planned for a future release.',
   },
 ];
 

@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+
 import { absoluteUrl } from '@/lib/site';
 
 export default function robots(): MetadataRoute.Robots {
@@ -6,19 +7,24 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
+
         allow: '/',
+
         disallow: [
+          '/api/',
           '/dashboard',
           '/clients',
           '/quotes',
           '/invoices',
+          '/payments',
+          '/receipts',
           '/settings',
-          '/i/',
-          '/q/',
-          '/r/',
+          '/profile',
+          '/onboarding',
         ],
       },
     ],
+
     sitemap: absoluteUrl('/sitemap.xml'),
   };
 }

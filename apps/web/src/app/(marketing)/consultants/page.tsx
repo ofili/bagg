@@ -1,14 +1,24 @@
 import { AudiencePage } from '@/components/marketing/audience-page';
 import { marketingMetadata } from '@/lib/metadata';
 import {Metadata} from "next";
+import {MarketingBreadcrumbStructuredData} from "@/components/marketing/marketing-structured-data";
 
 export const metadata: Metadata = marketingMetadata({
-    title: 'for consultants',
+    title: 'Invoicing Software for Consultants',
     description:
-        'Present fees, issue invoices and track client payments with a clearer commercial record for your consultancy.',
+        'Manage consulting fees, prepare professional quotations, invoice clients and track payments in one workspace with Bagg.',
     path: '/consultants',
 });
 
 export default function ConsultantsPage() {
-    return <AudiencePage audience="consultants" />;
+    return (
+        <>
+            <MarketingBreadcrumbStructuredData items={[
+                { name: 'Home', path: '/' },
+                { name: 'Consultants', path: '/consultants' },
+            ]} />
+
+            <AudiencePage audience="consultants" />;
+        </>
+    );
 }

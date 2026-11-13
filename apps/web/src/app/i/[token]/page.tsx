@@ -9,6 +9,7 @@ import { BagCharacter } from '@/components/brand';
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { InvoiceDocument, PaymentDetails } from '@/components/invoice';
 import { ClientPayBar, ClientPayView, type ClientPayProps } from '@/components/mobile/ClientPay';
+import { Money } from '@/components/money/Money';
 import { MoneyInput } from '@/components/mobile/MoneyInput';
 import { Button, Card, Dialog, Field, Input, inputStyles } from '@/components/ui';
 import { cleanAmount, toMinor } from '@/lib/amount';
@@ -427,273 +428,485 @@ export default function PublicClientInvoiceView() {
       />
   );
 
+
   return (
       <div className="min-h-dvh bg-cream p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
-      <div className="mx-auto max-w-xl space-y-6">
-        {/* Copy and status toast */}
-        {toastMsg && (
-          <div
-            role="status"
-            className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2 rounded-btn border-brut-thin border-ink bg-surface px-4 py-2 text-body font-extrabold shadow-brut"
-          >
-            <Check aria-hidden className="h-4 w-4 text-leaf" />
-            <span>{toastMsg}</span>
-          </div>
-        )}
-
-        {/* Revision banner */}
-        {is_revised && revision_banner && (
-          <Card zone="calm" tone="peach" className="flex items-start gap-2.5 text-body">
-            <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{revision_banner}</span>
-          </Card>
-        )}
-
-        
-        {remainingMinor > 0 && invoice.status !== 'paid' && (
-          <Card zone="calm" className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-extrabold text-heading">Pay online securely</p>
-              <p className="text-body text-text-soft">Pay with debit card, bank transfer, or USSD.</p>
-              {checkoutError && <p role="alert" className="mt-1 text-caption text-danger">{checkoutError}</p>}
-            </div>
-            <Button
-              zone="calm"
-              size="lg"
-              loading={checkingOut}
-              onClick={handleInitiateCheckout}
-            >
-              <CreditCard aria-hidden className="h-4 w-4" />
-              Pay now
-            </Button>
-          </Card>
-        )}
-
-        <ClientPayView {...payProps} />
-
-        <details className="rounded-card border-brut border-ink bg-surface sm:hidden">
-          <summary className="flex min-h-12 cursor-pointer items-center px-4 font-extrabold">
-            View full invoice
-          </summary>
-          <div className="p-3">{invoiceDoc}</div>
-        </details>
-        <div className="hidden sm:block">{invoiceDoc}</div>
-
-
-        {/* Document Discussion */}
-        <DocumentComments
-          documentType="invoice"
-          documentId={invoice.id}
-          isPublicView={true}
-          shareToken={token}
-          documentNumber={invoice.invoice_number}
-        />
-
-        {/* Branding footer, only when the plan shows it */}
-        {show_viral_footer && (
-          <div className="text-center">
-            <Link
-              href={viral_footer_link || 'https://bagg.africa?utm_source=invoice_footer&utm_medium=referral'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-11 items-center gap-2 text-caption text-text-muted hover:text-text"
-            >
-              <BagCharacter size={20} decorative />
-              <span>Sent with bagg. Invoicing for African creators.</span>
-            </Link>
-          </div>
-        )}
-
-        <div className="text-center">
-          <Button variant="link" onClick={() => setShowAbuseDialog(true)} className="text-caption font-medium">
-            Report this invoice as suspicious
-          </Button>
-        </div>
-      </div>
-
-        <ClientPayBar {...payProps} />
-
-        {/* "I've paid" dialog */}
-      <Dialog
-        open={isClaimDialogOpen}
-        onClose={() => !submittingClaim && setIsClaimDialogOpen(false)}
-        title="I've paid this invoice"
-        description="Share your payment details so your freelancer can verify the funds and send your receipt."
-        className="max-h-[92dvh] overflow-y-auto"
-      >
-        <form onSubmit={handleClaimPayment} className="space-y-4">
-          {claimError && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 rounded-row border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-            >
-              <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-              <span>{claimError}</span>
-            </div>
+        <div className="mx-auto max-w-7xl space-y-6">
+          {/* Toast */}
+          {toastMsg && (
+              <div
+                  role="status"
+                  className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2 rounded-btn border-brut-thin border-ink bg-surface px-4 py-2 text-body font-extrabold shadow-brut"
+              >
+                <Check aria-hidden className="h-4 w-4 text-leaf" />
+                <span>{toastMsg}</span>
+              </div>
           )}
 
-          <div className="space-y-2">
-            <MoneyInput
-              label="Amount you paid"
-              currency={invoice.currency}
-              value={claimAmount}
-              onChange={(v) => setClaimAmount(cleanAmount(v, claimAmount))}
-              required
-            />
-            {/* Quick amount shortcuts */}
-            <div className="flex flex-wrap items-center gap-2 pt-0.5">
-              <button
-                type="button"
-                onClick={() => setClaimAmount((remainingMinor / 100).toFixed(2))}
-                className="rounded-btn border border-line bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
+          {/* Revision notice */}
+          {is_revised && revision_banner && (
+              <Card
+                  zone="calm"
+                  tone="peach"
+                  className="flex items-start gap-2.5 text-body"
               >
-                Full balance ({(remainingMinor / 100).toFixed(2)} {invoice.currency})
-              </button>
-              {invoice.deposit_amount_minor &&
-                invoice.deposit_amount_minor > 0 &&
-                remainingMinor > invoice.deposit_amount_minor && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setClaimAmount(((invoice.deposit_amount_minor || 0) / 100).toFixed(2))
-                    }
-                    className="rounded-btn border border-line bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
+                <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{revision_banner}</span>
+              </Card>
+          )}
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+            {/* Main document column */}
+            <div className="min-w-0 space-y-6">
+              {/* Online payment: mobile and tablet */}
+              {remainingMinor > 0 && invoice.status !== 'paid' && (
+                  <Card
+                      zone="calm"
+                      className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between lg:hidden"
                   >
-                    Deposit only ({((invoice.deposit_amount_minor || 0) / 100).toFixed(2)}{' '}
-                    {invoice.currency})
-                  </button>
-                )}
-            </div>
-          </div>
+                    <div>
+                      <p className="font-extrabold text-heading">
+                        Pay online securely
+                      </p>
+                      <p className="text-body text-text-soft">
+                        Pay with debit card, bank transfer, or USSD.
+                      </p>
+                      {checkoutError && (
+                          <p role="alert" className="mt-1 text-caption text-danger">
+                            {checkoutError}
+                          </p>
+                      )}
+                    </div>
 
-          <Field label="Date you paid">
-            {(a) => (
-              <Input
-                type="date"
-                required
-                max={new Date().toISOString().split('T')[0]}
-                value={claimDate}
-                onChange={(e) => setClaimDate(e.target.value)}
-                {...a}
-              />
-            )}
-          </Field>
-
-          <Field
-            label="Transfer reference (optional)"
-            hint="Bank session ID, transaction ref, or your sender bank/account name."
-          >
-            {(a) => (
-              <Input
-                type="text"
-                placeholder="e.g. 0901238492 or Access Bank transfer"
-                value={claimReference}
-                onChange={(e) => setClaimReference(e.target.value)}
-                {...a}
-              />
-            )}
-          </Field>
-
-          <Field
-            label="Link to proof (optional)"
-            hint="A link to a receipt screenshot or bank payment slip."
-          >
-            {(a) => (
-              <Input
-                type="text"
-                placeholder="https://..."
-                value={claimProofUrl}
-                onChange={(e) => setClaimProofUrl(e.target.value)}
-                {...a}
-              />
-            )}
-          </Field>
-
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              zone="calm"
-              size="lg"
-              disabled={submittingClaim}
-              onClick={() => setIsClaimDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" zone="calm" size="lg" loading={submittingClaim}>
-              Send details
-            </Button>
-          </div>
-        </form>
-      </Dialog>
-
-      {/* Report abuse dialog */}
-      <Dialog
-        open={showAbuseDialog}
-        onClose={() => !submittingAbuse && setShowAbuseDialog(false)}
-        title="Report this invoice"
-        description="If this invoice looks like impersonation, phishing, or a charge you did not expect, let us know."
-        className="max-h-[92dvh] overflow-y-auto"
-      >
-        <div className="space-y-4">
-          {abuseSuccess ? (
-            <p role="status" className="flex items-start gap-2 rounded-row bg-peach p-3 text-body font-medium">
-              <Check aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-leaf" />
-              Thank you. Your report was sent and our team will look at this invoice promptly.
-            </p>
-          ) : (
-            <form onSubmit={handleReportAbuse} className="space-y-4">
-              {abuseError && (
-                <div
-                  role="alert"
-                  className="flex items-start gap-2 rounded-row border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-                >
-                  <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-                  <span>{abuseError}</span>
-                </div>
+                    <Button
+                        zone="calm"
+                        size="lg"
+                        loading={checkingOut}
+                        onClick={handleInitiateCheckout}
+                    >
+                      <CreditCard aria-hidden className="h-4 w-4" />
+                      Pay now
+                    </Button>
+                  </Card>
               )}
 
-              <Field label="What looks wrong?" hint="At least 10 characters.">
-                {(a) => (
-                  <textarea
-                    required
-                    minLength={10}
-                    rows={4}
-                    value={abuseReason}
-                    onChange={(e) => setAbuseReason(e.target.value)}
-                    className={cn(inputStyles, 'min-h-28 py-2')}
-                    {...a}
-                  />
-                )}
-              </Field>
-              <Field label="Your email (optional)">
-                {(a) => (
-                  <Input type="email" value={abuseEmail} onChange={(e) => setAbuseEmail(e.target.value)} {...a} />
-                )}
-              </Field>
-              <Field label="Your name (optional)">
-                {(a) => <Input type="text" value={abuseName} onChange={(e) => setAbuseName(e.target.value)} {...a} />}
-              </Field>
+              {/* Mobile payment experience */}
+              <ClientPayView {...payProps} />
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <Button
+              {/* Full invoice: expandable on mobile */}
+              <details className="rounded-card border-brut border-ink bg-surface sm:hidden">
+                <summary className="flex min-h-12 cursor-pointer items-center justify-between px-4 font-extrabold">
+                  <span>View full invoice</span>
+                  <span className="text-caption text-text-muted">
+                  {invoice.invoice_number}
+                </span>
+                </summary>
+                <div className="p-3">{invoiceDoc}</div>
+              </details>
+
+              {/* Full invoice: desktop and tablet */}
+              <div className="hidden sm:block">
+                {invoiceDoc}
+              </div>
+
+              {/* Discussion */}
+              <DocumentComments
+                  documentType="invoice"
+                  documentId={invoice.id}
+                  isPublicView={true}
+                  shareToken={token}
+                  documentNumber={invoice.invoice_number}
+              />
+            </div>
+
+            {/* Supporting payment column */}
+            <aside className="hidden space-y-6 lg:sticky lg:top-6 lg:block">
+              {/* Payment action */}
+              {remainingMinor > 0 && invoice.status !== 'paid' && (
+                  <Card
+                      zone="calm"
+                      className="space-y-4 border-brut border-ink p-5 shadow-brut"
+                  >
+                    <div>
+                      <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
+                        Ready to pay?
+                      </p>
+                      <p className="mt-2 text-amount-l font-extrabold">
+                        <Money
+                            amountMinor={remainingMinor}
+                            currency={invoice.currency}
+                            variant="total"
+                            hideCurrencyCode
+                        />
+                      </p>
+                      <p className="mt-1 text-body text-text-soft">
+                        Outstanding balance
+                      </p>
+                    </div>
+
+                    <Button
+                        zone="calm"
+                        size="lg"
+                        fullWidth
+                        loading={checkingOut}
+                        onClick={handleInitiateCheckout}
+                    >
+                      <CreditCard aria-hidden className="h-4 w-4" />
+                      Pay online
+                    </Button>
+
+                    {checkoutError && (
+                        <p role="alert" className="text-caption text-danger">
+                          {checkoutError}
+                        </p>
+                    )}
+
+                    <p className="text-caption text-text-muted">
+                      Secure checkout. Your payment is confirmed through the
+                      payment provider.
+                    </p>
+                  </Card>
+              )}
+
+              {/* Payment summary */}
+              <Card zone="calm" className="space-y-4 p-5">
+                <div>
+                  <h2 className="text-heading">payment summary</h2>
+                  <p className="mt-1 text-caption text-text-muted">
+                    Invoice {invoice.invoice_number}
+                  </p>
+                </div>
+
+                <dl className="space-y-3 text-body">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-text-soft">Invoice total</dt>
+                    <dd className="font-semibold">
+                      <Money
+                          amountMinor={payable}
+                          currency={invoice.currency}
+                          hideCurrencyCode
+                      />
+                    </dd>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-text-soft">Paid</dt>
+                    <dd className="font-semibold">
+                      <Money
+                          amountMinor={invoice.amount_paid_minor || 0}
+                          currency={invoice.currency}
+                          variant="paid"
+                          hideCurrencyCode
+                      />
+                    </dd>
+                  </div>
+
+                  <div className="border-t border-line pt-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="font-extrabold">Outstanding</dt>
+                      <dd className="font-extrabold">
+                        <Money
+                            amountMinor={remainingMinor}
+                            currency={invoice.currency}
+                            variant="total"
+                            hideCurrencyCode
+                        />
+                      </dd>
+                    </div>
+                  </div>
+                </dl>
+
+                <div className="space-y-2 border-t border-line pt-3 text-body">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-soft">Issued</span>
+                    <span className="font-medium">
+                    {formatDate(invoice.issue_date)}
+                  </span>
+                  </div>
+
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-soft">Due</span>
+                    <span className="font-medium">
+                    {formatDate(invoice.due_date)}
+                  </span>
+                  </div>
+                </div>
+
+                {invoice.status === 'paid' || remainingMinor === 0 ? (
+                    <div className="rounded-row border border-leaf/40 bg-leaf/10 p-3 text-body font-bold">
+                      <Check aria-hidden className="mr-2 inline h-4 w-4" />
+                      Payment complete
+                    </div>
+                ) : (
+                    <div className="rounded-row bg-surface-tint p-3 text-caption text-text-soft">
+                      Use the payment instructions on the invoice if you prefer
+                      a bank transfer.
+                    </div>
+                )}
+              </Card>
+            </aside>
+          </div>
+
+          {/* Bagg referral footer */}
+          {show_viral_footer && (
+              <div className="text-center">
+                <Link
+                    href={
+                        viral_footer_link ||
+                        'https://bagg.africa?utm_source=invoice_footer&utm_medium=referral'
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-11 items-center gap-2 text-caption text-text-muted hover:text-text"
+                >
+                  <BagCharacter size={20} decorative />
+                  <span>Sent with bagg. Invoicing for African creators.</span>
+                </Link>
+              </div>
+          )}
+
+          {/* Report suspicious invoice */}
+          <div className="text-center">
+            <Button
+                variant="link"
+                onClick={() => setShowAbuseDialog(true)}
+                className="text-caption font-medium"
+            >
+              Report this invoice as suspicious
+            </Button>
+          </div>
+        </div>
+
+        {/* Mobile sticky payment action */}
+        <ClientPayBar {...payProps} />
+
+        {/* Payment claim dialog */}
+        <Dialog
+            open={isClaimDialogOpen}
+            onClose={() => !submittingClaim && setIsClaimDialogOpen(false)}
+            title="I've paid this invoice"
+            description="Share your payment details so your freelancer can verify the funds and send your receipt."
+            className="max-h-[92dvh] overflow-y-auto"
+        >
+          <form onSubmit={handleClaimPayment} className="space-y-4">
+            {claimError && (
+                <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-row border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+                >
+                  <AlertCircle
+                      aria-hidden
+                      className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400"
+                  />
+                  <span>{claimError}</span>
+                </div>
+            )}
+
+            <div className="space-y-2">
+              <MoneyInput
+                  label="Amount you paid"
+                  currency={invoice.currency}
+                  value={claimAmount}
+                  onChange={(v) => setClaimAmount(cleanAmount(v, claimAmount))}
+                  required
+              />
+
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                <button
+                    type="button"
+                    onClick={() =>
+                        setClaimAmount((remainingMinor / 100).toFixed(2))
+                    }
+                    className="rounded-btn border border-line bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
+                >
+                  Full balance ({(remainingMinor / 100).toFixed(2)}{' '}
+                  {invoice.currency})
+                </button>
+
+                {invoice.deposit_amount_minor &&
+                    invoice.deposit_amount_minor > 0 &&
+                    remainingMinor > invoice.deposit_amount_minor && (
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setClaimAmount(
+                                    ((invoice.deposit_amount_minor || 0) / 100).toFixed(2),
+                                )
+                            }
+                            className="rounded-btn border border-line bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
+                        >
+                          Deposit only (
+                          {((invoice.deposit_amount_minor || 0) / 100).toFixed(2)}{' '}
+                          {invoice.currency})
+                        </button>
+                    )}
+              </div>
+            </div>
+
+            <Field label="Date you paid">
+              {(a) => (
+                  <Input
+                      type="date"
+                      required
+                      max={new Date().toISOString().split('T')[0]}
+                      value={claimDate}
+                      onChange={(e) => setClaimDate(e.target.value)}
+                      {...a}
+                  />
+              )}
+            </Field>
+
+            <Field
+                label="Transfer reference (optional)"
+                hint="Bank session ID, transaction ref, or your sender bank/account name."
+            >
+              {(a) => (
+                  <Input
+                      type="text"
+                      placeholder="e.g. 0901238492 or Access Bank transfer"
+                      value={claimReference}
+                      onChange={(e) => setClaimReference(e.target.value)}
+                      {...a}
+                  />
+              )}
+            </Field>
+
+            <Field
+                label="Link to proof (optional)"
+                hint="A link to a receipt screenshot or bank payment slip."
+            >
+              {(a) => (
+                  <Input
+                      type="text"
+                      placeholder="https://..."
+                      value={claimProofUrl}
+                      onChange={(e) => setClaimProofUrl(e.target.value)}
+                      {...a}
+                  />
+              )}
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Button
                   type="button"
                   variant="outline"
                   zone="calm"
                   size="lg"
-                  onClick={() => setShowAbuseDialog(false)}
-                  disabled={submittingAbuse}
+                  disabled={submittingClaim}
+                  onClick={() => setIsClaimDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                  type="submit"
+                  zone="calm"
+                  size="lg"
+                  loading={submittingClaim}
+              >
+                Send details
+              </Button>
+            </div>
+          </form>
+        </Dialog>
+
+        {/* Report abuse dialog */}
+        <Dialog
+            open={showAbuseDialog}
+            onClose={() => !submittingAbuse && setShowAbuseDialog(false)}
+            title="Report this invoice"
+            description="If this invoice looks like impersonation, phishing, or a charge you did not expect, let us know."
+            className="max-h-[92dvh] overflow-y-auto"
+        >
+          <div className="space-y-4">
+            {abuseSuccess ? (
+                <p
+                    role="status"
+                    className="flex items-start gap-2 rounded-row bg-peach p-3 text-body font-medium"
                 >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="danger" zone="calm" size="lg" loading={submittingAbuse}>
-                  Send report
-                </Button>
-              </div>
-            </form>
-          )}
-        </div>
-      </Dialog>
-    </div>
+                  <Check
+                      aria-hidden
+                      className="mt-0.5 h-4 w-4 shrink-0 text-leaf"
+                  />
+                  Thank you. Your report was sent and our team will look at this
+                  invoice promptly.
+                </p>
+            ) : (
+                <form onSubmit={handleReportAbuse} className="space-y-4">
+                  {abuseError && (
+                      <div
+                          role="alert"
+                          className="flex items-start gap-2 rounded-row border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+                      >
+                        <AlertCircle
+                            aria-hidden
+                            className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400"
+                        />
+                        <span>{abuseError}</span>
+                      </div>
+                  )}
+
+                  <Field label="What looks wrong?" hint="At least 10 characters.">
+                    {(a) => (
+                        <textarea
+                            required
+                            minLength={10}
+                            rows={4}
+                            value={abuseReason}
+                            onChange={(e) => setAbuseReason(e.target.value)}
+                            className={cn(inputStyles, 'min-h-28 py-2')}
+                            {...a}
+                        />
+                    )}
+                  </Field>
+
+                  <Field label="Your email (optional)">
+                    {(a) => (
+                        <Input
+                            type="email"
+                            value={abuseEmail}
+                            onChange={(e) => setAbuseEmail(e.target.value)}
+                            {...a}
+                        />
+                    )}
+                  </Field>
+
+                  <Field label="Your name (optional)">
+                    {(a) => (
+                        <Input
+                            type="text"
+                            value={abuseName}
+                            onChange={(e) => setAbuseName(e.target.value)}
+                            {...a}
+                        />
+                    )}
+                  </Field>
+
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        zone="calm"
+                        size="lg"
+                        onClick={() => setShowAbuseDialog(false)}
+                        disabled={submittingAbuse}
+                    >
+                      Cancel
+                    </Button>
+
+                    <Button
+                        type="submit"
+                        variant="danger"
+                        zone="calm"
+                        size="lg"
+                        loading={submittingAbuse}
+                    >
+                      Send report
+                    </Button>
+                  </div>
+                </form>
+            )}
+          </div>
+        </Dialog>
+      </div>
   );
 }

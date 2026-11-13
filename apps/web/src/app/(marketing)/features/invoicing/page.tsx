@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
-import { FeaturePageLink, FeatureSubnav} from "@/components/marketing/feature-sub-nav";
+import { FeatureSubnav} from "@/components/marketing/feature-sub-nav";
+import { MarketingBreadcrumbStructuredData } from "@/components/marketing/marketing-structured-data";
 import { buttonStyles } from '@/components/ui/button';
 import { currencies } from '@/content/marketing';
 import { marketingMetadata } from '@/lib/metadata';
@@ -21,9 +22,9 @@ import { demoInvoiceHref } from '@/lib/site';
 import {Metadata} from "next";
 
 export const metadata: Metadata = marketingMetadata({
-    title: 'invoicing',
+    title: 'Invoice Software for Freelancers',
     description:
-        'Create professional invoices, share them with one client link, and keep payment status and balances visible.',
+        'Create professional invoices, add line items and payment details, share invoice links and track outstanding balances with Bagg.',
     path: '/features/invoicing',
 });
 
@@ -39,7 +40,14 @@ const invoiceFields = [
 export default function InvoicingPage() {
     return (
         <>
-        <FeatureSubnav currentPath="/features/invoicing" />
+            <MarketingBreadcrumbStructuredData items={[
+                { name: 'Home', path: '/' },
+                { name: 'Features', path: '/features' },
+                { name: 'Invoicing', path: '/features/invoicing' },
+            ]} />
+
+            <FeatureSubnav currentPath="/features/invoicing" />
+
             <main>
                 {/* HERO */}
                 <section className="overflow-hidden border-b-2 border-ink bg-cream">
@@ -367,27 +375,6 @@ export default function InvoicingPage() {
                         </div>
                     </Container>
                 </section>
-
-                {/* Inner Link */}
-                {/*<section className="bg-cream px-4 py-10 sm:px-6 lg:px-8">*/}
-                {/*    <div className="mx-auto max-w-7xl border-2 border-ink bg-mango p-6 shadow-brut sm:p-8">*/}
-                {/*        <p className="text-caption font-extrabold uppercase tracking-wide text-ink">*/}
-                {/*            Next: getting paid*/}
-                {/*        </p>*/}
-                {/*        <h2 className="mt-2 text-title-l text-ink">*/}
-                {/*            The invoice is sent. What happens next?*/}
-                {/*        </h2>*/}
-                {/*        <p className="mt-3 max-w-2xl text-body-l text-ink">*/}
-                {/*            Track payment progress, review payment claims and keep outstanding balances visible.*/}
-                {/*        </p>*/}
-                {/*        <Link*/}
-                {/*            href="/features/payments"*/}
-                {/*            className="mt-6 inline-flex min-h-11 items-center border-2 border-ink bg-surface px-5 font-extrabold text-ink hover:bg-surface-tint"*/}
-                {/*        >*/}
-                {/*            Explore payments →*/}
-                {/*        </Link>*/}
-                {/*    </div>*/}
-                {/*</section>*/}
 
                 {/* CTA */}
                 <section className="bg-cream py-16 sm:py-20">
