@@ -213,3 +213,27 @@ class BillingRepository:
                 populate_existing=True
             )
         return (await self.db.execute(statement)).scalar_one_or_none()
+    
+    async def list_pending_subscription_checkouts(
+        self,
+        workspace_id: str,
+        *,
+        limit: int = 10,
+    ) -> list[BillingCheckout]:
+        statement = (
+            select(BillingCheckout)
+            .where(
+                BillingCheckout.workspace_id == workspace_id,
+                BillingCheckout.purchase_type == "subscription",
+                BillingCheckout.status == "pending",
+                BillingCheckout.authorization_url.is_not(None),
+            )
+            .order_by(
+                BillingCheckout.created_at.desc(),
+                BillingCheckout.id.desc(),
+            )
+            .limit(limit)
+        )
+
+        result = await self.db.execute(statement)
+        return list(result.scalars().all())

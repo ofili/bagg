@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 from fastapi import (
     APIRouter,
@@ -11,6 +12,7 @@ from fastapi import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.domains.workspaces.models import Workspace
 from app.domains.workspaces.dependencies import resolve_active_workspace
@@ -46,6 +48,7 @@ from app.domains.billing.checkout_service import (
     create_billing_checkout,
     get_checkout_reconciliation_snapshot,
     apply_reconciliation_result,
+    _paystack_plan_code,
 )
 from app.domains.billing.models import BillingCheckout
 from app.domains.entitlements.service import get_workspace_entitlements
@@ -58,8 +61,44 @@ router = APIRouter(
 )
 
 
+def _validate_checkout_callback_url(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    candidate = urlsplit(value)
+    trusted = urlsplit(settings.WEB_BASE_URL)
+
+    if (
+        not candidate.scheme
+        or not candidate.netloc
+        or candidate.scheme != trusted.scheme
+        or candidate.netloc != trusted.netloc
+        or candidate.username is not None
+        or candidate.password is not None
+        or candidate.path != "/billing/checkout/pending"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid checkout callback URL.",
+        )
+
+    return value
+
+
 @router.get("/plans", response_model=PlanCatalogueResponse)
 async def get_plan_catalogue():
+    creator_intervals = [
+        interval
+        for interval in ("monthly", "annual")
+        if _paystack_plan_code("creator_pro", interval)
+    ]
+
+    professional_intervals = [
+        interval
+        for interval in ("monthly", "annual")
+        if _paystack_plan_code("professional", interval)
+    ]
+
     plans = [
         PlanCatalogueItem(
             code="free",
@@ -71,15 +110,15 @@ async def get_plan_catalogue():
         PlanCatalogueItem(
             code="creator_pro",
             name="Creator Pro",
-            available=True,
-            billing_intervals=["monthly", "annual"],
+            available=bool(creator_intervals),
+            billing_intervals=creator_intervals,
             prices=PLAN_PRICING["creator_pro"],
         ),
         PlanCatalogueItem(
             code="professional",
             name="Professional",
-            available=True,
-            billing_intervals=["monthly", "annual"],
+            available=bool(professional_intervals),
+            billing_intervals=professional_intervals,
             prices=PLAN_PRICING["professional"],
         ),
         PlanCatalogueItem(
@@ -199,7 +238,7 @@ async def create_subscription_checkout(
         billing_interval=payload.billing_interval,
         currency=CURRENCY,
         amount_minor=amount_minor,
-        callback_url=payload.callback_url,
+        callback_url=_validate_checkout_callback_url(payload.callback_url),
         idempotency_key=idempotency_key,
     )
 
@@ -231,7 +270,7 @@ async def buy_credit_pack(
         credits=config["credits"],
         currency=CURRENCY,
         amount_minor=config[CURRENCY],
-        callback_url=payload.callback_url,
+        callback_url=_validate_checkout_callback_url(payload.callback_url),
     )
 
 
@@ -252,6 +291,25 @@ def _checkout_status_response(
         paid_at=checkout.paid_at,
         created_at=checkout.created_at,
     )
+
+
+@router.get(
+    "/checkouts/pending",
+    response_model=list[CheckoutStatusResponse],
+)
+async def list_pending_subscription_checkouts(
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return resumable subscription checkouts belonging to this workspace."""
+    repo = BillingRepository(db)
+
+    checkouts = await repo.list_pending_subscription_checkouts(
+        workspace_id=workspace.id,
+        limit=10,
+    )
+
+    return [_checkout_status_response(checkout) for checkout in checkouts]
 
 
 @router.get(
