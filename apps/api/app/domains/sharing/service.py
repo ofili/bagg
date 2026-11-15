@@ -22,6 +22,7 @@ from app.domains.lifecycle.service import (
     record_status_event,
 )
 from app.domains.payments.models import PaymentClaim
+from app.domains.payments.profile_rules import is_payment_profile_usable
 from app.domains.payments.schemas import (
     PaymentClaimResponse,
     PaymentProfileResponse,
@@ -92,8 +93,7 @@ class SharingService:
                     type="invoice_viewed",
                     title=f"Invoice {invoice.invoice_number} was viewed",
                     body=(
-                        f"{client_name or 'Client'} opened and viewed "
-                        "the invoice."
+                        f"{client_name or 'Client'} opened and viewed " "the invoice."
                     ),
                     document_type="invoice",
                     document_id=invoice.id,
@@ -113,14 +113,28 @@ class SharingService:
             base_url=settings.WEB_BASE_URL,
         )
 
+        # Only expose a default payment profile when its instructions are
+        # complete and valid. This protects public invoices from displaying
+        # incomplete legacy profiles as usable payment instructions.
         profile = await self.repo.get_default_payment_profile(
             invoice.workspace_id,
             invoice.currency,
         )
 
+        if profile is not None and not is_payment_profile_usable(profile):
+            logger.warning(
+                "Ignoring unusable default payment profile on public invoice "
+                "(workspace_id=%s, invoice_id=%s, currency=%s, profile_id=%s)",
+                invoice.workspace_id,
+                invoice.id,
+                invoice.currency,
+                profile.id,
+            )
+            profile = None
+
         profile_response = (
             PaymentProfileResponse.model_validate(profile)
-            if profile
+            if profile is not None
             else None
         )
 
@@ -131,9 +145,7 @@ class SharingService:
 
         latest_claim = await self.repo.get_latest_claim(invoice.id)
         latest_claim_response = (
-            PaymentClaimResponse.model_validate(latest_claim)
-            if latest_claim
-            else None
+            PaymentClaimResponse.model_validate(latest_claim) if latest_claim else None
         )
 
         latest_receipt = await self.repo.get_latest_receipt(invoice.id)
@@ -168,7 +180,8 @@ class SharingService:
             is_revised=is_revised,
             revision_banner=revision_banner,
             revisions_count=max(0, invoice.version - 1),
-            show_viral_footer=workspace.tier not in {
+            show_viral_footer=workspace.tier
+            not in {
                 "pro",
                 "creator_pro",
                 "professional",
@@ -194,8 +207,7 @@ class SharingService:
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    f"Cannot submit a payment claim for a "
-                    f"{invoice.status} invoice"
+                    f"Cannot submit a payment claim for a " f"{invoice.status} invoice"
                 ),
             )
 
@@ -422,9 +434,7 @@ class SharingService:
                 else None
             ),
             reporter_name=(
-                payload.reporter_name.strip()
-                if payload.reporter_name
-                else None
+                payload.reporter_name.strip() if payload.reporter_name else None
             ),
             reason=reason,
             # Do not persist the raw public bearer token in the report.
