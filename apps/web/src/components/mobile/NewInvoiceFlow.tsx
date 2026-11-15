@@ -14,11 +14,12 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import {Check, CreditCard, UserPlus, X} from 'lucide-react';
+import {Check, UserPlus, X} from 'lucide-react';
 import {BagCharacter} from '@/components/brand';
 import {InvoiceDocument, LineItemsEditor} from '@/components/invoice';
 import {MoneyField} from '@/components/ui/MoneyField';
 import {Money} from '@/components/money/Money';
+import { PaymentSetupPrompt } from '@/components/payments/PaymentSetupPrompt';
 import {BaggSelect, Button, Card, Dialog, Field, Input, buttonStyles, inputStyles} from '@/components/ui';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
 import {SUPPORTED_CURRENCIES, addDays, type InvoiceDraft, type Client} from '@/hooks/useInvoiceDraft';
@@ -332,19 +333,11 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                         </details>
                     </div>
 
-                    {draft.profileValidation && !draft.profileValidation.has_profile ? (
-                        <Card zone="calm" tone="sun" className="space-y-2">
-                            <h2 className="text-heading">no {draft.currency} payment details yet</h2>
-                            <p className="text-body">Add them before you send this invoice, so your client knows where to pay.</p>
-                            <Link href="/settings" className={buttonStyles({ variant: 'link' })}>
-                                <CreditCard aria-hidden className="h-4 w-4" /> Add {draft.currency} details in settings
-                            </Link>
-                        </Card>
-                    ) : (
-                        <p className="flex min-h-11 items-center gap-2 text-body text-text-soft">
-                            <Check aria-hidden className="h-4 w-4 text-leaf" /> {draft.currency} payment details are set up.
-                        </p>
-                    )}
+                    <PaymentSetupPrompt
+                        currency={draft.currency}
+                        validation={draft.profileValidation}
+                        onRetry={() => void draft.refreshProfileValidation()}
+                    />
 
                     <Field label="Note for your client" hint="Shown on the invoice, for example how to reference your payment.">
                         {(a) => (

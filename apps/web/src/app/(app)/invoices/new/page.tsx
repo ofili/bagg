@@ -15,6 +15,7 @@ import { NewInvoiceFlow } from '@/components/mobile/NewInvoiceFlow';
 import { Money } from '@/components/money/Money';
 import { BaggSelect, Button, Card, Dialog, Field, Input, PageContainer, PageHeader, buttonStyles, inputStyles } from '@/components/ui';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
+import { PaymentSetupPrompt } from '@/components/payments/PaymentSetupPrompt';
 import { SUPPORTED_CURRENCIES, useInvoiceDraft } from '@/hooks/useInvoiceDraft';
 import { cleanAmount } from '@/lib/amount';
 import { cn } from '@/lib/cn';
@@ -65,18 +66,11 @@ export default function NewInvoicePage() {
               </div>
           )}
 
-          {draft.profileValidation && !draft.profileValidation.has_profile && (
-              <Card zone="calm" tone="sun" className="space-y-2">
-                <h2 className="text-heading">no {draft.currency} payment details yet</h2>
-                <p className="text-body">
-                  Add your bank or payment details for {draft.currency} before you send this invoice, so your client knows
-                  where to pay.
-                </p>
-                <Link href="/settings" className={buttonStyles({ variant: 'link' })}>
-                  <CreditCardIcon aria-hidden className="h-4 w-4" /> Add {draft.currency} details in settings
-                </Link>
-              </Card>
-          )}
+          <PaymentSetupPrompt
+          currency={draft.currency}
+          validation={draft.profileValidation}
+          onRetry={() => void draft.refreshProfileValidation()}
+        />
 
           {/* Client, currency, dates */}
           <Card zone="calm" className="grid gap-4 p-5 sm:grid-cols-2">
