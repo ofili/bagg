@@ -448,3 +448,63 @@ async def apply_verified_checkout_payment(
     await db.flush()
 
     return checkout
+
+
+async def apply_reconciliation_result(
+    *,
+    db: AsyncSession,
+    workspace_id: str,
+    checkout_id: str,
+    provider_data: dict,
+) -> BillingCheckout | None:
+    """Apply a verified Paystack transaction result.
+
+    Reloads the checkout under a row lock so that webhook processing
+    and reconciliation cannot fulfil the same purchase concurrently.
+
+    This service owns the database transaction.
+    """
+
+    repo = BillingRepository(db)
+
+    checkout = await repo.get_checkout_by_id(
+        workspace_id,
+        checkout_id,
+        lock=True,
+    )
+
+    if checkout is None:
+        return None
+
+    # A webhook may have completed the checkout while Paystack
+    # verification was in progress.
+    if checkout.status == "succeeded":
+        return checkout
+
+    provider_status = str(provider_data.get("status") or "").lower()
+
+    # Only definitive provider outcomes change local state.
+    if provider_status not in {"success", "failed"}:
+        return checkout
+
+    try:
+        if provider_status == "success":
+            await apply_verified_checkout_payment(
+                db=db,
+                checkout=checkout,
+                data=provider_data,
+                require_metadata=False,
+            )
+
+        else:
+            checkout.status = "failed"
+            checkout.failure_reason = "Paystack verification returned failed."
+
+        await db.commit()
+        await db.refresh(checkout)
+
+        return checkout
+
+    except Exception:
+        await db.rollback()
+        raise

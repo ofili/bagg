@@ -44,7 +44,7 @@ from app.domains.billing.service import (
 from app.domains.billing.repository import BillingRepository
 from app.domains.billing.checkout_service import (
     create_billing_checkout,
-    apply_verified_checkout_payment,
+    apply_reconciliation_result,
 )
 from app.domains.billing.models import BillingCheckout
 from app.integrations.paystack import PaystackClient, PaystackError
@@ -273,16 +273,17 @@ async def get_checkout_status(
     response_model=CheckoutStatusResponse,
 )
 async def reconcile_checkout(
-        checkout_id: str,
-        workspace: Workspace = Depends(resolve_active_workspace),
-        db: AsyncSession = Depends(get_db),
+    checkout_id: str,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
 ):
     repo = BillingRepository(db)
 
+    # Read without acquiring a row lock. We only need the provider
+    # reference to ask Paystack for the transaction status.
     checkout = await repo.get_checkout_by_id(
         workspace.id,
         checkout_id,
-        lock=True,
     )
 
     if checkout is None:
@@ -304,38 +305,28 @@ async def reconcile_checkout(
             detail="Could not verify the payment with Paystack.",
         ) from exc
 
-    provider_status = str(
-        provider_data.get("status") or ""
-    ).lower()
+    try:
+        checkout = await apply_reconciliation_result(
+            db=db,
+            workspace_id=workspace.id,
+            checkout_id=checkout_id,
+            provider_data=provider_data,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Bagg could not update this checkout after verifying "
+                "the payment. Please contact support."
+            ),
+        ) from exc
 
-    if provider_status == "success":
-        try:
-            await apply_verified_checkout_payment(
-                db=db,
-                checkout=checkout,
-                data=provider_data,
-                require_metadata=False,
-            )
-            await db.commit()
-            await db.refresh(checkout)
+    if checkout is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Checkout not found.",
+        )
 
-        except Exception as exc:
-            await db.rollback()
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "The payment was verified, but Bagg could not apply "
-                    "the purchase. Please contact support."
-                ),
-            ) from exc
-
-    elif provider_status == "failed":
-        checkout.status = "failed"
-        checkout.failure_reason = "Paystack verification returned failed."
-        await db.commit()
-        await db.refresh(checkout)
-
-    # Pending or abandoned provider transactions remain pending.
     return _checkout_status_response(checkout)
 
 
