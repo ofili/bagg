@@ -1,23 +1,44 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.domains.security.dependencies import require_authenticated_user
-from app.domains.security.service import (
-    SecurityPurpose,
-    SecurityService,
-)
+from app.domains.payments import service as payment_service
 from app.domains.payments.schemas import (
-    PaymentProfileResponse,
     PaymentProfileCreate,
+    PaymentProfileResponse,
     PaymentProfileUpdate,
     PaymentProfileValidation,
+    PaymentSetupResponse,
 )
-from app.domains.payments import service as payment_service
+from app.domains.security.dependencies import require_authenticated_user
+from app.domains.security.service import SecurityPurpose, SecurityService
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
+
+
+@router.get(
+    "/setup",
+    response_model=PaymentSetupResponse,
+)
+async def get_payment_setup(
+    auth_data=Depends(require_authenticated_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _, workspace = auth_data
+
+    return await payment_service.get_payment_setup(
+        db,
+        workspace.id,
+    )
 
 
 @router.get(
@@ -30,6 +51,7 @@ async def list_profiles(
     db: AsyncSession = Depends(get_db),
 ):
     _, workspace = auth_data
+
     return await payment_service.list_payment_profiles(
         db,
         workspace.id,
@@ -54,7 +76,13 @@ async def create_profile(
     db: AsyncSession = Depends(get_db),
 ):
     user, workspace = auth_data
-    values = payload.model_dump(mode="json")
+
+    # Preserve exactly the fields used when the challenge was requested.
+    # Do not add omitted optional fields as nulls before hashing.
+    values = payload.model_dump(
+        mode="json",
+        exclude_unset=True,
+    )
 
     security = SecurityService(db)
 
@@ -75,8 +103,6 @@ async def create_profile(
         metadata={"challenge_id": challenge_id},
     )
 
-    # The payment service commits the profile and the spent challenge
-    # in the same database transaction.
     return await payment_service.create_payment_profile(
         db,
         workspace.id,
@@ -96,6 +122,7 @@ async def validate_profile(
     _, workspace = auth_data
 
     clean = currency.upper().strip()
+
     profile = await payment_service.validate_currency_profile(
         db,
         workspace.id,
@@ -107,11 +134,11 @@ async def validate_profile(
         has_profile=profile is not None,
         default_profile=profile,
         message=(
-            f"Active payout instructions found for {clean}"
+            f"Usable default payment instructions found for {clean}"
             if profile
             else (
-                f"No payment instructions saved for {clean}. "
-                "Add bank or digital details before sending."
+                f"No usable default payment instructions are configured "
+                f"for {clean}. Add or select a complete payment profile."
             )
         ),
     )
@@ -134,6 +161,7 @@ async def update_profile(
     db: AsyncSession = Depends(get_db),
 ):
     user, workspace = auth_data
+
     values = payload.model_dump(
         exclude_unset=True,
         mode="json",

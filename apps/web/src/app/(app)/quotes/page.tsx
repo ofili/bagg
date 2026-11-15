@@ -11,6 +11,7 @@ import { DocTabs } from '@/components/mobile/DocTabs';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
 import { formatDate } from '@/lib/date';
+
 import {
   Alert,
   Button,
@@ -22,11 +23,13 @@ import {
   buttonStyles,
   DataTable,
   type ColumnDef,
-  PageContainer,
   Pagination,
-  PageHeader,
   TableToolbar,
 } from '@/components/ui';
+
+import { PageContainer } from '@/components/ui/PageContainer';
+import { PageHeader } from '@/components/ui/PageHeader';
+
 import { useDataTable } from '@/hooks/useDataTable';
 import {cn} from "@/lib/cn";
 
