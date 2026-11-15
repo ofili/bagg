@@ -29,6 +29,10 @@ MILESTONE_DEFINITIONS = (
 )
 
 
+CHECKLIST_DISMISSED_EVENT = "activation.checklist_dismissed"
+CHECKLIST_RESUMED_EVENT = "activation.checklist_resumed"
+
+
 async def record_product_event(
     db: AsyncSession,
     *,
@@ -45,9 +49,9 @@ async def record_product_event(
     """
     Record one event without committing the caller's transaction.
 
-    A nested transaction isolates uniqueness conflicts. This allows
-    duplicate event IDs or duplicate milestones to be safely ignored
-    without rolling back the invoice/payment operation surrounding them.
+    A nested transaction isolates uniqueness conflicts. Duplicate event
+    IDs and duplicate milestones can therefore be ignored without
+    rolling back the business operation surrounding them.
     """
 
     event = ProductEvent(
@@ -385,10 +389,38 @@ async def get_activation(
             href="/invoices/new",
         )
 
+    # Dismissal is a reversible presentation preference, not a
+    # business milestone. The latest event wins.
+    checklist_result = await db.execute(
+        select(ProductEvent)
+        .where(
+            ProductEvent.workspace_id == workspace.id,
+            ProductEvent.event_name.in_(
+                (
+                    CHECKLIST_DISMISSED_EVENT,
+                    CHECKLIST_RESUMED_EVENT,
+                )
+            ),
+        )
+        .order_by(
+            ProductEvent.occurred_at.desc(),
+            ProductEvent.created_at.desc(),
+        )
+        .limit(1)
+    )
+
+    latest_checklist_event = checklist_result.scalar_one_or_none()
+
+    checklist_dismissed = (
+        latest_checklist_event is not None
+        and latest_checklist_event.event_name == CHECKLIST_DISMISSED_EVENT
+    )
+
     return ActivationResponse(
         activation_status=activation_status,
         milestones=milestones,
         next_recommended_action=next_action,
+        checklist_dismissed=checklist_dismissed,
     )
 
 

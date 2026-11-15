@@ -85,5 +85,9 @@ class ActivationResponse(BaseModel):
         "initially_activated",
         "commercially_activated",
     ]
+
     milestones: list[ActivationMilestoneResponse]
+
     next_recommended_action: ActivationNextAction
+
+    checklist_dismissed: bool = False
