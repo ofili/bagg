@@ -14,11 +14,14 @@ import {
   Alert,
   Button,
   BaggSelect,
-  ErrorState,
-  Field,
-  Input,
+  EmailField,
+  FormActions,
+  FormGrid,
+  FormSection,
   PageHeader,
+  PhoneField,
   TextArea,
+  TextField,
   buttonStyles,
 } from '@/components/ui';
 import { cn } from '@/lib/cn';
@@ -38,11 +41,6 @@ const SUPPORTED_CURRENCIES = [
   { code: 'KES', label: 'KES · Kenyan shilling' },
   { code: 'ZAR', label: 'ZAR · South African rand' },
 ];
-
-const inputClass =
-  'min-h-12 w-full rounded-input border border-line bg-surface px-3 py-2 text-body text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-cocoa focus:ring-2 focus:ring-cocoa/20';
-
-const labelClass = 'mb-1 block text-label font-bold text-ink-soft';
 
 function responseError(data: unknown, fallback: string): string {
   if (
@@ -178,48 +176,30 @@ export default function NewClientPage() {
   };
 
   return (
-    <main className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-3">
+    <main className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Add client"
+        description="Save client details once to reuse them on future invoices."
+        actions={
           <Link
             href="/clients"
-            className={buttonStyles({ variant: 'outline' })}
+            className={buttonStyles({ variant: 'outline', zone: 'calm' })}
           >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            <ArrowLeft aria-hidden className="h-4 w-4" />
             Back to clients
           </Link>
+        }
+      />
 
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <FormSection
+          title="Client details"
+          description="Choose the client type and enter their billing information."
+        >
           <div>
-            <PageHeader
-                title="Add client"
-                description="Save client details once to reuse them on future invoices."
-                actions={
-                  <Link
-                      href="/clients"
-                      className={buttonStyles({ variant: 'outline', zone: 'calm' })}
-                  >
-                    <ArrowLeft aria-hidden className="h-4 w-4" />
-                    Back to clients
-                  </Link>
-                }
-            />
-          </div>
-        </div>
-      </header>
-
-      <form onSubmit={handleSubmit} className="max-w-4xl space-y-6">
-        <section className="space-y-5 rounded-card border border-line-subtle bg-surface p-4 sm:p-6">
-          <div>
-            <h2 className="text-heading text-ink">Client details</h2>
-            <p className="mt-1 text-body text-ink-soft">
-              Choose the client type and enter their billing information.
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="client-type" className={labelClass}>
+            <span className="mb-1.5 block text-label font-medium text-text">
               Client type
-            </label>
+            </span>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <button
@@ -227,20 +207,20 @@ export default function NewClientPage() {
                 onClick={() => setClientType('PERSON')}
                 aria-pressed={clientType === 'PERSON'}
                 className={cn(
-                  'flex min-h-20 items-center gap-3 rounded-card border p-4 text-left transition-colors',
+                  'flex min-h-20 items-center gap-3 border-brut-thin p-4 text-left transition-colors',
                   clientType === 'PERSON'
-                    ? 'border-cocoa bg-peach-chip'
-                    : 'border-line bg-surface hover:bg-tint',
+                    ? 'border-ink bg-peach-chip'
+                    : 'border-ink bg-surface hover:bg-surface-tint',
                 )}
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface">
-                  <User className="h-5 w-5 text-ink" aria-hidden="true" />
+                  <User className="h-5 w-5 text-text" aria-hidden="true" />
                 </span>
                 <span>
-                  <span className="block text-body font-extrabold text-ink">
+                  <span className="block text-body font-extrabold text-text">
                     Individual
                   </span>
-                  <span className="mt-0.5 block text-caption text-ink-soft">
+                  <span className="mt-0.5 block text-caption text-text-soft">
                     A person you invoice
                   </span>
                 </span>
@@ -251,20 +231,20 @@ export default function NewClientPage() {
                 onClick={() => setClientType('BUSINESS')}
                 aria-pressed={clientType === 'BUSINESS'}
                 className={cn(
-                  'flex min-h-20 items-center gap-3 rounded-card border p-4 text-left transition-colors',
+                  'flex min-h-20 items-center gap-3 border-brut-thin p-4 text-left transition-colors',
                   clientType === 'BUSINESS'
-                    ? 'border-cocoa bg-peach-chip'
-                    : 'border-line bg-surface hover:bg-tint',
+                    ? 'border-ink bg-peach-chip'
+                    : 'border-ink bg-surface hover:bg-surface-tint',
                 )}
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface">
-                  <Buildings className="h-5 w-5 text-ink" aria-hidden="true" />
+                  <Buildings className="h-5 w-5 text-text" aria-hidden="true" />
                 </span>
                 <span>
-                  <span className="block text-body font-extrabold text-ink">
+                  <span className="block text-body font-extrabold text-text">
                     Business
                   </span>
-                  <span className="mt-0.5 block text-caption text-ink-soft">
+                  <span className="mt-0.5 block text-caption text-text-soft">
                     A company or organisation
                   </span>
                 </span>
@@ -272,161 +252,118 @@ export default function NewClientPage() {
             </div>
           </div>
 
-          <div>
-            <label htmlFor="client-name" className={labelClass}>
-              {clientType === 'BUSINESS' ? 'Company name' : 'Client name'}
-            </label>
-            <input
-              id="client-name"
-              type="text"
-              required
-              autoFocus
-              autoComplete="organization"
-              placeholder={
-                clientType === 'BUSINESS'
-                  ? 'e.g. Acme Limited'
-                  : 'e.g. Kofi Mensah'
-              }
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className={inputClass}
+          <TextField
+            label={clientType === 'BUSINESS' ? 'Company name' : 'Client name'}
+            required
+            autoFocus
+            autoComplete="organization"
+            placeholder={
+              clientType === 'BUSINESS'
+                ? 'e.g. Acme Limited'
+                : 'e.g. Kofi Mensah'
+            }
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+
+          <FormGrid>
+            <EmailField
+              label="Billing email"
+              optional
+              placeholder="billing@company.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
             />
-          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="client-email" className={labelClass}>
-                Billing email{' '}
-                <span className="font-normal text-ink-muted">(optional)</span>
-              </label>
-              <input
-                id="client-email"
-                type="email"
-                autoComplete="email"
-                placeholder="billing@company.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className={inputClass}
-              />
-            </div>
+            <PhoneField
+              label="Phone or WhatsApp"
+              optional
+              placeholder="+234 803 123 4567"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+            />
+          </FormGrid>
 
-            <div>
-              <label htmlFor="client-phone" className={labelClass}>
-                Phone or WhatsApp
-              </label>
-              <input
-                id="client-phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="+234 803 123 4567"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <p className="text-caption text-ink-muted">
+          <p className="text-caption text-text-muted">
             Leave the billing email blank if the client does not use email.
           </p>
 
           {clientType === 'BUSINESS' && (
-            <section className="space-y-4 rounded-card border border-line-subtle bg-tint p-4 sm:p-5">
+            <section className="space-y-4 border-brut-thin border-ink bg-surface-sunken p-4 sm:p-5">
               <div>
-                <h3 className="text-heading text-ink">Primary contact</h3>
-                <p className="mt-1 text-body text-ink-soft">
+                <h3 className="text-heading font-extrabold text-text">
+                  Primary contact
+                </h3>
+                <p className="mt-1 text-body text-text-soft">
                   Every new business client must have at least one named contact.
                 </p>
               </div>
 
-              <div>
-                <label htmlFor="primary-contact-name" className={labelClass}>
-                  Contact name
-                </label>
-                <input
-                  id="primary-contact-name"
-                  type="text"
-                  required
-                  autoComplete="name"
-                  placeholder="e.g. Ada Okafor"
-                  value={primaryContactName}
-                  onChange={(event) => setPrimaryContactName(event.target.value)}
-                  className={inputClass}
+              <TextField
+                label="Contact name"
+                required
+                autoComplete="name"
+                placeholder="e.g. Ada Okafor"
+                value={primaryContactName}
+                onChange={(event) =>
+                  setPrimaryContactName(event.target.value)
+                }
+              />
+
+              <TextField
+                label="Role or job title"
+                optional
+                placeholder="e.g. Finance Manager"
+                value={primaryContactTitle}
+                onChange={(event) =>
+                  setPrimaryContactTitle(event.target.value)
+                }
+              />
+
+              <FormGrid>
+                <EmailField
+                  label="Contact email"
+                  optional
+                  placeholder="ada@company.com"
+                  value={primaryContactEmail}
+                  onChange={(event) =>
+                    setPrimaryContactEmail(event.target.value)
+                  }
                 />
-              </div>
 
-              <div>
-                <label htmlFor="primary-contact-title" className={labelClass}>
-                  Role or job title
-                </label>
-                <input
-                  id="primary-contact-title"
-                  type="text"
-                  placeholder="e.g. Finance Manager"
-                  value={primaryContactTitle}
-                  onChange={(event) => setPrimaryContactTitle(event.target.value)}
-                  className={inputClass}
+                <PhoneField
+                  label="Contact phone"
+                  optional
+                  placeholder="+234 803 123 4567"
+                  value={primaryContactPhone}
+                  onChange={(event) =>
+                    setPrimaryContactPhone(event.target.value)
+                  }
                 />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="primary-contact-email" className={labelClass}>
-                    Contact email
-                  </label>
-                  <input
-                    id="primary-contact-email"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="ada@company.com"
-                    value={primaryContactEmail}
-                    onChange={(event) => setPrimaryContactEmail(event.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="primary-contact-phone" className={labelClass}>
-                    Contact phone
-                  </label>
-                  <input
-                    id="primary-contact-phone"
-                    type="tel"
-                    autoComplete="tel"
-                    placeholder="+234 803 123 4567"
-                    value={primaryContactPhone}
-                    onChange={(event) => setPrimaryContactPhone(event.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-              </div>
+              </FormGrid>
             </section>
           )}
-        </section>
+        </FormSection>
 
-        <section className="space-y-5 rounded-card border border-line-subtle bg-surface p-4 sm:p-6">
-          <div>
-            <h2 className="text-heading text-ink">Billing preferences</h2>
-            <p className="mt-1 text-body text-ink-soft">
-              These defaults will be used when preparing invoices for this client.
-            </p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
+        <FormSection
+          title="Billing preferences"
+          description="These defaults will be used when preparing invoices for this client."
+        >
+          <FormGrid>
             <BaggSelect
               label="Invoicing currency"
-              className="w-full"
               value={preferredCurrency}
               onChange={setPreferredCurrency}
-              options={SUPPORTED_CURRENCIES.map((c) => ({ value: c.code, label: c.label }))}
+              options={SUPPORTED_CURRENCIES.map((c) => ({
+                value: c.code,
+                label: c.label,
+              }))}
             />
 
             <BaggSelect
               label="Payment terms"
-              className="w-full"
               value={String(paymentTerms)}
-              onChange={(v) => setPaymentTerms(Number(v))}
+              onChange={(value) => setPaymentTerms(Number(value))}
               options={[
                 { value: '0', label: 'Due on receipt' },
                 { value: '7', label: 'Net 7 days' },
@@ -435,79 +372,48 @@ export default function NewClientPage() {
                 { value: '60', label: 'Net 60 days' },
               ]}
             />
-          </div>
+          </FormGrid>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="client-tax" className={labelClass}>
-                Tax ID or TIN{' '}
-                <span className="font-normal text-ink-muted">(optional)</span>
-              </label>
-              <input
-                id="client-tax"
-                type="text"
-                placeholder="e.g. VAT-987654"
-                value={taxId}
-                onChange={(event) => setTaxId(event.target.value)}
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="client-country" className={labelClass}>
-                Country
-              </label>
-              <input
-                id="client-country"
-                type="text"
-                autoComplete="country"
-                placeholder="e.g. NG"
-                value={country}
-                onChange={(event) => setCountry(event.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="client-address" className={labelClass}>
-              Billing address{' '}
-              <span className="font-normal text-ink-muted">(optional)</span>
-            </label>
-            <input
-              id="client-address"
-              type="text"
-              autoComplete="street-address"
-              placeholder="Street, city, state"
-              value={address}
-              onChange={(event) => setAddress(event.target.value)}
-              className={inputClass}
+          <FormGrid>
+            <TextField
+              label="Tax ID or TIN"
+              optional
+              placeholder="e.g. VAT-987654"
+              value={taxId}
+              onChange={(event) => setTaxId(event.target.value)}
             />
-          </div>
 
-          <div>
-            <label htmlFor="client-notes" className={labelClass}>
-              Private notes{' '}
-              <span className="font-normal text-ink-muted">(optional)</span>
-            </label>
-            <textarea
-              id="client-notes"
-              rows={4}
-              placeholder="Anything you want to remember about this client"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              className={cn(inputClass, 'min-h-24 resize-y')}
+            <TextField
+              label="Country"
+              autoComplete="country"
+              placeholder="e.g. NG"
+              value={country}
+              onChange={(event) => setCountry(event.target.value)}
             />
-          </div>
-        </section>
+          </FormGrid>
 
-        {errorMessage && (
-            <Alert variant="error">
-              {errorMessage}
-            </Alert>
-        )}
+          <TextField
+            label="Billing address"
+            optional
+            autoComplete="street-address"
+            placeholder="Street, city, state"
+            value={address}
+            onChange={(event) => setAddress(event.target.value)}
+          />
 
-        <div className="flex flex-col-reverse gap-3 border-t border-line-subtle pt-5 sm:flex-row sm:justify-end">
+          <TextArea
+            label="Private notes"
+            optional
+            rows={4}
+            placeholder="Anything you want to remember about this client"
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+          />
+        </FormSection>
+
+        {errorMessage && <Alert variant="error">{errorMessage}</Alert>}
+
+        <FormActions>
           <Button
             type="button"
             variant="outline"
@@ -525,7 +431,7 @@ export default function NewClientPage() {
             )}
             {saving ? 'Creating client…' : 'Create client'}
           </Button>
-        </div>
+        </FormActions>
       </form>
     </main>
   );

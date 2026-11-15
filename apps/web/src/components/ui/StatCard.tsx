@@ -34,10 +34,10 @@ export function StatCard({
     <section
       aria-label={label}
       className={cn(
-        'min-w-0 rounded-card bg-surface p-4',
+        'min-w-0 bg-surface p-4',
         zone === 'expressive'
           ? 'border-brut border-ink shadow-brut-sm'
-          : 'border border-line-subtle',
+          : 'border-brut border-ink',
         className,
       )}
     >

@@ -25,10 +25,18 @@ import { Button } from '@/components/ui/button';
 import {
   Alert,
   BaggSelect,
+  Checkbox,
+  ColorField,
   Dialog,
-  Field,
-  Input,
+  FormGrid,
+  FormSection,
+  OtpField,
+  PageContainer,
   PageHeader,
+  PhoneField,
+  RadioGroup,
+  TextArea,
+  TextField,
 } from '@/components/ui';
 import { Sheet, SheetContent, SheetFooter } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
@@ -46,7 +54,7 @@ interface ReminderScheduleItem {
 interface PendingStepUp {
   challengeId: string;
   purpose: string;
-  payload: any;
+  payload: Record<string, unknown>;
   action: 'create' | 'delete' | 'delete_account';
   profileId?: string;
 }
@@ -99,11 +107,6 @@ const CURRENCY_OPTIONS = [
   { value: 'KES', label: 'KES · Kenyan shilling' },
   { value: 'ZAR', label: 'ZAR · South African rand' },
 ];
-
-const inputClass =
-  'min-h-11 w-full rounded-input border border-line bg-surface px-3 py-2 text-body text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-cocoa focus:ring-2 focus:ring-cocoa/20';
-
-const labelClass = 'mb-1 block text-label font-bold text-ink-soft';
 
 function errorText(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
@@ -459,6 +462,9 @@ export default function SettingsPage() {
           throw new Error(data.detail || 'we could not delete your account. Try again.');
         }
 
+        // Full reload on purpose: the account no longer exists, so every
+        // cached client store must be discarded.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = '/login';
         return;
       }
@@ -578,7 +584,7 @@ export default function SettingsPage() {
         : 'Free';
 
   return (
-    <div className="w-full max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
+    <PageContainer width="form">
       <div>
         <PageHeader
             title="Settings"
@@ -608,9 +614,10 @@ export default function SettingsPage() {
           </Alert>
       )}
 
-      <Section
+      <FormSection
+        id="business-profile"
         icon={<Sparkles className="h-4 w-4" aria-hidden="true" />}
-        title="business profile"
+        title="Business profile"
         description="This is the name and address your clients see on invoices."
         action={
           <Button type="submit" form="business-profile-form" disabled={savingProfile}>
@@ -624,131 +631,90 @@ export default function SettingsPage() {
         }
       >
         <form
-            id="business-profile-form"
-            onSubmit={handleSaveProfile}
-            className="space-y-4"
+          id="business-profile-form"
+          onSubmit={handleSaveProfile}
+          className="space-y-4"
         >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Business name">
-              {({ id, ...a11y }) => (
-                  <Input
-                      id={id}
-                      {...a11y}
-                      type="text"
-                      required
-                      value={businessName}
-                      onChange={(e) => setBusinessName(e.target.value)}
-                  />
-              )}
-            </Field>
-
-            <Field label="Tax ID or TIN" hint="Optional">
-              {({ id, ...a11y }) => (
-                  <Input
-                      id={id}
-                      {...a11y}
-                      type="text"
-                      placeholder="e.g. TIN-98765432-0001"
-                      value={taxId}
-                      onChange={(e) => setTaxId(e.target.value)}
-                  />
-              )}
-            </Field>
-
-            <BaggSelect
-                label="Default currency"
-                className="w-full"
-                value={defaultCurrency}
-                onChange={setDefaultCurrency}
-                options={CURRENCY_OPTIONS}
+          <FormGrid>
+            <TextField
+              label="Business name"
+              required
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
             />
 
-            <Field label="Country">
-              {({ id, ...a11y }) => (
-                  <Input
-                      id={id}
-                      {...a11y}
-                      type="text"
-                      autoComplete="country"
-                      placeholder="e.g. NG"
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                  />
-              )}
-            </Field>
+            <TextField
+              label="Tax ID or TIN"
+              optional
+              placeholder="e.g. TIN-98765432-0001"
+              value={taxId}
+              onChange={(e) => setTaxId(e.target.value)}
+            />
 
-            <div className="sm:col-span-2">
-              <Field label="Billing address">
-                {({ id, ...a11y }) => (
-                    <Input
-                        id={id}
-                        {...a11y}
-                        type="text"
-                        autoComplete="street-address"
-                        placeholder="Street, city, state"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                    />
-                )}
-              </Field>
-            </div>
+            <BaggSelect
+              label="Default currency"
+              value={defaultCurrency}
+              onChange={setDefaultCurrency}
+              options={CURRENCY_OPTIONS}
+            />
 
-            <div className="sm:col-span-2 space-y-2">
-              <label htmlFor="brand-color" className={labelClass}>
-                Document accent
-              </label>
-              <div className="flex items-center gap-3">
-                <input
-                    id="brand-color"
-                    type="color"
-                    value={brandColor}
-                    onChange={(e) => setBrandColor(e.target.value)}
-                    className="h-11 w-14 cursor-pointer rounded-input border border-line bg-surface p-1"
-                />
-                <Input
-                    aria-label="Document accent hex value"
-                    value={brandColor}
-                    onChange={(e) => setBrandColor(e.target.value)}
-                    className="max-w-40 font-mono uppercase"
-                />
-                <span className="text-caption text-ink-muted">
-          Used on public quote and receipt pages
-        </span>
-              </div>
-            </div>
-          </div>
+            <TextField
+              label="Country"
+              autoComplete="country"
+              placeholder="e.g. NG"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+            />
 
-          <p className="text-caption text-ink-muted">
+            <TextField
+              label="Billing address"
+              autoComplete="street-address"
+              placeholder="Street, city, state"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="sm:col-span-2"
+            />
+
+            <ColorField
+              label="Document accent"
+              hint="Used on public quote and receipt pages."
+              value={brandColor}
+              onChange={setBrandColor}
+              className="sm:col-span-2"
+            />
+          </FormGrid>
+
+          <p className="text-caption text-text-muted">
             Changes apply to new and draft invoices. Invoices already sent keep their
             original snapshot.
           </p>
         </form>
-      </Section>
+      </FormSection>
 
-      <Section
+      <FormSection
         icon={<Coins className="h-4 w-4" aria-hidden="true" />}
         title="plan and sends"
         description="Free sends reset each month. Credits never expire."
       >
         {loadingBilling ? (
           <div className="grid gap-3 sm:grid-cols-2" aria-label="Loading billing">
-            <div className="h-40 animate-pulse rounded-row bg-tint" />
-            <div className="h-40 animate-pulse rounded-row bg-tint" />
+            <div className="h-40 animate-pulse bg-surface-tint" />
+            <div className="h-40 animate-pulse bg-surface-tint" />
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col justify-between rounded-row bg-sunken p-4">
+            <div className="flex flex-col justify-between border-brut-thin border-ink bg-surface-sunken p-4">
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-caption font-extrabold text-ink-soft">current plan</p>
-                  <span className="rounded-full bg-surface px-2 py-0.5 text-caption font-extrabold text-ink-soft">
+                  <p className="text-caption font-extrabold text-text-soft">current plan</p>
+                  <span className="rounded-full bg-surface px-2 py-0.5 text-caption font-extrabold text-text-soft">
                     {planName}
                   </span>
                 </div>
-                <p className="mt-2 text-heading text-ink">
+                <p className="mt-2 text-heading text-text">
                   {isPro ? 'Creator Pro' : 'Free to start'}
                 </p>
-                <p className="mt-1 text-body text-ink-soft">
+                <p className="mt-1 text-body text-text-soft">
                   {isPro
                     ? 'Unlimited invoice sends and watermark-free PDFs.'
                     : '3 free invoice sends each month, then use credits.'}
@@ -757,8 +723,8 @@ export default function SettingsPage() {
                 {!isPro && creditsData && (
                   <div className="mt-3">
                     <div className="flex justify-between gap-3 text-caption">
-                      <span className="text-ink-muted">free sends this month</span>
-                      <span className="font-extrabold text-ink">
+                      <span className="text-text-muted">free sends this month</span>
+                      <span className="font-extrabold text-text">
                         {creditsData.free_sends_used_this_month} / {creditsData.free_sends_limit}
                       </span>
                     </div>
@@ -769,7 +735,7 @@ export default function SettingsPage() {
                 )}
 
                 {isPro && subData?.current_period_end && (
-                  <p className="mt-3 text-caption text-ink-muted">
+                  <p className="mt-3 text-caption text-text-muted">
                     {subData.cancel_at_period_end
                       ? `Access until ${formatDate(subData.current_period_end)}`
                       : `Renews ${formatDate(subData.current_period_end)}`}
@@ -785,7 +751,7 @@ export default function SettingsPage() {
                       variant="link"
                       disabled={billingActionLoading}
                       onClick={handleCancelSubscription}
-                      className="min-h-9 px-0 text-late-text hover:no-underline"
+                      className="min-h-9 px-0 text-status-late-fg hover:no-underline"
                     >
                       {billingActionLoading ? 'Stopping…' : 'Stop auto-renewal'}
                     </Button>
@@ -808,17 +774,17 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="flex flex-col justify-between rounded-row border border-line-subtle bg-surface p-4">
+            <div className="flex flex-col justify-between border-brut-thin border-ink bg-surface p-4">
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-caption font-extrabold text-ink-soft">prepaid credits</p>
-                  <Coins className="h-4 w-4 text-ink-muted" aria-hidden="true" />
+                  <p className="text-caption font-extrabold text-text-soft">prepaid credits</p>
+                  <Coins className="h-4 w-4 text-text-muted" aria-hidden="true" />
                 </div>
-                <p className="mt-2 text-amount-l text-ink">
+                <p className="mt-2 text-amount-l text-text">
                   {creditsData?.balance ?? 0}
-                  <span className="ml-1.5 text-caption font-normal text-ink-muted">credits</span>
+                  <span className="ml-1.5 text-caption font-normal text-text-muted">credits</span>
                 </p>
-                <p className="mt-1 text-body text-ink-soft">
+                <p className="mt-1 text-body text-text-soft">
                   One credit sends one invoice after your free monthly sends are used.
                 </p>
               </div>
@@ -841,9 +807,9 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
-      </Section>
+      </FormSection>
 
-      <Section
+      <FormSection
         icon={<CreditCard className="h-4 w-4" aria-hidden="true" />}
         title="payment details"
         description="Where clients send money, by currency. Add at least one before you send an invoice."
@@ -862,8 +828,8 @@ export default function SettingsPage() {
                 className={cn(
                   'rounded-full px-2.5 py-1 text-caption font-extrabold',
                   hasProfile
-                    ? 'bg-pill-paid/20 text-paid-text'
-                    : 'bg-tint text-ink-muted',
+                    ? 'bg-status-paid text-status-paid-fg'
+                    : 'bg-surface-tint text-text-muted',
                 )}
               >
                 {code} {hasProfile ? 'ready' : 'not set'}
@@ -875,14 +841,14 @@ export default function SettingsPage() {
         {loadingProfiles ? (
           <div className="space-y-2" aria-label="Loading payment details">
             {[0, 1].map((item) => (
-              <div key={item} className="h-20 animate-pulse rounded-row bg-tint" />
+              <div key={item} className="h-20 animate-pulse bg-surface-tint" />
             ))}
           </div>
         ) : profiles.length === 0 ? (
-          <div className="rounded-row border border-dashed border-line p-6 text-center">
+          <div className="border-brut-thin border-dashed border-ink p-6 text-center">
             <BagCharacter size={64} className="mx-auto" />
-            <p className="mt-3 text-heading text-ink">no payment details yet</p>
-            <p className="mx-auto mt-1 max-w-sm text-body text-ink-soft">
+            <p className="mt-3 text-heading text-text">no payment details yet</p>
+            <p className="mx-auto mt-1 max-w-sm text-body text-text-soft">
               Add a bank account, payment link or mobile money number so clients know where to send
               the money.
             </p>
@@ -895,27 +861,27 @@ export default function SettingsPage() {
             {profiles.map((profile) => (
               <article
                 key={profile.id}
-                className="flex flex-col gap-3 rounded-row border border-line-subtle p-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 border-brut-thin border-ink p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-label font-extrabold text-ink">{profile.currency}</span>
+                    <span className="text-label font-extrabold text-text">{profile.currency}</span>
                     {profile.is_default && (
-                      <span className="rounded-full bg-peach-chip px-2 py-0.5 text-caption font-extrabold text-ink-soft">
+                      <span className="rounded-full bg-peach-chip px-2 py-0.5 text-caption font-extrabold text-text-soft">
                         default
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 space-y-1 text-body text-ink-soft">
+                  <div className="mt-1 space-y-1 text-body text-text-soft">
                     {profile.bank_name && (
                       <p className="flex items-center gap-1.5">
-                        <Landmark className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+                        <Landmark className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
                         {profile.bank_name} · {profile.account_number} · {profile.account_name}
                       </p>
                     )}
                     {profile.payment_link && (
                       <p className="flex items-center gap-1.5">
-                        <Globe className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+                        <Globe className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
                         <a
                           href={profile.payment_link}
                           target="_blank"
@@ -928,12 +894,12 @@ export default function SettingsPage() {
                     )}
                     {profile.mobile_money_number && (
                       <p className="flex items-center gap-1.5">
-                        <Smartphone className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+                        <Smartphone className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
                         {profile.mobile_money_number} · {profile.account_name}
                       </p>
                     )}
                     {profile.instructions && (
-                      <p className="text-caption text-ink-muted">{profile.instructions}</p>
+                      <p className="text-caption text-text-muted">{profile.instructions}</p>
                     )}
                   </div>
                 </div>
@@ -941,7 +907,7 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => handleDeleteProfile(profile)}
                   aria-label={`Delete ${profile.currency} payment detail`}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full text-ink-muted transition-colors hover:bg-pill-late/40 hover:text-late-text sm:self-center"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full text-text-muted transition-colors hover:bg-status-late hover:text-status-late-fg sm:self-center"
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -949,9 +915,9 @@ export default function SettingsPage() {
             ))}
           </div>
         )}
-      </Section>
+      </FormSection>
 
-      <Section
+      <FormSection
         icon={<Bell className="h-4 w-4" aria-hidden="true" />}
         title="reminder schedule"
         description="Polite reminders go out automatically. You can still nudge from any invoice."
@@ -966,7 +932,7 @@ export default function SettingsPage() {
                   ? 'On the due date'
                   : `${s.days_relative_to_due} days after due`;
               return (
-                <div key={idx} className="rounded-row bg-sunken px-3 py-3 text-caption font-bold text-ink-soft">
+                <div key={idx} className="bg-surface-sunken px-3 py-3 text-caption font-bold text-text-soft">
                   <span className="capitalize">{s.channel}</span>: {label}
                 </div>
               );
@@ -974,16 +940,16 @@ export default function SettingsPage() {
           ) : (
             ['3 days before due', 'on the due date', '3 days after due', '7 days after due'].map(
               (label) => (
-                <div key={label} className="rounded-row bg-sunken px-3 py-3 text-caption font-bold text-ink-soft">
+                <div key={label} className="bg-surface-sunken px-3 py-3 text-caption font-bold text-text-soft">
                   {label}
                 </div>
               ),
             )
           )}
         </div>
-      </Section>
+      </FormSection>
 
-      <Section
+      <FormSection
         icon={<Download className="h-4 w-4" aria-hidden="true" />}
         title="your data"
         description="Take a copy whenever you need it. Exports download immediately."
@@ -992,28 +958,28 @@ export default function SettingsPage() {
           <a
             href={`${API_BASE}/compliance/export/csv`}
             download
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink px-4 text-body font-extrabold text-ink transition-colors hover:bg-tint"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border-brut-thin border-ink px-4 text-body font-extrabold text-text transition-colors hover:bg-surface-tint"
           >
             <FileSpreadsheet className="h-4 w-4" aria-hidden="true" /> Export CSV
           </a>
           <a
             href={`${API_BASE}/compliance/export/zip`}
             download
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink px-4 text-body font-extrabold text-ink transition-colors hover:bg-tint"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border-brut-thin border-ink px-4 text-body font-extrabold text-text transition-colors hover:bg-surface-tint"
           >
             <FileArchive className="h-4 w-4" aria-hidden="true" /> Export archive
           </a>
         </div>
-      </Section>
+      </FormSection>
 
-      <section className="rounded-card border border-line bg-surface p-5">
+      <section className="border-brut border-danger bg-surface p-5">
         <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-pill-late/40 text-late-text">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-status-late text-status-late-fg">
             <AlertTriangle className="h-4 w-4" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-heading text-ink">delete your account</h2>
-            <p className="mt-1 max-w-xl text-body text-ink-soft">
+            <h2 className="text-heading text-text">delete your account</h2>
+            <p className="mt-1 max-w-xl text-body text-text-soft">
               This permanently removes your workspace, clients, invoices and public links. It cannot
               be undone.
             </p>
@@ -1033,12 +999,12 @@ export default function SettingsPage() {
       </section>
 
       <Sheet open={showAddProfileModal} onOpenChange={setShowAddProfileModal}>
-        <SheetContent className="max-h-[92dvh] overflow-hidden rounded-t-sheet border border-line-subtle bg-surface p-0 sm:inset-0 sm:m-auto sm:h-fit sm:max-h-[88dvh] sm:w-[440px] sm:max-w-[calc(100vw-2rem)] sm:rounded-sheet">
+        <SheetContent className="max-h-[92dvh] overflow-hidden rounded-t-sheet border-brut border-ink bg-surface p-0 sm:inset-0 sm:m-auto sm:h-fit sm:max-h-[88dvh] sm:w-[440px] sm:max-w-[calc(100vw-2rem)] sm:rounded-sheet">
           <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line sm:hidden" aria-hidden="true" />
           <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-3 sm:pt-5">
             <div>
-              <h2 className="text-title text-ink">new payment detail</h2>
-              <p className="mt-1 text-body text-ink-soft">
+              <h2 className="text-title text-text">new payment detail</h2>
+              <p className="mt-1 text-body text-text-soft">
                 Tell clients exactly where to send this currency.
               </p>
             </div>
@@ -1046,7 +1012,7 @@ export default function SettingsPage() {
               type="button"
               onClick={() => setShowAddProfileModal(false)}
               aria-label="Close"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-tint hover:text-ink"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface-tint hover:text-text"
             >
               <span aria-hidden="true" className="text-title leading-none">
                 ×
@@ -1056,177 +1022,112 @@ export default function SettingsPage() {
 
           <form onSubmit={handleCreatePaymentProfile} className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <BaggSelect
-                    label="currency"
-                    className="w-full"
-                    value={newCurrency}
-                    onChange={setNewCurrency}
-                    options={CURRENCY_OPTIONS}
-                  />
-                </div>
-                <div>
-                  <span className={labelClass}>how clients pay</span>
-                  <div className="flex gap-1 rounded-full bg-tint p-1">
-                    {(
-                      [
-                        ['bank', 'Bank'],
-                        ['digital', 'Link'],
-                        ['mobile_money', 'Mobile'],
-                      ] as const
-                    ).map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setChannelType(value)}
-                        className={cn(
-                          'min-h-9 flex-1 rounded-full px-2 text-caption font-extrabold transition-colors',
-                          channelType === value ? 'bg-surface text-ink shadow-sm' : 'text-ink-muted',
-                        )}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <FormGrid>
+                <BaggSelect
+                  label="Currency"
+                  value={newCurrency}
+                  onChange={setNewCurrency}
+                  options={CURRENCY_OPTIONS}
+                />
+
+                <RadioGroup
+                  label="How clients pay"
+                  value={channelType}
+                  onChange={(value) => setChannelType(value as ChannelType)}
+                  direction="horizontal"
+                  options={[
+                    { value: 'bank', label: 'Bank' },
+                    { value: 'digital', label: 'Link' },
+                    { value: 'mobile_money', label: 'Mobile' },
+                  ]}
+                />
+              </FormGrid>
 
               {channelType === 'bank' && (
                 <div className="space-y-3">
-                  <div>
-                    <label htmlFor="profile-bank" className={labelClass}>
-                      bank name
-                    </label>
-                    <input
-                      id="profile-bank"
-                      type="text"
+                  <TextField
+                    label="Bank name"
+                    required
+                    placeholder="e.g. Guaranty Trust Bank"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                  />
+
+                  <FormGrid>
+                    <TextField
+                      label="Account name"
                       required
-                      placeholder="e.g. Guaranty Trust Bank"
-                      value={bankName}
-                      onChange={(e) => setBankName(e.target.value)}
-                      className={inputClass}
+                      placeholder="e.g. Ada Okafor"
+                      value={accountName}
+                      onChange={(e) => setAccountName(e.target.value)}
                     />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label htmlFor="profile-account-name" className={labelClass}>
-                        account name
-                      </label>
-                      <input
-                        id="profile-account-name"
-                        type="text"
-                        required
-                        placeholder="e.g. Ada Okafor"
-                        value={accountName}
-                        onChange={(e) => setAccountName(e.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="profile-account-number" className={labelClass}>
-                        account or IBAN
-                      </label>
-                      <input
-                        id="profile-account-number"
-                        type="text"
-                        required
-                        placeholder="e.g. 0123456789"
-                        value={accountNumber}
-                        onChange={(e) => setAccountNumber(e.target.value)}
-                        className={cn(inputClass, 'font-mono')}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="profile-routing" className={labelClass}>
-                      routing, sort code or SWIFT <span className="font-normal text-ink-muted">(optional)</span>
-                    </label>
-                    <input
-                      id="profile-routing"
-                      type="text"
-                      placeholder="e.g. GTBINGLA"
-                      value={routingNumber}
-                      onChange={(e) => setRoutingNumber(e.target.value)}
-                      className={cn(inputClass, 'font-mono')}
+
+                    <TextField
+                      label="Account or IBAN"
+                      required
+                      placeholder="e.g. 0123456789"
+                      value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value)}
+                      className="font-mono"
                     />
-                  </div>
+                  </FormGrid>
+
+                  <TextField
+                    label="Routing, sort code or SWIFT"
+                    optional
+                    placeholder="e.g. GTBINGLA"
+                    value={routingNumber}
+                    onChange={(e) => setRoutingNumber(e.target.value)}
+                    className="font-mono"
+                  />
                 </div>
               )}
 
               {channelType === 'digital' && (
-                <div>
-                  <label htmlFor="profile-link" className={labelClass}>
-                    payment link
-                  </label>
-                  <input
-                    id="profile-link"
-                    type="url"
-                    required
-                    placeholder="https://wise.com/pay/me/yourname"
-                    value={paymentLink}
-                    onChange={(e) => setPaymentLink(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
+                <TextField
+                  label="Payment link"
+                  type="url"
+                  required
+                  placeholder="https://wise.com/pay/me/yourname"
+                  value={paymentLink}
+                  onChange={(e) => setPaymentLink(e.target.value)}
+                />
               )}
 
               {channelType === 'mobile_money' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="profile-mobile-name" className={labelClass}>
-                      account name
-                    </label>
-                    <input
-                      id="profile-mobile-name"
-                      type="text"
-                      required
-                      placeholder="e.g. Kofi Mensah"
-                      value={accountName}
-                      onChange={(e) => setAccountName(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="profile-mobile-number" className={labelClass}>
-                      mobile money number
-                    </label>
-                    <input
-                      id="profile-mobile-number"
-                      type="tel"
-                      required
-                      placeholder="e.g. +233 24 123 4567"
-                      value={mobileMoneyNumber}
-                      onChange={(e) => setMobileMoneyNumber(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
+                <FormGrid>
+                  <TextField
+                    label="Account name"
+                    required
+                    placeholder="e.g. Kofi Mensah"
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                  />
+
+                  <PhoneField
+                    label="Mobile money number"
+                    required
+                    placeholder="e.g. +233 24 123 4567"
+                    value={mobileMoneyNumber}
+                    onChange={(e) => setMobileMoneyNumber(e.target.value)}
+                  />
+                </FormGrid>
               )}
 
-              <div>
-                <label htmlFor="profile-instructions" className={labelClass}>
-                  instructions <span className="font-normal text-ink-muted">(optional)</span>
-                </label>
-                <textarea
-                  id="profile-instructions"
-                  rows={2}
-                  placeholder="e.g. Include the invoice number in the transfer note."
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  className={cn(inputClass, 'min-h-20 resize-y')}
-                />
-              </div>
+              <TextArea
+                label="Instructions"
+                optional
+                rows={2}
+                placeholder="e.g. Include the invoice number in the transfer note."
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+              />
 
-              <label className="flex min-h-11 items-center gap-2 text-body text-ink-soft">
-                <input
-                  type="checkbox"
-                  checked={isDefault}
-                  onChange={(e) => setIsDefault(e.target.checked)}
-                  className="h-4 w-4 accent-cocoa"
-                />
-                Use these as the default {newCurrency} details
-              </label>
+              <Checkbox
+                label={`Use these as the default ${newCurrency} details`}
+                checked={isDefault}
+                onChange={setIsDefault}
+              />
 
               {profileError && (
                   <Alert variant="error">{profileError}</Alert>
@@ -1247,47 +1148,37 @@ export default function SettingsPage() {
       </Sheet>
 
       <Sheet open={showDeleteModal} onOpenChange={setShowDeleteModal}>
-        <SheetContent className="max-h-[92dvh] overflow-y-auto rounded-t-sheet border border-line-subtle bg-surface p-5 pb-0 sm:inset-0 sm:m-auto sm:h-fit sm:w-[calc(100vw-2rem)] sm:max-w-md sm:rounded-sheet">
+        <SheetContent className="max-h-[92dvh] overflow-y-auto rounded-t-sheet border-brut border-ink bg-surface p-5 pb-0 sm:inset-0 sm:m-auto sm:h-fit sm:w-[calc(100vw-2rem)] sm:max-w-md sm:rounded-sheet">
           <div className="mb-4 flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-pill-late/40 text-late-text">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-status-late text-status-late-fg">
               <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-title text-ink">delete everything?</h2>
-              <p className="mt-1 text-body text-ink-soft">
+              <h2 className="text-title text-text">delete everything?</h2>
+              <p className="mt-1 text-body text-text-soft">
                 Your workspace, clients, invoices and public links will stop working immediately.
               </p>
             </div>
           </div>
 
           <form onSubmit={handleDeleteAccount} className="space-y-4">
-            <div>
-              <label htmlFor="delete-reason" className={labelClass}>
-                reason <span className="font-normal text-ink-muted">(optional)</span>
-              </label>
-              <input
-                id="delete-reason"
-                type="text"
-                placeholder="e.g. Switched platforms"
-                value={deleteReason}
-                onChange={(e) => setDeleteReason(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="delete-phrase" className={labelClass}>
-                type <strong className="font-mono text-late-text">DELETE MY ACCOUNT</strong> to confirm
-              </label>
-              <input
-                id="delete-phrase"
-                type="text"
-                required
-                placeholder="DELETE MY ACCOUNT"
-                value={deletePhrase}
-                onChange={(e) => setDeletePhrase(e.target.value)}
-                className={cn(inputClass, 'font-mono font-bold')}
-              />
-            </div>
+            <TextField
+              label="Reason"
+              optional
+              placeholder="e.g. Switched platforms"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+            />
+
+            <TextField
+              label="Confirmation phrase"
+              hint="Type DELETE MY ACCOUNT exactly to confirm."
+              required
+              placeholder="DELETE MY ACCOUNT"
+              value={deletePhrase}
+              onChange={(e) => setDeletePhrase(e.target.value)}
+              className="font-mono font-bold"
+            />
 
             {deleteError && (
                 <Alert variant="error">{deleteError}</Alert>
@@ -1321,7 +1212,7 @@ export default function SettingsPage() {
         title="Security verification"
       >
         <form onSubmit={handleVerifyStepUp} className="space-y-4 p-4">
-          <div className="flex items-center gap-2 text-ink">
+          <div className="flex items-center gap-2 text-text">
             <ShieldCheck className="h-5 w-5 text-mango" />
             <p className="text-body font-bold">Confirm payout instructions change</p>
           </div>
@@ -1329,22 +1220,14 @@ export default function SettingsPage() {
             A 6-digit confirmation code was dispatched to your account email. Enter it below to complete this update.
           </p>
 
-          <div>
-            <label htmlFor="stepUpCode" className="block text-caption font-bold text-ink mb-1">
-              Verification code
-            </label>
-            <input
-              id="stepUpCode"
-              type="text"
-              autoComplete="one-time-code"
-              placeholder="e.g. 123456"
-              maxLength={12}
-              required
-              value={stepUpCode}
-              onChange={(e) => setStepUpCode(e.target.value)}
-              className="w-full rounded-input border-brut bg-surface px-3 py-2 text-center text-title font-mono tracking-widest text-ink focus-visible:outline-none focus-visible:shadow-brut-sm"
-            />
-          </div>
+          <OtpField
+            id="stepUpCode"
+            label="Verification code"
+            length={12}
+            placeholder="e.g. 123456"
+            value={stepUpCode}
+            onChange={setStepUpCode}
+          />
 
           {stepUpError && (
               <Alert variant="error">{stepUpError}</Alert>
@@ -1375,38 +1258,8 @@ export default function SettingsPage() {
           </div>
         </form>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 }
 
-function Section({
-  icon,
-  title,
-  description,
-  action,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-card border border-line-subtle bg-surface p-5">
-      <div className="flex flex-col gap-3 border-b border-line-subtle pb-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">
-            {icon}
-          </span>
-          <div>
-            <h2 className="text-heading text-ink">{title}</h2>
-            <p className="mt-0.5 text-caption text-ink-muted">{description}</p>
-          </div>
-        </div>
-        {action && <div className="shrink-0">{action}</div>}
-      </div>
-      <div className="pt-4">{children}</div>
-    </section>
-  );
-}
+

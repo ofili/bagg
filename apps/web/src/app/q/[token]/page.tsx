@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, Check, Clock, Loader2, Sparkles, XCircle, RotateCcw } from 'lucide-react';
@@ -9,7 +9,7 @@ import { DocumentComments } from "@/components/comments/DocumentComments";
 import { QuoteRespondBar } from '@/components/mobile/QuoteRespondBar';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
-import { Button, Card, Dialog, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
+import { Button, Card, Dialog, Field, Input, Alert, buttonStyles, inputStyles } from '@/components/ui';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 
@@ -62,6 +62,23 @@ interface PublicQuoteData {
   version: number;
 }
 
+function Row({
+  label,
+  children,
+  strong,
+}: {
+  label: string;
+  children: ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <div className={cn('flex items-baseline justify-between gap-4', strong && 'font-extrabold')}>
+      <span className={strong ? 'text-body-l' : 'text-body text-text-soft'}>{label}</span>
+      <span className="text-right">{children}</span>
+    </div>
+  );
+}
+
 export default function PublicQuotePage() {
   const params = useParams();
   const token = params?.token as string;
@@ -76,8 +93,7 @@ export default function PublicQuotePage() {
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
 
-
-  // Review Request Dialog State
+  // Review request dialog state
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [reviewReason, setReviewReason] = useState('');
   const [requestingReview, setRequestingReview] = useState(false);
@@ -89,7 +105,7 @@ export default function PublicQuotePage() {
   const [declining, setDeclining] = useState(false);
   const [declineError, setDeclineError] = useState<string | null>(null);
 
-  const fetchQuote = async () => {
+  const fetchQuote = useCallback(async () => {
     if (!token) return;
     try {
       setLoading(true);
@@ -111,11 +127,11 @@ export default function PublicQuotePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
-    fetchQuote();
-  }, [token]);
+    void fetchQuote();
+  }, [fetchQuote]);
 
   const handleAcceptQuote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,13 +276,6 @@ export default function PublicQuotePage() {
   const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const whatsappText = encodeURIComponent(`Hi, I’d like to discuss quote ${quote.quote_number}: ${shareUrl}/q/${token}`);
 
-  const Row = ({ label, children, strong }: { label: string; children: React.ReactNode; strong?: boolean }) => (
-    <div className={cn('flex items-baseline justify-between gap-4', strong && 'font-extrabold')}>
-      <span className={strong ? 'text-body-l' : 'text-body text-text-soft'}>{label}</span>
-      <span className="text-right">{children}</span>
-    </div>
-  );
-
   return (
       <div className={cn('min-h-dvh bg-cream p-4 sm:p-6 lg:p-8', canRespond && 'pb-40 sm:pb-6')}>
       <div className="mx-auto max-w-xl space-y-6">
@@ -317,7 +326,7 @@ export default function PublicQuotePage() {
           </Card>
         )}
 
-        <article className="overflow-hidden rounded-card border border-line bg-surface">
+        <article className="overflow-hidden border-brut border-ink bg-surface">
           <div className="h-1.5" style={{ backgroundColor: brandColor }} />
 
           <div className="space-y-6 p-5 sm:p-6">
@@ -344,11 +353,11 @@ export default function PublicQuotePage() {
               <StatusPill status={displayStatus} />
             </header>
 
-            <div className="space-y-1 rounded-row bg-surface-sunken p-4">
+            <div className="space-y-1 bg-surface-sunken p-4">
               <p className="text-body text-text-soft">Quote {quote.quote_number}</p>
               <p className="text-body-l">
                 Issued {formatDate(quote.issue_date)} ·{' '}
-                <span className={cn('font-extrabold', isExpired && 'text-danger dark:text-[#FFB3A8]')}>
+                <span className={cn('font-extrabold', isExpired && 'text-status-late-fg')}>
                   Valid until {formatDate(quote.expires_at)}
                 </span>
               </p>
@@ -369,7 +378,7 @@ export default function PublicQuotePage() {
                 {quote.items.map((item) => (
                   <li
                     key={item.id}
-                    className="flex items-center justify-between gap-3 rounded-row border border-line-subtle bg-surface p-3"
+                    className="flex items-center justify-between gap-3 border-brut border-ink bg-surface p-3"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-body font-medium">{item.description}</p>
@@ -509,7 +518,7 @@ export default function PublicQuotePage() {
         className="max-h-[92dvh] overflow-y-auto"
       >
         <form onSubmit={handleAcceptQuote} className="space-y-4">
-          <div className="rounded-row bg-surface-sunken p-3 text-body">
+          <div className="bg-surface-sunken p-3 text-body">
             <span className="text-text-soft">{quote.quote_number} · Net payable: </span>
             <Money
               amountMinor={quote.net_payable_minor}
@@ -535,7 +544,7 @@ export default function PublicQuotePage() {
           {acceptError && (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-row border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              className="flex items-start gap-2 border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
             >
               <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
               <span>{acceptError}</span>
@@ -585,7 +594,7 @@ export default function PublicQuotePage() {
           {declineError && (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-row border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              className="flex items-start gap-2 border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
             >
               <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
               <span>{declineError}</span>
@@ -605,6 +614,49 @@ export default function PublicQuotePage() {
             </Button>
             <Button type="submit" variant="danger" zone="calm" size="lg" loading={declining}>
               Decline quote
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* Request changes dialog */}
+      <Dialog
+        open={showReviewDialog}
+        onClose={() => !requestingReview && setShowReviewDialog(false)}
+        title="Request changes"
+        description="Tell them what to adjust. The quote stays open so they can revise it."
+        className="max-h-[92dvh] overflow-y-auto"
+      >
+        <form onSubmit={handleRequestReview} className="space-y-4">
+          <Field label="What should change?">
+            {(a) => (
+              <textarea
+                rows={4}
+                required
+                placeholder="For example: split the deposit into two payments, or add a line for photography."
+                value={reviewReason}
+                onChange={(e) => setReviewReason(e.target.value)}
+                className={cn(inputStyles, 'min-h-28 py-2')}
+                {...a}
+              />
+            )}
+          </Field>
+
+          {reviewError && <Alert variant="error">{reviewError}</Alert>}
+
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              zone="calm"
+              size="lg"
+              disabled={requestingReview}
+              onClick={() => setShowReviewDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" zone="calm" size="lg" loading={requestingReview}>
+              Send request
             </Button>
           </div>
         </form>

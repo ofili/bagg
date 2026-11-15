@@ -669,7 +669,7 @@ export default function QuoteDetailPage() {
       <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
           <p className="text-label text-text-soft">QUOTE</p>
-          <h1 className="text-title-l sm:text-display">
+          <h1 className="text-title-l font-extrabold tracking-tight text-ink">
             {quote.quote_number}
             <span className="ml-2 text-body text-text-soft">v{quote.version}</span>
           </h1>
@@ -777,7 +777,7 @@ export default function QuoteDetailPage() {
               </Button>
             </div>
             {items.map((item, index) => (
-              <div key={item._key} className="grid gap-3 rounded-card border border-border p-3 sm:grid-cols-[minmax(0,1fr)_100px_150px_auto]">
+              <div key={item._key} className="grid gap-3 border-brut border-ink p-3 sm:grid-cols-[minmax(0,1fr)_100px_150px_auto]">
                 <Field label={`Description ${index + 1}`}>
                   {(fieldProps) => (
                     <Input value={item.description} onChange={(event) => updateItem(index, 'description', event.target.value)} {...fieldProps} />
@@ -810,7 +810,7 @@ export default function QuoteDetailPage() {
           <Field label="Notes">
             {(fieldProps) => (
               <textarea
-                className="min-h-24 w-full rounded-field border border-border bg-surface p-3 text-body"
+                className="min-h-24 w-full rounded-input border-brut-thin border-ink bg-surface p-3 text-body"
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 {...fieldProps}
@@ -1102,7 +1102,7 @@ export default function QuoteDetailPage() {
           description="Once approved and issued, this quote is finalized and ready to be shared with your client. Direct edits will be locked."
         >
           <div className="space-y-4">
-            <div className="space-y-1 rounded-row bg-surface-sunken p-3 text-body">
+            <div className="space-y-1 bg-surface-sunken p-3 text-body">
               <div className="flex justify-between">
                 <span className="text-text-soft">Quote:</span>
                 <span className="font-bold">{quote.quote_number}</span>

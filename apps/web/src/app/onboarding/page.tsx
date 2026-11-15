@@ -1,22 +1,20 @@
-﻿﻿﻿
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { BagCharacter, BagMark, Wordmark } from '@/components/brand';
-import { buttonStyles } from '@/components/ui/button';
-import { BaggSelect } from '@/components/ui';
+import {
+  Alert,
+  BaggSelect,
+  Button,
+  FormGrid,
+  TextArea,
+  TextField,
+} from '@/components/ui';
 
-const API_BASE =
-  '/api';
-
-const inputClass =
-  'min-h-12 w-full rounded-input border border-line bg-surface px-3 py-2.5 text-body text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-cocoa focus:ring-2 focus:ring-cocoa/20';
-
-const labelClass =
-  'mb-1.5 block text-label font-bold text-ink-soft';
+const API_BASE = '/api';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -150,7 +148,7 @@ export default function OnboardingPage() {
         <Link
           href="/"
           aria-label="Bagg home"
-          className="inline-flex items-center gap-2"
+          className="inline-flex min-h-11 items-center gap-2"
         >
           <BagMark size={32} />
           <Wordmark />
@@ -164,58 +162,46 @@ export default function OnboardingPage() {
             <span className="sr-only">Loading workspace</span>
           </div>
         ) : (
-          <section className="w-full rounded-card border border-line-subtle bg-surface p-6 sm:p-9">
+          <section className="w-full border-brut border-ink bg-surface p-6 sm:p-9">
             <BagCharacter size={64} className="mb-5" />
 
-            <p className="text-caption font-extrabold uppercase tracking-wide text-ink-muted">
+            <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
               First, the basics
             </p>
 
-            <h1 className="mt-2 text-display text-ink">
+            <h1 className="mt-2 text-display text-text">
               Set up your business.
             </h1>
 
-            <p className="mt-3 text-body-l text-ink-soft">
+            <p className="mt-3 text-body-l text-text-soft">
               Your business name appears on invoices, quotes and receipts.
               You can change these details later in Settings.
             </p>
 
             {error && (
-              <div
-                role="alert"
-                className="mt-5 rounded-input bg-pill-late/40 px-3 py-2 text-body text-late-text"
-              >
+              <Alert variant="error" className="mt-5">
                 {error}
-              </div>
+              </Alert>
             )}
 
             <form onSubmit={handleSubmit} className="mt-7 space-y-5">
-              <div>
-                <label htmlFor="business-name" className={labelClass}>
-                  Business name *
-                </label>
-                <input
-                  id="business-name"
-                  name="business_name"
-                  type="text"
-                  required
-                  autoFocus
-                  autoComplete="organization"
-                  maxLength={200}
-                  placeholder="e.g. Ada Studio or Acme Limited"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  className={inputClass}
-                />
-                <p className="mt-1.5 text-caption text-ink-muted">
-                  Use your trading name or registered business name.
-                </p>
-              </div>
+              <TextField
+                id="business-name"
+                name="business_name"
+                label="Business name"
+                required
+                autoFocus
+                autoComplete="organization"
+                maxLength={200}
+                placeholder="e.g. Ada Studio or Acme Limited"
+                hint="Use your trading name or registered business name."
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+              />
 
-              <div className="grid gap-5 sm:grid-cols-2">
+              <FormGrid>
                 <BaggSelect
                   label="Country"
-                  className="w-full"
                   value={country}
                   onChange={(next) => {
                     setCountry(next);
@@ -237,7 +223,6 @@ export default function OnboardingPage() {
 
                 <BaggSelect
                   label="Default currency"
-                  className="w-full"
                   value={currency}
                   onChange={setCurrency}
                   options={[
@@ -250,30 +235,27 @@ export default function OnboardingPage() {
                     { value: 'ZAR', label: 'ZAR · South African rand' },
                   ]}
                 />
-              </div>
+              </FormGrid>
 
-              <div>
-                <label htmlFor="address" className={labelClass}>
-                  Business address (optional)
-                </label>
-                <textarea
-                  id="address"
-                  name="address"
-                  autoComplete="street-address"
-                  rows={3}
-                  maxLength={500}
-                  placeholder="Address to display on your documents"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
+              <TextArea
+                id="address"
+                name="address"
+                label="Business address"
+                optional
+                autoComplete="street-address"
+                rows={3}
+                maxLength={500}
+                placeholder="Address to display on your documents"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
 
-              <button
-  type="submit"
-  disabled={saving || loading}
-  className={`${buttonStyles()} w-full`}
->
+              <Button
+                type="submit"
+                size="lg"
+                fullWidth
+                disabled={saving || loading}
+              >
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -285,9 +267,9 @@ export default function OnboardingPage() {
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </>
                 )}
-              </button>
+              </Button>
 
-              <p className="text-center text-caption text-ink-muted">
+              <p className="text-center text-caption text-text-muted">
                 You can update these details in Settings at any time.
               </p>
             </form>

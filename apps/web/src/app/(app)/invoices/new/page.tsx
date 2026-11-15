@@ -10,10 +10,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeftIcon, CreditCardIcon, XIcon } from '@phosphor-icons/react';
 import { InvoiceDocument, LineItemsEditor } from '@/components/invoice';
-import { MoneyInput } from '@/components/mobile/MoneyInput';
+import { MoneyField } from '@/components/ui/MoneyField';
 import { NewInvoiceFlow } from '@/components/mobile/NewInvoiceFlow';
 import { Money } from '@/components/money/Money';
-import { BaggSelect, Button, Card, Dialog, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
+import { BaggSelect, Button, Card, Dialog, Field, Input, PageContainer, PageHeader, buttonStyles, inputStyles } from '@/components/ui';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
 import { SUPPORTED_CURRENCIES, useInvoiceDraft } from '@/hooks/useInvoiceDraft';
 import { cleanAmount } from '@/lib/amount';
@@ -36,19 +36,22 @@ export default function NewInvoicePage() {
           <NewInvoiceFlow draft={draft} />
         </div>
 
-        <div className="hidden w-full max-w-3xl space-y-6 p-4 pb-24 sm:block sm:space-y-6 sm:p-6 sm:pb-16 lg:p-8">
-          <div className="space-y-2">
+        <PageContainer width="form" className="hidden sm:block pb-24 sm:pb-16">
+          <div className="space-y-4">
             <Link href="/invoices" className={buttonStyles({ variant: 'outline' })}>
               <ArrowLeftIcon aria-hidden className="h-4 w-4" />
               Back to invoices
             </Link>
-            <h1 className="text-title-l sm:text-display">new invoice</h1>
+            <PageHeader
+              title="New invoice"
+              description="Create and send an invoice to your client."
+            />
           </div>
 
           {draft.errorMsg && (
               <div
                   role="alert"
-                  className="flex items-start justify-between gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]"
+                  className="flex items-start justify-between gap-2 bg-status-late p-3 text-body text-status-late-fg"
               >
                 <span className="pt-2">{draft.errorMsg}</span>
                 <button
@@ -160,7 +163,7 @@ export default function NewInvoicePage() {
                 <span className="text-body text-text-soft">Subtotal</span>
                 <Money amountMinor={draft.subtotalMinor} currency={draft.currency} hideCurrencyCode />
               </div>
-              <MoneyInput
+              <MoneyField
                   label="Discount"
                   currency={draft.currency}
                   value={draft.discountText}
@@ -218,7 +221,7 @@ export default function NewInvoicePage() {
               onClientCreated={draft.addClient}
               defaultCurrency={draft.currency}
           />
-        </div>
+        </PageContainer>
       </>
   );
 }

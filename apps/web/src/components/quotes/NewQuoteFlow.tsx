@@ -6,16 +6,15 @@
  * separate actions: after issuing, the person lands on the quote page where
  * "Share quote" is the main action.
  */
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Key, useState} from 'react';
+import { useState } from 'react';
 import {Check, UserPlus} from 'lucide-react';
 import {BagCharacter} from '@/components/brand';
 import {LineItemsEditor} from '@/components/invoice';
 import {FlowShell} from '@/components/mobile/FlowShell';
-import {MoneyInput} from '@/components/mobile/MoneyInput';
+import {MoneyField} from '@/components/ui/MoneyField';
 import {Money} from '@/components/money/Money';
-import {BaggSelect, Button, Card, Chip, Field, Input, buttonStyles, inputStyles} from '@/components/ui';
+import {BaggSelect, Button, Card, Chip, Field, Input, inputStyles} from '@/components/ui';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
 import {VALIDITY_OPTIONS, useQuoteDraft} from '@/hooks/useQuoteDraft';
 import {cleanAmount} from '@/lib/amount';
@@ -34,10 +33,8 @@ export function NewQuoteFlow() {
     const [step, setStep] = useState(0);
     const [query, setQuery] = useState('');
     const [showClientModal, setShowClientModal] = useState(false);
-    const client = d.clients.find((c: { id: any; }) => c.id === d.selectedClientId);
-    const filtered = d.clients.filter((c: {
-        name: string;
-    }) => c.name.toLowerCase().includes(query.trim().toLowerCase()));
+    const client = d.clients.find((c) => c.id === d.selectedClientId);
+    const filtered = d.clients.filter((c) => c.name.toLowerCase().includes(query.trim().toLowerCase()));
 
     function next() {
         d.setErrorMsg(null);
@@ -136,7 +133,7 @@ export function NewQuoteFlow() {
                                 </Field>
                             )}
                             <div role="radiogroup" aria-label="Client"
-                                 className="overflow-hidden rounded-card border-brut border-ink bg-surface">
+                                 className="overflow-hidden border-brut border-ink bg-surface">
                                 <button
                                     type="button"
                                     onClick={() => setShowClientModal(true)}
@@ -157,19 +154,19 @@ export function NewQuoteFlow() {
                                             role="radio"
                                             aria-checked={on}
                                             onClick={() => d.handleClientChange(c.id)}
-                                            className={cn('flex min-h-16 w-full items-center gap-3 border-t border-line-subtle px-3 text-left', on ? 'bg-sun' : 'hover:bg-surface-tint')}
+                                            className={cn('flex min-h-16 w-full items-center gap-3 border-t border-line-subtle px-3 text-left', on ? 'bg-sun text-on-sun' : 'hover:bg-surface-tint')}
                                         >
                       <span aria-hidden
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-brut-thin border-ink bg-mango font-extrabold">
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-brut-thin border-ink bg-mango font-extrabold text-on-mango">
                         {initials(c.name)}
                       </span>
                                             <span className="min-w-0 flex-1">
                         <span className="block truncate font-extrabold">{c.name}</span>
-                        <span className="block text-caption text-text-soft">{c.preferred_currency}</span>
+                        <span className={cn('block text-caption', on ? 'text-on-sun/75' : 'text-text-soft')}>{c.preferred_currency}</span>
                       </span>
                                             {on && (
                                                 <span
-                                                    className="flex h-7 w-7 items-center justify-center rounded-full border-brut-thin border-ink bg-leaf">
+                                                    className="flex h-7 w-7 items-center justify-center rounded-full border-brut-thin border-ink bg-leaf text-on-leaf">
                           <Check aria-hidden className="h-4 w-4"/>
                         </span>
                                             )}
@@ -193,12 +190,12 @@ export function NewQuoteFlow() {
                 <div className="space-y-4">
                     {client && <p className="-mt-3 text-body text-text-soft">For {client.name}</p>}
                     <LineItemsEditor items={d.items} onChange={d.setItems} currency={d.currency}/>
-                    <details className="rounded-card border-brut border-ink bg-surface">
+                    <details className="border-brut border-ink bg-surface">
                         <summary className="flex min-h-12 cursor-pointer items-center px-4 font-extrabold">Add a
                             discount or taxes
                         </summary>
                         <div className="space-y-4 border-t border-line-subtle p-4">
-                            <MoneyInput
+                            <MoneyField
                                 label="Discount"
                                 currency={d.currency}
                                 value={d.discountText}
@@ -266,7 +263,7 @@ export function NewQuoteFlow() {
                             <p className="text-body-l font-extrabold">{client?.name ?? 'No client'}</p>
                         </div>
                         <ul className="divide-y divide-line-subtle border-y border-line-subtle">
-                            {d.items.map((it: { id: Key | null | undefined; description: any; quantity: any; }) => (
+                            {d.items.map((it) => (
                                 <li key={it.id} className="py-2 text-body">
                   <span className="block truncate">
                     {it.description || 'Line item'}

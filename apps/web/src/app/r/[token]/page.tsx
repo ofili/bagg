@@ -134,7 +134,7 @@ export default function PublicReceiptPage() {
           </Card>
         )}
 
-        <article className="overflow-hidden rounded-card border border-line bg-surface">
+        <article className="overflow-hidden border-brut border-ink bg-surface">
           <div className="h-1.5" style={{ backgroundColor: brandColor }} />
 
           <div className="space-y-6 p-5 sm:p-6">
@@ -176,7 +176,7 @@ export default function PublicReceiptPage() {
             </p>
 
             {/* Amount and the one paid stamp */}
-            <div className="space-y-3 rounded-row bg-surface-sunken p-5 text-center">
+            <div className="space-y-3 bg-surface-sunken p-5 text-center">
               <p className="text-body text-text-soft">Amount received</p>
               <Money
                 amountMinor={receipt.amount_paid_minor}
@@ -186,7 +186,7 @@ export default function PublicReceiptPage() {
                 hideCurrencyCode
               />
               <p className="text-caption text-text-muted">{receipt.currency}</p>
-              <span className="inline-flex items-center gap-2 rounded-full bg-leaf px-4 py-1.5 text-body font-extrabold text-[#052E1B]">
+              <span className="inline-flex items-center gap-2 rounded-full bg-leaf px-4 py-1.5 text-body font-extrabold text-on-leaf">
                 <CheckCircle2 aria-hidden className="h-4 w-4" /> Paid and verified
               </span>
             </div>

@@ -68,7 +68,7 @@ export default function ContactPage() {
 
                 <h1 className="mt-7 max-w-3xl text-title-l leading-[0.98] text-on-mango sm:text-[4.5rem] lg:text-[5.2rem]">
                   Need a hand?
-                  <span className="mt-2 block">Let's sort it</span>
+                  <span className="mt-2 block">Let&apos;s sort it</span>
                   <span className="mt-2 inline-block -rotate-1 border-brut border-ink bg-surface px-3 pb-2 shadow-brut-lg">
                   together.
                 </span>

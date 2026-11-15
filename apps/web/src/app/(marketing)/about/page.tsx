@@ -303,7 +303,7 @@ export default function AboutPage() {
           <Container className="grid gap-10 py-16 sm:py-20 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
             <div>
               <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
-                What we won't do
+                What we won&apos;t do
               </p>
 
               <h2 className="mt-3 max-w-lg text-[2.3rem] font-extrabold leading-[1.02] tracking-[-0.055em] text-ink sm:text-4xl">

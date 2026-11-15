@@ -123,7 +123,7 @@ export function FlowShell({
                                 key={`${step}-${index}`}
                                 aria-hidden="true"
                                 className={cn(
-                                    'h-1.5 flex-1 rounded-full border border-ink',
+                                    'h-1.5 flex-1 rounded-full border-brut-thin border-ink',
                                     index <= safeStep
                                         ? 'bg-mango'
                                         : 'bg-surface-tint',
@@ -157,7 +157,7 @@ export function FlowShell({
                     <div
                         role="alert"
                         aria-live="assertive"
-                        className="flex items-start justify-between gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]"
+                        className="flex items-start justify-between gap-2 bg-status-late p-3 text-body text-status-late-fg"
                     >
                         <span className="min-w-0 flex-1 pt-2">
                             {error}

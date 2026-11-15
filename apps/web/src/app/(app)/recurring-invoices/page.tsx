@@ -1,14 +1,11 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
-  CheckCircle,
   CircleNotch,
   Clock,
   Plus,
-  WarningCircle,
 } from '@phosphor-icons/react';
 
 import { BagCharacter } from '@/components/brand';
@@ -18,10 +15,10 @@ import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 import {
   Alert,
-  ErrorState,
+  PageContainer,
   PageHeader,
   buttonStyles,
-} from '@/components/ui'
+} from '@/components/ui';
 
 const API_BASE = '/api';
 
@@ -88,20 +85,19 @@ const STATUS_FILTERS = [
 function statusColor(status: string) {
   switch (status) {
     case 'active':
-      return 'bg-leaf text-[#052E1B] border-ink';
+      return 'bg-leaf text-on-leaf border-ink';
     case 'paused':
-      return 'bg-sun text-[#4A3200] border-ink';
+      return 'bg-sun text-on-sun border-ink';
     case 'completed':
-      return 'bg-[#E6DAC6] text-[#5A4A35] border-line';
+      return 'bg-status-void text-status-void-fg border-line';
     case 'cancelled':
-      return 'bg-[#FFB3B3] text-[#5A1010] border-line';
+      return 'bg-status-late text-status-late-fg border-line';
     default:
       return 'bg-surface-tint text-text-soft border-line';
   }
 }
 
 export default function RecurringInvoicesPage() {
-  const router = useRouter();
   const [schedules, setSchedules] = useState<RecurringSchedule[]>([]);
   const [clients, setClients] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -178,9 +174,10 @@ export default function RecurringInvoicesPage() {
   }, [selectedStatus]);
 
   return (
-    <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
+    <PageContainer width="list">
       {/* Header */}
       <PageHeader
+          eyebrow="Documents"
           title="Recurring invoices"
           description="Automate ongoing invoices with scheduled generation and draft lead times."
           actions={
@@ -209,8 +206,8 @@ export default function RecurringInvoicesPage() {
               className={cn(
                 'rounded-full px-3.5 py-1.5 text-caption font-bold transition-colors',
                 active
-                  ? 'border border-ink bg-sun text-ink shadow-brut-sm'
-                  : 'border border-line bg-surface text-text-soft hover:bg-surface-tint',
+                  ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
+                  : 'border-brut-thin border-ink bg-surface text-text-soft hover:bg-surface-tint',
               )}
             >
               {f.label}
@@ -232,7 +229,7 @@ export default function RecurringInvoicesPage() {
           <CircleNotch className="h-8 w-8 animate-spin text-text-muted" />
         </div>
       ) : schedules.length === 0 ? (
-        <div className="rounded-card border border-dashed border-line bg-surface p-12 text-center">
+        <div className="border border-dashed border-line bg-surface p-12 text-center">
           <BagCharacter size={80} className="mx-auto mb-4" />
           <h3 className="text-heading font-black text-ink">no recurring schedules yet</h3>
           <p className="mx-auto mt-1 max-w-sm text-body text-text-soft">
@@ -260,7 +257,7 @@ export default function RecurringInvoicesPage() {
               <Link
                 key={schedule.id}
                 href={`/recurring-invoices/${schedule.id}`}
-                className="group flex flex-col justify-between gap-4 rounded-card border-brut bg-surface p-5 shadow-brut-sm transition-transform hover:-translate-y-0.5 hover:shadow-brut sm:flex-row sm:items-center"
+                className="group flex flex-col justify-between gap-4 border-brut bg-surface p-5 shadow-brut-sm transition-transform hover:-translate-y-0.5 hover:shadow-brut sm:flex-row sm:items-center"
               >
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
@@ -312,6 +309,6 @@ export default function RecurringInvoicesPage() {
           })}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

@@ -1,8 +1,7 @@
 'use client';
 
-import {use, useEffect, useState} from 'react';
+import {use, useCallback, useEffect, useState} from 'react';
 import Link from 'next/link';
-import {useRouter} from 'next/navigation';
 import {ArrowLeft, ArrowSquareOut, CircleNotch, FileText, Pause, Play, StopCircle,} from '@phosphor-icons/react';
 
 import {Alert, Button, buttonStyles, Card, Dialog, ErrorState, PageHeader, StatCard,} from '@/components/ui';
@@ -42,7 +41,6 @@ export default function RecurringScheduleDetailPage({
 }) {
     const resolvedParams = use(params);
     const scheduleId = resolvedParams.id;
-    const router = useRouter();
 
     const [schedule, setSchedule] = useState<RecurringSchedule | null>(null);
     const [occurrences, setOccurrences] = useState<Occurrence[]>([]);
@@ -57,7 +55,7 @@ export default function RecurringScheduleDetailPage({
     const [actionLoading, setActionLoading] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
 
-    async function loadData() {
+    const loadData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -96,11 +94,11 @@ export default function RecurringScheduleDetailPage({
         } finally {
             setLoading(false);
         }
-    }
+    }, [scheduleId]);
 
     useEffect(() => {
-        loadData();
-    }, [scheduleId]);
+        void loadData();
+    }, [loadData]);
 
     async function handlePause() {
         setActionLoading(true);
@@ -251,9 +249,9 @@ export default function RecurringScheduleDetailPage({
                                     className={cn(
                                         'inline-flex rounded-full border px-2.5 py-1 text-caption font-bold uppercase tracking-wide',
                                         schedule.status === 'active'
-                                            ? 'border-ink bg-leaf text-[#052E1B]'
+                                            ? 'border-ink bg-leaf text-on-leaf'
                                             : schedule.status === 'paused'
-                                                ? 'border-ink bg-sun text-[#4A3200]'
+                                                ? 'border-ink bg-sun text-on-sun'
                                                 : 'border-line bg-surface-tint text-text-soft',
                                     )}
                                 >
@@ -416,7 +414,7 @@ export default function RecurringScheduleDetailPage({
                     {schedule.items.map((item, idx) => (
                         <div
                             key={idx}
-                            className="flex items-center justify-between rounded-card border border-line bg-surface-tint/40 p-3"
+                            className="flex items-center justify-between border-brut border-ink bg-surface-tint/40 p-3"
                         >
                             <div>
                                 <p className="font-bold text-ink">{item.description}</p>
@@ -469,7 +467,7 @@ export default function RecurringScheduleDetailPage({
                 </div>
 
                 {occurrences.length === 0 ? (
-                    <div className="rounded-card border border-dashed border-line p-8 text-center">
+                    <div className="border border-dashed border-line p-8 text-center">
                         <FileText className="mx-auto h-8 w-8 text-text-muted"/>
                         <p className="mt-2 font-bold text-ink">No invoices generated yet</p>
                         <p className="mt-1 text-caption text-text-soft">
@@ -484,7 +482,7 @@ export default function RecurringScheduleDetailPage({
                             <Link
                                 key={occ.invoice_id}
                                 href={`/invoices/${occ.invoice_id}`}
-                                className="flex items-center justify-between rounded-card border border-line bg-surface p-4 transition-colors hover:border-ink hover:bg-surface-tint"
+                                className="flex items-center justify-between border-brut border-ink bg-surface p-4 transition-colors hover:bg-surface-tint"
                             >
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2">

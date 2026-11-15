@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Trash, X } from '@phosphor-icons/react';
+import { ArrowLeft, X } from '@phosphor-icons/react';
 import { LineItemsEditor } from '@/components/invoice';
 import { NewRecurringFlow } from '@/components/mobile/NewRecurringFlow';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
@@ -19,6 +19,8 @@ import {
   Card,
   Field,
   Input,
+  PageContainer,
+  PageHeader,
   buttonStyles,
   inputStyles,
 } from '@/components/ui';
@@ -51,20 +53,22 @@ export default function NewRecurringInvoiceClient() {
       </div>
 
       {/* Tablet & Desktop: Single-page form */}
-      <div className="hidden w-full max-w-4xl space-y-6 p-4 pb-24 sm:block sm:space-y-6 sm:p-6 sm:pb-16 lg:p-8">
-        <div className="space-y-2">
+      <PageContainer width="form" className="hidden sm:block pb-24 sm:pb-16">
+        <div className="space-y-4">
           <Link href="/recurring-invoices" className={buttonStyles({ variant: 'outline' })}>
             <ArrowLeft aria-hidden className="h-4 w-4" />
             All recurring
           </Link>
-          <h1 className="text-title-l sm:text-display">new recurring schedule</h1>
-          <p className="text-body text-text-soft">Set up an automated schedule for repeat invoicing</p>
+          <PageHeader
+            title="New recurring schedule"
+            description="Set up an automated schedule for repeat invoicing."
+          />
         </div>
 
         {draft.errorMsg && (
           <div
             role="alert"
-            className="flex items-start justify-between gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]"
+            className="flex items-start justify-between gap-2 bg-status-late p-3 text-body text-status-late-fg"
           >
             <span className="pt-2">{draft.errorMsg}</span>
             <button
@@ -171,7 +175,7 @@ export default function NewRecurringInvoiceClient() {
                 label="Frequency"
                 className="w-full"
                 value={draft.frequency}
-                onChange={(val) => draft.setFrequency(val as any)}
+                onChange={(val) => draft.setFrequency(val as typeof draft.frequency)}
                 options={FREQUENCY_OPTIONS.map((f) => ({
                   value: f.value,
                   label: f.label,
@@ -226,7 +230,7 @@ export default function NewRecurringInvoiceClient() {
               <div className="mt-2 grid gap-3 sm:grid-cols-2">
                 <label
                   className={cn(
-                    'flex cursor-pointer items-start gap-3 rounded-card border-brut p-3 transition-colors',
+                    'flex cursor-pointer items-start gap-3 border-brut p-3 transition-colors',
                     draft.issueMode === 'draft'
                       ? 'border-ink bg-sun/20 shadow-brut-sm'
                       : 'border-line bg-surface hover:bg-surface-tint',
@@ -249,7 +253,7 @@ export default function NewRecurringInvoiceClient() {
 
                 <label
                   className={cn(
-                    'flex cursor-pointer items-start gap-3 rounded-card border-brut p-3 transition-colors',
+                    'flex cursor-pointer items-start gap-3 border-brut p-3 transition-colors',
                     draft.issueMode === 'auto_issue'
                       ? 'border-ink bg-sun/20 shadow-brut-sm'
                       : 'border-line bg-surface hover:bg-surface-tint',
@@ -278,7 +282,7 @@ export default function NewRecurringInvoiceClient() {
               <div className="mt-2 grid gap-3 sm:grid-cols-3">
                 <label
                   className={cn(
-                    'flex cursor-pointer items-center gap-2 rounded-card border-brut p-3',
+                    'flex cursor-pointer items-center gap-2 border-brut p-3',
                     draft.endRule === 'never'
                       ? 'border-ink bg-sun/20 shadow-brut-sm'
                       : 'border-line bg-surface',
@@ -295,7 +299,7 @@ export default function NewRecurringInvoiceClient() {
 
                 <label
                   className={cn(
-                    'flex cursor-pointer items-center gap-2 rounded-card border-brut p-3',
+                    'flex cursor-pointer items-center gap-2 border-brut p-3',
                     draft.endRule === 'after_count'
                       ? 'border-ink bg-sun/20 shadow-brut-sm'
                       : 'border-line bg-surface',
@@ -312,7 +316,7 @@ export default function NewRecurringInvoiceClient() {
 
                 <label
                   className={cn(
-                    'flex cursor-pointer items-center gap-2 rounded-card border-brut p-3',
+                    'flex cursor-pointer items-center gap-2 border-brut p-3',
                     draft.endRule === 'on_date'
                       ? 'border-ink bg-sun/20 shadow-brut-sm'
                       : 'border-line bg-surface',
@@ -489,7 +493,7 @@ export default function NewRecurringInvoiceClient() {
           onClientCreated={draft.addClient}
           defaultCurrency={draft.currency}
         />
-      </div>
+      </PageContainer>
     </>
   );
 }

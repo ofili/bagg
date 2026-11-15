@@ -223,7 +223,7 @@ export function NotificationCenter() {
         />
 
         {unreadCount > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full border-brut border-ink bg-mango px-1 text-[11px] font-extrabold leading-none text-on-mango shadow-sm">
+          <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full border-brut border-ink bg-mango px-1 text-[11px] font-extrabold leading-none text-on-mango shadow-brut-sm">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -235,7 +235,7 @@ export function NotificationCenter() {
           aria-label="Notifications"
           className={cn(
             'absolute right-0 top-full z-50 mt-2 w-80 sm:w-96',
-            'rounded-card border-brut border-ink bg-surface',
+            ' border-brut border-ink bg-surface',
             'shadow-brut animate-in fade-in zoom-in-95 duration-100',
           )}
         >
@@ -256,7 +256,7 @@ export function NotificationCenter() {
               <button
                 type="button"
                 onClick={handleMarkAllAsRead}
-                className="text-caption font-bold text-ink-soft hover:text-ink hover:underline"
+                className="text-caption font-bold text-text-soft hover:text-ink hover:underline"
               >
                 Mark all read
               </button>
@@ -265,12 +265,12 @@ export function NotificationCenter() {
 
           <div className="max-h-96 divide-y divide-line-subtle overflow-y-auto">
             {loading && notifications.length === 0 ? (
-              <div className="flex items-center justify-center py-10 text-ink-muted">
+              <div className="flex items-center justify-center py-10 text-text-muted">
                 <Loader2 className="h-5 w-5 animate-spin" />
               </div>
             ) : notifications.length === 0 ? (
-              <div className="p-6 text-center text-ink-soft">
-                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-tint text-leaf">
+              <div className="p-6 text-center text-text-soft">
+                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-surface-tint text-leaf">
                   <Check className="h-5 w-5" />
                 </div>
 
@@ -278,7 +278,7 @@ export function NotificationCenter() {
                   All caught up
                 </p>
 
-                <p className="mt-0.5 text-caption text-ink-soft">
+                <p className="mt-0.5 text-caption text-text-soft">
                   New client questions, quote acceptances, and payment
                   claims will appear here.
                 </p>
@@ -316,12 +316,12 @@ export function NotificationCenter() {
                         <div className="flex min-w-0 items-center gap-1.5">
                           {getNotificationIcon(item.type)}
 
-                          <span className="inline-block truncate rounded-pill border border-line-subtle bg-surface px-1.5 py-0.5 text-[11px] font-bold text-ink">
+                          <span className="inline-block truncate rounded-full border-brut border-ink bg-surface px-1.5 py-0.5 text-[11px] font-bold text-ink">
                             {item.document_number}
                           </span>
                         </div>
 
-                        <time className="shrink-0 text-caption text-ink-muted">
+                        <time className="shrink-0 text-caption text-text-muted">
                           {formatDate(item.created_at)}
                         </time>
                       </div>
@@ -330,7 +330,7 @@ export function NotificationCenter() {
                         {item.title}
                       </p>
 
-                      <p className="line-clamp-2 text-caption text-ink-soft">
+                      <p className="line-clamp-2 text-caption text-text-soft">
                         {item.body}
                       </p>
                     </div>

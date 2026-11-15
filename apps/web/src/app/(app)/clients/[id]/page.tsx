@@ -1,27 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
   CaretDown,
   ArrowsClockwise,
-  Buildings,
-  Calendar,
-  Check,
   CircleNotch,
-  Envelope,
   FileText,
   FloppyDisk,
-  MapPin,
-  PencilSimple,
-  Phone,
   Plus,
   Printer,
   Receipt,
   Scroll,
-  User,
   Users,
 } from '@phosphor-icons/react';
 
@@ -33,17 +25,22 @@ import {
   BaggSelect,
   Button,
   Card,
-  DataTable,
+  DateField,
+  EmailField,
   ErrorState,
-  Field,
-  Input,
+  FormActions,
+  FormGrid,
+  FormSection,
+  NumberField,
   PageHeader,
+  PhoneField,
   ProgressBar,
   StatCard,
+  TextArea,
+  TextField,
   buttonStyles,
 } from '@/components/ui';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
-import { useDataTable } from '@/hooks/useDataTable';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 
@@ -150,60 +147,9 @@ const SUPPORTED_CURRENCIES = [
   { code: 'ZAR', label: 'ZAR · South African rand' },
 ];
 
-const inputClass =
-  'min-h-12 w-full rounded-input border border-line bg-surface px-3 py-2 text-body text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-cocoa focus:ring-2 focus:ring-cocoa/20';
-const labelClass = 'mb-1 block text-label font-bold text-ink-soft';
-
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  NGN: '₦',
-  USD: '$',
-  GBP: '£',
-  EUR: '€',
-  GHS: 'GH₵',
-  KES: 'KSh',
-  ZAR: 'R',
-};
-
-function formatCompactAmount(amountMinor: number, currency: string): string {
-  const symbol = CURRENCY_SYMBOLS[currency] || (currency ? `${currency} ` : '');
-  const major = (amountMinor || 0) / 100;
-  const abs = Math.abs(major);
-  const sign = major < 0 ? '-' : '';
-
-  if (abs >= 1_000_000_000) {
-    const val = (abs / 1_000_000_000).toFixed(abs % 1_000_000_000 === 0 ? 0 : 2).replace(/\.00$/, '');
-    return `${sign}${symbol}${val}B`;
-  }
-  if (abs >= 1_000_000) {
-    const val = (abs / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 2).replace(/\.00$/, '');
-    return `${sign}${symbol}${val}M`;
-  }
-  if (abs >= 1_000) {
-    const val = (abs / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1).replace(/\.0$/, '');
-    return `${sign}${symbol}${val}K`;
-  }
-  return `${sign}${symbol}${abs.toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatFullAmount(amountMinor: number, currency: string): string {
-  const symbol = CURRENCY_SYMBOLS[currency] || (currency ? `${currency} ` : '');
-  const major = (amountMinor || 0) / 100;
-  const abs = Math.abs(major);
-  const sign = major < 0 ? '-' : '';
-  return `${sign}${symbol}${abs.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
   const clientId = params.id;
-  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<ClientTab>('overview');
   const [client, setClient] = useState<Client | null>(null);
@@ -403,8 +349,9 @@ export default function ClientDetailPage() {
     if (activeTab === 'statement') void fetchStatement();
     if (activeTab === 'invoices') void fetchInvoices();
     if (activeTab === 'quotes') void fetchQuotes();
+    if (activeTab === 'recurring') void fetchRecurringSchedules();
     if (activeTab === 'contacts') void fetchContacts();
-  }, [activeTab, fetchStatement, fetchInvoices, fetchQuotes, fetchContacts]);
+  }, [activeTab, fetchStatement, fetchInvoices, fetchQuotes, fetchRecurringSchedules, fetchContacts]);
 
   const handleUpdateClient = async (e: FormEvent) => {
     e.preventDefault();
@@ -517,13 +464,13 @@ return (
             {createDropdownOpen && (
               <div
                 role="menu"
-                className="absolute right-0 z-30 mt-2 w-56 rounded-card border-brut bg-surface p-1.5 shadow-brut animate-in fade-in zoom-in-95 duration-100"
+                className="absolute right-0 z-30 mt-2 w-56 border-brut bg-surface p-1.5 shadow-brut animate-in fade-in zoom-in-95 duration-100"
               >
                 <Link
                   href={`/invoices/new?client_id=${client.id}`}
                   role="menuitem"
                   onClick={() => setCreateDropdownOpen(false)}
-                  className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
+                  className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-on-sun"
                 >
                   <Receipt aria-hidden className="h-4 w-4 shrink-0 text-ink" />
                   <div>
@@ -536,7 +483,7 @@ return (
                   href={`/quotes/new?client_id=${client.id}`}
                   role="menuitem"
                   onClick={() => setCreateDropdownOpen(false)}
-                  className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
+                  className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-on-sun"
                 >
                   <Scroll aria-hidden className="h-4 w-4 shrink-0 text-ink" />
                   <div>
@@ -549,7 +496,7 @@ return (
                   href={`/recurring-invoices/new?client_id=${client.id}`}
                   role="menuitem"
                   onClick={() => setCreateDropdownOpen(false)}
-                  className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-ink"
+                  className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-on-sun"
                 >
                   <ArrowsClockwise aria-hidden className="h-4 w-4 shrink-0 text-ink" />
                   <div>
@@ -750,27 +697,21 @@ return (
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label htmlFor="stmt-from" className="text-caption font-bold text-text-muted">From:</label>
-              <input
-                id="stmt-from"
-                type="date"
-                value={statementDateFrom}
-                onChange={(e) => setStatementDateFrom(e.target.value)}
-                className="rounded-input border border-line bg-surface px-3 py-1.5 text-body"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="stmt-to" className="text-caption font-bold text-text-muted">To:</label>
-              <input
-                id="stmt-to"
-                type="date"
-                value={statementDateTo}
-                onChange={(e) => setStatementDateTo(e.target.value)}
-                className="rounded-input border border-line bg-surface px-3 py-1.5 text-body"
-              />
-            </div>
+          <div className="flex flex-wrap items-start gap-3">
+            <DateField
+              id="stmt-from"
+              label="From"
+              value={statementDateFrom}
+              onChange={(e) => setStatementDateFrom(e.target.value)}
+              className="w-40"
+            />
+            <DateField
+              id="stmt-to"
+              label="To"
+              value={statementDateTo}
+              onChange={(e) => setStatementDateTo(e.target.value)}
+              className="w-40"
+            />
           </div>
 
           {statementLoading ? (
@@ -778,15 +719,15 @@ return (
               <CircleNotch className="h-6 w-6 animate-spin" />
             </div>
           ) : !statement || statement.entries.length === 0 ? (
-            <div className="rounded-card border border-dashed border-line p-8 text-center">
+            <div className="border border-dashed border-line p-8 text-center">
               <BagCharacter size={64} className="mx-auto" decorative />
               <p className="mt-3 font-bold">No transactions found</p>
               <p className="text-body text-text-soft">There are no invoices or payment receipts for this period.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-card border-brut border-ink bg-surface shadow-brut-sm">
+            <div className="overflow-x-auto border-brut border-ink bg-surface shadow-brut-sm">
               <table className="w-full text-left text-body">
-                <thead className="border-b border-ink bg-tint text-caption font-extrabold uppercase">
+                <thead className="border-b border-ink bg-surface-tint text-caption font-extrabold uppercase">
                   <tr>
                     <th className="p-3">Date</th>
                     <th className="p-3">Type</th>
@@ -823,7 +764,7 @@ return (
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="border-t-2 border-ink bg-tint font-bold">
+                <tfoot className="border-t-2 border-ink bg-surface-tint font-bold">
                   <tr>
                     <td colSpan={4} className="p-3">Totals</td>
                     <td className="p-3 text-right"><Money amountMinor={statement.total_invoiced_minor} currency={statement.currency} /></td>
@@ -851,7 +792,7 @@ return (
               <CircleNotch className="h-6 w-6 animate-spin" />
             </div>
           ) : invoices.length === 0 ? (
-            <div className="rounded-card border border-dashed border-line p-8 text-center">
+            <div className="border border-dashed border-line p-8 text-center">
               <FileText className="mx-auto h-8 w-8 text-text-muted" />
               <p className="mt-2 font-bold">No invoices for this client</p>
             </div>
@@ -861,7 +802,7 @@ return (
                 <Link
                   key={inv.id}
                   href={`/invoices/${inv.id}`}
-                  className="flex items-center justify-between rounded-card border border-line bg-surface p-4 transition-colors hover:border-ink hover:bg-surface-tint"
+                  className="flex items-center justify-between border-brut border-ink bg-surface p-4 transition-colors hover:bg-surface-tint"
                 >
                   <div className="space-y-1">
                     <p className="font-extrabold text-ink">{inv.invoice_number}</p>
@@ -892,7 +833,7 @@ return (
               <CircleNotch className="h-6 w-6 animate-spin" />
             </div>
           ) : quotes.length === 0 ? (
-            <div className="rounded-card border border-dashed border-line p-8 text-center">
+            <div className="border border-dashed border-line p-8 text-center">
               <Scroll className="mx-auto h-8 w-8 text-text-muted" />
               <p className="mt-2 font-bold">No quotes for this client</p>
             </div>
@@ -902,7 +843,7 @@ return (
                 <Link
                   key={q.id}
                   href={`/quotes/${q.id}`}
-                  className="flex items-center justify-between rounded-card border border-line bg-surface p-4 transition-colors hover:border-ink hover:bg-surface-tint"
+                  className="flex items-center justify-between border-brut border-ink bg-surface p-4 transition-colors hover:bg-surface-tint"
                 >
                   <div className="space-y-1">
                     <p className="font-extrabold text-ink">{q.quote_number}</p>
@@ -933,7 +874,7 @@ return (
               <CircleNotch className="h-6 w-6 animate-spin" />
             </div>
           ) : recurringSchedules.length === 0 ? (
-            <div className="rounded-card border border-dashed border-line p-8 text-center">
+            <div className="border border-dashed border-line p-8 text-center">
               <ArrowsClockwise className="mx-auto h-8 w-8 text-text-muted" />
               <p className="mt-2 font-bold">No recurring schedules for this client</p>
               <p className="mt-1 text-caption text-text-soft">Set up automated billing on a repeat cadence.</p>
@@ -954,7 +895,7 @@ return (
                   <Link
                     key={sched.id}
                     href={`/recurring-invoices/${sched.id}`}
-                    className="flex items-center justify-between rounded-card border border-line bg-surface p-4 transition-colors hover:border-ink hover:bg-surface-tint"
+                    className="flex items-center justify-between border-brut border-ink bg-surface p-4 transition-colors hover:bg-surface-tint"
                   >
                     <div className="space-y-1">
                       <p className="font-extrabold text-ink">{sched.name}</p>
@@ -968,9 +909,9 @@ return (
                         className={cn(
                           'rounded-full px-2.5 py-0.5 text-caption font-extrabold capitalize border',
                           sched.status === 'active'
-                            ? 'bg-leaf text-[#052E1B] border-ink'
+                            ? 'bg-leaf text-on-leaf border-ink'
                             : sched.status === 'paused'
-                            ? 'bg-sun text-[#4A3200] border-ink'
+                            ? 'bg-sun text-on-sun border-ink'
                             : 'bg-surface-tint text-text-soft border-line',
                         )}
                       >
@@ -999,7 +940,7 @@ return (
               <CircleNotch className="h-6 w-6 animate-spin" />
             </div>
           ) : contacts.length === 0 ? (
-            <div className="rounded-card border border-dashed border-line p-8 text-center">
+            <div className="border border-dashed border-line p-8 text-center">
               <Users className="mx-auto h-8 w-8 text-text-muted" />
               <p className="mt-2 font-bold">No contacts registered for this client</p>
             </div>
@@ -1008,7 +949,7 @@ return (
               {contacts.map((contact) => (
                 <div
                   key={contact.id}
-                  className="flex items-center justify-between rounded-card border border-line bg-surface p-4"
+                  className="flex items-center justify-between border-brut border-ink bg-surface p-4"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -1051,102 +992,89 @@ return (
             </Alert>
           )}
 
-          <Card zone="calm" className="space-y-4">
-            <h2 className="text-heading">Edit Client Information</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="client-name" className={labelClass}>Client or company name</label>
-                <input
-                  id="client-name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label htmlFor="client-email" className={labelClass}>Billing email</label>
-                <input
-                  id="client-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label htmlFor="client-phone" className={labelClass}>Phone</label>
-                <input
-                  id="client-phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label htmlFor="client-tax" className={labelClass}>Tax ID or TIN</label>
-                <input
-                  id="client-tax"
-                  type="text"
-                  value={taxId}
-                  onChange={(e) => setTaxId(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label htmlFor="client-currency" className={labelClass}>Preferred currency</label>
-                <select
-                  id="client-currency"
-                  value={preferredCurrency}
-                  onChange={(e) => setPreferredCurrency(e.target.value)}
-                  className={inputClass}
-                >
-                  {SUPPORTED_CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="client-terms" className={labelClass}>Payment terms (days)</label>
-                <input
-                  id="client-terms"
-                  type="number"
-                  min={0}
-                  value={paymentTerms}
-                  onChange={(e) => setPaymentTerms(Number(e.target.value))}
-                  className={inputClass}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="client-address" className={labelClass}>Billing address</label>
-                <input
-                  id="client-address"
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="client-notes" className={labelClass}>Notes</label>
-                <textarea
-                  id="client-notes"
-                  rows={3}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            </div>
+          <FormSection
+            title="Edit client information"
+            description="Update the billing details used on future documents."
+          >
+            <FormGrid>
+              <TextField
+                id="client-name"
+                label="Client or company name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
 
-            <div className="flex justify-end pt-2">
+              <EmailField
+                id="client-email"
+                label="Billing email"
+                optional
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+
+              <PhoneField
+                id="client-phone"
+                label="Phone"
+                optional
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+
+              <TextField
+                id="client-tax"
+                label="Tax ID or TIN"
+                optional
+                value={taxId}
+                onChange={(e) => setTaxId(e.target.value)}
+              />
+
+              <BaggSelect
+                id="client-currency"
+                label="Preferred currency"
+                value={preferredCurrency}
+                onChange={setPreferredCurrency}
+                options={SUPPORTED_CURRENCIES.map((c) => ({
+                  value: c.code,
+                  label: c.label,
+                }))}
+              />
+
+              <NumberField
+                id="client-terms"
+                label="Payment terms"
+                suffix="days"
+                min={0}
+                value={paymentTerms}
+                onChange={(e) => setPaymentTerms(Number(e.target.value))}
+              />
+
+              <TextField
+                id="client-address"
+                label="Billing address"
+                optional
+                className="sm:col-span-2"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+
+              <TextArea
+                id="client-notes"
+                label="Notes"
+                optional
+                rows={3}
+                className="sm:col-span-2"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </FormGrid>
+
+            <FormActions>
               <Button type="submit" zone="calm" loading={saving}>
                 <FloppyDisk className="h-4 w-4" /> Save changes
               </Button>
-            </div>
-          </Card>
+            </FormActions>
+          </FormSection>
         </form>
       )}
     </div>

@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { WarningCircleIcon } from '@phosphor-icons/react';
 import { cn } from '@/lib/cn';
+import { buttonStyles } from './button';
 
 export interface ErrorStateProps {
   title?: ReactNode;
@@ -29,7 +30,7 @@ export function ErrorState({
       role="alert"
       className={cn(
         'flex flex-col items-center text-center',
-        compact ? 'gap-2 py-5' : 'gap-3 rounded-card border border-line-subtle bg-surface p-6 sm:p-8',
+        compact ? 'gap-2 py-5' : 'gap-3 border-brut border-ink bg-surface p-6 sm:p-8',
         className,
       )}
     >
@@ -67,7 +68,7 @@ export function ErrorState({
             <button
               type="button"
               onClick={onRetry}
-              className="inline-flex min-h-11 items-center justify-center rounded-btn border border-ink bg-ink px-4 py-2 text-body font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className={cn(buttonStyles({ variant: 'ink', zone: 'calm' }), 'px-4')}
             >
               {retryLabel}
             </button>

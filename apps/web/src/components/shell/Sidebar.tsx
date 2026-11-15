@@ -142,7 +142,7 @@ export function Sidebar({
 
         {SHOW_DEV_BADGE && !collapsed && (
           <div className="mt-3 flex justify-end">
-            <span className="rounded-small border border-ink bg-sun px-2 py-0.5 text-caption font-extrabold text-on-sun">
+            <span className="rounded-small border-brut-thin border-ink bg-sun px-2 py-0.5 text-caption font-extrabold text-on-sun">
               dev
             </span>
           </div>

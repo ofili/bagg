@@ -13,11 +13,11 @@
  */
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, useEffect, useRef, useState} from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {Check, CreditCard, UserPlus, X} from 'lucide-react';
 import {BagCharacter} from '@/components/brand';
 import {InvoiceDocument, LineItemsEditor} from '@/components/invoice';
-import {MoneyInput} from '@/components/mobile/MoneyInput';
+import {MoneyField} from '@/components/ui/MoneyField';
 import {Money} from '@/components/money/Money';
 import {BaggSelect, Button, Card, Dialog, Field, Input, buttonStyles, inputStyles} from '@/components/ui';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
@@ -129,7 +129,7 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                     {STEPS.map((s, i) => (
                         <span
                             key={s}
-                            className={cn('h-1.5 flex-1 rounded-full border border-ink', i <= step ? 'bg-mango' : 'bg-surface-tint')}
+                            className={cn('h-1.5 flex-1 rounded-full border-brut-thin border-ink', i <= step ? 'bg-mango' : 'bg-surface-tint')}
                         />
                     ))}
                 </div>
@@ -141,7 +141,7 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
 
             {draft.errorMsg && (
                 <div role="alert"
-                     className="flex items-start justify-between gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]">
+                     className="flex items-start justify-between gap-2 bg-status-late p-3 text-body text-status-late-fg">
                     <span className="pt-2">{draft.errorMsg}</span>
                     <button
                         type="button"
@@ -178,7 +178,7 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                                 </Field>
                             )}
                             <div role="radiogroup" aria-label="Client"
-                                 className="overflow-hidden rounded-card border-brut border-ink bg-surface">
+                                 className="overflow-hidden border-brut border-ink bg-surface">
                                 <button
                                     type="button"
                                     onClick={() => setShowClientModal(true)}
@@ -201,23 +201,23 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                                             onClick={() => draft.handleClientChange(c.id)}
                                             className={cn(
                                                 'flex min-h-16 w-full items-center gap-3 border-t border-line-subtle px-3 text-left',
-                                                on ? 'bg-sun' : 'hover:bg-surface-tint',
+                                                on ? 'bg-sun text-on-sun' : 'hover:bg-surface-tint',
                                             )}
                                         >
                       <span
                           aria-hidden
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-brut-thin border-ink bg-mango font-extrabold"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-brut-thin border-ink bg-mango font-extrabold text-on-mango"
                       >
                         {initials(c.name)}
                       </span>
                                             <span className="min-w-0 flex-1">
                         <span className="block truncate font-extrabold">{c.name}</span>
-                        <span className="block text-caption text-text-soft">
+                        <span className={cn('block text-caption', on ? 'text-on-sun/75' : 'text-text-soft')}>
                           {c.preferred_currency} · {c.default_payment_terms_days || 14}-day terms
                         </span>
                       </span>
                                             {on && (
-                                                <span className="flex h-7 w-7 items-center justify-center rounded-full border-brut-thin border-ink bg-leaf">
+                                                <span className="flex h-7 w-7 items-center justify-center rounded-full border-brut-thin border-ink bg-leaf text-on-leaf">
                           <Check aria-hidden className="h-4 w-4" />
                         </span>
                                             )}
@@ -233,7 +233,7 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                                 className="w-full"
                                 value={draft.currency}
                                 onChange={draft.setCurrency}
-                                options={SUPPORTED_CURRENCIES.map((c: { code: any; label: any; }) => ({ value: c.code, label: c.label }))}
+                                options={SUPPORTED_CURRENCIES.map((c) => ({ value: c.code, label: c.label }))}
                             />
                         </>
                     )}
@@ -245,12 +245,12 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                 <div className="space-y-4">
                     {client && <p className="-mt-3 text-body text-text-soft">For {client.name}</p>}
                     <LineItemsEditor items={draft.items} onChange={draft.setItems} currency={draft.currency} />
-                    <details className="rounded-card border-brut border-ink bg-surface">
+                    <details className="border-brut border-ink bg-surface">
                         <summary className="flex min-h-12 cursor-pointer items-center px-4 font-extrabold">
                             Add a discount or tax
                         </summary>
                         <div className="space-y-4 border-t border-line-subtle p-4">
-                            <MoneyInput
+                            <MoneyField
                                 label="Discount"
                                 currency={draft.currency}
                                 value={draft.discountText}
@@ -291,7 +291,7 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                                         }}
                                         className={cn(
                                             'min-h-11 rounded-full border-brut-thin border-ink px-4 text-body',
-                                            on ? 'bg-sun font-extrabold' : 'bg-surface font-medium text-text-soft',
+                                            on ? 'bg-sun font-extrabold text-on-sun' : 'bg-surface font-medium text-text-soft',
                                         )}
                                     >
                                         {o.label}
@@ -304,7 +304,7 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                                 onClick={() => setPickDate(true)}
                                 className={cn(
                                     'min-h-11 rounded-full border-brut-thin border-ink px-4 text-body',
-                                    pickDate || !knownGap ? 'bg-sun font-extrabold' : 'bg-surface font-medium text-text-soft',
+                                    pickDate || !knownGap ? 'bg-sun font-extrabold text-on-sun' : 'bg-surface font-medium text-text-soft',
                                 )}
                             >
                                 Pick date
@@ -369,7 +369,7 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                             <p className="text-body-l font-extrabold">{client?.name ?? 'No client'}</p>
                         </div>
                         <ul className="divide-y divide-line-subtle border-y border-line-subtle">
-                            {draft.previewInvoice.items.map((it: { id: Key | null | undefined; description: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; quantity: any; total_minor: number; }) => (
+                            {draft.previewInvoice.items.map((it) => (
                                 <li key={it.id} className="flex items-baseline justify-between gap-3 py-2 text-body">
                   <span className="min-w-0 truncate">
                     {it.description}

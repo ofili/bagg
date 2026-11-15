@@ -98,6 +98,9 @@ export function useDataTable<T>(config: UseDataTableConfig) {
   const extraParamsKey = JSON.stringify(extraParams);
 
   const fetchData = useCallback(async () => {
+    // extraParamsKey is the stable dependency; parsing it back avoids
+    // refetching on every render when callers pass an inline object.
+    const extraParams = JSON.parse(extraParamsKey) as Record<string, string>;
     abortRef.current?.abort();
 
     const controller = new AbortController();

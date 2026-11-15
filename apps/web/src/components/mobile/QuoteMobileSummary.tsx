@@ -38,7 +38,7 @@ export function QuoteMobileSummary({
     return (
         <section
             aria-label="Quote summary"
-            className="space-y-2 rounded-card border-brut border-ink bg-surface p-4 shadow-brut-sm sm:hidden"
+            className="space-y-2  border-brut border-ink bg-surface p-4 shadow-brut-sm sm:hidden"
         >
             <p className="truncate text-body-l font-extrabold">
                 {clientName || 'Client'}

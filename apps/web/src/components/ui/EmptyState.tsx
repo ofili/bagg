@@ -42,8 +42,8 @@ export function EmptyState({
     >
       {/* The heading and text carry the meaning, so the bag is decorative. */}
       <BagCharacter mood={mood} size={compact ? 72 : 96} decorative />
-      <h2 className="mt-3 text-title-l text-ink">{title}</h2>
-      {body ? <p className="mt-1.5 max-w-sm text-body text-ink-soft">{body}</p> : null}
+      <h2 className="mt-3 text-title-l text-text">{title}</h2>
+      {body ? <p className="mt-1.5 max-w-sm text-body text-text-soft">{body}</p> : null}
       {action ? (
         action.href ? (
           <Link href={action.href} className={cn(buttonStyles(), 'mt-5')}>

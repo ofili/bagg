@@ -140,6 +140,7 @@ class BillingCheckout(Base):
     purchase_type = Column(String(32), nullable=False)
     plan_code = Column(String(64), nullable=True)
     processor_plan_code = Column(String(128), nullable=True)
+    pack_code = Column(String(64), nullable=True)
     credits = Column(Integer, nullable=True)
     currency = Column(String(3), nullable=False)
     amount_minor = Column(BigInteger, nullable=False)

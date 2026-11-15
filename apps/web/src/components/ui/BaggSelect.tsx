@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -33,6 +32,10 @@ export interface BaggSelectProps {
   hideLabel?: boolean;
   name?: string;
   id?: string;
+  /** Adds a filter field to the menu. Use it for lists longer than about 8 options. */
+  searchable?: boolean;
+  /** full fills its container (default). auto sizes to the selected label. */
+  width?: 'full' | 'auto';
 }
 
 export function BaggSelect({
@@ -51,27 +54,40 @@ export function BaggSelect({
   hideLabel = false,
   name,
   id: suppliedId,
+  searchable = false,
+  width = 'full',
 }: BaggSelectProps) {
   const generatedId = useId();
   const id = suppliedId ?? generatedId;
 
   const labelId = `${id}-label`;
   const listboxId = `${id}-listbox`;
+  const searchId = `${id}-search`;
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
 
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [query, setQuery] = useState('');
 
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const listboxRef = useRef<HTMLUListElement>(null);
   const typeaheadRef = useRef('');
   const typeaheadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
 
-  const enabledOptions = options
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const visibleOptions =
+    searchable && normalizedQuery
+      ? options.filter((option) =>
+          option.label.toLocaleLowerCase().includes(normalizedQuery),
+        )
+      : options;
+
+  const enabledOptions = visibleOptions
     .map((option, originalIndex) => ({
       option,
       originalIndex,
@@ -116,6 +132,7 @@ export function BaggSelect({
 
   function closeMenu(restoreFocus = false) {
     setOpen(false);
+    setQuery('');
     typeaheadRef.current = '';
 
     if (typeaheadTimerRef.current) {
@@ -164,12 +181,12 @@ export function BaggSelect({
       typeaheadTimerRef.current = null;
     }, 700);
 
-    const search = (query: string, startIndex: number) => {
+    const search = (needle: string, startIndex: number) => {
       for (let offset = 0; offset < enabledOptions.length; offset += 1) {
         const index = (startIndex + offset) % enabledOptions.length;
         const label = enabledOptions[index].option.label.toLocaleLowerCase();
 
-        if (label.startsWith(query)) return index;
+        if (label.startsWith(needle)) return index;
       }
 
       return -1;
@@ -180,16 +197,16 @@ export function BaggSelect({
       : Math.max(selectedEnabledIndex, 0);
 
     // Repeated single-character input cycles through matching options.
-    const query = [...currentQuery].every(
+    const needle = [...currentQuery].every(
       (item) => item === currentQuery[0],
     )
       ? currentQuery[0]
       : currentQuery;
 
-    let match = search(query, startIndex);
+    let match = search(needle, startIndex);
 
     // If a multi-character query has no match, retry using the latest key.
-    if (match < 0 && query.length > 1) {
+    if (match < 0 && needle.length > 1) {
       typeaheadRef.current = normalizedCharacter;
       match = search(normalizedCharacter, startIndex);
     }
@@ -275,12 +292,67 @@ export function BaggSelect({
         ) {
           event.preventDefault();
 
+          if (searchable) {
+            setQuery(event.key);
+            setActiveIndex(0);
+            setOpen(true);
+            return;
+          }
+
           if (!open) {
             openMenu('selected');
           }
 
           findTypeaheadMatch(event.key);
         }
+        break;
+    }
+  }
+
+  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        moveActive(1);
+        break;
+
+      case 'ArrowUp':
+        event.preventDefault();
+        moveActive(-1);
+        break;
+
+      case 'Home':
+        event.preventDefault();
+        if (enabledOptions.length > 0) setActiveIndex(0);
+        break;
+
+      case 'End':
+        event.preventDefault();
+        if (enabledOptions.length > 0) {
+          setActiveIndex(enabledOptions.length - 1);
+        }
+        break;
+
+      case 'Enter':
+        event.preventDefault();
+
+        if (activeOption) {
+          chooseOption(activeOption);
+        } else if (enabledOptions.length === 1) {
+          chooseOption(enabledOptions[0].option);
+        }
+        break;
+
+      case 'Escape':
+        event.preventDefault();
+        closeMenu(true);
+        break;
+
+      case 'Tab':
+        closeMenu();
+        break;
+
+      default:
         break;
     }
   }
@@ -315,6 +387,14 @@ export function BaggSelect({
   }, [activeIndex, open]);
 
   useEffect(() => {
+    if (!open || !searchable) return;
+
+    const frame = requestAnimationFrame(() => searchRef.current?.focus());
+
+    return () => cancelAnimationFrame(frame);
+  }, [open, searchable]);
+
+  useEffect(() => {
     return () => {
       if (typeaheadTimerRef.current) {
         clearTimeout(typeaheadTimerRef.current);
@@ -323,24 +403,31 @@ export function BaggSelect({
   }, []);
 
   useEffect(() => {
-    if (open && enabledOptions.length === 0) {
+    if (open && enabledOptions.length === 0 && !searchable) {
       closeMenu();
     }
 
     if (activeIndex >= enabledOptions.length) {
       setActiveIndex(Math.max(enabledOptions.length - 1, -1));
     }
-  }, [options, open, activeIndex, enabledOptions.length]);
+  }, [options, open, activeIndex, enabledOptions.length, searchable]);
 
   return (
     <div
       ref={rootRef}
-      className={cn('bagg-select', className)}
+      className={cn(
+        'relative min-w-0',
+        width === 'full' ? 'w-full' : 'w-auto',
+        className,
+      )}
     >
       <label
         id={labelId}
         htmlFor={`${id}-trigger`}
-        className={hideLabel ? 'sr-only' : 'bagg-select__label'}
+        className={cn(
+          'block text-label font-medium text-text',
+          hideLabel ? 'sr-only' : 'mb-1.5',
+        )}
       >
         {label}
 
@@ -363,16 +450,21 @@ export function BaggSelect({
         type="button"
         role="combobox"
         className={cn(
-          'bagg-select__trigger',
+          'flex min-h-11 w-full items-center justify-between gap-3',
+          'rounded-input border-brut-thin border-ink bg-surface px-3',
+          'text-left text-body-l text-text',
+          'transition-colors hover:bg-surface-tint',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
+          'disabled:cursor-not-allowed disabled:opacity-50',
           error && 'border-danger',
-          readOnly && 'cursor-default opacity-80',
+          readOnly && 'cursor-default opacity-80 hover:bg-surface',
         )}
         aria-labelledby={labelId}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
         aria-activedescendant={
-          open && activeOptionEntry
+          open && !searchable && activeOptionEntry
             ? `${id}-option-${activeOptionEntry.originalIndex}`
             : undefined
         }
@@ -387,17 +479,17 @@ export function BaggSelect({
           if (open) {
             closeMenu();
           } else {
+            setQuery('');
             openMenu('selected');
           }
         }}
         onKeyDown={handleKeyDown}
       >
         <span
-          className={
-            selectedOption
-              ? 'bagg-select__value'
-              : 'bagg-select__placeholder'
-          }
+          className={cn(
+            'truncate',
+            selectedOption ? 'font-medium' : 'font-normal text-text-muted',
+          )}
         >
           {selectedOption?.label ?? placeholder}
         </span>
@@ -405,8 +497,8 @@ export function BaggSelect({
         <svg
           aria-hidden="true"
           className={cn(
-            'bagg-select__chevron',
-            open && 'bagg-select__chevron--open',
+            'h-[18px] w-[18px] shrink-0 text-text-soft transition-transform duration-150',
+            open && 'rotate-180',
           )}
           viewBox="0 0 20 20"
           fill="none"
@@ -431,76 +523,126 @@ export function BaggSelect({
       )}
 
       {open && (
-        <ul
-          ref={listboxRef}
-          id={listboxId}
-          className="bagg-select__menu"
-          role="listbox"
-          aria-labelledby={labelId}
-          aria-required={required || undefined}
+        <div
+          className={cn(
+            'absolute left-0 top-[calc(100%+0.375rem)] z-50 w-full',
+            'border-brut border-ink bg-surface shadow-brut',
+          )}
         >
-          {options.map((option, index) => {
-            const enabledIndex = enabledOptions.findIndex(
-              ({ option: enabledOption }) =>
-                enabledOption.value === option.value,
-            );
-
-            const selected = option.value === value;
-            const active = enabledIndex === activeIndex;
-
-            return (
-              <li
-                key={option.value}
-                id={`${id}-option-${index}`}
-                className={cn(
-                  'bagg-select__option',
-                  selected && 'bagg-select__option--selected',
-                  active && 'bagg-select__option--active',
-                  option.disabled && 'bagg-select__option--disabled',
-                )}
-                role="option"
-                aria-selected={selected}
-                aria-disabled={option.disabled || undefined}
-                data-option-index={
-                  enabledIndex >= 0 ? enabledIndex : undefined
+          {searchable && (
+            <div className="border-b border-line-subtle p-2">
+              <input
+                ref={searchRef}
+                id={searchId}
+                type="text"
+                role="combobox"
+                aria-label={`Search ${label.toLocaleLowerCase()}`}
+                aria-autocomplete="list"
+                aria-expanded="true"
+                aria-controls={listboxId}
+                aria-activedescendant={
+                  activeOptionEntry
+                    ? `${id}-option-${activeOptionEntry.originalIndex}`
+                    : undefined
                 }
-                onMouseEnter={() => {
-                  if (!option.disabled && enabledIndex >= 0) {
-                    setActiveIndex(enabledIndex);
-                  }
+                autoComplete="off"
+                spellCheck={false}
+                value={query}
+                placeholder="Search…"
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setActiveIndex(0);
                 }}
-                onPointerDown={(event) => {
-                  // Keep DOM focus on the combobox trigger.
-                  event.preventDefault();
-                }}
-                onClick={() => chooseOption(option)}
-              >
-                <span>{option.label}</span>
-
-                {selected && (
-                  <svg
-                    aria-hidden="true"
-                    className="bagg-select__check"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                  >
-                    <path
-                      d="m4 10 4 4 8-8"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                onKeyDown={handleSearchKeyDown}
+                className={cn(
+                  'block min-h-10 w-full rounded-input border-brut-thin border-ink',
+                  'bg-surface px-3 text-body-l text-text',
+                  'placeholder:text-text-muted',
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
                 )}
+              />
+            </div>
+          )}
+
+          <ul
+            ref={listboxRef}
+            id={listboxId}
+            className="max-h-72 overflow-y-auto p-1"
+            role="listbox"
+            aria-labelledby={labelId}
+            aria-required={required || undefined}
+          >
+            {visibleOptions.length === 0 && (
+              <li className="px-3 py-4 text-center text-body text-text-muted">
+                No matches.
               </li>
-            );
-          })}
-        </ul>
+            )}
+
+            {visibleOptions.map((option, index) => {
+              const enabledIndex = enabledOptions.findIndex(
+                ({ option: enabledOption }) =>
+                  enabledOption.value === option.value,
+              );
+
+              const selected = option.value === value;
+              const active = enabledIndex === activeIndex;
+
+              return (
+                <li
+                  key={option.value}
+                  id={`${id}-option-${index}`}
+                  className={cn(
+                    'flex min-h-11 cursor-pointer items-center justify-between gap-4',
+                    'px-3 py-2 text-body',
+                    selected ? 'font-extrabold' : 'font-medium',
+                    active && 'bg-peach',
+                    option.disabled &&
+                      'cursor-not-allowed opacity-45 hover:bg-transparent',
+                  )}
+                  role="option"
+                  aria-selected={selected}
+                  aria-disabled={option.disabled || undefined}
+                  data-option-index={
+                    enabledIndex >= 0 ? enabledIndex : undefined
+                  }
+                  onMouseEnter={() => {
+                    if (!option.disabled && enabledIndex >= 0) {
+                      setActiveIndex(enabledIndex);
+                    }
+                  }}
+                  onPointerDown={(event) => {
+                    // Keep DOM focus on the search field or combobox trigger.
+                    event.preventDefault();
+                  }}
+                  onClick={() => chooseOption(option)}
+                >
+                  <span className="min-w-0 truncate">{option.label}</span>
+
+                  {selected && (
+                    <svg
+                      aria-hidden="true"
+                      className="h-[18px] w-[18px] shrink-0 text-mango"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                    >
+                      <path
+                        d="m4 10 4 4 8-8"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
 
       {hint && (
-        <p id={hintId} className="text-caption text-text-muted">
+        <p id={hintId} className="mt-1.5 text-caption text-text-muted">
           {hint}
         </p>
       )}
@@ -509,7 +651,7 @@ export function BaggSelect({
         <p
           id={errorId}
           role="alert"
-          className="text-caption font-medium text-danger"
+          className="mt-1.5 text-caption font-medium text-danger"
         >
           {error}
         </p>

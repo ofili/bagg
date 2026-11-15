@@ -234,7 +234,7 @@ export default function InvoicingPage() {
                                     One link. Multiple ways to share.
                                 </p>
                                 <h2 className="mt-3 text-title-l font-extrabold tracking-tight sm:text-4xl">
-                                    Your client doesn't need another account.
+                                    Your client doesn&apos;t need another account.
                                 </h2>
                                 <p className="mt-4 max-w-xl text-body-l text-on-pink/80">
                                     Share the invoice through WhatsApp, email or any channel you

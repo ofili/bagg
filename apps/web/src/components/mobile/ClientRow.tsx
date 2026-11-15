@@ -21,7 +21,12 @@ export interface ClientRowData {
     phone?: string | null;
 }
 
-const COLORS = ['bg-mango', 'bg-pink', 'bg-sun', 'bg-leaf'];
+const COLORS = [
+    'bg-mango text-on-mango',
+    'bg-pink text-on-pink',
+    'bg-sun text-on-sun',
+    'bg-leaf text-on-leaf',
+];
 const initials = (n: string) => {
     const p = n.trim().split(/\s+/);
     return ((p[0]?.[0] ?? '?') + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
@@ -37,7 +42,7 @@ export function ClientRow({ client }: { client: ClientRowData }) {
     const owes = client.total_outstanding_minor > 0;
 
     return (
-        <div className="flex items-stretch overflow-hidden rounded-card border-brut border-ink bg-surface shadow-brut-sm">
+        <div className="flex items-stretch overflow-hidden  border-brut border-ink bg-surface shadow-brut-sm">
             <Link href={`/clients/${client.id}`} className="flex min-h-[72px] min-w-0 flex-1 items-center gap-3 p-3">
         <span
             aria-hidden
@@ -66,7 +71,7 @@ export function ClientRow({ client }: { client: ClientRowData }) {
                             <span className="text-caption text-text-soft">owes</span>
                         </>
                     ) : (
-                        <span className="rounded-full bg-leaf px-2 py-0.5 text-caption font-extrabold text-[#052E1B]">All paid</span>
+                        <span className="rounded-full bg-leaf px-2 py-0.5 text-caption font-extrabold text-on-leaf">All paid</span>
                     )}
                 </div>
                 <ChevronRight aria-hidden className="h-5 w-5 shrink-0 text-text-muted" />

@@ -37,7 +37,7 @@ export function PaymentSummary({
     <section
       aria-label={title}
       className={cn(
-        'space-y-4 rounded-card border border-line-subtle bg-surface p-4',
+        'space-y-4 border-brut border-ink bg-surface p-4',
         className,
       )}
     >

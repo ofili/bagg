@@ -114,7 +114,7 @@ export function ClientPayView(p: ClientPayProps) {
             <p className="flex flex-wrap items-center gap-2 text-body">
               <span>Due {formatDate(p.dueDate)}</span>
               {pastDue && (
-                <span className="rounded-full bg-sun px-2 py-0.5 text-caption font-extrabold text-[#4A3200]">Past due</span>
+                <span className="rounded-full bg-sun px-2 py-0.5 text-caption font-extrabold text-on-sun">Past due</span>
               )}
             </p>
             {p.paidMinor > 0 && (
@@ -139,11 +139,11 @@ export function ClientPayView(p: ClientPayProps) {
               </div>
               <ol className="space-y-2 text-body">
                 <li className="flex items-center gap-2">
-                  <Check aria-hidden className="h-5 w-5 rounded-full border-brut-thin border-ink bg-leaf p-0.5" />
+                  <Check aria-hidden className="h-5 w-5 rounded-full border-brut-thin border-ink bg-leaf p-0.5 text-on-leaf" />
                   Payment reported {formatDate(p.claim!.payment_date)}
                 </li>
                 <li className="flex items-center gap-2 font-extrabold">
-                  <Clock aria-hidden className="h-5 w-5 rounded-full border-brut-thin border-ink bg-sun p-0.5" />
+                  <Clock aria-hidden className="h-5 w-5 rounded-full border-brut-thin border-ink bg-sun p-0.5 text-on-sun" />
                   Waiting for confirmation
                 </li>
               </ol>
@@ -163,7 +163,7 @@ export function ClientPayView(p: ClientPayProps) {
           )}
 
           {pending ? (
-            <details className="rounded-card border-brut border-ink bg-surface">
+            <details className="border-brut border-ink bg-surface">
               <summary className="flex min-h-12 cursor-pointer items-center px-4 font-extrabold">Payment details</summary>
               <div className="p-3">{p.paymentDetails}</div>
             </details>

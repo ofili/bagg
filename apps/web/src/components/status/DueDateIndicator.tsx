@@ -31,7 +31,7 @@ export function DueDateIndicator({
         'inline-flex items-center gap-1.5',
         'text-caption',
         isOverdue
-          ? 'font-extrabold text-danger dark:text-[#FFB3A8]'
+          ? 'font-extrabold text-status-late-fg'
           : 'text-text-muted',
         compact && 'whitespace-nowrap',
         className,

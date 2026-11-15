@@ -58,12 +58,12 @@ export function ReceiptStub({
   const detailHref = href || (receipt.share_token ? `/r/${receipt.share_token}` : undefined);
 
   return (
-    <div className={cn('space-y-3 rounded-card border border-line bg-surface', compact ? 'p-3' : 'p-4')}>
+    <div className={cn('space-y-3 border-brut border-ink bg-surface', compact ? 'p-3' : 'p-4')}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span
             aria-hidden
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-leaf text-[#052E1B]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-leaf text-on-leaf"
           >
             <ReceiptText className="h-4 w-4" />
           </span>
@@ -157,7 +157,7 @@ export function PaymentProgress({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percentage}
-        className="h-2.5 overflow-hidden rounded-full border border-ink bg-surface-tint"
+        className="h-2.5 overflow-hidden rounded-full border-brut-thin border-ink bg-surface-tint"
       >
         <div
           className="h-full bg-leaf"
@@ -212,7 +212,7 @@ export function AmountBand({
     return (
       <div
         className={cn(
-          'rounded-card border border-line bg-surface',
+          'border-brut border-ink bg-surface',
           compact ? 'p-3' : 'p-4',
         )}
       >
@@ -244,7 +244,7 @@ export function AmountBand({
   const isPartial = paidMinor > 0;
 
   return (
-    <div className={cn('rounded-card border border-line-subtle bg-surface', compact ? 'p-3' : 'p-4')}>
+    <div className={cn('border-brut border-ink bg-surface', compact ? 'p-3' : 'p-4')}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-caption text-text-muted">{label || (isPartial ? 'Balance outstanding' : 'Amount due')}</p>
@@ -265,7 +265,7 @@ export function AmountBand({
             pulse={status === 'payment_claimed'}
           />
           {isOverdue ? (
-            <span className="text-caption font-extrabold text-danger dark:text-[#FFB3A8]">
+            <span className="text-caption font-extrabold text-status-late-fg">
               {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue === 1 ? '' : 's'} late` : 'Past due'}
             </span>
           ) : dueDate ? (
@@ -281,14 +281,14 @@ export function AmountBand({
       )}
 
       {paymentState === 'awaiting_confirmation' && (
-        <p className="mt-3 flex items-start gap-2 rounded-row bg-peach p-3 text-body">
+        <p className="mt-3 flex items-start gap-2 bg-peach p-3 text-body">
           <CheckCircle2 aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
           The client says they have paid. Confirm the funds before this becomes a receipt.
         </p>
       )}
 
       {paymentState === 'processing' && (
-        <p className="mt-3 flex items-start gap-2 rounded-row bg-peach p-3 text-body">
+        <p className="mt-3 flex items-start gap-2 bg-peach p-3 text-body">
           <CheckCircle2 aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
           Payment is processing. We will confirm it when the gateway webhook arrives.
         </p>

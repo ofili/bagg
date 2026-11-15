@@ -95,7 +95,7 @@ export function ThemeSwitcher() {
           aria-label="Appearance preference"
           className={cn(
             'absolute right-0 top-full z-50 mt-2 w-64',
-            'rounded-card border-brut border-ink',
+            ' border-brut border-ink',
             'bg-surface p-2 shadow-brut-sm',
           )}
         >
@@ -124,7 +124,7 @@ export function ThemeSwitcher() {
                   }}
                   className={cn(
                     'flex min-h-12 w-full items-center gap-3',
-                    'rounded-row px-3 py-2 text-left',
+                    ' px-3 py-2 text-left',
                     'transition-colors',
                     selected
                       ? 'bg-peach text-ink'

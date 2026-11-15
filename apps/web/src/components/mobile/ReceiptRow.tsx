@@ -33,7 +33,7 @@ const label = (v: string) =>
 
 export function ReceiptRow({ receipt }: { receipt: ReceiptRowData }) {
     return (
-        <div className="overflow-hidden rounded-card border-brut border-ink bg-surface shadow-brut-sm">
+        <div className="overflow-hidden  border-brut border-ink bg-surface shadow-brut-sm">
             <Link href={`/receipts/${encodeURIComponent(receipt.id)}`} className="flex min-h-[72px] items-center gap-3 p-3">
                 <div className="min-w-0 flex-1">
                     <p className="truncate font-extrabold">{receipt.client_name || receipt.payer_name || 'Customer'}</p>
@@ -46,7 +46,7 @@ export function ReceiptRow({ receipt }: { receipt: ReceiptRowData }) {
                     <span
                         className={cn(
                             'rounded-full px-2 py-0.5 text-caption font-extrabold',
-                            receipt.is_verified ? 'bg-leaf text-[#052E1B]' : 'bg-sun text-[#4A3200]',
+                            receipt.is_verified ? 'bg-leaf text-on-leaf' : 'bg-sun text-on-sun',
                         )}
                     >
             {receipt.is_verified ? 'Verified' : 'Unverified'}

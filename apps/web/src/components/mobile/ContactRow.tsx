@@ -26,14 +26,14 @@ export function ContactRow({ contact, clientName }: { contact: ContactRowData; c
     const sub = [contact.job_title, clientName].filter(Boolean).join(' · ');
 
     return (
-        <div className="flex items-stretch overflow-hidden rounded-card border-brut border-ink bg-surface shadow-brut-sm">
+        <div className="flex items-stretch overflow-hidden  border-brut border-ink bg-surface shadow-brut-sm">
             <Link
                 href={`/clients/contacts/${encodeURIComponent(contact.id)}/edit`}
                 className="flex min-h-[72px] min-w-0 flex-1 items-center gap-3 p-3"
             >
         <span
             aria-hidden
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-brut-thin border-ink bg-sun"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-brut-thin border-ink bg-sun text-on-sun"
         >
           <UserRound className="h-5 w-5" />
         </span>

@@ -29,7 +29,7 @@ export function HeaderMenu({ className = '' }: { className?: string }) {
             {MENU_ITEMS.map((item) => {
               const isActive = !item.external && (pathname === item.href || pathname.startsWith(item.href + '/'));
               const itemClass = cn(
-                'flex min-h-11 items-center gap-3 rounded-row px-3 text-body-l',
+                'flex min-h-11 items-center gap-3  px-3 text-body-l',
                 isActive ? 'bg-peach font-extrabold' : 'font-medium hover:bg-surface-tint',
               );
               return (

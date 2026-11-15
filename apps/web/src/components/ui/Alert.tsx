@@ -57,7 +57,7 @@ export function Alert({
     <div
       role={role}
       className={cn(
-        'flex items-start gap-3 rounded-card border p-3',
+        'flex items-start gap-3 border-brut-thin p-3',
         VARIANT_STYLES[variant],
         className,
       )}

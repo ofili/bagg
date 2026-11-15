@@ -4,7 +4,6 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -38,6 +37,11 @@ const alignClass = {
   right: 'text-right',
   center: 'text-center',
 };
+
+const shellClass = 'overflow-hidden border-brut border-ink bg-surface';
+
+const headerCellClass =
+  'border-b-brut border-ink bg-surface-tint px-4 py-3 text-caption font-extrabold uppercase tracking-wide text-text-soft';
 
 function SortIcon({
   column,
@@ -74,6 +78,79 @@ function SortIcon({
   );
 }
 
+function LoadingTable<TRow>({
+  columns,
+  tableClassName,
+}: {
+  columns: ColumnDef<TRow>[];
+  tableClassName?: string;
+}) {
+  return (
+    <div role="status" aria-live="polite" aria-label="Loading records">
+      <div className={cn(shellClass, 'hidden md:block')} aria-hidden="true">
+        <table className={cn('w-full text-left text-body', tableClassName)}>
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th
+                  key={column.key}
+                  scope="col"
+                  className={cn(
+                    headerCellClass,
+                    alignClass[column.align ?? 'left'],
+                    column.headerClassName,
+                  )}
+                >
+                  {column.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-line-subtle">
+            {Array.from({ length: 5 }).map((_, rowIndex) => (
+              <tr key={rowIndex}>
+                {columns.map((column) => (
+                  <td
+                    key={column.key}
+                    className={cn(
+                      'px-4 py-4',
+                      alignClass[column.align ?? 'left'],
+                      column.cellClassName,
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'h-4 animate-pulse rounded-small bg-surface-tint',
+                        'motion-reduce:animate-none',
+                        column.align === 'right' ? 'ml-auto w-16' : 'w-3/4',
+                      )}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="space-y-3 md:hidden" aria-hidden="true">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className={cn(
+              shellClass,
+              'h-24 animate-pulse bg-surface-tint motion-reduce:animate-none',
+            )}
+          />
+        ))}
+      </div>
+
+      <span className="sr-only">Loading records</span>
+    </div>
+  );
+}
+
 export function DataTable<TRow>({
   columns,
   rows,
@@ -90,17 +167,10 @@ export function DataTable<TRow>({
 }: DataTableProps<TRow>) {
   if (loading) {
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="flex justify-center py-16 text-text-muted"
-      >
-        <Loader2
-          aria-hidden
-          className="h-6 w-6 animate-spin motion-reduce:animate-none"
-        />
-        <span className="sr-only">Loading records</span>
-      </div>
+      <LoadingTable
+        columns={columns}
+        tableClassName={tableClassName}
+      />
     );
   }
 
@@ -110,112 +180,113 @@ export function DataTable<TRow>({
 
   if (rows.length === 0) {
     return (
-      <>
+      <div className={shellClass}>
         {emptyState ?? (
-          <p className="py-10 text-center text-body text-text-muted">
+          <p className="px-6 py-12 text-center text-body text-text-muted">
             No records to display.
           </p>
         )}
-      </>
+      </div>
     );
   }
 
   return (
     <>
-      <div className="hidden overflow-x-auto rounded-row border border-line-subtle md:block">
-        <table
-          className={cn('w-full text-left text-body', tableClassName)}
-        >
-          {caption && (
-            <caption className="sr-only">{caption}</caption>
-          )}
+      <div className={cn(shellClass, 'hidden md:block')}>
+        <div className="overflow-x-auto">
+          <table
+            className={cn('w-full text-left text-body', tableClassName)}
+          >
+            {caption && (
+              <caption className="sr-only">{caption}</caption>
+            )}
 
-          <thead className="bg-surface-tint text-caption text-text-soft">
-            <tr>
-              {columns.map((column) => {
-                const canSort = Boolean(
-                  column.sortable && onSort,
-                );
+            <thead>
+              <tr>
+                {columns.map((column) => {
+                  const canSort = Boolean(
+                    column.sortable && onSort,
+                  );
 
-                return (
-                  <th
-                    key={column.key}
-                    scope="col"
-                    className={cn(
-                      'px-4 py-3 font-semibold',
-                      alignClass[column.align ?? 'left'],
-                      column.headerClassName,
-                    )}
-                    aria-sort={
-                      canSort && sortBy === column.key
-                        ? sortOrder === 'asc'
-                          ? 'ascending'
-                          : 'descending'
-                        : canSort
-                          ? 'none'
-                          : undefined
-                    }
-                  >
-                    {canSort ? (
-                      <button
-                        type="button"
-                        onClick={() => onSort?.(column.key)}
-                        className={cn(
-                          'inline-flex min-h-8 items-center gap-1',
-                          'rounded-small text-inherit',
-                          'hover:text-text',
-                          'focus-visible:outline-2',
-                          'focus-visible:outline-offset-2',
-                          'focus-visible:outline-ink',
-                        )}
-                        aria-label={`Sort by ${column.header}${
-                          sortBy === column.key
-                            ? `, currently ${
-                                sortOrder === 'asc'
-                                  ? 'ascending'
-                                  : 'descending'
-                              }`
-                            : ''
-                        }`}
-                      >
-                        {column.header}
-                        <SortIcon
-                          column={column as ColumnDef<unknown>}
-                          sortBy={sortBy}
-                          sortOrder={sortOrder}
-                        />
-                      </button>
-                    ) : (
-                      column.header
-                    )}
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={getRowKey(row)}
-                className="border-t border-line-subtle hover:bg-surface-tint"
-              >
-                {columns.map((column) => (
-                  <td
-                    key={column.key}
-                    className={cn(
-                      'px-4 py-4',
-                      alignClass[column.align ?? 'left'],
-                      column.cellClassName,
-                    )}
-                  >
-                    {column.render(row)}
-                  </td>
-                ))}
+                  return (
+                    <th
+                      key={column.key}
+                      scope="col"
+                      className={cn(
+                        headerCellClass,
+                        alignClass[column.align ?? 'left'],
+                        column.headerClassName,
+                      )}
+                      aria-sort={
+                        canSort && sortBy === column.key
+                          ? sortOrder === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : canSort
+                            ? 'none'
+                            : undefined
+                      }
+                    >
+                      {canSort ? (
+                        <button
+                          type="button"
+                          onClick={() => onSort?.(column.key)}
+                          className={cn(
+                            'inline-flex min-h-8 items-center gap-1',
+                            'text-inherit hover:text-text',
+                            'focus-visible:outline-2',
+                            'focus-visible:outline-offset-2',
+                            'focus-visible:outline-ink',
+                          )}
+                          aria-label={`Sort by ${column.header}${
+                            sortBy === column.key
+                              ? `, currently ${
+                                  sortOrder === 'asc'
+                                    ? 'ascending'
+                                    : 'descending'
+                                }`
+                              : ''
+                          }`}
+                        >
+                          {column.header}
+                          <SortIcon
+                            column={column as ColumnDef<unknown>}
+                            sortBy={sortBy}
+                            sortOrder={sortOrder}
+                          />
+                        </button>
+                      ) : (
+                        column.header
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody className="divide-y divide-line-subtle">
+              {rows.map((row) => (
+                <tr
+                  key={getRowKey(row)}
+                  className="transition-colors hover:bg-surface-tint/60"
+                >
+                  {columns.map((column) => (
+                    <td
+                      key={column.key}
+                      className={cn(
+                        'px-4 py-4 align-middle',
+                        alignClass[column.align ?? 'left'],
+                        column.cellClassName,
+                      )}
+                    >
+                      {column.render(row)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <ul className="space-y-3 md:hidden">

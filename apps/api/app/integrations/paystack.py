@@ -51,13 +51,6 @@ class PaystackClient:
 
         payload: dict[str, Any] = {
             "email": email,
-            "currency": currency.upper(),
-            "reference": reference,
-            "metadata": metadata or {},
-        }
-
-        payload: dict[str, Any] = {
-            "email": email,
             "amount": int(amount_minor),
             "currency": currency.upper(),
             "reference": reference,

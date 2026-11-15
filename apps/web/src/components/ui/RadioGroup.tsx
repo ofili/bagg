@@ -108,7 +108,6 @@ export function RadioGroup({
                 disabled={optionDisabled}
                 required={required}
                 aria-describedby={describedBy}
-                aria-invalid={error ? true : undefined}
                 className={cn(
                   'mt-0.5 h-5 w-5 shrink-0 accent-[var(--bagg-mango)]',
                   'focus-visible:outline-2 focus-visible:outline-offset-2',

@@ -33,7 +33,7 @@ interface InvoiceCardProps {
   onNudge?: () => void;
 }
 
-const menuItemClass = 'flex min-h-11 w-full items-center gap-3 rounded-row px-3 text-body-l font-medium hover:bg-surface-tint';
+const menuItemClass = 'flex min-h-11 w-full items-center gap-3  px-3 text-body-l font-medium hover:bg-surface-tint';
 
 export function InvoiceCard({
   id,
@@ -78,13 +78,13 @@ export function InvoiceCard({
     : undefined;
 
   return (
-    <article className="rounded-card border border-line-subtle bg-surface p-4">
+    <article className=" border-brut border-ink bg-surface p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-baseline gap-2">
             <h3 className="text-body-l font-extrabold">{invoiceNumber}</h3>
             {isOverdue && (
-              <span className="rounded-full bg-[#FFB3B3] px-2 py-0.5 text-caption font-extrabold text-[#5A1010]">
+              <span className="rounded-full bg-status-late px-2 py-0.5 text-caption font-extrabold text-status-late-fg">
                 {daysOverdue > 0 ? `${daysOverdue} days late` : 'Past due'}
               </span>
             )}

@@ -50,7 +50,7 @@ interface QuoteCardProps {
 }
 
 const menuItemClass =
-  'flex min-h-11 w-full items-center gap-3 rounded-row px-3 text-left text-body-l font-medium hover:bg-surface-tint';
+  'flex min-h-11 w-full items-center gap-3  px-3 text-left text-body-l font-medium hover:bg-surface-tint';
 
 export function QuoteCard({
   quote: q,
@@ -83,7 +83,7 @@ export function QuoteCard({
   }
 
   return (
-    <article className="rounded-card border border-line-subtle bg-surface p-4">
+    <article className=" border-brut border-ink bg-surface p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-baseline gap-2">
@@ -91,14 +91,14 @@ export function QuoteCard({
             {(q.comment_count ?? 0) > 0 && (
               <span
                 title={`${q.comment_count} comment${(q.comment_count ?? 0) > 1 ? 's' : ''}`}
-                className="inline-flex items-center gap-1 rounded border border-border bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
+                className="inline-flex items-center gap-1 rounded-small border-brut-thin border-ink bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
               >
-                <MessageSquare className="h-3 w-3 text-ink-muted" />
+                <MessageSquare className="h-3 w-3 text-text-muted" />
                 <span>{q.comment_count}</span>
               </span>
             )}
             {isExpired && (
-              <span className="rounded-full bg-[#FFB3B3] px-2 py-0.5 text-caption font-extrabold text-[#5A1010]">
+              <span className="rounded-full bg-status-late px-2 py-0.5 text-caption font-extrabold text-status-late-fg">
                 Expired
               </span>
             )}
@@ -112,7 +112,7 @@ export function QuoteCard({
             className={cn(
               'flex items-center gap-1.5 text-body',
               isExpired
-                ? 'font-extrabold text-danger dark:text-[#FFB3A8]'
+                ? 'font-extrabold text-status-late-fg'
                 : 'text-text-soft',
             )}
           >
@@ -198,7 +198,7 @@ export function QuoteCard({
       {q.status === 'draft' && (
         <Link
           href={`/quotes/${q.id}`}
-          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-btn border border-line bg-surface text-body font-bold hover:bg-surface-tint"
+          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-btn border-brut border-ink bg-surface text-body font-bold hover:bg-surface-tint"
         >
           View &amp; issue quote
           <ArrowRight aria-hidden className="h-4 w-4" />

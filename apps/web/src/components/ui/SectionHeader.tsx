@@ -23,7 +23,7 @@ export function SectionHeader({
       )}
     >
       <div className="min-w-0 space-y-1">
-        <h2 className="text-heading font-extrabold text-ink">
+        <h2 className="text-heading font-extrabold text-text">
           {title}
         </h2>
 

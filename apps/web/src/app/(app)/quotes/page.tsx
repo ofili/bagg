@@ -22,6 +22,7 @@ import {
   buttonStyles,
   DataTable,
   type ColumnDef,
+  PageContainer,
   Pagination,
   PageHeader,
   TableToolbar,
@@ -207,9 +208,9 @@ export default function QuotesPage() {
           {(quote.comment_count ?? 0) > 0 && (
             <span
               title={`${quote.comment_count} comment${(quote.comment_count ?? 0) > 1 ? 's' : ''}`}
-              className="inline-flex items-center gap-1 rounded border border-border bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
+              className="inline-flex items-center gap-1 rounded-small border-brut-thin border-ink bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
             >
-              <ChatDots className="h-3 w-3 text-ink-muted" />
+              <ChatDots className="h-3 w-3 text-text-muted" />
               <span>{quote.comment_count}</span>
             </span>
           )}
@@ -366,9 +367,10 @@ export default function QuotesPage() {
   );
 
   return (
-    <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
+    <PageContainer width="list">
       <PageHeader
-        title="quotes"
+        eyebrow="Documents"
+        title="Quotes"
         description="Pitch with a clear expiry date, then turn an accepted quote into an invoice in one tap."
         actions={
           <Link
@@ -505,6 +507,6 @@ export default function QuotesPage() {
           </div>
         )}
       </Dialog>
-    </div>
+    </PageContainer>
   );
 }

@@ -59,7 +59,7 @@ export function Money({
 
   const variantClass = {
     inherit: '',
-    negative: 'text-danger dark:text-[#FFB3A8]',
+    negative: 'text-status-late-fg',
     paid: 'text-status-paid-fg',
     muted: 'text-text-muted',
     total: 'text-text',

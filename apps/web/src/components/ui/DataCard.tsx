@@ -73,7 +73,7 @@ export function DataCard({
   );
 
   const classes = cn(
-    'min-w-0 rounded-card border border-line-subtle bg-surface p-4',
+    'min-w-0 border-brut border-ink bg-surface p-4',
     onClick && [
       'cursor-pointer text-left',
       'hover:bg-surface-tint',

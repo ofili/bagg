@@ -343,7 +343,7 @@ export default function FeaturesPage() {
 
                             <div className="grid gap-3 sm:grid-cols-2">
                                 {['Contracts', 'Projects', 'Milestones', 'Client delivery'].map(
-                                    (name, index) => (
+                                    (name) => (
                                         <div
                                             key={name}
                                             className="flex items-center justify-between gap-3 border-brut border-ink bg-surface p-4 shadow-brut"

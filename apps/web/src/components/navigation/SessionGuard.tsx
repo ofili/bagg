@@ -32,6 +32,9 @@ export function SessionGuard() {
                     redirecting = true;
                     const next = window.location.pathname + window.location.search;
                     original('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {}).finally(() =>
+                    // A hard navigation is deliberate: it drops all cached
+                    // client state after the session has been revoked.
+                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
                     window.location.assign(`/login?expired=1&next=${encodeURIComponent(next)}`));
                 }
             }

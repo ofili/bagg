@@ -40,7 +40,17 @@ async def post_signed_webhook(client: AsyncClient, payload: dict):
 async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
     monkeypatch.setattr(settings, "PAYSTACK_SECRET_KEY", WEBHOOK_SECRET)
 
+    monkeypatch.setattr(
+        settings,
+        "PAYSTACK_PLAN_CREATOR_PRO_ANNUAL",
+        "PLN_CREATOR_PRO_ANNUAL_TEST",
+    )
+
     async def fake_initialize(self, **kwargs):
+        if kwargs.get("plan_code"):
+            assert kwargs["amount_minor"] == 3_500_000
+            assert kwargs["plan_code"] == "PLN_CREATOR_PRO_ANNUAL_TEST"
+
         return {
             "authorization_url": "https://checkout.test/authorize",
             "reference": kwargs["reference"],
@@ -160,10 +170,11 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
                     "status": "success",
                     "metadata": {
                         "type": "bagg_billing_checkout",
-                        "billing_checkout_id": pack_checkout_id,
+                        "billing_checkout_id": sub_checkout_id,
                         "workspace_id": workspace_id,
-                        "purchase_type": "credit_pack",
-                        "pack": "200_credits",
+                        "purchase_type": "subscription",
+                        "plan": "creator_pro",
+                        "billing_interval": "annual",
                     },
                 },
             },
@@ -243,7 +254,9 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
                 "event": "invoice.payment_failed",
                 "data": {
                     "reference": f"fail_{uuid.uuid4().hex[:6]}",
-                    "metadata": {"workspace_id": workspace_id},
+                    "subscription": {
+                        "subscription_code": "SUB_DEMO_001",
+                    },
                 },
             },
         )
@@ -257,5 +270,37 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
         cancel_res = await client.post("/billing/subscription/cancel")
         assert cancel_res.status_code == 200
         cancel_data = cancel_res.json()
-        assert cancel_data["cancel_at_period_end"] is True
+        assert cancel_data["cancel_at_period_end"] is False
+        assert cancel_data["manage_url"] == (
+            "https://checkout.test/subscription/manage"
+        )
         assert cancel_data["tier"] == "creator_pro"
+
+        wh_cancel_res = await post_signed_webhook(
+            client,
+            {
+                "event": "subscription.not_renew",
+                "data": {
+                    "subscription": {
+                        "subscription_code": "SUB_DEMO_001",
+                    }
+                },
+            },
+        )
+
+        assert wh_cancel_res.status_code == 200
+
+        sub_after_cancel = await client.get("/billing/subscription")
+
+        assert sub_after_cancel.json()["cancel_at_period_end"] is True
+        assert sub_after_cancel.json()["tier"] == "creator_pro" 
+
+    async def fake_manage_link(self, subscription_code):
+        assert subscription_code == "SUB_DEMO_001"
+        return "https://checkout.test/subscription/manage"
+
+
+    monkeypatch.setattr(
+        "app.integrations.paystack.PaystackClient.get_subscription_manage_link",
+        fake_manage_link,
+    )

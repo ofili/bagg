@@ -23,7 +23,12 @@ export interface InvoiceRowData {
 }
 
 const ACTION_W = 88;
-const COLORS = ['bg-mango', 'bg-pink', 'bg-sun', 'bg-leaf'];
+const COLORS = [
+    'bg-mango text-on-mango',
+    'bg-pink text-on-pink',
+    'bg-sun text-on-sun',
+    'bg-leaf text-on-leaf',
+];
 
 function safeAmount(value: number): number {
   return Number.isFinite(value) ? Math.max(0, value) : 0;
@@ -52,24 +57,24 @@ function statusChip(inv: InvoiceRowData, overdue: boolean) {
   if (overdue) {
     return {
       label: 'Overdue',
-      cls: 'bg-[#FFB3B3] text-[#5A1010]',
+      cls: 'bg-status-late text-status-late-fg',
     };
   }
 
   const status = inv.effective_status || inv.status;
 
   if (status === 'paid') {
-    return { label: 'Paid', cls: 'bg-leaf text-[#052E1B]' };
+    return { label: 'Paid', cls: 'bg-leaf text-on-leaf' };
   }
 
   if (status === 'payment_claimed') {
-    return { label: 'Claimed', cls: 'bg-sun text-[#4A3200]' };
+    return { label: 'Claimed', cls: 'bg-sun text-on-sun' };
   }
 
   if (status === 'partially_paid') {
     return {
       label: 'Partially paid',
-      cls: 'bg-[#FFF1C2] text-[#8A6200]',
+      cls: 'bg-status-due text-status-due-fg',
     };
   }
 
@@ -182,7 +187,7 @@ export function InvoiceRow({
     return (
       <Link
         href={`/invoices/${encodeURIComponent(inv.id)}`}
-        className="block overflow-hidden rounded-card border-brut border-ink bg-surface shadow-brut-sm"
+        className="block overflow-hidden  border-brut border-ink bg-surface shadow-brut-sm"
       >
         {row}
       </Link>
@@ -190,7 +195,7 @@ export function InvoiceRow({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-card border-brut border-ink bg-surface shadow-brut-sm">
+    <div className="relative overflow-hidden  border-brut border-ink bg-surface shadow-brut-sm">
       <div
         className="absolute inset-y-0 right-0 flex"
         style={{ width }}
@@ -201,7 +206,7 @@ export function InvoiceRow({
             type="button"
             tabIndex={offset === 0 ? -1 : 0}
             onClick={() => onReview(inv)}
-            className="flex flex-1 flex-col items-center justify-center gap-1 border-l-brut border-ink bg-sun text-caption font-extrabold text-ink"
+            className="flex flex-1 flex-col items-center justify-center gap-1 border-l-brut border-ink bg-sun text-caption font-extrabold text-on-sun"
           >
             <CheckCircle2 aria-hidden className="h-5 w-5" />
             Review

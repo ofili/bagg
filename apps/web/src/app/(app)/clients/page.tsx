@@ -24,6 +24,7 @@ import {
   Alert,
   buttonStyles,
   DataTable,
+  PageContainer,
   PageHeader,
   type ColumnDef,
   SearchInput,
@@ -505,7 +506,7 @@ export default function ClientsPage() {
                 type="button"
                 onClick={() => void handleDeleteContact(contact)}
                 aria-label={`Delete ${contact.name}`}
-                className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-[#FFB3B3] hover:text-[#5A1010]"
+                className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-status-late hover:text-status-late-fg"
             >
               <Trash2 className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -522,7 +523,7 @@ export default function ClientsPage() {
     const cleanPhone = normalisePhone(contact.phone);
 
     return (
-        <article className="flex flex-col gap-3 rounded-card border border-line-subtle bg-surface p-4">
+        <article className="flex flex-col gap-3 border-brut border-ink bg-surface p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">
@@ -567,7 +568,7 @@ export default function ClientsPage() {
                   type="button"
                   onClick={() => void handleDeleteContact(contact)}
                   aria-label={`Delete ${contact.name}`}
-                  className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft hover:bg-[#FFB3B3] hover:text-[#5A1010]"
+                  className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft hover:bg-status-late hover:text-status-late-fg"
               >
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -616,7 +617,7 @@ export default function ClientsPage() {
   // ---------------------------------------------------------
 
   const emptyContactsState = (
-      <div className="rounded-card border border-line-subtle bg-surface px-6 py-10 text-center">
+      <div className="border-brut border-ink bg-surface px-6 py-10 text-center">
         <ContactRound
             className="mx-auto h-10 w-10 text-text-muted"
             aria-hidden="true"
@@ -667,11 +668,12 @@ export default function ClientsPage() {
   // ---------------------------------------------------------
 
   return (
-      <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
+      <PageContainer width="list">
         {/* Header */}
 
         <PageHeader
-          title="clients & contacts"
+          eyebrow="Directory"
+          title="Clients & contacts"
           description="Keep client details and the people you work with in one place."
           actions={
             activeTab === 'clients' ? (
@@ -727,7 +729,7 @@ export default function ClientsPage() {
           <div
               role="tablist"
               aria-label="Client directory"
-              className="inline-flex w-fit rounded-row border border-line-subtle bg-surface-tint p-1"
+              className="inline-flex w-fit rounded-btn border-brut-thin border-ink bg-surface-tint p-1"
           >
             <button
                 id="clients-tab"
@@ -739,7 +741,7 @@ export default function ClientsPage() {
                 className={cn(
                     'inline-flex min-h-10 items-center gap-2 rounded-btn px-4 text-body font-bold transition-colors',
                     activeTab === 'clients'
-                        ? 'bg-surface text-ink shadow-sm'
+                        ? 'bg-surface text-ink'
                         : 'text-text-soft hover:text-ink',
                 )}
             >
@@ -761,7 +763,7 @@ export default function ClientsPage() {
                 className={cn(
                     'inline-flex min-h-10 items-center gap-2 rounded-btn px-4 text-body font-bold transition-colors',
                     activeTab === 'contacts'
-                        ? 'bg-surface text-ink shadow-sm'
+                        ? 'bg-surface text-ink'
                         : 'text-text-soft hover:text-ink',
                 )}
             >
@@ -807,12 +809,12 @@ export default function ClientsPage() {
                     {[0, 1, 2].map((item) => (
                         <div
                             key={item}
-                            className="h-56 animate-pulse rounded-card bg-surface-tint"
+                            className="h-56 animate-pulse bg-surface-tint"
                         />
                     ))}
                   </div>
               ) : filteredClients.length === 0 ? (
-                  <div className="rounded-card border border-line-subtle bg-surface px-6 py-12 text-center">
+                  <div className="border-brut border-ink bg-surface px-6 py-12 text-center">
                     <BagCharacter size={80} className="mx-auto" />
 
                     <h2 className="mt-4 text-heading text-ink">
@@ -866,7 +868,7 @@ export default function ClientsPage() {
                         return (
                             <article
                                 key={client.id}
-                                className="flex flex-col rounded-card border border-line-subtle bg-surface p-4 shadow-sm"
+                                className="flex flex-col border-brut border-ink bg-surface p-4"
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex min-w-0 items-start gap-3">
@@ -921,7 +923,7 @@ export default function ClientsPage() {
                                       type="button"
                                       onClick={() => void handleDeleteClient(client)}
                                       aria-label={`Delete ${client.name}`}
-                                      className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-[#FFB3B3] hover:text-[#5A1010]"
+                                      className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-status-late hover:text-status-late-fg"
                                   >
                                     <Trash2
                                         className="h-4 w-4"
@@ -1014,7 +1016,7 @@ export default function ClientsPage() {
 
                               {client.client_type === 'BUSINESS' &&
                                   clientContacts.length > 0 && (
-                                      <div className="mt-3 space-y-2 rounded-row bg-surface-tint p-3">
+                                      <div className="mt-3 space-y-2 bg-surface-tint p-3">
                                         <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
                                           {clientContacts.length === 1
                                               ? 'Primary contact'
@@ -1137,6 +1139,6 @@ export default function ClientsPage() {
               />
             </section>
         )}
-      </div>
+      </PageContainer>
   );
 }

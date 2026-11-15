@@ -1,7 +1,6 @@
 
 import Link from 'next/link';
 import {
-  ArrowDown,
   ArrowRight,
   BellRing,
   Check,
@@ -14,8 +13,6 @@ import {
   Wallet,
 } from 'lucide-react';
 
-import { BagCharacter } from '@/components/brand';
-import { Money } from '@/components/money/Money';
 import { Container } from '@/components/marketing/container';
 import { CtaBand } from '@/components/marketing/cta-band';
 import { FaqList } from '@/components/marketing/faq-list';
@@ -52,7 +49,7 @@ export default function MarketingPage() {
               <h1 className="mt-6 max-w-2xl text-[clamp(3rem,7vw,5.5rem)] font-extrabold leading-[0.96] tracking-[-0.055em] text-ink">
                 Your work is done.
                 <span className="block text-ink">
-                Getting paid shouldn't be another job.
+                Getting paid shouldn&apos;t be another job.
               </span>
               </h1>
 

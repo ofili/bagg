@@ -30,7 +30,7 @@ export function DocTabs({ className = '' }: { className?: string }) {
                         aria-current={active ? 'page' : undefined}
                         className={cn(
                             'flex min-h-11 flex-1 items-center justify-center rounded-full border-brut-thin border-ink text-body',
-                            active ? 'bg-sun font-extrabold text-ink' : 'bg-surface font-medium text-text-soft',
+                            active ? 'bg-sun font-extrabold text-on-sun' : 'bg-surface font-medium text-text-soft',
                         )}
                     >
                         {t.label}

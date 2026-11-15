@@ -28,6 +28,7 @@ const config: Config = {
         'on-mango': 'var(--on-mango)',
         'on-pink': 'var(--on-pink)',
         'on-sun': 'var(--on-sun)',
+        'on-leaf': 'var(--on-leaf)',
 
         // Neutrals
         cream: 'var(--bg)',

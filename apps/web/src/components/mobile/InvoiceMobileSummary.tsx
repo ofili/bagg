@@ -33,7 +33,7 @@ export function InvoiceMobileSummary({
     return (
         <section
             aria-label="Invoice summary"
-            className="space-y-2 rounded-card border-brut border-ink bg-surface p-4 shadow-brut-sm sm:hidden"
+            className="space-y-2  border-brut border-ink bg-surface p-4 shadow-brut-sm sm:hidden"
         >
             <p className="truncate text-body-l font-extrabold">{clientName || 'Client'}</p>
             <p className={cn('text-caption', overdue ? 'font-bold text-danger' : 'text-text-soft')}>

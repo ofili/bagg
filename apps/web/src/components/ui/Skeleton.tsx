@@ -18,7 +18,7 @@ export function Skeleton({
       className={cn(
         'animate-pulse bg-surface-tint',
         variant === 'text' && 'h-4 rounded-small',
-        variant === 'rectangular' && 'rounded-card',
+        variant === 'rectangular' && 'rounded-none',
         variant === 'circular' && 'rounded-full',
         className,
       )}

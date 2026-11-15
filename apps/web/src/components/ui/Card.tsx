@@ -14,9 +14,10 @@ const TONES: Record<CardTone, string> = {
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   /**
-   * expressive: 2px ink outline + hard shadow (dashboard cards, marketing, empty states).
-   * calm: 1px subtle border, no shadow. Use it for client pages, documents and anywhere
-   * money is the focus, and inside tables and forms.
+   * expressive: 2px ink outline + hard shadow (the one dominant dashboard card,
+   * marketing, empty states).
+   * calm: 2px ink outline, no shadow. Use it for client pages, documents and
+   * anywhere money is the focus, and inside tables and forms.
    */
   zone?: Zone;
   /** Never place mango and pink cards directly next to each other. */
@@ -27,11 +28,11 @@ export function Card({ zone = 'expressive', tone = 'surface', className, ...prop
   return (
     <div
       className={cn(
-        'rounded-card p-4',
+        'p-4',
         TONES[tone],
         zone === 'expressive'
           ? 'border-brut border-ink shadow-brut'
-          : 'border border-line-subtle',
+          : 'border-brut border-ink',
         className,
       )}
       {...props}

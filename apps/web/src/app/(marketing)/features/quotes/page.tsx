@@ -202,7 +202,7 @@ export default function QuotesPage() {
                             <div className="border-brut border-ink bg-cream p-5 shadow-brut-lg sm:p-7">
                                 <div className="flex items-center justify-between border-b-2 border-ink pb-4">
                 <span className="font-extrabold text-ink">
-                  What's in your quote
+                  What&apos;s in your quote
                 </span>
                                     <span className="border-brut border-ink bg-pink px-2 py-1 text-[10px] font-extrabold uppercase text-on-pink shadow-brut">
                   Commercial terms

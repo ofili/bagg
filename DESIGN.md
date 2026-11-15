@@ -349,32 +349,46 @@ Do not introduce custom breakpoints without a demonstrated layout need.
 The current Tailwind configuration is the implementation baseline.
 
 Token| Current value| Intended use
-btn| 10 px| Buttons
-card| 12 px| Cards
-row| 8 px| Compact rows
-input| 8 px| Inputs
-small| 6 px| Small elements
+btn| 10 px| Buttons and icon buttons
+card| 0 px| Cards, panels, tables and legal documents
+row| 0 px| Rows, menus and compact containers
+input| 8 px| Inputs, selects and other form controls
+small| 6 px| Checkboxes and small affordances
 sheet| 16 px| Sheets and overlays
-full| 999 px| Pills and circular controls
+full| 999 px| Pills, status chips and circular controls
+
+Rules:
+
+- Containers are square. Cards, panels, tables, menus, dialogs, rows and legal documents have no corner radius.
+- Radius belongs to controls and pills only: buttons, inputs, selects, checkboxes, chips, status pills and avatars.
+- Marketing follows the same rule. Expressive colour, rotation and stickers are allowed; rounded containers are not.
+- Do not add a new radius token for a one-off surface. Use an existing token or square corners.
 
 6.5 Neo-brutalist borders and shadows
 
 The authenticated application uses the neo-brutalist foundation already established in the repository.
+
+Structural border contract:
+
+- "border-brut" (2 px ink) outlines containers: cards, panels, tables, menus, dialogs and sheets.
+- "border-brut-thin" (1.5 px ink) outlines controls: inputs, selects, buttons in the calm zone, chips and checkboxes.
+- "border-line-subtle" is for internal dividers only. It is never the outer boundary of a container.
+- A container must not mix a soft 1 px outer border with neo-brutalist children. Choose one contract per surface.
 
 Current Tailwind shadow tokens:
 
 - "shadow-brut-sm": 2 px × 2 px hard offset.
 - "shadow-brut": 3 px × 3 px hard offset.
 - "shadow-brut-lg": 5 px × 5 px hard offset.
-- "shadow-sheet": soft overlay shadow.
+- "shadow-sheet": soft overlay shadow for sheets only.
 
 Rules:
 
 - Hard shadows are reserved for deliberate emphasis.
-- Do not apply hard shadows to every card.
+- Do not apply hard shadows to every card. A bordered container can stand without elevation.
 - Prefer a strong border or a hard offset shadow—not both at maximum intensity on every element.
-- Avoid decorative blur shadows.
-- Use the soft sheet shadow for overlays where appropriate.
+- Do not use "shadow-sm", "shadow-md" or "shadow-lg" in the product. They are soft legacy elevation and break the neo-brutalist foundation.
+- Avoid decorative blur shadows. "shadow-sheet" is the only soft shadow, and only for overlays.
 - A component's shadow must not make its text or boundary difficult to distinguish.
 
 ---
@@ -1702,7 +1716,8 @@ Borders and elevation:
 
 - Use `border-brut` (2px) for the primary neo-brutalist outline and `border-brut-thin` (1.5px) for compact chips and dividers. Side variants such as `border-t-brut` and `border-b-brut` come from the same scale.
 - Elevation uses `shadow-brut-sm`, `shadow-brut`, and `shadow-brut-lg` from the token set, not arbitrary shadow values.
-- Cards, panels, and legal documents use `rounded-card`; rows and compact controls use `rounded-row`; inputs use `rounded-input`.
+- Cards, panels, rows, menus, dialogs and legal documents are square. The `rounded-card` and `rounded-row` tokens resolve to 0; inputs use `rounded-input`, buttons use `rounded-btn`, and pills use `rounded-full`.
+- Internal dividers use `border-line-subtle`. They never replace the outer container outline.
 
 Layout:
 
@@ -1768,19 +1783,19 @@ Do not use the old v0.2 names "canvas", "sunken", "tint", "ink-soft" or "ink-mut
 
 Use the actual configured Tailwind names:
 
-- "rounded-btn"
-- "rounded-card"
-- "rounded-row"
-- "rounded-input"
-- "rounded-small"
-- "rounded-sheet"
-- "rounded-full"
+- "rounded-btn" — buttons and icon buttons.
+- "rounded-card" — cards, panels, tables and legal documents. Resolves to 0.
+- "rounded-row" — rows, menus and compact containers. Resolves to 0.
+- "rounded-input" — inputs and selects.
+- "rounded-small" — checkboxes and small affordances.
+- "rounded-sheet" — sheets and overlays.
+- "rounded-full" — pills, status chips and circular controls.
 - "shadow-brut-sm"
 - "shadow-brut"
 - "shadow-brut-lg"
-- "shadow-sheet"
+- "shadow-sheet" — overlays only.
 
-Do not assume old semantic names exist.
+Do not assume old semantic names exist. Do not use "shadow-sm", "shadow-md" or "shadow-lg" in the product.
 
 23.4 Component architecture
 

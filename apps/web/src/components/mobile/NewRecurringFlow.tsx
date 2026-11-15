@@ -10,18 +10,16 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowsClockwise, Check, Clock, Plus, UserPlus, X } from '@phosphor-icons/react';
+import { Check, UserPlus, X } from '@phosphor-icons/react';
 import { BagCharacter } from '@/components/brand';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
 import { LineItemsEditor } from '@/components/invoice';
 import { Money } from '@/components/money/Money';
 import {
-  BaggSelect,
   Button,
   Card,
   Field,
   Input,
-  buttonStyles,
 } from '@/components/ui';
 import {
   type RecurringDraft,
@@ -142,7 +140,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
             <span
               key={s}
               className={cn(
-                'h-1.5 flex-1 rounded-full border border-ink',
+                'h-1.5 flex-1 rounded-full border-brut-thin border-ink',
                 i <= step ? 'bg-mango' : 'bg-surface-tint',
               )}
             />
@@ -158,7 +156,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
       {draft.errorMsg && (
         <div
           role="alert"
-          className="flex items-start justify-between gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]"
+          className="flex items-start justify-between gap-2 bg-status-late p-3 text-body text-status-late-fg"
         >
           <span className="pt-2">{draft.errorMsg}</span>
           <button
@@ -200,8 +198,8 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
                   className={cn(
                     'rounded-full px-3 py-1.5 text-caption font-bold transition-colors',
                     draft.currency === c.code
-                      ? 'border-brut-thin border-ink bg-sun text-ink shadow-brut-sm'
-                      : 'border border-line bg-surface text-text-soft hover:bg-surface-tint',
+                      ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
+                      : 'border-brut-thin border-ink bg-surface text-text-soft hover:bg-surface-tint',
                   )}
                 >
                   {c.code}
@@ -239,7 +237,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
                 <div
                   role="radiogroup"
                   aria-label="Client"
-                  className="overflow-hidden rounded-card border-brut border-ink bg-surface"
+                  className="overflow-hidden border-brut border-ink bg-surface"
                 >
                   <button
                     type="button"
@@ -268,7 +266,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
                       >
                         <span
                           className={cn(
-                            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ink text-body font-bold',
+                            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-brut-thin border-ink text-body font-bold',
                             on ? 'bg-mango text-on-mango' : 'bg-surface-tint text-text',
                           )}
                         >
@@ -283,7 +281,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
                         <span
                           className={cn(
                             'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-brut-thin border-ink',
-                            on ? 'bg-sun text-ink' : 'bg-surface',
+                            on ? 'bg-sun text-on-sun' : 'bg-surface',
                           )}
                         >
                           {on && <Check className="h-3.5 w-3.5" />}
@@ -320,11 +318,11 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
                   <button
                     key={f.value}
                     type="button"
-                    onClick={() => draft.setFrequency(f.value as any)}
+                    onClick={() => draft.setFrequency(f.value)}
                     className={cn(
-                      'flex items-center justify-center rounded-card border p-3 font-bold transition-colors',
+                      'flex items-center justify-center border p-3 font-bold transition-colors',
                       draft.frequency === f.value
-                        ? 'border-brut-thin border-ink bg-sun text-ink shadow-brut-sm'
+                        ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
                         : 'border-line bg-surface text-text-soft hover:bg-surface-tint',
                     )}
                   >
@@ -368,7 +366,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
             <div className="grid gap-2">
               <label
                 className={cn(
-                  'flex cursor-pointer items-start gap-3 rounded-card border-brut p-3 transition-colors',
+                  'flex cursor-pointer items-start gap-3 border-brut p-3 transition-colors',
                   draft.issueMode === 'draft'
                     ? 'border-ink bg-sun/20 shadow-brut-sm'
                     : 'border-line bg-surface hover:bg-surface-tint',
@@ -391,7 +389,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
 
               <label
                 className={cn(
-                  'flex cursor-pointer items-start gap-3 rounded-card border-brut p-3 transition-colors',
+                  'flex cursor-pointer items-start gap-3 border-brut p-3 transition-colors',
                   draft.issueMode === 'auto_issue'
                     ? 'border-ink bg-sun/20 shadow-brut-sm'
                     : 'border-line bg-surface hover:bg-surface-tint',
@@ -454,8 +452,8 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
                   className={cn(
                     'rounded-full px-3 py-1.5 text-caption font-bold capitalize transition-colors',
                     draft.endRule === rule
-                      ? 'border-brut-thin border-ink bg-sun text-ink shadow-brut-sm'
-                      : 'border border-line bg-surface text-text-soft hover:bg-surface-tint',
+                      ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
+                      : 'border-brut-thin border-ink bg-surface text-text-soft hover:bg-surface-tint',
                   )}
                 >
                   {rule === 'never'
@@ -535,7 +533,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
           <Card className="space-y-4 p-5">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full border border-ink bg-mango font-black text-on-mango">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full border-brut-thin border-ink bg-mango font-black text-on-mango">
                   {client ? initials(client.name) : '?'}
                 </span>
                 <div>
@@ -543,7 +541,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
                   <p className="text-caption text-text-soft">{client?.name}</p>
                 </div>
               </div>
-              <span className="rounded-full bg-sun px-2.5 py-0.5 text-caption font-black text-ink capitalize">
+              <span className="rounded-full bg-sun px-2.5 py-0.5 text-caption font-black text-on-sun capitalize">
                 {draft.frequency}
               </span>
             </div>

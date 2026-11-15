@@ -32,8 +32,8 @@ export interface TimelineProps {
 
 const MARKER_STYLES: Record<TimelineTone, string> = {
   default: 'bg-ink text-surface',
-  success: 'bg-leaf text-ink',
-  warning: 'bg-sun text-ink',
+  success: 'bg-leaf text-on-leaf',
+  warning: 'bg-sun text-on-sun',
   danger: 'bg-danger text-white',
   muted: 'bg-surface-tint text-text-muted',
 };

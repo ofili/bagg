@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { AlertCircle, Loader2, MessageSquare, Send } from 'lucide-react';
-import { Button, Card, Field, Input, inputStyles } from '@/components/ui';
+import { Loader2, MessageSquare, Send } from 'lucide-react';
+import { Alert, Button, Field, Input, inputStyles } from '@/components/ui';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 
@@ -56,29 +56,37 @@ export function DocumentComments({
       : `${API_BASE}/invoices/${documentId}/comments`;
   };
 
-  const loadComments = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch(getCommentsEndpoint(), {
-        credentials: isPublicView ? 'omit' : 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setComments(Array.isArray(data) ? data : []);
-      }
-    } catch {
-      setError('Could not load discussion trail.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (documentId || shareToken) {
-      loadComments();
+    if (!documentId && !shareToken) return;
+
+    let cancelled = false;
+
+    async function loadComments() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(getCommentsEndpoint(), {
+          credentials: isPublicView ? 'omit' : 'include',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) setComments(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (!cancelled) setError('Could not load discussion trail.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-  }, [documentId, shareToken, documentType]);
+
+    void loadComments();
+
+    return () => {
+      cancelled = true;
+    };
+    // getCommentsEndpoint() is derived from these three props.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentId, shareToken, documentType, isPublicView]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -123,30 +131,30 @@ export function DocumentComments({
     <section
       id="comments"
       aria-labelledby="comments-heading"
-      className={cn('space-y-5 rounded-card border border-line-subtle bg-surface p-5 sm:p-6', className)}
+      className={cn('space-y-5 border-brut border-ink bg-surface p-5 sm:p-6', className)}
     >
       <div className="flex items-center justify-between border-b border-line-subtle pb-4">
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5 text-ink-muted" aria-hidden="true" />
-          <h2 id="comments-heading" className="text-heading text-ink">
+          <MessageSquare className="h-5 w-5 text-text-muted" aria-hidden="true" />
+          <h2 id="comments-heading" className="text-heading text-text">
             Questions & comments
           </h2>
         </div>
         {documentNumber && (
-          <span className="rounded-pill border border-line-subtle bg-surface-sunken px-2.5 py-0.5 text-caption font-bold text-ink-muted">
+          <span className="rounded-full border-brut-thin border-ink bg-surface-sunken px-2.5 py-0.5 text-caption font-bold text-text-muted">
             {documentNumber}
           </span>
         )}
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-8 text-ink-muted">
+        <div className="flex items-center justify-center py-8 text-text-muted">
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       ) : comments.length === 0 ? (
-        <div className="rounded-row bg-surface-sunken p-5 text-center text-body text-ink-soft">
-          <p className="font-medium text-ink">No questions or comments yet.</p>
-          <p className="mt-1 text-caption text-ink-muted">
+        <div className="bg-surface-sunken p-5 text-center text-body text-text-soft">
+          <p className="font-medium text-text">No questions or comments yet.</p>
+          <p className="mt-1 text-caption text-text-muted">
             {isPublicView
               ? 'Have questions about pricing, scope or terms? Ask your freelancer below.'
               : 'Messages between you and your client on this document will appear here.'}
@@ -160,9 +168,9 @@ export function DocumentComments({
               <div
                 key={comment.id}
                 className={cn(
-                  'space-y-1.5 rounded-row p-4 transition-colors',
+                  'space-y-1.5 p-4 transition-colors',
                   isClient
-                    ? 'border border-line-subtle bg-surface-sunken'
+                    ? 'border-brut-thin border-ink bg-surface-sunken'
                     : 'border border-mango/30 bg-amber-50/50 dark:bg-amber-950/20'
                 )}
               >
@@ -171,16 +179,16 @@ export function DocumentComments({
                     <span className="font-extrabold text-ink">{comment.author_name}</span>
                     <span
                       className={cn(
-                        'rounded-pill px-2 py-0.5 text-[11px] font-extrabold',
+                        'rounded-full px-2 py-0.5 text-[11px] font-extrabold',
                         isClient
-                          ? 'bg-tint text-ink-muted'
+                          ? 'bg-surface-tint text-text-muted'
                           : 'bg-mango text-on-mango'
                       )}
                     >
                       {isClient ? 'Client' : 'Business'}
                     </span>
                   </div>
-                  <time className="text-caption text-ink-muted">
+                  <time className="text-caption text-text-muted">
                     {formatDate(comment.created_at)}
                   </time>
                 </div>
@@ -226,15 +234,7 @@ export function DocumentComments({
           )}
         </Field>
 
-        {error && (
-          <div
-            role="alert"
-            className="flex items-start gap-2 rounded-row border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          >
-            <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-            <span>{error}</span>
-          </div>
-        )}
+        {error && <Alert variant="error">{error}</Alert>}
 
         <div className="flex justify-end">
           <Button type="submit" zone="calm" loading={submitting} disabled={!message.trim()}>

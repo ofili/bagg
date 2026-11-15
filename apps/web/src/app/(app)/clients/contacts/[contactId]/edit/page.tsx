@@ -1,30 +1,28 @@
-
 'use client';
 
 import { use, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ArrowLeft, Check, CircleNotch } from '@phosphor-icons/react';
+
 import {
-  ArrowLeft,
-  Buildings,
-  Check,
-  CircleNotch,
-  Envelope,
-  Phone,
-  User,
-} from '@phosphor-icons/react';
-
-import { Button, buttonStyles } from '@/components/ui/button';
+  Alert,
+  Button,
+  Checkbox,
+  EmailField,
+  FormActions,
+  FormGrid,
+  FormSection,
+  PageHeader,
+  PhoneField,
+  TextArea,
+  TextField,
+  buttonStyles,
+} from '@/components/ui';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
+import { cn } from '@/lib/cn';
 
-const API_BASE = (
-  '/api'
-).replace(/\/$/, '');
-
-const inputClass =
-  'min-h-12 w-full rounded-input border border-line bg-surface px-3 py-2 text-body text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-cocoa focus:ring-2 focus:ring-cocoa/20';
-
-const labelClass = 'mb-1.5 block text-label font-bold text-ink-soft';
+const API_BASE = '/api';
 
 interface Client {
   id: string;
@@ -211,232 +209,150 @@ export default function EditContactPage({ params }: PageProps) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 pb-12">
-      <div className="space-y-3">
-        <Link
-          href="/clients/contacts"
-          className={buttonStyles({ variant: 'outline' })}
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Back to contacts
-        </Link>
+    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <Link
+        href="/clients/contacts"
+        className={cn(buttonStyles({ variant: 'outline', zone: 'calm' }), 'w-fit')}
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        Back to contacts
+      </Link>
 
-        <div>
-          <h1 className="text-title-l text-ink">
-            {contact?.name ? `Edit ${contact.name}` : 'Edit contact'}
-          </h1>
-
-          <p className="mt-1 text-body text-text-soft">
-            {clientName && clientName !== 'Unknown client'
-              ? `Update contact details for ${clientName}.`
-              : 'Update this person’s contact details.'}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={contact?.name ? `Edit ${contact.name}` : 'Edit contact'}
+        description={
+          clientName && clientName !== 'Unknown client'
+            ? `Update contact details for ${clientName}.`
+            : 'Update this person’s contact details.'
+        }
+      />
 
       {loading ? (
-        <div className="flex min-h-52 items-center justify-center rounded-card border border-line bg-surface">
-          <div className="flex items-center gap-3 text-sm text-ink-muted">
-            <CircleNotch className="size-5 animate-spin" />
+        <div
+          role="status"
+          className="flex min-h-52 items-center justify-center border-brut border-ink bg-surface"
+        >
+          <div className="flex items-center gap-3 text-body text-text-muted">
+            <CircleNotch className="size-5 animate-spin" aria-hidden="true" />
             Loading contact…
           </div>
         </div>
       ) : loadError ? (
-        <section
-          role="alert"
-          className="rounded-card border border-line bg-surface p-6"
+        <Alert
+          variant="error"
+          title="Unable to open contact"
+          action={
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/clients/contacts"
+                className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+              >
+                Back to contacts
+              </Link>
+
+              <Button
+                type="button"
+                onClick={() => window.location.reload()}
+              >
+                Try again
+              </Button>
+            </div>
+          }
         >
-          <h2 className="font-bold text-ink">Unable to open contact</h2>
-          <p className="mt-2 text-sm text-ink-muted">{loadError}</p>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link
-              href="/clients/contacts"
-              className={buttonStyles({ variant: "outline", zone: "calm" })}
-            >
-              Back to contacts
-            </Link>
-
-            <Button
-              type="button"
-              onClick={() => window.location.reload()}
-            >
-              Try again
-            </Button>
-          </div>
-        </section>
+          {loadError}
+        </Alert>
       ) : contact ? (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <section className="overflow-hidden rounded-card border border-line bg-surface">
-            <div className="border-b border-line px-5 py-4 sm:px-6">
-              <h2 className="font-bold text-ink">Contact information</h2>
-              <p className="mt-1 text-sm text-ink-muted">
-                Keep this person’s information accurate and up to date.
-              </p>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <FormSection
+            title="Contact information"
+            description="Keep this person’s information accurate and up to date."
+          >
+            <TextField
+              label="Associated client"
+              value={clientName}
+              disabled
+              readOnly
+              hint="The associated client cannot be changed from this form."
+            />
 
-            <div className="space-y-5 p-5 sm:p-6">
-              <div>
-                <label className={labelClass}>Associated client</label>
+            <TextField
+              label="Full name"
+              name="name"
+              required
+              autoComplete="name"
+              maxLength={255}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              disabled={saving}
+            />
 
-                <div className="flex min-h-12 items-center gap-3 rounded-input border border-line bg-surface-muted px-3">
-                  <Buildings className="size-4 shrink-0 text-ink-muted" />
-                  <span className="text-sm font-medium text-ink">
-                    {clientName}
-                  </span>
-                </div>
+            <TextField
+              label="Job title"
+              name="job_title"
+              optional
+              maxLength={255}
+              value={jobTitle}
+              onChange={(event) => setJobTitle(event.target.value)}
+              disabled={saving}
+              placeholder="e.g. Finance Director"
+            />
 
-                <p className="mt-2 text-xs text-ink-muted">
-                  The associated client cannot be changed from this form.
-                </p>
-              </div>
-
-              <div>
-                <label htmlFor="name" className={labelClass}>
-                  Full name <span className="text-red-600">*</span>
-                </label>
-
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    autoComplete="name"
-                    required
-                    maxLength={255}
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    disabled={saving}
-                    className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="jobTitle" className={labelClass}>
-                  Job title{' '}
-                  <span className="font-normal text-ink-muted">
-                    (optional)
-                  </span>
-                </label>
-
-                <input
-                  id="jobTitle"
-                  name="job_title"
-                  type="text"
-                  maxLength={255}
-                  value={jobTitle}
-                  onChange={(event) => setJobTitle(event.target.value)}
-                  disabled={saving}
-                  placeholder="e.g. Finance Director"
-                  className={inputClass}
-                />
-              </div>
-
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="email" className={labelClass}>
-                    Email address
-                  </label>
-
-                  <div className="relative">
-                    <Envelope className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      maxLength={320}
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      disabled={saving}
-                      placeholder="name@company.com"
-                      className={`${inputClass} pl-10`}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="phone" className={labelClass}>
-                    Phone number
-                  </label>
-
-                  <div className="relative">
-                    <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
-                    <input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      autoComplete="tel"
-                      maxLength={50}
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      disabled={saving}
-                      placeholder="+234 800 000 0000"
-                      className={`${inputClass} pl-10`}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="notes" className={labelClass}>
-                  Notes{' '}
-                  <span className="font-normal text-ink-muted">
-                    (optional)
-                  </span>
-                </label>
-
-                <textarea
-                  id="notes"
-                  name="notes"
-                  rows={4}
-                  maxLength={5000}
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  disabled={saving}
-                  placeholder="Add useful context about this contact…"
-                  className={`${inputClass} min-h-28 resize-y`}
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-card border border-line bg-surface p-5 sm:p-6">
-            <label className="flex cursor-pointer items-start gap-3">
-              <input
-                type="checkbox"
-                checked={isPrimary}
-                onChange={(event) => setIsPrimary(event.target.checked)}
+            <FormGrid>
+              <EmailField
+                label="Email address"
+                name="email"
+                optional
+                maxLength={320}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
                 disabled={saving}
-                className="mt-1 size-4 rounded border-line accent-cocoa"
+                placeholder="name@company.com"
               />
 
-              <span>
-                <span className="block text-sm font-bold text-ink">
-                  Primary contact
-                </span>
-                <span className="mt-1 block text-sm leading-5 text-ink-muted">
-                  Mark this person as the main contact for this client.
-                </span>
-              </span>
-            </label>
-          </section>
+              <PhoneField
+                label="Phone number"
+                name="phone"
+                optional
+                maxLength={50}
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                disabled={saving}
+                placeholder="+234 800 000 0000"
+              />
+            </FormGrid>
 
-          {error && (
-            <div
-              role="alert"
-              className="rounded-input border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-            >
-              {error}
-            </div>
-          )}
+            <TextArea
+              label="Notes"
+              name="notes"
+              optional
+              rows={4}
+              maxLength={5000}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              disabled={saving}
+              placeholder="Add useful context about this contact…"
+            />
+          </FormSection>
 
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <FormSection
+            title="Contact preferences"
+            description="Set how this person appears on the client record."
+          >
+            <Checkbox
+              label="Primary contact"
+              hint="Mark this person as the main contact for this client."
+              checked={isPrimary}
+              onChange={setIsPrimary}
+              disabled={saving}
+            />
+          </FormSection>
+
+          {error && <Alert variant="error">{error}</Alert>}
+
+          <FormActions divider={false}>
             <Link
               href="/clients/contacts"
-              className={buttonStyles({ variant: "outline", zone: "calm" })}
+              className={buttonStyles({ variant: 'outline', zone: 'calm' })}
             >
               Cancel
             </Link>
@@ -444,17 +360,17 @@ export default function EditContactPage({ params }: PageProps) {
             <Button type="submit" disabled={saving}>
               {saving ? (
                 <>
-                  <CircleNotch className="mr-2 size-4 animate-spin" />
+                  <CircleNotch className="mr-2 size-4 animate-spin" aria-hidden="true" />
                   Saving changes…
                 </>
               ) : (
                 <>
-                  <Check className="mr-2 size-4" />
+                  <Check className="mr-2 size-4" aria-hidden="true" />
                   Save changes
                 </>
               )}
             </Button>
-          </div>
+          </FormActions>
         </form>
       ) : null}
     </div>

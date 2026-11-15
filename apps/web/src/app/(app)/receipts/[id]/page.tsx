@@ -12,7 +12,6 @@ import {
   DownloadSimple,
   FileText,
   Printer,
-  Receipt,
   ShareNetwork,
   WarningCircle,
 } from '@phosphor-icons/react';
@@ -304,8 +303,8 @@ export default function ReceiptDetailPage() {
             className={cn(
               'inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-caption font-bold',
               receipt.is_verified
-                ? 'bg-leaf text-[#052E1B]'
-                : 'bg-sun text-[#4A3200]',
+                ? 'bg-leaf text-on-leaf'
+                : 'bg-sun text-on-sun',
             )}
           >
             {receipt.is_verified ? (
@@ -317,7 +316,7 @@ export default function ReceiptDetailPage() {
           </span>
         </div>
 
-        <div className="rounded-row bg-surface-tint p-5">
+        <div className="bg-surface-tint p-5">
           <p className="text-body text-text-soft">Amount received</p>
           <p className="mt-2 text-amount-l">
             <Money

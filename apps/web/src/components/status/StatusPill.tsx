@@ -28,7 +28,13 @@ export type DocumentStatus =
   | 'accepted'
   | 'declined'
   | 'expired'
-  | 'converted';
+  | 'converted'
+  | 'due-soon'
+  | 'late'
+  | 'awaiting'
+  | 'pending'
+  | 'upcoming'
+  | 'void';
 
 const STATUS_META: Record<
   DocumentStatus,
@@ -104,6 +110,36 @@ const STATUS_META: Record<
     className: 'bg-status-draft text-status-draft-fg',
     icon: ArrowRightCircle,
   },
+  'due-soon': {
+    label: 'Due soon',
+    className: 'bg-status-due text-status-due-fg',
+    icon: Clock3,
+  },
+  late: {
+    label: 'Late',
+    className: 'bg-status-late text-status-late-fg',
+    icon: AlertTriangle,
+  },
+  awaiting: {
+    label: 'Awaiting',
+    className: 'bg-status-due text-status-due-fg',
+    icon: Clock3,
+  },
+  pending: {
+    label: 'Pending',
+    className: 'bg-status-pending text-status-pending-fg',
+    icon: Clock3,
+  },
+  upcoming: {
+    label: 'Upcoming',
+    className: 'bg-status-draft text-status-draft-fg',
+    icon: FileEdit,
+  },
+  void: {
+    label: 'Not active',
+    className: 'bg-status-void text-status-void-fg',
+    icon: XCircle,
+  },
 };
 
 const SUB_LABELS: Record<DocumentStatus, string | null> = {
@@ -121,6 +157,12 @@ const SUB_LABELS: Record<DocumentStatus, string | null> = {
   declined: null,
   expired: null,
   converted: null,
+  'due-soon': null,
+  late: null,
+  awaiting: null,
+  pending: null,
+  upcoming: null,
+  void: null,
 };
 
 export function StatusPill({

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, X } from '@phosphor-icons/react';
 import { LineItemsEditor, lineTotalMinor, newLineItem, type LineItem } from '@/components/invoice';
-import { MoneyInput } from '@/components/mobile/MoneyInput';
+import { MoneyField } from '@/components/ui/MoneyField';
 import { Money } from '@/components/money/Money';
 import { BaggSelect, Button, Card, Chip, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
 import { InlineClientModal, type InlineCreatedClient } from '@/components/clients/InlineClientModal';
@@ -160,7 +160,7 @@ export function NewQuoteDesktop() {
       </div>
 
       {errorMsg && (
-        <div role="alert" className="flex items-start justify-between gap-2 rounded-row bg-[#FFB3B3] p-3 text-body text-[#5A1010]">
+        <div role="alert" className="flex items-start justify-between gap-2 bg-status-late p-3 text-body text-status-late-fg">
           <span className="pt-2">{errorMsg}</span>
           <button
             type="button"
@@ -271,7 +271,7 @@ export function NewQuoteDesktop() {
             <span className="text-body text-text-soft">Subtotal</span>
             <Money amountMinor={subtotalMinor} currency={currency} hideCurrencyCode />
           </div>
-          <MoneyInput
+          <MoneyField
             label="Discount"
             currency={currency}
             value={discountText}

@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   lineTotalMinor,
-  newLineItem,
   type LineItem,
 } from '@/components/invoice';
 import { toMinor } from '@/lib/amount';
@@ -166,7 +165,7 @@ export function useRecurringDraft() {
     setSaving(true);
     setErrorMsg(null);
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       client_id: selectedClientId,
       name: name.trim(),
       currency,

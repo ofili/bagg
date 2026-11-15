@@ -108,7 +108,7 @@ export function SetupChecklist() {
     const nextKey = steps.find((s) => !s.done)?.key;
 
     return (
-        <section aria-label="Getting started" className="space-y-3 rounded-card border-brut border-ink bg-surface p-4 shadow-brut-sm">
+        <section aria-label="Getting started" className="space-y-3  border-brut border-ink bg-surface p-4 shadow-brut-sm">
             <div className="flex items-center gap-3">
                 <BagCharacter size={48} mood="excited" decorative />
                 <div className="flex-1">

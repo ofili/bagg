@@ -43,12 +43,12 @@ export function ThemePreferenceSection() {
   return (
     <section
       aria-labelledby="appearance-heading"
-      className="rounded-card border border-line-subtle bg-surface p-5"
+      className="border-brut border-ink bg-surface p-5"
     >
       <div className="border-b border-line-subtle pb-4">
         <h2
           id="appearance-heading"
-          className="text-heading text-ink"
+          className="text-heading text-text"
         >
           Appearance
         </h2>

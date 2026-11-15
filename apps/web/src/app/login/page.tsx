@@ -16,10 +16,17 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Info, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 
 import { BagCharacter, BagMark, Wordmark } from '@/components/brand';
-import { buttonStyles } from '@/components/ui/button';
+import {
+  Alert,
+  Button,
+  EmailField,
+  OtpField,
+  buttonStyles,
+} from '@/components/ui';
+import { cn } from '@/lib/cn';
 
 const API_BASE = '/api';
 const RESEND_SECONDS = 30;
@@ -27,6 +34,7 @@ const RESEND_SECONDS = 30;
 type AuthResponse = {
   detail?: string;
   message?: string;
+  code?: string;
   workspace?: { business_name?: string | null; onboarding_completed?: boolean };
 };
 
@@ -64,9 +72,6 @@ function getSafeNextPath(next: string | null): string | null {
   }
 }
 
-const fieldClass =
-    'min-h-14 w-full rounded-input border-brut border-ink bg-surface px-4 py-3 text-body-l text-ink outline-none placeholder:text-ink-muted focus:shadow-brut-sm disabled:opacity-60';
-
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -99,8 +104,8 @@ function LoginPageContent() {
     });
     const data = await readApiResponse(res);
     if (!res.ok) throw new Error(data.detail || 'We could not send the code. Try again.');
-    if ((data as any).code) {
-      setCode((data as any).code);
+    if (data.code) {
+      setCode(data.code);
     }
   }, []);
 
@@ -187,28 +192,28 @@ function LoginPageContent() {
         <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-8 px-5 pb-10 pt-2 md:grid-cols-[1fr_420px] md:content-center md:items-center md:py-16">
           <section className="hidden md:block">
             <BagCharacter size={104} className="mb-6" />
-            <h1 className="text-display text-ink">welcome back.</h1>
-            <p className="mt-4 max-w-md text-body-l text-ink-soft">
+            <h1 className="text-display text-text">welcome back.</h1>
+            <p className="mt-4 max-w-md text-body-l text-text-soft">
               Your invoices, clients and payments are where you left them. Sign in and pick up the thread.
             </p>
-            <p className="mt-8 text-caption text-ink-muted">No passwords. No stored card numbers.</p>
+            <p className="mt-8 text-caption text-text-muted">No passwords. No stored card numbers.</p>
           </section>
 
-          <section className="space-y-5 md:rounded-card md:border md:border-line-subtle md:bg-surface md:p-8">
+          <section className="space-y-5 md:border-brut md:border-ink md:bg-surface md:p-8">
             <div className="flex items-center gap-3 md:hidden">
               <BagCharacter size={64} mood={step === 'code' ? 'thinking' : 'happy'} decorative />
             </div>
 
             <div>
-              <h1 className="text-title-l text-ink md:text-title">
+              <h1 className="text-title-l text-text md:text-title">
                 {step === 'email' ? 'sign in or create a workspace' : 'check your email'}
               </h1>
-              <p className="mt-2 text-body text-ink-soft">
+              <p className="mt-2 text-body text-text-soft">
                 {step === 'email' ? (
                     'We send a one-time code. No password to remember.'
                 ) : (
                     <>
-                      We sent a 6-digit code to <span className="break-all font-bold text-ink">{email}</span>. It can take a minute. Check spam if it
+                      We sent a 6-digit code to <span className="break-all font-bold text-text">{email}</span>. It can take a minute. Check spam if it
                       has not arrived.
                     </>
                 )}
@@ -216,94 +221,82 @@ function LoginPageContent() {
             </div>
 
             {expired && step === 'email' && (
-                <div role="status" className="flex items-start gap-2 rounded-input bg-sun px-3 py-3 text-body text-[#4A3200]">
-                  <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>You were signed out. Sign in to carry on where you left off.</span>
-                </div>
+                <Alert variant="warning">
+                  You were signed out. Sign in to carry on where you left off.
+                </Alert>
             )}
 
             {error && (
-                <div role="alert" className="rounded-input bg-pill-late/40 px-3 py-3 text-body text-late-text">
+                <Alert variant="error">
                   {error}
-                </div>
+                </Alert>
             )}
 
             {step === 'email' ? (
                 <form onSubmit={handleSendCode} className="space-y-4">
-                  <div>
-                    <label htmlFor="login-email" className="text-label font-bold text-ink-soft">
-                      email address
-                    </label>
-                    <input
-                        id="login-email"
-                        type="email"
-                        inputMode="email"
-                        required
-                        autoFocus
-                        autoComplete="email"
-                        autoCapitalize="none"
-                        spellCheck={false}
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        disabled={loading}
-                        className={`mt-1.5 ${fieldClass}`}
-                    />
-                  </div>
-                  <button type="submit" disabled={loading} className={`${buttonStyles({ size: 'lg' })} w-full`}>
+                  <EmailField
+                    id="login-email"
+                    label="Email address"
+                    required
+                    autoFocus
+                    autoCapitalize="none"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                  />
+
+                  <Button type="submit" size="lg" fullWidth disabled={loading}>
                     {loading ? (
                         <>
-                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Sending code...
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Sending code…
                         </>
                     ) : (
                         <>
                           Continue with email <ArrowRight className="h-4 w-4" aria-hidden="true" />
                         </>
                     )}
-                  </button>
+                  </Button>
                 </form>
             ) : (
                 <form onSubmit={handleVerifyCode} className="space-y-4">
-                  <div>
-                    <label htmlFor="login-code" className="text-label font-bold text-ink-soft">
-                      6-digit code
-                    </label>
-                    <input
-                        ref={codeRef}
-                        id="login-code"
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        pattern="[0-9]{6}"
-                        maxLength={6}
-                        required
-                        placeholder="000000"
-                        value={code}
-                        onChange={(e) => {
-                          const next = e.target.value.replace(/\D/g, '').slice(0, 6);
-                          setCode(next);
-                          if (next.length === 6) void verify(next);
-                        }}
-                        disabled={loading}
-                        className={`mt-1.5 ${fieldClass} text-center font-mono text-title tracking-[0.4em]`}
-                    />
-                  </div>
-                  <button type="submit" disabled={loading || code.trim().length !== 6} className={`${buttonStyles({ size: 'lg' })} w-full`}>
+                  <OtpField
+                    ref={codeRef}
+                    id="login-code"
+                    label="6-digit code"
+                    placeholder="000000"
+                    value={code}
+                    onChange={(next) => {
+                      setCode(next);
+                      if (next.length === 6) void verify(next);
+                    }}
+                    disabled={loading}
+                  />
+
+                  <Button
+                    type="submit"
+                    size="lg"
+                    fullWidth
+                    disabled={loading || code.trim().length !== 6}
+                  >
                     {loading ? (
                         <>
-                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Checking...
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Checking…
                         </>
                     ) : (
                         'Enter workspace'
                     )}
-                  </button>
+                  </Button>
 
                   <div className="flex flex-col items-center gap-1">
                     <button
                         type="button"
                         disabled={loading || cooldown > 0}
                         onClick={handleResend}
-                        className="inline-flex min-h-11 items-center text-label font-bold text-link hover:underline disabled:text-ink-muted disabled:no-underline"
+                        className={cn(
+                          buttonStyles({ variant: 'link' }),
+                          'disabled:text-text-muted disabled:no-underline',
+                        )}
                     >
                       {cooldown > 0 ? `Send a new code in ${cooldown}s` : 'Send a new code'}
                     </button>
@@ -315,7 +308,7 @@ function LoginPageContent() {
                           setError(null);
                           setCode('');
                         }}
-                        className="inline-flex min-h-11 items-center gap-1 text-label font-bold text-link hover:underline disabled:opacity-60"
+                        className={buttonStyles({ variant: 'link' })}
                     >
                       <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Use a different email
                     </button>
@@ -323,7 +316,7 @@ function LoginPageContent() {
                 </form>
             )}
 
-            <p className="border-t border-line-subtle pt-4 text-caption text-ink-muted">
+            <p className="border-t border-line-subtle pt-4 text-caption text-text-muted">
               By signing in, you agree to Bagg&apos;s terms of service and privacy policy.
             </p>
           </section>
@@ -337,7 +330,7 @@ export default function LoginPage() {
       <Suspense
           fallback={
             <div className="flex min-h-dvh items-center justify-center bg-cream">
-              <Loader2 className="h-6 w-6 animate-spin text-ink-muted" aria-label="Loading sign-in" />
+              <Loader2 className="h-6 w-6 animate-spin text-text-muted" aria-label="Loading sign-in" />
             </div>
           }
       >

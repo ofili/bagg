@@ -1,17 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, Check,
-  CreditCard, Info, Loader2, MessageSquare, Send } from 'lucide-react';
+import { Check, CreditCard, Info, Loader2 } from 'lucide-react';
 import { BagCharacter } from '@/components/brand';
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { InvoiceDocument, PaymentDetails } from '@/components/invoice';
 import { ClientPayBar, ClientPayView, type ClientPayProps } from '@/components/mobile/ClientPay';
 import { Money } from '@/components/money/Money';
-import { MoneyInput } from '@/components/mobile/MoneyInput';
-import { Button, Card, Dialog, Field, Input, inputStyles } from '@/components/ui';
+import { MoneyField } from '@/components/ui/MoneyField';
+import { Alert, Button, Card, Dialog, Field, Input, inputStyles } from '@/components/ui';
 import { cleanAmount, toMinor } from '@/lib/amount';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
@@ -147,8 +146,8 @@ export default function PublicClientInvoiceView() {
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
       }
-    } catch (err: any) {
-      setCheckoutError(err.message || 'Online payment could not be started.');
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : 'Online payment could not be started.');
     } finally {
       setCheckingOut(false);
     }
@@ -162,12 +161,7 @@ export default function PublicClientInvoiceView() {
   const [abuseSuccess, setAbuseSuccess] = useState(false);
   const [abuseError, setAbuseError] = useState<string | null>(null);
 
-  const [authorName, setAuthorName] = useState('');
-  const [commentText, setCommentText] = useState('');
-  const [submittingComment, setSubmittingComment] = useState(false);
-  const [commentError, setCommentError] = useState<string | null>(null);
-
-  const fetchInvoiceData = () => {
+  const fetchInvoiceData = useCallback(() => {
     if (!token) return;
     fetch(`${API_BASE}/share/${token}`)
       .then(async (res) => {
@@ -178,12 +172,12 @@ export default function PublicClientInvoiceView() {
         setData(json);
       })
       .catch((err) => {
-        setError(err.message || 'Could not load invoice');
+        setError(err instanceof Error ? err.message : 'Could not load invoice');
       })
       .finally(() => {
         setLoading(false);
       });
-  };
+  }, [token]);
 
   const handleClaimPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,8 +230,8 @@ export default function PublicClientInvoiceView() {
       setToastMsg('Done. Your payment details have been sent to your freelancer.');
       setTimeout(() => setToastMsg(null), 4000);
       fetchInvoiceData();
-    } catch (err: any) {
-      setClaimError(err.message || 'Error submitting claim.');
+    } catch (err) {
+      setClaimError(err instanceof Error ? err.message : 'Error submitting claim.');
     } finally {
       setSubmittingClaim(false);
     }
@@ -271,8 +265,8 @@ export default function PublicClientInvoiceView() {
         setAbuseSuccess(false);
         setAbuseReason('');
       }, 3000);
-    } catch (err: any) {
-      setAbuseError(err.message || 'Error submitting report.');
+    } catch (err) {
+      setAbuseError(err instanceof Error ? err.message : 'Error submitting report.');
     } finally {
       setSubmittingAbuse(false);
     }
@@ -280,7 +274,7 @@ export default function PublicClientInvoiceView() {
 
   useEffect(() => {
     fetchInvoiceData();
-  }, [token]);
+  }, [fetchInvoiceData]);
 
   useEffect(() => {
     if (!token) return;
@@ -301,7 +295,7 @@ export default function PublicClientInvoiceView() {
         })
         .catch(() => {});
     }
-  }, [token]);
+  }, [token, fetchInvoiceData]);
 
 
   const handleCopy = (text: string, key: string, label: string) => {
@@ -312,31 +306,6 @@ export default function PublicClientInvoiceView() {
       setCopiedKey(null);
       setToastMsg(null);
     }, 2500);
-  };
-
-  const handleAddComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!commentText.trim() || !authorName.trim()) return;
-
-    setSubmittingComment(true);
-    setCommentError(null);
-    try {
-      const res = await fetch(`${API_BASE}/share/${token}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          author_name: authorName.trim(),
-          message: commentText.trim(),
-        }),
-      });
-      if (!res.ok) throw new Error('send failed');
-      setCommentText('');
-      fetchInvoiceData();
-    } catch {
-      setCommentError('Your message did not send. Check your connection and try again.');
-    } finally {
-      setSubmittingComment(false);
-    }
   };
 
   if (loading) {
@@ -363,7 +332,6 @@ export default function PublicClientInvoiceView() {
   const {
     invoice,
     payment_profile,
-    comments,
     is_revised,
     revision_banner,
     show_viral_footer,
@@ -494,7 +462,7 @@ export default function PublicClientInvoiceView() {
               <ClientPayView {...payProps} />
 
               {/* Full invoice: expandable on mobile */}
-              <details className="rounded-card border-brut border-ink bg-surface sm:hidden">
+              <details className="border-brut border-ink bg-surface sm:hidden">
                 <summary className="flex min-h-12 cursor-pointer items-center justify-between px-4 font-extrabold">
                   <span>View full invoice</span>
                   <span className="text-caption text-text-muted">
@@ -633,12 +601,12 @@ export default function PublicClientInvoiceView() {
                 </div>
 
                 {invoice.status === 'paid' || remainingMinor === 0 ? (
-                    <div className="rounded-row border border-leaf/40 bg-leaf/10 p-3 text-body font-bold">
+                    <div className="border border-leaf/40 bg-leaf/10 p-3 text-body font-bold">
                       <Check aria-hidden className="mr-2 inline h-4 w-4" />
                       Payment complete
                     </div>
                 ) : (
-                    <div className="rounded-row bg-surface-tint p-3 text-caption text-text-soft">
+                    <div className="bg-surface-tint p-3 text-caption text-text-soft">
                       Use the payment instructions on the invoice if you prefer
                       a bank transfer.
                     </div>
@@ -689,21 +657,10 @@ export default function PublicClientInvoiceView() {
             className="max-h-[92dvh] overflow-y-auto"
         >
           <form onSubmit={handleClaimPayment} className="space-y-4">
-            {claimError && (
-                <div
-                    role="alert"
-                    className="flex items-start gap-2 rounded-row border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-                >
-                  <AlertCircle
-                      aria-hidden
-                      className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400"
-                  />
-                  <span>{claimError}</span>
-                </div>
-            )}
+            {claimError && <Alert variant="error">{claimError}</Alert>}
 
             <div className="space-y-2">
-              <MoneyInput
+              <MoneyField
                   label="Amount you paid"
                   currency={invoice.currency}
                   value={claimAmount}
@@ -717,7 +674,7 @@ export default function PublicClientInvoiceView() {
                     onClick={() =>
                         setClaimAmount((remainingMinor / 100).toFixed(2))
                     }
-                    className="rounded-btn border border-line bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
+                    className="rounded-btn border-brut-thin border-ink bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
                 >
                   Full balance ({(remainingMinor / 100).toFixed(2)}{' '}
                   {invoice.currency})
@@ -733,7 +690,7 @@ export default function PublicClientInvoiceView() {
                                     ((invoice.deposit_amount_minor || 0) / 100).toFixed(2),
                                 )
                             }
-                            className="rounded-btn border border-line bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
+                            className="rounded-btn border-brut-thin border-ink bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
                         >
                           Deposit only (
                           {((invoice.deposit_amount_minor || 0) / 100).toFixed(2)}{' '}
@@ -821,7 +778,7 @@ export default function PublicClientInvoiceView() {
             {abuseSuccess ? (
                 <p
                     role="status"
-                    className="flex items-start gap-2 rounded-row bg-peach p-3 text-body font-medium"
+                    className="flex items-start gap-2 bg-peach p-3 text-body font-medium"
                 >
                   <Check
                       aria-hidden
@@ -832,18 +789,7 @@ export default function PublicClientInvoiceView() {
                 </p>
             ) : (
                 <form onSubmit={handleReportAbuse} className="space-y-4">
-                  {abuseError && (
-                      <div
-                          role="alert"
-                          className="flex items-start gap-2 rounded-row border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-                      >
-                        <AlertCircle
-                            aria-hidden
-                            className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400"
-                        />
-                        <span>{abuseError}</span>
-                      </div>
-                  )}
+                  {abuseError && <Alert variant="error">{abuseError}</Alert>}
 
                   <Field label="What looks wrong?" hint="At least 10 characters.">
                     {(a) => (

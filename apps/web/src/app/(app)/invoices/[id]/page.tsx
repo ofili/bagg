@@ -22,14 +22,13 @@ import {
   ShareNetworkIcon,
   WarningCircleIcon,
   XCircleIcon,
-  XIcon,
 } from '@phosphor-icons/react';
 
 import { DocumentComments } from '@/components/comments/DocumentComments';
 import { InvoiceDocument } from '@/components/invoice';
 import { InvoiceActionBar } from '@/components/mobile/InvoiceActionBar';
 import { InvoiceMobileSummary } from '@/components/mobile/InvoiceMobileSummary';
-import { MoneyInput } from '@/components/mobile/MoneyInput';
+import { MoneyField } from '@/components/ui/MoneyField';
 import { Money } from '@/components/money/Money';
 import {
   StatusPill,
@@ -1118,7 +1117,7 @@ export default function InvoiceDetailPage() {
           </Link>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="break-words text-title-l sm:text-display">
+            <h1 className="break-words text-title-l font-extrabold tracking-tight text-ink">
               {invoice.invoice_number}
             </h1>
 
@@ -1136,7 +1135,7 @@ export default function InvoiceDetailPage() {
             {invoice.recurring_schedule_id && (
               <Link
                 href={`/recurring-invoices/${invoice.recurring_schedule_id}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-ink bg-sun/40 px-2.5 py-0.5 text-caption font-bold text-ink transition-colors hover:bg-sun"
+                className="inline-flex items-center gap-1.5 rounded-full border-brut-thin border-ink bg-sun/40 px-2.5 py-0.5 text-caption font-bold text-ink transition-colors hover:bg-sun hover:text-on-sun"
                 title="View recurring schedule"
               >
                 <span aria-hidden>↻</span>
@@ -1202,13 +1201,13 @@ export default function InvoiceDetailPage() {
             <summary
               aria-label="More invoice actions"
               title="More actions"
-              className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-btn border border-line bg-surface px-3 text-text transition-colors hover:bg-surface-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink [&::-webkit-details-marker]:hidden"
+              className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-btn border-brut-thin border-ink bg-surface px-3 text-text transition-colors hover:bg-surface-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink [&::-webkit-details-marker]:hidden"
             >
               <DotsThreeIcon aria-hidden className="h-6 w-6" />
               <span className="sr-only">More actions</span>
             </summary>
 
-            <div className="absolute right-0 z-30 mt-2 w-64 rounded-card border-brut border-ink bg-surface p-2 shadow-brut">
+            <div className="absolute right-0 z-30 mt-2 w-64 border-brut border-ink bg-surface p-2 shadow-brut">
               {invoice.share_token && invoice.status !== 'draft' && (
                 <div className="space-y-1 border-b border-line-subtle pb-2">
                   <p className="px-3 py-1 text-caption font-bold uppercase tracking-wide text-text-muted">
@@ -1218,7 +1217,7 @@ export default function InvoiceDetailPage() {
                   <button
                     type="button"
                     onClick={copyShareLink}
-                    className="flex min-h-10 w-full items-center gap-2 rounded-row px-3 text-left text-body font-medium hover:bg-surface-tint"
+                    className="flex min-h-10 w-full items-center gap-2 px-3 text-left text-body font-medium hover:bg-surface-tint"
                   >
                     {copied ? (
                       <CheckIcon aria-hidden className="h-4 w-4" />
@@ -1232,7 +1231,7 @@ export default function InvoiceDetailPage() {
                     href={`/i/${invoice.share_token}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex min-h-10 items-center gap-2 rounded-row px-3 text-body font-medium hover:bg-surface-tint"
+                    className="flex min-h-10 items-center gap-2 px-3 text-body font-medium hover:bg-surface-tint"
                   >
                     <ArrowSquareOutIcon aria-hidden className="h-4 w-4" />
                     Open client view
@@ -1243,7 +1242,7 @@ export default function InvoiceDetailPage() {
                       href={whatsappHref}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex min-h-10 items-center gap-2 rounded-row px-3 text-body font-medium hover:bg-surface-tint"
+                      className="flex min-h-10 items-center gap-2 px-3 text-body font-medium hover:bg-surface-tint"
                     >
                       <ShareNetworkIcon aria-hidden className="h-4 w-4" />
                       Share on WhatsApp
@@ -1260,7 +1259,7 @@ export default function InvoiceDetailPage() {
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="flex min-h-10 w-full items-center gap-2 rounded-row px-3 text-left text-body font-medium hover:bg-surface-tint"
+                  className="flex min-h-10 w-full items-center gap-2 px-3 text-left text-body font-medium hover:bg-surface-tint"
                 >
                   <FileTextIcon aria-hidden className="h-4 w-4" />
                   Print / save as PDF
@@ -1279,7 +1278,7 @@ export default function InvoiceDetailPage() {
                     <button
                       type="button"
                       onClick={() => setShowRecallDialog(true)}
-                      className="flex min-h-10 w-full items-center gap-2 rounded-row px-3 text-left text-body font-medium hover:bg-surface-tint"
+                      className="flex min-h-10 w-full items-center gap-2 px-3 text-left text-body font-medium hover:bg-surface-tint"
                     >
                       <ArrowUUpLeftIcon aria-hidden className="h-4 w-4" />
                       Recall invoice
@@ -1295,7 +1294,7 @@ export default function InvoiceDetailPage() {
                         );
                         setShowWhtDialog(true);
                       }}
-                      className="flex min-h-10 w-full items-center gap-2 rounded-row px-3 text-left text-body font-medium hover:bg-surface-tint"
+                      className="flex min-h-10 w-full items-center gap-2 px-3 text-left text-body font-medium hover:bg-surface-tint"
                     >
                       <ScrollIcon aria-hidden className="h-4 w-4" />
                       {invoice.wht_credit_note_number
@@ -1309,7 +1308,7 @@ export default function InvoiceDetailPage() {
                       type="button"
                       disabled={regeneratingLink}
                       onClick={handleRegenerateShareLink}
-                      className="flex min-h-10 w-full items-center gap-2 rounded-row px-3 text-left text-body font-medium hover:bg-surface-tint disabled:opacity-50"
+                      className="flex min-h-10 w-full items-center gap-2 px-3 text-left text-body font-medium hover:bg-surface-tint disabled:opacity-50"
                     >
                       <ArrowCounterClockwiseIcon
                         aria-hidden
@@ -1396,7 +1395,7 @@ export default function InvoiceDetailPage() {
                   return (
                     <li
                       key={claim.id}
-                      className="flex flex-col gap-3 rounded-row border border-line-subtle bg-surface p-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-3 border-brut border-ink bg-surface p-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
                         <Money
@@ -1469,7 +1468,7 @@ export default function InvoiceDetailPage() {
           )}
 
           {/* Invoice document */}
-          <details className="rounded-card border-brut border-ink bg-surface sm:hidden">
+          <details className="border-brut border-ink bg-surface sm:hidden">
             <summary className="flex min-h-12 cursor-pointer items-center px-4 font-extrabold">
               View full invoice
             </summary>
@@ -1518,7 +1517,7 @@ export default function InvoiceDetailPage() {
             )}
 
             {!receiptsError && receipts.length === 0 && (
-              <div className="rounded-row border border-dashed border-line-subtle p-5">
+              <div className="border border-dashed border-line-subtle p-5">
                 <ReceiptIcon
                   aria-hidden
                   className="h-6 w-6 text-text-muted"
@@ -1543,7 +1542,7 @@ export default function InvoiceDetailPage() {
                     className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="flex min-w-0 items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-row bg-peach">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-peach">
                         <ReceiptIcon
                           aria-hidden
                           className="h-5 w-5"
@@ -1946,7 +1945,7 @@ export default function InvoiceDetailPage() {
             invoice.
           </p>
 
-          <MoneyInput
+          <MoneyField
             label="Amount received"
             currency={invoice.currency}
             value={amount}
@@ -2000,7 +1999,7 @@ export default function InvoiceDetailPage() {
             )}
           </Field>
 
-          <label className="flex min-h-11 items-start gap-3 rounded-row bg-peach p-3 text-body">
+          <label className="flex min-h-11 items-start gap-3 bg-peach p-3 text-body">
             <input
               type="checkbox"
               checked={confirmed}

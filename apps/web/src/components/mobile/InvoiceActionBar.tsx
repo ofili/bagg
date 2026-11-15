@@ -39,7 +39,7 @@ export interface InvoiceActionBarProps {
 }
 
 const rowClass =
-    'flex min-h-14 w-full items-center gap-3 rounded-row px-3 text-left text-body-l font-extrabold hover:bg-surface-tint';
+    'flex min-h-14 w-full items-center gap-3  px-3 text-left text-body-l font-extrabold hover:bg-surface-tint';
 
 export function InvoiceActionBar(p: InvoiceActionBarProps) {
     const [moreOpen, setMoreOpen] = useState(false);

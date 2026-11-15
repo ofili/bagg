@@ -15,13 +15,15 @@ import {
   Trash,
   User,
   Users,
-  WarningCircle,
 } from '@phosphor-icons/react';
 import { ContactRow } from '@/components/mobile/ContactRow';
 import {
+  Alert,
   buttonStyles,
   DataTable,
   type ColumnDef,
+  PageContainer,
+  PageHeader,
   SearchInput,
 } from '@/components/ui';
 import { cn } from '@/lib/cn';
@@ -338,7 +340,7 @@ export default function ContactsPage() {
             disabled={deletingContactId === contact.id}
             aria-label={`Delete ${contact.name}`}
             title="Delete contact"
-            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-[#FFB3B3] hover:text-[#5A1010] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-status-late hover:text-status-late-fg disabled:cursor-not-allowed disabled:opacity-50"
           >
             {deletingContactId === contact.id ? (
               <CircleNotch className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -359,7 +361,7 @@ export default function ContactsPage() {
   );
 
   const emptyState = (
-    <div className="rounded-card border border-line-subtle bg-surface px-6 py-12 text-center">
+    <div className="border-brut border-ink bg-surface px-6 py-12 text-center">
       <User
         className="mx-auto h-10 w-10 text-text-muted"
         aria-hidden="true"
@@ -389,62 +391,51 @@ export default function ContactsPage() {
   );
 
   return (
-    <main className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-3">
-          <Link
-            href="/clients"
-            className={buttonStyles({ variant: 'outline' })}
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Back to clients
-          </Link>
-
-          <div>
-            <h1 className="text-title-l sm:text-display text-ink">contacts</h1>
-            <p className="mt-1 text-body text-text-soft">
-              Manage the people you work with across your clients and businesses.
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => router.push('/clients/contacts/new')}
-          className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
+    <PageContainer width="list">
+      <div className="space-y-4">
+        <Link
+          href="/clients"
+          className={buttonStyles({ variant: 'outline' })}
         >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Add contact
-        </button>
-      </header>
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to clients
+        </Link>
+
+        <PageHeader
+          eyebrow="Directory"
+          title="Contacts"
+          description="Manage the people you work with across your clients and businesses."
+          actions={
+            <Link
+              href="/clients/contacts/new"
+              className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add contact
+            </Link>
+          }
+        />
+      </div>
 
       {successMessage && (
-        <div
-          role="status"
-          className="rounded-row bg-leaf/20 px-3 py-2 text-body text-[#052E1B]"
-        >
-          {successMessage}
-        </div>
+        <Alert variant="success">{successMessage}</Alert>
       )}
 
       {loadError && (
-        <div
-          role="alert"
-          className="flex flex-col gap-3 rounded-row bg-[#FFB3B3] px-3 py-3 text-body text-[#5A1010] sm:flex-row sm:items-center sm:justify-between"
+        <Alert
+          variant="error"
+          action={(
+            <button
+              type="button"
+              onClick={() => void fetchDirectory()}
+              className="font-bold underline underline-offset-2"
+            >
+              Try again
+            </button>
+          )}
         >
-          <span className="flex items-start gap-2">
-            <WarningCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            {loadError}
-          </span>
-
-          <button
-            type="button"
-            onClick={() => void fetchDirectory()}
-            className="shrink-0 self-start font-bold hover:underline sm:self-center"
-          >
-            Try again
-          </button>
-        </div>
+          {loadError}
+        </Alert>
       )}
 
       <section className="space-y-4">
@@ -452,7 +443,7 @@ export default function ContactsPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/clients"
-              className="inline-flex min-h-10 items-center gap-2 rounded-btn border border-line-subtle bg-surface px-4 text-body font-bold text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
+              className="inline-flex min-h-10 items-center gap-2 rounded-btn border-brut-thin border-ink bg-surface px-4 text-body font-bold text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
             >
               <Users className="h-4 w-4" aria-hidden="true" />
               Clients
@@ -460,7 +451,7 @@ export default function ContactsPage() {
 
             <span
               aria-current="page"
-              className="inline-flex min-h-10 items-center gap-2 rounded-btn border border-line-subtle bg-peach-chip px-4 text-body font-bold text-ink"
+              className="inline-flex min-h-10 items-center gap-2 rounded-btn border-brut-thin border-ink bg-peach-chip px-4 text-body font-bold text-ink"
             >
               <User className="h-4 w-4" aria-hidden="true" />
               Contacts
@@ -492,6 +483,6 @@ export default function ContactsPage() {
           caption="Contacts table"
         />
       </section>
-    </main>
+    </PageContainer>
   );
 }

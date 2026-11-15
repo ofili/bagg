@@ -73,8 +73,8 @@ export function Dialog({
       aria-describedby={description ? descriptionId : undefined}
       className={cn(
         'w-[calc(100%-2rem)] max-w-[480px]',
-        'rounded-card border-brut border-ink',
-        'bg-surface p-0 text-text shadow-brut-lg outline-none',
+        'rounded-sheet border-brut border-ink',
+        'bg-surface p-0 text-text shadow-sheet outline-none',
         'backdrop:bg-black/60 backdrop:backdrop-blur-sm',
         className,
       )}
@@ -103,7 +103,7 @@ export function Dialog({
               aria-label="Close dialog"
               className={cn(
                 'inline-flex h-11 w-11 shrink-0 items-center justify-center',
-                'rounded-btn border border-line-subtle bg-surface',
+                'rounded-btn border-brut-thin border-ink bg-surface',
                 'text-text-muted hover:border-ink hover:text-ink',
                 'focus-visible:outline-2 focus-visible:outline-offset-2',
                 'focus-visible:outline-ink',

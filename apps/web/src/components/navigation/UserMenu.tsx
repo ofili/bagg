@@ -68,8 +68,10 @@ export function Avatar({
   size?: number;
 }) {
   if (src) {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
+      // Avatars come from arbitrary client-supplied URLs, so next/image would
+      // need every host allow-listed in next.config.
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt=""
@@ -125,7 +127,7 @@ export function useMe() {
 }
 
 const itemClass = cn(
-  'flex w-full items-center rounded-row px-3 py-3',
+  'flex w-full items-center  px-3 py-3',
   'text-left text-body font-semibold text-ink',
   'hover:bg-surface-tint',
   'focus-visible:bg-surface-tint',
@@ -300,7 +302,7 @@ export function UserMenu() {
         </HeaderAction>
 
         {open && (
-          <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-card border-brut border-ink bg-surface p-2 shadow-brut-sm">
+          <div className="absolute right-0 top-full z-50 mt-2 w-72  border-brut border-ink bg-surface p-2 shadow-brut-sm">
             <MenuBody
               me={me}
               onNavigate={() => setOpen(false)}

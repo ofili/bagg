@@ -8,7 +8,6 @@ import {
   Camera,
   Check,
   Code2,
-  FileCheck2,
   FileText,
   Palette,
   PenLine,
@@ -278,7 +277,7 @@ export default function CreativesPage() {
                     Different kinds of creative work
                   </p>
                   <h2 className="mt-3 max-w-lg text-title-l text-on-mango">
-                    Your craft is different. Getting paid shouldn't be.
+                    Your craft is different. Getting paid shouldn&apos;t be.
                   </h2>
                 </div>
                 <p className="max-w-2xl text-body-l text-on-mango">
@@ -447,7 +446,7 @@ export default function CreativesPage() {
               <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
                 <div>
                   <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-                    Where we're going
+                    Where we&apos;re going
                   </p>
                   <h2 className="mt-3 text-title-l text-ink">
                     More of the client journey, over time.

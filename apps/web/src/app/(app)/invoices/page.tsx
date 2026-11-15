@@ -30,6 +30,7 @@ import {
   Pagination,
   TableToolbar,
   EmptyState,
+  PageContainer,
   PageHeader,
 } from '@/components/ui';
 
@@ -39,7 +40,7 @@ import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 import { DocTabs } from '@/components/mobile/DocTabs';
 import { InvoiceRow } from '@/components/mobile/InvoiceRow';
-import { MoneyInput } from '@/components/mobile/MoneyInput';
+import { MoneyField } from '@/components/ui/MoneyField';
 import { useDataTable } from '@/hooks/useDataTable';
 import { CURRENCIES } from '@/lib/money';
 
@@ -503,9 +504,9 @@ export default function InvoicesPage() {
           {(invoice.comment_count ?? 0) > 0 && (
             <span
               title={`${invoice.comment_count} comment${(invoice.comment_count ?? 0) > 1 ? 's' : ''}`}
-              className="inline-flex items-center gap-1 rounded border border-border bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
+              className="inline-flex items-center gap-1 rounded-small border-brut-thin border-ink bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
             >
-              <ChatDots className="h-3 w-3 text-ink-muted" />
+              <ChatDots className="h-3 w-3 text-text-muted" />
               <span>{invoice.comment_count}</span>
             </span>
           )}
@@ -677,7 +678,7 @@ export default function InvoicesPage() {
    * Main page.
    */
   return (
-    <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
+    <PageContainer width="list">
       {/* Header */}
       <PageHeader
         eyebrow="Documents"
@@ -928,10 +929,10 @@ export default function InvoicesPage() {
                                 className={cn(
                                   'rounded-full px-2.5 py-0.5 text-caption font-extrabold',
                                   claim.status === 'confirmed'
-                                    ? 'bg-leaf text-[#052E1B]'
+                                    ? 'bg-leaf text-on-leaf'
                                     : claim.status === 'rejected'
-                                      ? 'bg-[#FFB3B3] text-[#5A1010]'
-                                      : 'bg-sun text-[#4A3200]',
+                                      ? 'bg-status-late text-status-late-fg'
+                                      : 'bg-sun text-on-sun',
                                 )}
                               >
                                 {claim.status === 'pending'
@@ -1049,7 +1050,7 @@ export default function InvoicesPage() {
                                 {/* Partial payment form */}
                                 {formOpen && showPartialInput && (
                                   <div className="space-y-3">
-                                    <MoneyInput
+                                    <MoneyField
                                       id={`partial-${claim.id}`}
                                       label="Amount you actually received"
                                       value={partialAmount}
@@ -1164,12 +1165,12 @@ export default function InvoicesPage() {
               variant: 'accent',
               size: 'lg',
             }),
-            'h-14 w-14 rounded-full p-0 shadow-lg',
+            'h-14 w-14 rounded-full p-0 shadow-brut',
           )}
         >
           <Plus className="h-6 w-6" aria-hidden />
         </Link>
       </div>
-    </div>
+    </PageContainer>
   );
 }

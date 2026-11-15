@@ -18,7 +18,12 @@ import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 import type { QuoteCardData } from '@/components/mobile/QuoteCard';
 
-const COLORS = ['bg-mango', 'bg-pink', 'bg-sun', 'bg-leaf'];
+const COLORS = [
+    'bg-mango text-on-mango',
+    'bg-pink text-on-pink',
+    'bg-sun text-on-sun',
+    'bg-leaf text-on-leaf',
+];
 const initials = (n?: string | null) => {
     const p = (n ?? '?').trim().split(/\s+/);
     return ((p[0]?.[0] ?? '?') + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
@@ -46,7 +51,7 @@ export function QuoteRow({
         (quote.is_expired || quote.effective_status === 'expired') && !['accepted', 'converted'].includes(quote.status);
 
     return (
-        <div className="overflow-hidden rounded-card border-brut border-ink bg-surface shadow-brut-sm">
+        <div className="overflow-hidden  border-brut border-ink bg-surface shadow-brut-sm">
             <Link href={`/quotes/${quote.id}`} className="flex min-h-[72px] items-center gap-3 p-3">
         <span
             aria-hidden

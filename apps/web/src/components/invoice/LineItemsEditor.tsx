@@ -1,7 +1,7 @@
 'use client';
 
 import { Plus, Trash2 } from 'lucide-react';
-import { MoneyInput } from '@/components/mobile/MoneyInput';
+import { MoneyField } from '@/components/ui/MoneyField';
 import { Money } from '@/components/money/Money';
 import { Button, Card, Field, Input } from '@/components/ui';
 import { cleanAmount, toMinor } from '@/lib/amount';
@@ -69,7 +69,7 @@ export function LineItemsEditor({ items, onChange, currency }: LineItemsEditorPr
                     />
                   )}
                 </Field>
-                <MoneyInput
+                <MoneyField
                   label="Unit price"
                   currency={currency}
                   value={it.unit_price}

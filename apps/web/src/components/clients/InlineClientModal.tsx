@@ -128,7 +128,7 @@ export function InlineClientModal({
               className={cn(
                 'flex items-center justify-center gap-2 rounded-btn border p-2.5 text-body font-bold transition-colors',
                 clientType === 'PERSON'
-                  ? 'border-brut-thin border-ink bg-sun text-ink shadow-brut-sm'
+                  ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
                   : 'border-line bg-surface text-text-soft hover:bg-surface-tint',
               )}
             >
@@ -140,7 +140,7 @@ export function InlineClientModal({
               className={cn(
                 'flex items-center justify-center gap-2 rounded-btn border p-2.5 text-body font-bold transition-colors',
                 clientType === 'BUSINESS'
-                  ? 'border-brut-thin border-ink bg-sun text-ink shadow-brut-sm'
+                  ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
                   : 'border-line bg-surface text-text-soft hover:bg-surface-tint',
               )}
             >
@@ -202,7 +202,7 @@ export function InlineClientModal({
         />
 
         {error && (
-          <div role="alert" className="rounded-card bg-[#FFB3B3]/30 border border-danger p-3 text-caption font-bold text-danger">
+          <div role="alert" className=" bg-status-late/30 border border-danger p-3 text-caption font-bold text-danger">
             {error}
           </div>
         )}

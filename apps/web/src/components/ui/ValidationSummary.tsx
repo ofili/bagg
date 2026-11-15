@@ -27,7 +27,7 @@ export function ValidationSummary({
       aria-live="assertive"
       aria-atomic="true"
       className={cn(
-        'rounded-card border-brut-thin border-danger bg-surface p-4',
+        'border-brut-thin border-danger bg-surface p-4',
         className,
       )}
     >

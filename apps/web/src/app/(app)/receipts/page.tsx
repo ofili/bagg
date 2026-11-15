@@ -1,17 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { ArrowUpRight } from '@phosphor-icons/react';
 import {
-  ArrowUpRight,
-  Receipt,
-
-} from '@phosphor-icons/react';
-import {
-  Alert,
   Card,
   buttonStyles,
   DataTable,
   ErrorState,
+  PageContainer,
   PageHeader,
   StatCard,
   type ColumnDef,
@@ -149,8 +145,8 @@ export default function ReceiptsPage() {
           className={cn(
             'inline-flex rounded-full px-2.5 py-1 text-caption font-bold',
             receipt.is_verified
-              ? 'bg-leaf text-[#052E1B]'
-              : 'bg-sun text-[#4A3200]',
+              ? 'bg-leaf text-on-leaf'
+              : 'bg-sun text-on-sun',
           )}
         >
           {receipt.is_verified ? 'Verified' : 'Unverified'}
@@ -180,7 +176,7 @@ export default function ReceiptsPage() {
   const emptyState = (
       <Card tone="peach" className="space-y-4 p-8 text-center">
       <BagCharacter size={48} mood="happy" className="mx-auto" decorative />
-      <h2 className="text-title">no receipts found</h2>
+      <h2 className="text-title font-extrabold text-ink">No receipts found</h2>
       <p className="mx-auto max-w-md text-body text-text-soft">
         {totalReceipts === 0 && !table.search.trim() && !table.filters['currency']
           ? 'Issued receipts will appear here when payments are recorded.'
@@ -192,7 +188,7 @@ export default function ReceiptsPage() {
   const renderMobileCard = (receipt: ReceiptRecord) => <ReceiptRow receipt={receipt} />;
 
   return (
-    <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
+    <PageContainer width="list">
       <PageHeader
           title="Receipts"
           description="Find payment receipts and trace them back to their invoices."
@@ -267,6 +263,6 @@ export default function ReceiptsPage() {
           onPerPageChange={table.setPerPage}
         />
       )}
-    </div>
+    </PageContainer>
   );
 }

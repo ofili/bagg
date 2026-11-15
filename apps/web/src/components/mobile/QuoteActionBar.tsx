@@ -32,7 +32,7 @@ export interface QuoteActionBarProps {
     onCopy: () => void;
 }
 
-const row = 'flex min-h-14 w-full items-center gap-3 rounded-row px-3 text-left text-body-l font-extrabold hover:bg-surface-tint';
+const row = 'flex min-h-14 w-full items-center gap-3  px-3 text-left text-body-l font-extrabold hover:bg-surface-tint';
 
 export function QuoteActionBar(p: QuoteActionBarProps) {
     const [more, setMore] = useState(false);

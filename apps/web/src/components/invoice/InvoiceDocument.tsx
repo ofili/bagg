@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertCircle, CheckCircle2, Clock3, ExternalLink, ReceiptText, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Clock3, ExternalLink, ReceiptText, ShieldCheck } from 'lucide-react';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
 import { Button, Card, buttonStyles } from '@/components/ui';
@@ -211,7 +211,7 @@ export function InvoiceDocument({
           {due_date && (
             <>
               {' · '}
-              <span className={cn(isOverdue && 'font-extrabold text-danger dark:text-[#FFB3A8]')}>
+              <span className={cn(isOverdue && 'font-extrabold text-status-late-fg')}>
                 {isOverdue ? 'Overdue, was due' : 'Due'} {formatDate(due_date)}
               </span>
             </>
@@ -226,7 +226,7 @@ export function InvoiceDocument({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={paidPercent}
-              className="h-2.5 overflow-hidden rounded-full border border-ink bg-surface-tint"
+              className="h-2.5 overflow-hidden rounded-full border-brut-thin border-ink bg-surface-tint"
             >
               <div className="h-full bg-leaf" style={{ width: `${paidPercent}%` }} />
             </div>
@@ -238,7 +238,7 @@ export function InvoiceDocument({
         )}
 
         {isClaimed && (
-          <div className="space-y-2 rounded-row border border-amber-300 bg-amber-50 p-3.5 text-body text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          <div className="space-y-2 border border-amber-300 bg-amber-50 p-3.5 text-body text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
             <div className="flex items-center gap-2 font-bold text-amber-900 dark:text-amber-100">
               <Clock3 aria-hidden className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
               <span>{variant === 'issuer' ? 'Payment claim awaiting confirmation' : 'Payment reported · Awaiting confirmation'}</span>
@@ -282,7 +282,7 @@ export function InvoiceDocument({
         )}
 
         {isClaimRejected && (
-          <div className="space-y-2 rounded-row border border-red-300 bg-red-50 p-3.5 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
+          <div className="space-y-2 border border-red-300 bg-red-50 p-3.5 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
             <div className="flex items-center gap-2 font-bold text-red-900 dark:text-red-100">
               <AlertCircle aria-hidden className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
               <span>Previous payment could not be verified</span>
@@ -322,7 +322,7 @@ export function InvoiceDocument({
           {items.map((item) => (
             <li
               key={item.id}
-              className="flex items-center justify-between gap-3 rounded-row border border-line-subtle bg-surface p-3"
+              className="flex items-center justify-between gap-3 border-brut border-ink bg-surface p-3"
             >
               <div className="min-w-0 flex-1">
                 <p className="text-body font-medium">{item.description}</p>

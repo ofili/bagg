@@ -74,7 +74,7 @@ function TabLink({ tab, active, badge }: { tab: Tab; active: boolean; badge?: nu
         <span
             className={cn(
                 'relative flex h-7 w-14 items-center justify-center rounded-full',
-                active ? 'bg-sun text-ink' : 'text-text-soft',
+                active ? 'bg-sun text-on-sun' : 'text-text-soft',
             )}
         >
           <Icon aria-hidden className="h-[22px] w-[22px]" />
@@ -175,9 +175,9 @@ export function BottomNav({ className = '' }: { className?: string }) {
                                     key={item.href}
                                     href={item.href}
                                     onClick={() => setCreateOpen(false)}
-                                    className="flex min-h-14 items-center gap-3 rounded-row px-2 text-body-l font-extrabold hover:bg-surface-tint"
+                                    className="flex min-h-14 items-center gap-3  px-2 text-body-l font-extrabold hover:bg-surface-tint"
                                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-btn border-brut-thin border-ink bg-sun">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-btn border-brut-thin border-ink bg-sun text-on-sun">
                     <Icon aria-hidden className="h-5 w-5" />
                   </span>
                                     {item.label}
