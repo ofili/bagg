@@ -61,6 +61,15 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
         fake_initialize,
     )
 
+    async def fake_manage_link(self, subscription_code):
+        assert subscription_code == "SUB_DEMO_001"
+        return "https://checkout.test/subscription/manage"
+
+    monkeypatch.setattr(
+        "app.integrations.paystack.PaystackClient.get_subscription_manage_link",
+        fake_manage_link,
+    )
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Step 0: Auth & Workspace Setup
@@ -148,9 +157,11 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
                     "amount": 200000,
                     "currency": "NGN",
                     "metadata": {
+                        "type": "bagg_billing_checkout",
+                        "billing_checkout_id": pack_checkout_id,
                         "workspace_id": workspace_id,
-                        "type": "credit_pack",
-                        "credits": 200,
+                        "purchase_type": "credit_pack",
+                        "pack": "200_credits",
                     },
                 },
             },
@@ -218,7 +229,7 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
                 "event": "charge.success",
                 "data": {
                     "reference": sub_ref,
-                    "amount": 1400000,
+                    "amount": 3_500_000,
                     "currency": "NGN",
                     "subscription_code": "SUB_DEMO_001",
                     "customer": {"customer_code": "CUST_DEMO_001"},
@@ -229,6 +240,7 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
                         "workspace_id": workspace_id,
                         "purchase_type": "subscription",
                         "plan": "creator_pro",
+                        "billing_interval": "annual",
                     },
                 },
             },
@@ -294,13 +306,3 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
 
         assert sub_after_cancel.json()["cancel_at_period_end"] is True
         assert sub_after_cancel.json()["tier"] == "creator_pro" 
-
-    async def fake_manage_link(self, subscription_code):
-        assert subscription_code == "SUB_DEMO_001"
-        return "https://checkout.test/subscription/manage"
-
-
-    monkeypatch.setattr(
-        "app.integrations.paystack.PaystackClient.get_subscription_manage_link",
-        fake_manage_link,
-    )
