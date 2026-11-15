@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals
 from app.core.security import generate_share_token
+from app.domains.activation.service import (record_invoice_created, record_document_dispatched)
 from app.domains.billing.service import (
     check_delivery_quota,
     consume_delivery_send,
@@ -301,6 +302,12 @@ async def create_invoice(
             )
             for position, item in enumerate(payload.items)
         ])
+
+    await record_invoice_created(
+        db,
+        workspace,
+        invoice,
+    )
 
     await db.commit()
     await repository.refresh(invoice)
@@ -703,6 +710,17 @@ async def send_invoice(
             db,
             commit=False,
         )
+
+    if dispatched:
+        await record_document_dispatched(
+            db,
+            workspace,
+            document_type="invoice",
+            document_id=invoice.id,
+            source="issuer_send",
+        )
+
+    await db.commit()
 
     # Invoice state, credit ledger, reminder cadence and email outbox
     # become visible together or not at all.

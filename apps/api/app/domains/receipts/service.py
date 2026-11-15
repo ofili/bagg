@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import BadRequestException
 from app.core.money import format_money
 from app.core.security import generate_share_token
+from app.domains.activation.service import record_payment_confirmed
 from app.domains.workspaces.models import Workspace
 from app.domains.invoices.models import Invoice
 from app.domains.receipts.models import Receipt
@@ -199,6 +200,16 @@ async def confirm_payment(
                 "Payment notification creation failed for receipt %s", receipt.id
             )
     await repo.flush()
+
+    await record_payment_confirmed(
+        db,
+        workspace,
+        invoice_id=invoice.id,
+        receipt_id=receipt.id,
+        amount_minor=amount_paid_minor,
+        currency=invoice.currency,
+    )
+
     return receipt
 
 

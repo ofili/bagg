@@ -10,6 +10,11 @@ from app.core.middleware import (
 )
 from app.core.money import CURRENCY_SPECS
 
+from app.domains.activation.router import (
+    activation_router,
+    analytics_router,
+)
+
 from app.domains.auth.router import router as auth_router
 from app.domains.workspaces.router import router as workspaces_router
 from app.domains.onboarding.router import router as onboarding_router
@@ -101,6 +106,9 @@ app.include_router(email_change_router)
 app.include_router(users_router)
 
 app.include_router(recurring_invoices_router)
+
+app.include_router(activation_router)
+app.include_router(analytics_router)
 
 
 @app.get("/health", tags=["System"])

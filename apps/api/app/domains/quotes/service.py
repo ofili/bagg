@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals, format_money
 from app.core.security import generate_share_token
+from app.domains.activation.service import (record_quote_created, record_document_dispatched)
 from app.domains.billing.service import (
     check_delivery_quota,
     consume_delivery_send,
@@ -229,6 +230,12 @@ async def create_quote(
             )
             for i, it in enumerate(payload.items)
         ]
+    )
+
+    await record_quote_created(
+        db,
+        workspace,
+        quote_obj,
     )
 
     await db.commit()
@@ -738,6 +745,15 @@ async def send_quote(
             to_status=quote_obj.status,
             actor_type="issuer",
             actor_id=workspace.owner_id,
+            source="issuer_send",
+        )
+
+    if dispatched:
+        await record_document_dispatched(
+            db,
+            workspace,
+            document_type="quote",
+            document_id=quote_obj.id,
             source="issuer_send",
         )
 

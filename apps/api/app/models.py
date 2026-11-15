@@ -23,3 +23,4 @@ import app.domains.security.models  # noqa: F401
 import app.domains.sharing.models  # noqa: F401
 import app.domains.workspaces.models  # noqa: F401
 import app.integrations.email_models  # noqa: F401
+import app.domains.activation.models  # noqa: F401
