@@ -508,3 +508,41 @@ async def apply_reconciliation_result(
     except Exception:
         await db.rollback()
         raise
+
+
+async def get_checkout_reconciliation_snapshot(
+    *,
+    db: AsyncSession,
+    workspace_id: str,
+    checkout_id: str,
+) -> dict | None:
+    """Read the provider reference and checkout state, then close the read transaction."""
+
+    repo = BillingRepository(db)
+
+    try:
+        checkout = await repo.get_checkout_by_id(
+            workspace_id,
+            checkout_id,
+        )
+
+        if checkout is None:
+            return None
+
+        return {
+            "checkout_id": checkout.id,
+            "reference": checkout.provider_reference,
+            "purchase_type": checkout.purchase_type,
+            "plan": checkout.plan_code,
+            "pack": checkout.pack_code,
+            "billing_interval": checkout.billing_interval,
+            "amount_minor": checkout.amount_minor,
+            "currency": checkout.currency,
+            "status": checkout.status,
+            "authorization_url": checkout.authorization_url,
+            "paid_at": checkout.paid_at,
+            "created_at": checkout.created_at,
+        }
+    finally:
+        # This service owns the read transaction. The router must not.
+        await db.rollback()

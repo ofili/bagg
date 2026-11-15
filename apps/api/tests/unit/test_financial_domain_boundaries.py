@@ -55,16 +55,32 @@ class FinancialBoundaryTests(unittest.TestCase):
         self.assertIn("repo.lock_workspace", source)
 
     def test_billing_webhook_requires_server_created_checkout(self):
-        source = self.source("app/domains/webhooks/billing_service.py")
-        self.assertIn("get_checkout(reference, lock=True)", source)
-        self.assertIn("checkout.amount_minor", source)
-        self.assertIn("checkout.currency", source)
-        self.assertIn("billing_checkout_id", source)
+        webhook_source = self.source(
+            "app/domains/webhooks/billing_service.py"
+        )
+        checkout_source = self.source(
+            "app/domains/billing/checkout_service.py"
+        )
+
+        self.assertIn("get_checkout(reference, lock=True)", webhook_source)
+        self.assertIn("apply_verified_checkout_payment(", webhook_source)
+
+        self.assertIn("checkout.amount_minor", checkout_source)
+        self.assertIn("checkout.currency", checkout_source)
+        self.assertIn("billing_checkout_id", checkout_source)
+        self.assertIn("checkout.provider_reference", checkout_source)
+
 
     def test_credit_pack_provisioning_uses_stored_pack_amount_and_credits(self):
-        source = self.source("app/domains/webhooks/billing_service.py")
-        self.assertIn('checkout.credits != pack["credits"]', source)
+        source = self.source(
+            "app/domains/billing/checkout_service.py"
+        )
+
+        self.assertIn("checkout.credits", source)
+        self.assertIn("CREDIT_REASON_PACK_PURCHASE", source)
         self.assertIn("checkout.provider_reference", source)
+        self.assertIn("checkout.workspace_id", source)
+        self.assertNotIn('checkout.credits != pack["credits"]', source)
 
     def test_subscription_cancellation_preserves_paid_period(self):
         source = self.source("app/domains/billing/service.py")

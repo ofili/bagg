@@ -44,6 +44,7 @@ from app.domains.billing.service import (
 from app.domains.billing.repository import BillingRepository
 from app.domains.billing.checkout_service import (
     create_billing_checkout,
+    get_checkout_reconciliation_snapshot,
     apply_reconciliation_result,
 )
 from app.domains.billing.models import BillingCheckout
@@ -277,28 +278,23 @@ async def reconcile_checkout(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = BillingRepository(db)
-
-    # Read without acquiring a row lock. We only need the provider
-    # reference to ask Paystack for the transaction status.
-    checkout = await repo.get_checkout_by_id(
-        workspace.id,
-        checkout_id,
+    snapshot = await get_checkout_reconciliation_snapshot(
+        db=db,
+        workspace_id=workspace.id,
+        checkout_id=checkout_id,
     )
 
-    if checkout is None:
+    if snapshot is None:
         raise HTTPException(
             status_code=404,
             detail="Checkout not found.",
         )
 
-    if checkout.status == "succeeded":
-        return _checkout_status_response(checkout)
+    if snapshot["status"] == "succeeded":
+        return CheckoutStatusResponse(**snapshot)
 
     try:
-        provider_data = await PaystackClient().verify_payment(
-            checkout.provider_reference
-        )
+        provider_data = await PaystackClient().verify_payment(snapshot["reference"])
     except PaystackError as exc:
         raise HTTPException(
             status_code=502,

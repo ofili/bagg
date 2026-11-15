@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from sqlalchemy import (
     Column,
     CheckConstraint,
@@ -12,7 +11,7 @@ from sqlalchemy import (
     Text,
     JSON,
 )
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -75,6 +74,14 @@ class Subscription(Base):
             "current_period_end",
         ),
         Index("ix_subscriptions_grace_expiry", "status", "grace_period_end"),
+        Index(
+            "uq_subscriptions_processor_subscription_code",
+            "processor",
+            "processor_subscription_code",
+            unique=True,
+            postgresql_where=text("processor_subscription_code IS NOT NULL"),
+            sqlite_where=text("processor_subscription_code IS NOT NULL"),
+        ),
     )
 
 
