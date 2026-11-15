@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals
 from app.domains.clients.models import Client
+from app.domains.entitlements.service import get_workspace_entitlements
 from app.domains.invoices.models import Invoice, InvoiceLineItem
 from app.domains.invoices.service import finalize_invoice
 from app.domains.recurring_invoices.calendar import (
@@ -36,9 +37,6 @@ from app.domains.workspaces.models import Workspace
 logger = logging.getLogger(__name__)
 
 
-PAID_TIERS = {"creator_pro", "professional"}
-
-
 def validate_timezone(value: str) -> str:
     try:
         ZoneInfo(value)
@@ -55,14 +53,18 @@ async def require_recurring_entitlement(
     db: AsyncSession,
     workspace: Workspace,
 ) -> None:
-    """
-    Use Workspace.tier, matching Bagg's existing delivery-quota entitlement
-    check. Subscription lifecycle jobs are responsible for changing the
-    workspace tier when grace expires or a plan is downgraded.
-    """
-    if workspace.tier not in PAID_TIERS:
+    """Require the recurring-invoice entitlement from the central resolver."""
+    snapshot = await get_workspace_entitlements(
+        db=db,
+        workspace=workspace,
+    )
+
+    if not snapshot["entitlements"].get(
+        "invoices.recurring.enabled",
+        False,
+    ):
         raise BadRequestException(
-            "Recurring invoices are available on Creator Pro and Professional plans."
+            "Recurring invoices are available on Creator Pro and " "Professional plans."
         )
 
 

@@ -15,6 +15,7 @@ from app.domains.workspaces.router import router as workspaces_router
 from app.domains.onboarding.router import router as onboarding_router
 
 from app.domains.clients.router import router as clients_router
+from app.domains.entitlements.router import router as entitlements_router
 from app.domains.invoices.router import router as invoices_router
 from app.domains.payments.router import router as payments_router
 from app.domains.sharing.router import router as sharing_router
@@ -79,6 +80,7 @@ app.include_router(auth_router)
 app.include_router(workspaces_router)
 app.include_router(onboarding_router)
 
+app.include_router(entitlements_router)
 app.include_router(clients_router)
 app.include_router(invoices_router)
 app.include_router(quotes_router)

@@ -48,6 +48,7 @@ from app.domains.billing.checkout_service import (
     apply_reconciliation_result,
 )
 from app.domains.billing.models import BillingCheckout
+from app.domains.entitlements.service import get_workspace_entitlements
 from app.integrations.paystack import PaystackClient, PaystackError
 
 
@@ -134,23 +135,32 @@ async def get_subscription(
 
 @router.get("/credits", response_model=CreditBalanceResponse)
 async def get_credits(
-        workspace: Workspace = Depends(resolve_active_workspace),
-        db: AsyncSession = Depends(get_db),
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
 ):
-    balance = await get_credit_balance(workspace.id, db)
-    used = await get_free_sends_used_this_month(workspace.id, db)
-    history = await get_credit_history(workspace.id, db, 20)
+    snapshot = await get_workspace_entitlements(
+        db=db,
+        workspace=workspace,
+    )
+
+    used = await get_free_sends_used_this_month(
+        workspace.id,
+        db,
+    )
+
+    history = await get_credit_history(
+        workspace.id,
+        db,
+        20,
+    )
 
     return CreditBalanceResponse(
         workspace_id=workspace.id,
-        balance=balance,
-        tier=workspace.tier,
+        balance=snapshot["credits"]["balance"],
+        tier=snapshot["plan"],
         free_sends_used_this_month=used,
         free_sends_limit=FREE_TIER_MONTHLY_SENDS_LIMIT,
-        history=[
-            CreditLedgerResponse.model_validate(item)
-            for item in history
-        ],
+        history=[CreditLedgerResponse.model_validate(item) for item in history],
     )
 
 

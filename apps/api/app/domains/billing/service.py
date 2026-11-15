@@ -18,6 +18,7 @@ from app.domains.billing.catalog import (
 )
 from app.domains.billing.models import CreditLedgerEntry, Subscription
 from app.domains.billing.repository import BillingRepository
+from app.domains.entitlements.service import get_workspace_entitlements
 from app.domains.workspaces.models import Workspace
 
 CREDIT_REASON_PACK_PURCHASE = "pack_purchase"
@@ -45,7 +46,10 @@ async def get_free_sends_used_this_month(workspace_id: str, db: AsyncSession) ->
     return await BillingRepository(db).count_dispatched_since(workspace_id, start, end)
 
 
-async def check_delivery_quota(workspace: Workspace, db: AsyncSession) -> bool:
+async def check_delivery_quota(
+    workspace: Workspace,
+    db: AsyncSession,
+) -> bool:
     """Return whether one credit must be deducted, or reject exhausted quota.
 
     The workspace lock serializes competing sends. It remains held until the
@@ -53,25 +57,41 @@ async def check_delivery_quota(workspace: Workspace, db: AsyncSession) -> bool:
     """
     repository = BillingRepository(db)
     locked_workspace = await repository.lock_workspace(workspace.id)
+
     if locked_workspace is None:
-        raise HTTPException(status_code=404, detail="Workspace not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="Workspace not found.",
+        )
 
-    if locked_workspace.tier in {"creator_pro", "professional"}:
+    snapshot = await get_workspace_entitlements(
+        db=db,
+        workspace=locked_workspace,
+    )
+
+    monthly_limit = snapshot["entitlements"]["documents.send.monthly_limit"]
+
+    # None means the plan has no monthly send limit.
+    if monthly_limit is None:
         return False
 
-    used = await get_free_sends_used_this_month(workspace.id, db)
-    if used < FREE_TIER_MONTHLY_SENDS_LIMIT:
+    used = await get_free_sends_used_this_month(
+        workspace.id,
+        db,
+    )
+
+    if used < monthly_limit:
         return False
 
-    if await get_credit_balance(workspace.id, db) >= 1:
+    if snapshot["credits"]["balance"] >= 1:
         return True
 
     raise HTTPException(
         status_code=402,
         detail=(
-            f"You have used your {FREE_TIER_MONTHLY_SENDS_LIMIT} free delivery "
-            "sends for this month. Please upgrade or purchase a credit top-up "
-            "pack to continue delivering invoices and quotes."
+            f"You have used your {monthly_limit} free delivery "
+            "sends for this month. Please upgrade or purchase a credit "
+            "top-up pack to continue delivering invoices and quotes."
         ),
     )
 
@@ -87,10 +107,7 @@ async def consume_delivery_send(
     """Meter one document dispatch against the workspace allowance.
 
     ``reference`` is required so the deduction is attributable and the
-    corresponding compensation is idempotent. Email dispatches use the outbox
-    message ID; link/WhatsApp hand-offs use a stable per-issuance key. A
-    terminal delivery failure is refunded with the same reference and reason
-    ``send_refund``.
+    corresponding compensation is idempotent.
     """
     if not deduct_credit:
         return
@@ -104,7 +121,16 @@ async def consume_delivery_send(
             detail="Workspace not found.",
         )
 
-    if locked_workspace.tier in {"creator_pro", "professional"}:
+    snapshot = await get_workspace_entitlements(
+        db=db,
+        workspace=locked_workspace,
+    )
+
+    monthly_limit = snapshot["entitlements"]["documents.send.monthly_limit"]
+
+    # Recheck the current entitlement under the workspace lock. This protects
+    # against a plan change between quota evaluation and credit consumption.
+    if monthly_limit is None:
         return
 
     await add_credits(
@@ -187,7 +213,6 @@ async def get_or_create_subscription(
     await db.commit()
     await repository.refresh(subscription)
     return subscription
-
 
 
 import calendar
