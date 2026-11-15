@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -28,8 +28,9 @@ type Plan = {
   code: string;
   name: string;
   available: boolean;
+  availability_status?: string;
   billing_intervals: BillingInterval[];
-  prices: Record<string, number>;
+  prices: Partial<Record<BillingInterval, number>>;
 };
 
 type PlanCatalogue = {
@@ -46,6 +47,7 @@ type CheckoutResponse = {
   amount_minor: number;
   currency: string;
   status: string;
+  detail?: string;
 };
 
 function formatMoney(amountMinor: number, currency: string): string {
@@ -56,31 +58,96 @@ function formatMoney(amountMinor: number, currency: string): string {
   }).format(amountMinor / 100);
 }
 
-function getStorageKey(plan: string, interval: string): string {
+function getStorageKey(plan: PaidPlan, interval: BillingInterval): string {
   return `bagg:checkout:idempotency:${plan}:${interval}`;
 }
 
+function createIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+
+  // Fallback for older browsers. The key is an idempotency token, not a secret.
+  return [
+    Date.now().toString(36),
+    Math.random().toString(36).slice(2),
+    Math.random().toString(36).slice(2),
+  ].join('-');
+}
+
 function getIdempotencyKey(
-  plan: string,
-  interval: string,
+  plan: PaidPlan,
+  interval: BillingInterval,
   forceNew: boolean,
 ): string {
   const storageKey = getStorageKey(plan, interval);
 
-  if (forceNew) {
-    const replacement = crypto.randomUUID();
-    window.localStorage.setItem(storageKey, replacement);
-    return replacement;
+  try {
+    if (forceNew) {
+      const replacement = createIdempotencyKey();
+      window.localStorage.setItem(storageKey, replacement);
+      return replacement;
+    }
+
+    const existing = window.localStorage.getItem(storageKey);
+
+    if (existing) return existing;
+
+    const created = createIdempotencyKey();
+    window.localStorage.setItem(storageKey, created);
+
+    return created;
+  } catch {
+    // Storage may be disabled. The caller retains the generated key in memory.
+    return createIdempotencyKey();
+  }
+}
+
+function isPaystackAuthorizationUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+
+    return (
+      url.protocol === 'https:' &&
+      url.hostname === 'checkout.paystack.com'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getPlanLabel(plan: string): string {
+  if (plan === 'creator_pro') return 'Creator Pro';
+  if (plan === 'professional') return 'Professional';
+  return 'Selected plan';
+}
+
+function getApiError(data: unknown, fallback: string): string {
+  if (!data || typeof data !== 'object') return fallback;
+
+  const detail = (data as { detail?: unknown }).detail;
+
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail;
   }
 
-  const existing = window.localStorage.getItem(storageKey);
+  return fallback;
+}
 
-  if (existing) return existing;
+async function readJson<T>(response: Response): Promise<T> {
+  const data: unknown = await response.json().catch(() => null);
 
-  const created = crypto.randomUUID();
-  window.localStorage.setItem(storageKey, created);
+  if (!response.ok) {
+    throw new Error(
+      getApiError(data, 'We could not complete your request. Please try again.'),
+    );
+  }
 
-  return created;
+  if (data === null || typeof data !== 'object') {
+    throw new Error('The server returned an unexpected response.');
+  }
+
+  return data as T;
 }
 
 function CheckoutPageContent() {
@@ -92,35 +159,44 @@ function CheckoutPageContent() {
     [searchParams],
   );
 
-  const planCode = searchParams.get('plan') as PaidPlan | null;
-  const interval = searchParams.get('billing_interval') as
-    | BillingInterval
-    | null;
-
-  const retry = searchParams.get('retry') === '1';
+  // The shared navigation helper validates both values against the supported
+  // plan and interval allowlists. Do not cast arbitrary query strings.
+  const planCode = continuation.plan;
+  const interval = continuation.billingInterval;
+  const retryRequested = searchParams.get('retry') === '1';
 
   const [catalogue, setCatalogue] = useState<PlanCatalogue | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [forceNewKey, setForceNewKey] = useState(retry);
+
+  // Keep one key for this mounted checkout attempt. A retry after an
+  // initialization/network error must reuse the same key.
+  const idempotencyKeyRef = useRef<string | null>(null);
+  const retryFlagConsumedRef = useRef(false);
 
   useEffect(() => {
-    if (
-      !planCode ||
-      !['creator_pro', 'professional'].includes(planCode) ||
-      !interval ||
-      !['monthly', 'annual'].includes(interval)
-    ) {
-      router.replace('/onboarding/plan');
+    if (!planCode || !interval) {
+      const params = new URLSearchParams();
+
+      if (continuation.next) {
+        params.set('next', continuation.next);
+      }
+
+      const query = params.toString();
+      router.replace(`/onboarding/plan${query ? `?${query}` : ''}`);
       return;
     }
 
     let cancelled = false;
 
     async function loadCatalogue() {
+      setLoading(true);
+      setError(null);
+
       try {
         const response = await fetch(`${API_BASE}/billing/plans`, {
+          method: 'GET',
           credentials: 'include',
           cache: 'no-store',
         });
@@ -128,23 +204,27 @@ function CheckoutPageContent() {
         if (response.status === 401) {
           const params = new URLSearchParams({
             next: '/onboarding/plan',
-            plan: planCode!,
-            billing_interval: interval!,
+            plan: planCode,
+            billing_interval: interval,
           });
+
+          if (continuation.next) {
+            params.set('next', continuation.next);
+          }
 
           router.replace(`/login?${params.toString()}`);
           return;
         }
 
-        const data = await response.json().catch(() => null);
+        const data = await readJson<PlanCatalogue>(response);
 
-        if (!response.ok || !data?.plans) {
-          throw new Error(
-            data?.detail || 'We could not retrieve current plan pricing.',
-          );
+        if (!Array.isArray(data.plans)) {
+          throw new Error('The billing service returned an invalid plan catalogue.');
         }
 
-        if (!cancelled) setCatalogue(data as PlanCatalogue);
+        if (!cancelled) {
+          setCatalogue(data);
+        }
       } catch (err) {
         if (!cancelled) {
           setError(
@@ -154,7 +234,9 @@ function CheckoutPageContent() {
           );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
@@ -163,7 +245,7 @@ function CheckoutPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [planCode, interval, router]);
+  }, [planCode, interval, continuation, router]);
 
   const selectedPlan = catalogue?.plans.find(
     (plan) => plan.code === planCode,
@@ -174,16 +256,68 @@ function CheckoutPageContent() {
       ? selectedPlan.prices[interval]
       : undefined;
 
+  const intervalAvailable = Boolean(
+    selectedPlan &&
+    interval &&
+    selectedPlan.billing_intervals.includes(interval),
+  );
+
+  const canCheckout = Boolean(
+    selectedPlan &&
+    selectedPlan.available &&
+    intervalAvailable &&
+    amountMinor !== undefined &&
+    amountMinor > 0,
+  );
+
   const currency = catalogue?.currency ?? 'NGN';
 
-  async function startCheckout(useNewKey = retry) {
-    if (
-      !planCode ||
-      !interval ||
-      !selectedPlan?.available ||
-      amountMinor === undefined
-    ) {
-      setError('This plan or billing interval is not available.');
+  function getCurrentIdempotencyKey(): string {
+    if (!planCode || !interval) {
+      throw new Error('A valid plan and billing interval are required.');
+    }
+
+    if (idempotencyKeyRef.current) {
+      return idempotencyKeyRef.current;
+    }
+
+    const forceNew = retryRequested && !retryFlagConsumedRef.current;
+
+    const key = getIdempotencyKey(
+      planCode,
+      interval,
+      forceNew,
+    );
+
+    idempotencyKeyRef.current = key;
+
+    if (forceNew) {
+      retryFlagConsumedRef.current = true;
+
+      // Consume the retry flag so a page reload does not generate another
+      // idempotency key and accidentally create a second checkout.
+      const params = new URLSearchParams();
+
+      params.set('plan', planCode);
+      params.set('billing_interval', interval);
+
+      if (continuation.next) {
+        params.set('next', continuation.next);
+      }
+
+      router.replace(`/billing/checkout?${params.toString()}`);
+    }
+
+    return key;
+  }
+
+  async function startCheckout() {
+    if (submitting) return;
+
+    if (!planCode || !interval || !canCheckout || amountMinor === undefined) {
+      setError(
+        'This plan or billing interval is not currently available. Return to plan selection and choose an available option.',
+      );
       return;
     }
 
@@ -191,12 +325,10 @@ function CheckoutPageContent() {
     setError(null);
 
     try {
-      const idempotencyKey = getIdempotencyKey(
-        planCode,
-        interval,
-        useNewKey,
-      );
+      const idempotencyKey = getCurrentIdempotencyKey();
 
+      // The backend validates this against WEB_BASE_URL and the exact callback
+      // path. In production, the frontend origin must match that configured URL.
       const callbackUrl =
         `${window.location.origin}/billing/checkout/pending`;
 
@@ -214,33 +346,22 @@ function CheckoutPageContent() {
         }),
       });
 
-      const data: unknown = await response.json().catch(() => null);
-
-      if (!data || typeof data !== 'object') {
-        throw new Error(
-          'The billing service returned an unexpected response.',
-        );
-      }
-
-      const result = data as CheckoutResponse & { detail?: string };
-
       if (response.status === 401) {
-        router.replace(
-          `/login?${new URLSearchParams({
-            next: '/onboarding/plan',
-            plan: planCode,
-            billing_interval: interval,
-          }).toString()}`,
-        );
+        const params = new URLSearchParams({
+          next: '/onboarding/plan',
+          plan: planCode,
+          billing_interval: interval,
+        });
+
+        if (continuation.next) {
+          params.set('next', continuation.next);
+        }
+
+        router.replace(`/login?${params.toString()}`);
         return;
       }
 
-      if (!response.ok) {
-        throw new Error(
-          result.detail ||
-            'We could not start checkout. Please try again.',
-        );
-      }
+      const result = await readJson<CheckoutResponse>(response);
 
       if (
         !result.checkout_id ||
@@ -252,28 +373,45 @@ function CheckoutPageContent() {
         );
       }
 
+      if (
+        result.plan !== planCode ||
+        result.billing_interval !== interval ||
+        result.amount_minor !== amountMinor ||
+        result.currency.toUpperCase() !== currency.toUpperCase()
+      ) {
+        throw new Error(
+          'The checkout details returned by the billing service do not match the selected plan. No redirect was made.',
+        );
+      }
+
+      if (!isPaystackAuthorizationUrl(result.authorization_url)) {
+        throw new Error(
+          'The payment provider returned an invalid checkout address. Please contact support.',
+        );
+      }
+
       try {
         window.sessionStorage.setItem(
-            'bagg:active-checkout-id',
-            result.checkout_id,
+          'bagg:active-checkout-id',
+          result.checkout_id,
         );
 
         window.localStorage.setItem(
-            'bagg:last-checkout-id',
-            result.checkout_id,
+          'bagg:last-checkout-id',
+          result.checkout_id,
         );
 
         if (continuation.next) {
-            window.localStorage.setItem(
+          window.localStorage.setItem(
             'bagg:checkout:return-next',
             continuation.next,
-            );
+          );
         } else {
-            window.localStorage.removeItem('bagg:checkout:return-next');
+          window.localStorage.removeItem('bagg:checkout:return-next');
         }
-    } catch {
-    // Redirect remains possible if browser storage is unavailable.
-    }
+      } catch {
+        // The payment redirect can proceed. The callback URL remains available.
+      }
 
       window.location.assign(result.authorization_url);
     } catch (err) {
@@ -282,18 +420,30 @@ function CheckoutPageContent() {
           ? err.message
           : 'We could not start checkout. Please try again.',
       );
+
       setSubmitting(false);
     }
   }
 
-  const backToPlans = () => {
+  function backToPlans() {
     const params = new URLSearchParams();
 
-    if (continuation.next) params.set('next', continuation.next);
+    if (continuation.next) {
+      params.set('next', continuation.next);
+    }
+
+    if (planCode) {
+      params.set('plan', planCode);
+    }
+
+    if (interval) {
+      params.set('billing_interval', interval);
+    }
 
     const query = params.toString();
+
     router.push(`/onboarding/plan${query ? `?${query}` : ''}`);
-  };
+  }
 
   return (
     <div className="min-h-dvh bg-cream">
@@ -345,7 +495,7 @@ function CheckoutPageContent() {
               />
               <span className="sr-only">Loading checkout details</span>
             </div>
-          ) : selectedPlan && amountMinor !== undefined ? (
+          ) : selectedPlan && amountMinor !== undefined && canCheckout ? (
             <>
               <div className="mt-7 border-brut border-ink bg-cream p-5">
                 <div className="flex items-start justify-between gap-4">
@@ -353,9 +503,11 @@ function CheckoutPageContent() {
                     <p className="text-caption font-bold uppercase tracking-wider text-text-muted">
                       Selected plan
                     </p>
+
                     <h2 className="mt-1 text-title-l font-extrabold text-ink">
                       {selectedPlan.name}
                     </h2>
+
                     <p className="mt-1 text-body text-text-soft">
                       {interval === 'monthly'
                         ? 'Monthly billing'
@@ -376,10 +528,12 @@ function CheckoutPageContent() {
                     <p className="text-caption font-bold text-text-muted">
                       Amount due today
                     </p>
+
                     <p className="mt-1 text-display text-ink">
                       {formatMoney(amountMinor, currency)}
                     </p>
                   </div>
+
                   <p className="pb-1 text-caption text-text-muted">
                     {interval === 'monthly' ? 'Every month' : 'Every year'}
                   </p>
@@ -388,11 +542,16 @@ function CheckoutPageContent() {
 
               <div className="mt-6 space-y-4">
                 <div className="flex items-start gap-3">
-                  <RefreshCwIcon />
+                  <RefreshCw
+                    className="mt-0.5 h-5 w-5 shrink-0 text-text-muted"
+                    aria-hidden="true"
+                  />
+
                   <div>
                     <p className="font-extrabold text-ink">
                       Renewal terms
                     </p>
+
                     <p className="mt-1 text-body text-text-soft">
                       {interval === 'monthly'
                         ? 'Your subscription renews monthly until you cancel.'
@@ -409,13 +568,17 @@ function CheckoutPageContent() {
                     className="mt-0.5 h-5 w-5 shrink-0 text-text-muted"
                     aria-hidden="true"
                   />
+
                   <div>
                     <p className="font-extrabold text-ink">
                       Verified payment
                     </p>
+
                     <p className="mt-1 text-body text-text-soft">
                       Paystack processes your payment. Bagg activates your
                       subscription only after the payment is verified.
+                      Returning to Bagg from Paystack does not, by itself,
+                      activate paid access.
                     </p>
                   </div>
                 </div>
@@ -425,10 +588,12 @@ function CheckoutPageContent() {
                     className="mt-0.5 h-5 w-5 shrink-0 text-text-muted"
                     aria-hidden="true"
                   />
+
                   <div>
                     <p className="font-extrabold text-ink">
                       Separate from client payments
                     </p>
+
                     <p className="mt-1 text-body text-text-soft">
                       This payment is for your Bagg subscription. It does not
                       configure how your clients pay you.
@@ -441,7 +606,7 @@ function CheckoutPageContent() {
                 type="button"
                 fullWidth
                 size="lg"
-                disabled={submitting || !selectedPlan.available}
+                disabled={submitting}
                 onClick={() => void startCheckout()}
                 className="mt-8"
               >
@@ -470,22 +635,15 @@ function CheckoutPageContent() {
             </>
           ) : (
             <Alert variant="error" className="mt-5">
-              The selected plan or billing interval is not available. Return
-              to plan selection and choose an available option.
+              {selectedPlan
+                ? 'The selected billing interval is not currently configured for this plan.'
+                : 'The selected plan or billing interval is not available.'}
+              {' '}Return to plan selection and choose an available option.
             </Alert>
           )}
         </section>
       </main>
     </div>
-  );
-}
-
-function RefreshCwIcon() {
-  return (
-    <RefreshCw
-      className="mt-0.5 h-5 w-5 shrink-0 text-text-muted"
-      aria-hidden="true"
-    />
   );
 }
 

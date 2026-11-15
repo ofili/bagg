@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -8,14 +8,12 @@ import {
   Check,
   Clock3,
   Loader2,
+  RefreshCw,
 } from 'lucide-react';
 
 import { BagMark, Wordmark } from '@/components/brand';
 import { Alert, Button } from '@/components/ui';
-import {
-  buildPlanSelectionUrl,
-  readOnboardingContinuation,
-} from '@/lib/onboarding-navigation';
+import { readOnboardingContinuation } from '@/lib/onboarding-navigation';
 
 const API_BASE = '/api';
 
@@ -26,9 +24,9 @@ type Plan = {
   code: string;
   name: string;
   available: boolean;
-  availability_status: string;
+  availability_status?: string;
   billing_intervals: BillingInterval[];
-  prices: Record<string, number>;
+  prices: Partial<Record<BillingInterval, number>>;
 };
 
 type PlanCatalogue = {
@@ -55,7 +53,9 @@ type Subscription = {
   status: string;
   billing_interval: BillingInterval;
   current_period_end: string | null;
+  cancel_at_period_end: boolean;
   in_grace_period: boolean;
+  grace_period_end: string | null;
 };
 
 const FEATURES: Record<string, string[]> = {
@@ -81,12 +81,12 @@ const FEATURES: Record<string, string[]> = {
     'Up to 25 active engagements',
     'Up to 3 team members',
   ],
-  studio: [
-    'Contracts and commercial agreements',
-    'Projects and milestone management',
-    'Deliverables, reviews and approvals',
-    'Team collaboration and file integrations',
-  ],
+};
+
+const PLAN_DESCRIPTIONS: Record<string, string> = {
+  free: 'The essentials to create, share and track your invoices.',
+  creator_pro: 'For freelancers and creators who send documents regularly.',
+  professional: 'For established independents and small teams.',
 };
 
 function formatMoney(amountMinor: number, currency: string): string {
@@ -97,11 +97,69 @@ function formatMoney(amountMinor: number, currency: string): string {
   }).format(amountMinor / 100);
 }
 
-function formatEffectiveMonthly(
-  annualAmountMinor: number,
-  currency: string,
+function formatDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return new Intl.DateTimeFormat('en-NG', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function buildPlanSelectionUrl(
+  plan: PaidPlan,
+  interval: BillingInterval,
+  next: string | null,
 ): string {
-  return formatMoney(Math.round(annualAmountMinor / 12), currency);
+  const params = new URLSearchParams({
+    plan,
+    billing_interval: interval,
+  });
+
+  if (next) {
+    params.set('next', next);
+  }
+
+  return `/billing/checkout?${params.toString()}`;
+}
+
+
+function getPlanName(plan: string | null): string {
+  if (plan === 'creator_pro') return 'Creator Pro';
+  if (plan === 'professional') return 'Professional';
+  return 'Subscription';
+}
+
+function getApiError(data: unknown, fallback: string): string {
+  if (!data || typeof data !== 'object') return fallback;
+
+  const detail = (data as { detail?: unknown }).detail;
+
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail;
+  }
+
+  return fallback;
+}
+
+async function readJson<T>(response: Response): Promise<T> {
+  const data: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      getApiError(data, 'We could not complete your request. Please try again.'),
+    );
+  }
+
+  if (data === null || typeof data !== 'object') {
+    throw new Error('The server returned an unexpected response.');
+  }
+
+  return data as T;
 }
 
 function PlanPageContent() {
@@ -117,25 +175,27 @@ function PlanPageContent() {
   const [pendingCheckouts, setPendingCheckouts] = useState<Checkout[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
 
-  const [selectedPlan, setSelectedPlan] = useState<PaidPlan>(
-    continuation.plan ?? 'creator_pro',
-  );
   const [interval, setInterval] = useState<BillingInterval>(
     continuation.billingInterval ?? 'annual',
   );
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadPlanData = useCallback(
+    async (showRefreshState = false) => {
+      if (showRefreshState) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
-    async function load() {
-      setLoading(true);
       setError(null);
 
       try {
         const plansResponse = await fetch(`${API_BASE}/billing/plans`, {
+          method: 'GET',
           credentials: 'include',
           cache: 'no-store',
         });
@@ -153,24 +213,28 @@ function PlanPageContent() {
             params.set('billing_interval', continuation.billingInterval);
           }
 
+          if (continuation.next) {
+            params.set('next', continuation.next);
+          }
+
           router.replace(`/login?${params.toString()}`);
           return;
         }
 
-        const plansData = await plansResponse.json().catch(() => null);
+        const plansData = await readJson<PlanCatalogue>(plansResponse);
 
-        if (!plansResponse.ok || !plansData?.plans) {
-          throw new Error(
-            plansData?.detail || 'We could not load the available plans.',
-          );
+        if (!Array.isArray(plansData.plans)) {
+          throw new Error('The billing service returned an invalid plan catalogue.');
         }
 
         const [pendingResponse, subscriptionResponse] = await Promise.all([
           fetch(`${API_BASE}/billing/checkouts/pending`, {
+            method: 'GET',
             credentials: 'include',
             cache: 'no-store',
           }),
           fetch(`${API_BASE}/billing/subscription`, {
+            method: 'GET',
             credentials: 'include',
             cache: 'no-store',
           }),
@@ -184,32 +248,34 @@ function PlanPageContent() {
           ? await subscriptionResponse.json().catch(() => null)
           : null;
 
-        if (cancelled) return;
-
-        setCatalogue(plansData as PlanCatalogue);
+        setCatalogue(plansData);
         setPendingCheckouts(
           Array.isArray(pendingData) ? (pendingData as Checkout[]) : [],
         );
-        setSubscription(subscriptionData as Subscription | null);
+        setSubscription(
+          subscriptionData && typeof subscriptionData === 'object'
+            ? (subscriptionData as Subscription)
+            : null,
+        );
       } catch (err) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : 'We could not load your plans. Please try again.',
-          );
-        }
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'We could not load your plans. Please try again.',
+        );
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
+        setRefreshing(false);
       }
-    }
+    },
+    [continuation, router],
+  );
 
-    void load();
+  useEffect(() => {
+    void loadPlanData();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [router, continuation]);
+    // loadPlanData is memoized against the continuation and router.
+  }, [loadPlanData]);
 
   const plans = catalogue?.plans ?? [];
   const freePlan = plans.find((plan) => plan.code === 'free');
@@ -221,7 +287,12 @@ function PlanPageContent() {
 
   const currency = catalogue?.currency ?? 'NGN';
 
+  const isFreeWorkspace = subscription?.tier === 'free';
+  const hasSubscription = Boolean(subscription);
+
   function continueWithFree() {
+    if (!isFreeWorkspace) return;
+
     router.replace(continuation.next ?? '/dashboard');
   }
 
@@ -239,59 +310,94 @@ function PlanPageContent() {
         'bagg:active-checkout-id',
         checkout.checkout_id,
       );
+
+      window.localStorage.setItem(
+        'bagg:last-checkout-id',
+        checkout.checkout_id,
+      );
+
+      if (continuation.next) {
+        window.localStorage.setItem(
+          'bagg:checkout:return-next',
+          continuation.next,
+        );
+      } else {
+        window.localStorage.removeItem('bagg:checkout:return-next');
+      }
     } catch {
-      // The checkout can still be resumed in the current navigation.
+      // The Paystack redirect can still proceed without browser storage.
     }
 
     window.location.assign(checkout.authorization_url);
   }
 
-  function renderPaidPrice(plan: Plan | undefined) {
-    if (!plan) return null;
-
-    const monthly = plan.prices.monthly;
-    const annual = plan.prices.annual;
-
-    if (monthly === undefined || annual === undefined) {
+  function renderPrice(plan: Plan, isFree: boolean) {
+    if (isFree) {
       return (
-        <p className="text-caption text-status-danger-fg">
-          Pricing is not configured for this plan.
-        </p>
+        <div className="mt-5 border-y border-line py-4">
+          <p className="text-title-l font-extrabold text-ink">
+            {formatMoney(0, currency)}
+          </p>
+          <p className="text-caption text-text-muted">
+            Free forever · No card required
+          </p>
+        </div>
       );
     }
 
-    const savings = monthly * 12 - annual;
+    const amount = plan.prices[interval];
+    const intervalAvailable = plan.billing_intervals.includes(interval);
+
+    if (!plan.available || !intervalAvailable || amount === undefined) {
+      return (
+        <div className="mt-5 border-y border-line py-4">
+          <p className="font-extrabold text-text-muted">
+            {plan.availability_status === 'billing_not_configured'
+              ? 'Billing not configured'
+              : 'Not available'}
+          </p>
+          <p className="mt-1 text-caption text-text-muted">
+            This billing option is not currently available.
+          </p>
+        </div>
+      );
+    }
+
+    const annualAmount = plan.prices.annual;
+    const monthlyAmount = plan.prices.monthly;
+
+    const annualSavings =
+      annualAmount !== undefined && monthlyAmount !== undefined
+        ? monthlyAmount * 12 - annualAmount
+        : 0;
 
     return (
-      <div className="mt-5 grid grid-cols-2 gap-3 border-y border-line py-4">
-        <div>
-          <p className="text-caption font-bold uppercase text-text-muted">
-            Monthly
-          </p>
-          <p className="mt-1 text-title font-extrabold text-ink">
-            {formatMoney(monthly, currency)}
-          </p>
-          <p className="text-caption text-text-muted">per month</p>
-        </div>
+      <div className="mt-5 border-y border-line py-4">
+        <p className="text-caption font-bold uppercase text-text-muted">
+          {interval === 'monthly' ? 'Billed monthly' : 'Billed annually'}
+        </p>
 
-        <div className="border-l border-line pl-3">
-          <p className="text-caption font-bold uppercase text-text-muted">
-            Annual
-          </p>
-          <p className="mt-1 text-title font-extrabold text-ink">
-            {formatMoney(annual, currency)}
-          </p>
-          <p className="text-caption text-text-muted">per year</p>
-        </div>
+        <p className="mt-1 text-title-l font-extrabold text-ink">
+          {formatMoney(amount, currency)}
+        </p>
 
-        <div className="col-span-2">
-          <p className="text-caption font-bold text-status-paid-fg">
-            Annual equivalent: {formatEffectiveMonthly(annual, currency)}/month
-            {savings > 0
-              ? ` · Save ${formatMoney(savings, currency)}`
-              : ''}
+        <p className="text-caption text-text-muted">
+          {interval === 'monthly' ? 'per month' : 'per year'}
+        </p>
+
+        {interval === 'annual' && annualSavings > 0 && (
+          <p className="mt-2 text-caption font-bold text-status-paid-fg">
+            Save {formatMoney(annualSavings, currency)} compared with monthly
+            billing.
           </p>
-        </div>
+        )}
+
+        {interval === 'annual' && monthlyAmount !== undefined && (
+          <p className="mt-1 text-caption text-text-muted">
+            Equivalent to{' '}
+            {formatMoney(Math.round(amount / 12), currency)} per month.
+          </p>
+        )}
       </div>
     );
   }
@@ -305,10 +411,16 @@ function PlanPageContent() {
 
     const isFree = plan.code === 'free';
     const isCurrent = subscription?.tier === plan.code;
-    const intervalAvailable =
-    isFree || plan.billing_intervals.includes(interval);
 
-    const selectable = plan.available && intervalAvailable;
+    const intervalAvailable =
+      isFree || plan.billing_intervals.includes(interval);
+
+    const selectable = isFree
+      ? isFreeWorkspace
+      : plan.available && intervalAvailable;
+
+    const isPaidPlan = plan.code === 'creator_pro' ||
+      plan.code === 'professional';
 
     return (
       <article
@@ -352,18 +464,7 @@ function PlanPageContent() {
             {description}
           </p>
 
-          {isFree ? (
-            <div className="mt-5 border-y border-line py-4">
-              <p className="text-title-l font-extrabold text-ink">
-                {formatMoney(0, currency)}
-              </p>
-              <p className="text-caption text-text-muted">
-                Free forever · No card required
-              </p>
-            </div>
-          ) : (
-            renderPaidPrice(plan)
-          )}
+          {renderPrice(plan, isFree)}
 
           <ul className="mt-5 space-y-3">
             {(FEATURES[plan.code] ?? []).map((feature) => (
@@ -389,12 +490,10 @@ function PlanPageContent() {
               type="button"
               fullWidth
               size="lg"
-              disabled={!selectable || subscription?.tier !== 'free'}
+              disabled={!selectable}
               onClick={continueWithFree}
             >
-              {subscription?.tier === 'free'
-                ? 'Continue with Free'
-                : 'Manage current plan'}
+              {isCurrent ? 'Continue with Free' : 'Free plan'}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           ) : (
@@ -402,23 +501,41 @@ function PlanPageContent() {
               type="button"
               fullWidth
               size="lg"
-              disabled={!selectable}
-              onClick={() => continueToCheckout(plan.code as PaidPlan)}
+              disabled={!selectable || !isPaidPlan || isCurrent}
+              onClick={() => {
+                if (isPaidPlan && !isCurrent) {
+                  continueToCheckout(plan.code as PaidPlan);
+                }
+              }}
             >
-              {isCurrent ? 'Continue with this plan' : `Choose ${plan.name}`}
+              {isCurrent
+                ? 'Your current plan'
+                : `Choose ${plan.name}`}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           )}
 
-          {!selectable && (
+          {!isFree && !selectable && (
             <p className="mt-2 text-caption text-text-muted">
-              This plan is not currently available.
+              {!plan.available
+                ? 'This plan is not currently available.'
+                : 'This billing interval is not currently configured.'}
+            </p>
+          )}
+
+          {isFree && !hasSubscription && (
+            <p className="mt-2 text-caption text-text-muted">
+              We could not confirm your current subscription. Refresh to try
+              again before continuing.
             </p>
           )}
         </div>
       </article>
     );
   }
+
+  const periodEnd = formatDate(subscription?.current_period_end);
+  const graceEnd = formatDate(subscription?.grace_period_end);
 
   return (
     <div className="min-h-dvh bg-cream">
@@ -433,7 +550,7 @@ function PlanPageContent() {
         </Link>
 
         <Link
-          href="/dashboard"
+          href={continuation.next ?? '/dashboard'}
           className="text-caption font-bold text-link hover:underline"
         >
           Skip for now
@@ -445,9 +562,11 @@ function PlanPageContent() {
           <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
             Your workspace, your choice
           </p>
+
           <h1 className="mt-3 text-display text-ink">
             Choose how you want to use Bagg.
           </h1>
+
           <p className="mt-4 text-body-l text-text-soft">
             Start with Free. Upgrade when your invoicing and payment workflow
             needs more room.
@@ -456,7 +575,25 @@ function PlanPageContent() {
 
         {error && (
           <div className="mx-auto mt-7 max-w-3xl">
-            <Alert variant="error">{error}</Alert>
+            <Alert variant="error">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>{error}</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={refreshing}
+                  onClick={() => void loadPlanData(true)}
+                >
+                  {refreshing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Try again
+                </Button>
+              </div>
+            </Alert>
           </div>
         )}
 
@@ -464,11 +601,23 @@ function PlanPageContent() {
           subscription.in_grace_period && (
             <div className="mx-auto mt-7 max-w-3xl">
               <Alert variant="warning">
-                Your current subscription is in its grace period. Review your
-                billing status before starting another checkout.
+                Your subscription payment is overdue, but your workspace is
+                still within its grace period.
+                {graceEnd ? ` Your grace period ends on ${graceEnd}.` : ''}
+                Review your billing status before starting another checkout.
               </Alert>
             </div>
           )}
+
+        {subscription?.cancel_at_period_end && (
+          <div className="mx-auto mt-7 max-w-3xl">
+            <Alert variant="warning">
+              Your subscription is scheduled to end
+              {periodEnd ? ` on ${periodEnd}` : ' at the end of the current paid period'}.
+              Your current plan remains available until then.
+            </Alert>
+          </div>
+        )}
 
         {pendingCheckouts.length > 0 && (
           <section className="mx-auto mt-8 max-w-3xl border-brut border-ink bg-surface p-5 shadow-brut-sm">
@@ -477,13 +626,15 @@ function PlanPageContent() {
                 className="mt-1 h-5 w-5 shrink-0 text-text-muted"
                 aria-hidden="true"
               />
+
               <div className="min-w-0 flex-1">
                 <h2 className="text-heading font-extrabold text-ink">
                   You have a checkout to finish.
                 </h2>
+
                 <p className="mt-1 text-body text-text-soft">
-                  Your previous payment was not yet confirmed. You can resume
-                  the existing checkout instead of creating another one.
+                  A previous payment has not yet been confirmed. Resume the
+                  existing checkout rather than starting another payment.
                 </p>
 
                 <div className="mt-4 space-y-3">
@@ -494,25 +645,28 @@ function PlanPageContent() {
                     >
                       <div>
                         <p className="font-extrabold text-ink">
-                          {checkout.plan === 'creator_pro'
-                            ? 'Creator Pro'
-                            : checkout.plan === 'professional'
-                              ? 'Professional'
-                              : 'Subscription'}
-                          {' · '}
-                          {checkout.billing_interval}
+                          {getPlanName(checkout.plan)}
+                          {checkout.billing_interval
+                            ? ` · ${checkout.billing_interval}`
+                            : ''}
                         </p>
+
                         <p className="text-caption text-text-muted">
                           {formatMoney(
                             checkout.amount_minor,
                             checkout.currency,
                           )}
                         </p>
+
+                        <p className="mt-1 text-caption text-text-muted">
+                          Created {formatDate(checkout.created_at) ?? 'recently'}
+                        </p>
                       </div>
 
                       <Button
                         type="button"
                         size="md"
+                        disabled={!checkout.authorization_url}
                         onClick={() => resumeCheckout(checkout)}
                       >
                         Resume payment
@@ -552,6 +706,7 @@ function PlanPageContent() {
               >
                 Monthly
               </button>
+
               <button
                 type="button"
                 onClick={() => setInterval('annual')}
@@ -569,16 +724,18 @@ function PlanPageContent() {
             <div className="mt-8 grid items-stretch gap-5 lg:grid-cols-3">
               {renderPlanCard(
                 freePlan,
-                'The essentials to create, share and track your invoices.',
+                PLAN_DESCRIPTIONS.free,
               )}
+
               {renderPlanCard(
                 creatorPlan,
-                'For freelancers and creators who send documents regularly.',
+                PLAN_DESCRIPTIONS.creator_pro,
                 true,
               )}
+
               {renderPlanCard(
                 professionalPlan,
-                'For established independents and small teams.',
+                PLAN_DESCRIPTIONS.professional,
               )}
             </div>
 
@@ -589,14 +746,17 @@ function PlanPageContent() {
                     <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
                       Coming soon
                     </p>
+
                     <h2 className="mt-1 text-title font-extrabold text-ink">
                       {studioPlan.name}
                     </h2>
+
                     <p className="mt-2 max-w-2xl text-body text-text-soft">
                       A broader client-engagement workspace for contracts,
                       projects, milestones, deliverables and team collaboration.
                     </p>
                   </div>
+
                   <span className="border-brut-thin border-ink bg-cream px-3 py-2 text-caption font-extrabold text-text-muted">
                     Not available for purchase
                   </span>
@@ -604,7 +764,13 @@ function PlanPageContent() {
               </section>
             )}
           </>
-        ) : null}
+        ) : (
+          !error && (
+            <div className="py-12 text-center text-body text-text-muted">
+              No plans are currently available.
+            </div>
+          )
+        )}
 
         <div className="mx-auto mt-9 max-w-3xl border-t border-line pt-5 text-center">
           <p className="text-caption text-text-muted">
