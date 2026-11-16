@@ -54,6 +54,15 @@ class InvoiceDocument(BaseModel):
     formatted_wht: str
     formatted_net_payable: str
 
+    business_name: str = "Bagg"
+    business_address: str | None = None
+    business_tax_id: str | None = None
+    business_logo_url: str | None = None
+    client_name: str = "Client"
+    client_email: str | None = None
+    client_address: str | None = None
+    client_tax_id: str | None = None
+
 
 class ReceiptDocument(BaseModel):
     """Renderer-independent representation of an issued receipt.
@@ -76,6 +85,11 @@ class ReceiptDocument(BaseModel):
     reference: str
     payer_name: str
     business_name: str
+    business_address: str | None = None
+    business_tax_id: str | None = None
+    business_logo_url: str | None = None
+    payer_email: str | None = None
+    payer_address: str | None = None
 
     amount_paid_minor: int
     balance_remaining_minor: int
@@ -123,9 +137,13 @@ class QuoteDocument(BaseModel):
     expires_at: date
 
     business_name: str
+    business_logo_url: str | None = None
     business_address: str | None = None
     business_tax_id: str | None = None
     client_name: str
+    client_email: str | None = None
+    client_address: str | None = None
+    client_tax_id: str | None = None
 
     items: list[QuoteDocumentLineItem]
 

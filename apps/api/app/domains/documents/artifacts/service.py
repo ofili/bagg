@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import asyncio
@@ -20,15 +19,14 @@ from app.domains.documents.storage.s3 import (
 class DocumentArtifactService:
     """Persistence service for immutable PDF artifacts.
 
-    The caller must supply a workspace-authorized source document and
-    its already-built immutable snapshot. This service does not load
-    invoices, quotes, or receipts and does not calculate financial values.
+    The caller supplies a workspace-authorized source document and its
+    already-built snapshot. This service does not load financial records
+    or calculate financial values.
 
     Transaction ownership:
     - This service commits when it successfully creates an artifact.
     - It rolls back after an IntegrityError.
-    - Callers should not combine unrelated pending database changes with
-      artifact creation in the same session.
+    - Callers must not combine unrelated pending changes in this session.
     """
 
     def __init__(
@@ -48,8 +46,7 @@ class DocumentArtifactService:
             DocumentArtifact.document_type == identity.document_type,
             DocumentArtifact.source_id == identity.source_id,
             DocumentArtifact.source_version == identity.source_version,
-            DocumentArtifact.issuance_generation
-            == identity.issuance_generation,
+            DocumentArtifact.issuance_generation == identity.issuance_generation,
             DocumentArtifact.artifact_kind == identity.artifact_kind,
         )
 
@@ -63,27 +60,34 @@ class DocumentArtifactService:
         snapshot: dict,
         pdf_bytes: bytes,
         renderer_version: str,
+        renderer_name: str = "reportlab",
         template_version: str = "1",
     ) -> DocumentArtifact:
         if identity.artifact_kind != "issued":
             raise ValueError("Only issued artifacts may be persisted here")
 
-        if not pdf_bytes.startswith(b"%PDF-"):
+        if not isinstance(pdf_bytes, bytes) or not pdf_bytes.startswith(b"%PDF-"):
             raise ValueError("Invalid PDF bytes")
+
+        if not renderer_name.strip():
+            raise ValueError("renderer_name is required")
+
+        if not renderer_version.strip():
+            raise ValueError("renderer_version is required")
+
+        digest = sha256_hex(pdf_bytes)
 
         existing = await self.get_existing(identity)
         if existing:
-            if existing.sha256 != sha256_hex(pdf_bytes):
+            if existing.sha256 != digest:
                 raise ImmutableDocumentConflict(
                     "An issued artifact already exists with different content"
                 )
             return existing
 
         key = identity.storage_key()
-        digest = sha256_hex(pdf_bytes)
 
-        # S3 calls are synchronous; never execute them on the async
-        # application event loop.
+        # Storage operations are synchronous and must not block the event loop.
         await asyncio.to_thread(
             self.storage.put_if_absent,
             key=key,
@@ -91,6 +95,7 @@ class DocumentArtifactService:
             content_type="application/pdf",
         )
 
+        now = datetime.now(timezone.utc)
         artifact = DocumentArtifact(
             workspace_id=identity.workspace_id,
             document_type=identity.document_type,
@@ -103,11 +108,11 @@ class DocumentArtifactService:
             file_size_bytes=len(pdf_bytes),
             sha256=digest,
             snapshot=snapshot,
-            renderer="weasyprint",
+            renderer=renderer_name,
             renderer_version=renderer_version,
             template_version=template_version,
-            generated_at=datetime.now(timezone.utc),
-            created_at=datetime.now(timezone.utc),
+            generated_at=now,
+            created_at=now,
         )
 
         self.db.add(artifact)
@@ -121,7 +126,7 @@ class DocumentArtifactService:
         except IntegrityError:
             await self.db.rollback()
 
-            # Another request may have inserted the same identity.
+            # A concurrent request may have created the same identity.
             winner = await self.get_existing(identity)
 
             if winner:
@@ -151,14 +156,21 @@ class DocumentArtifactService:
         if artifact is None:
             return None
 
+        if artifact.mime_type != "application/pdf":
+            raise RuntimeError("Stored document has an invalid MIME type")
+
         content = await asyncio.to_thread(
             self.storage.get,
             artifact.storage_key,
         )
 
+        if not content.startswith(b"%PDF-"):
+            raise RuntimeError("Stored document is not a valid PDF")
+
+        if len(content) != artifact.file_size_bytes:
+            raise RuntimeError("Stored document size verification failed")
+
         if sha256_hex(content) != artifact.sha256:
-            raise RuntimeError(
-                "Stored document integrity verification failed"
-            )
+            raise RuntimeError("Stored document integrity verification failed")
 
         return artifact, content

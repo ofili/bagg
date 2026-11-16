@@ -21,6 +21,10 @@ def build_quote_document(
     client_name: str | None,
     business_address: str | None = None,
     business_tax_id: str | None = None,
+    business_logo_url: str | None = None,
+    client_email: str | None = None,
+    client_address: str | None = None,
+    client_tax_id: str | None = None,
 ) -> QuoteDocument:
     """Map an authorized, loaded quote to document presentation data.
 
@@ -56,6 +60,10 @@ def build_quote_document(
         business_address=business_address,
         business_tax_id=business_tax_id,
         client_name=client_name or "Client",
+        business_logo_url=business_logo_url,
+        client_email=client_email,
+        client_address=client_address,
+        client_tax_id=client_tax_id,
         items=items,
         subtotal_minor=quote.subtotal_minor,
         discount_minor=quote.discount_minor,

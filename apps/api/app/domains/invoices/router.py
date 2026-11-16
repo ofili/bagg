@@ -263,6 +263,14 @@ async def get_invoice_pdf(
     pdf_content = await run_in_threadpool(
         render_invoice_pdf,
         invoice,
+        business_name=workspace.business_name,
+        business_address=workspace.address,
+        business_tax_id=workspace.tax_id,
+        business_logo_url=workspace.logo_url,
+        client_name=invoice.client.name if invoice.client else None,
+        client_email=invoice.client.email if invoice.client else None,
+        client_address=invoice.client.address if invoice.client else None,
+        client_tax_id=invoice.client.tax_id if invoice.client else None,
     )
 
     filename = f"Invoice-{invoice.invoice_number or invoice.id}.pdf"

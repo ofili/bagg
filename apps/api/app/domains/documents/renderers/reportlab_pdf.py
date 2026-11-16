@@ -527,31 +527,51 @@ class ReportLabDocumentRenderer:
 
     def _invoice_story(self, document: InvoiceDocument) -> list:
         styles = _paragraph_styles()
+        metadata = [
+            ("Issue date", document.formatted_issue_date),
+            ("Due date", document.formatted_due_date),
+            ("Currency", document.currency),
+        ]
+
         story = [
             _document_header(
-                None,
+                document.business_name,
                 "Invoice",
                 document.invoice_number,
-                [
-                    ("Issue date", document.formatted_issue_date),
-                    ("Due date", document.formatted_due_date),
-                ],
+                metadata,
                 styles,
             ),
-            Spacer(1, 12 * mm),
-            _line_items_table(document.items, styles),
-            Spacer(1, 8 * mm),
-            _totals_table(
-                [
-                    ("Subtotal", document.formatted_subtotal, False),
-                    ("Tax", document.formatted_tax, False),
-                    ("Total", document.formatted_total, True),
-                    ("Withholding tax", document.formatted_wht, False),
-                    ("Net payable", document.formatted_net_payable, True),
-                ],
-                styles,
-            ),
+            Spacer(1, 7 * mm),
         ]
+
+        party_pairs = [
+            ("Bill to", document.client_name),
+            ("Client email", document.client_email or "—"),
+            ("Client address", document.client_address or "—"),
+            ("Client tax ID", document.client_tax_id or "—"),
+            ("Business address", document.business_address or "—"),
+            ("Business tax ID", document.business_tax_id or "—"),
+        ]
+
+        story.extend(
+            [
+                _key_value_table(party_pairs, styles),
+                Spacer(1, 8 * mm),
+                _line_items_table(document.items, styles),
+                Spacer(1, 8 * mm),
+                _totals_table(
+                    [
+                        ("Subtotal", document.formatted_subtotal, False),
+                        ("Tax", document.formatted_tax, False),
+                        ("Total", document.formatted_total, True),
+                        ("Withholding tax", document.formatted_wht, False),
+                        ("Net payable", document.formatted_net_payable, True),
+                    ],
+                    styles,
+                ),
+            ]
+        )
+
         return story
 
     def _quote_story(self, document: QuoteDocument) -> list:

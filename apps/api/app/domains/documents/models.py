@@ -142,7 +142,7 @@ class DocumentArtifact(Base):
     renderer: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="weasyprint",
+        default="reportlab",
     )
 
     renderer_version: Mapped[str] = mapped_column(
