@@ -40,10 +40,12 @@ import {
   BaggSelect,
   Button,
   Card,
+  Checkbox,
+  DateField,
   Dialog,
+  EmailField,
   ErrorState,
-  Field,
-  Input,
+  TextField,
   buttonStyles,
 } from '@/components/ui';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
@@ -1873,27 +1875,18 @@ export default function InvoiceDetailPage() {
             Issuing an invoice does not send it automatically.
           </p>
 
-          <Field
+          <EmailField
             label="Client email"
+            autoComplete="email"
+            placeholder="client@example.com"
+            value={deliveryEmail}
+            onChange={(event) => setDeliveryEmail(event.target.value)}
             hint={
               deliveryEmail.trim()
                 ? 'A changed address will be saved to the client record before sending.'
                 : 'No email address is recorded. Enter one here or use WhatsApp.'
             }
-          >
-            {(fieldProps) => (
-              <Input
-                type="email"
-                autoComplete="email"
-                placeholder="client@example.com"
-                value={deliveryEmail}
-                onChange={(event) =>
-                  setDeliveryEmail(event.target.value)
-                }
-                {...fieldProps}
-              />
-            )}
-          </Field>
+          />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <Button
@@ -1960,68 +1953,36 @@ export default function InvoiceDetailPage() {
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Payment date">
-              {(fieldProps) => (
-                <Input
-                  type="date"
-                  value={paymentDate}
-                  onChange={(event) =>
-                    setPaymentDate(event.target.value)
-                  }
-                  required
-                  {...fieldProps}
-                />
-              )}
-            </Field>
+            <DateField
+              label="Payment date"
+              required
+              value={paymentDate}
+              onChange={(event) => setPaymentDate(event.target.value)}
+            />
 
             <BaggSelect
               label="Method"
-              className="w-full"
               value={paymentMethod}
               onChange={setPaymentMethod}
               options={PAYMENT_METHODS}
             />
           </div>
 
-          <Field
-            label="Reference (optional)"
-            hint="Bank session ID or transfer reference."
-          >
-            {(fieldProps) => (
-              <Input
-                type="text"
-                value={reference}
-                onChange={(event) =>
-                  setReference(event.target.value)
-                }
-                {...fieldProps}
-              />
-            )}
-          </Field>
+          <TextField
+            label="Reference"
+            optional
+            placeholder="Bank session ID or transfer reference"
+            value={reference}
+            onChange={(event) => setReference(event.target.value)}
+          />
 
-          <label className="flex min-h-11 items-start gap-3 bg-peach p-3 text-body">
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(event) =>
-                setConfirmed(event.target.checked)
-              }
-              className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--bagg-mango)]"
-            />
+          <Checkbox
+            label="I have checked that these funds arrived in my account."
+            checked={confirmed}
+            onChange={setConfirmed}
+          />
 
-            <span>
-              I have checked that these funds arrived in my account.
-            </span>
-          </label>
-
-          {formError && (
-            <p
-              role="alert"
-              className="text-body font-medium text-danger"
-            >
-              {formError}
-            </p>
-          )}
+          {formError && <Alert variant="error">{formError}</Alert>}
 
           <div className="flex justify-between gap-3">
             <Button
@@ -2058,19 +2019,13 @@ export default function InvoiceDetailPage() {
             share link will stop working until you issue it again.
           </p>
 
-          <Field label="Reason (optional)">
-            {(fieldProps) => (
-              <Input
-                type="text"
-                placeholder="e.g. Scope change or billing correction"
-                value={recallReason}
-                onChange={(event) =>
-                  setRecallReason(event.target.value)
-                }
-                {...fieldProps}
-              />
-            )}
-          </Field>
+          <TextField
+            label="Reason"
+            optional
+            placeholder="e.g. Scope change or billing correction"
+            value={recallReason}
+            onChange={(event) => setRecallReason(event.target.value)}
+          />
 
           <div className="flex justify-end gap-3">
             <Button
@@ -2110,20 +2065,13 @@ export default function InvoiceDetailPage() {
             by your client.
           </p>
 
-          <Field label="Credit note / certificate number">
-            {(fieldProps) => (
-              <Input
-                type="text"
-                required
-                placeholder="e.g. WHT-2026-0987"
-                value={whtCreditNoteNumber}
-                onChange={(event) =>
-                  setWhtCreditNoteNumber(event.target.value)
-                }
-                {...fieldProps}
-              />
-            )}
-          </Field>
+          <TextField
+            label="Credit note or certificate number"
+            required
+            placeholder="e.g. WHT-2026-0987"
+            value={whtCreditNoteNumber}
+            onChange={(event) => setWhtCreditNoteNumber(event.target.value)}
+          />
 
           <div className="flex justify-end gap-3">
             <Button
@@ -2163,20 +2111,13 @@ export default function InvoiceDetailPage() {
             be confirmed.
           </p>
 
-          <Field label="Reason for rejection">
-            {(fieldProps) => (
-              <Input
-                type="text"
-                required
-                placeholder="e.g. Funds not found in account; please verify the session ID."
-                value={rejectClaimReason}
-                onChange={(event) =>
-                  setRejectClaimReason(event.target.value)
-                }
-                {...fieldProps}
-              />
-            )}
-          </Field>
+          <TextField
+            label="Reason for rejection"
+            required
+            placeholder="e.g. Funds not found in account; please verify the session ID."
+            value={rejectClaimReason}
+            onChange={(event) => setRejectClaimReason(event.target.value)}
+          />
 
           <div className="flex justify-end gap-3">
             <Button

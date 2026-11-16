@@ -23,7 +23,24 @@ import { QuoteMobileSummary } from '@/components/mobile/QuoteMobileSummary';
 import { QuoteActionBar } from '@/components/mobile/QuoteActionBar';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
-import { Alert, BaggSelect, Button, Card, Dialog, ErrorState, Field, Input, buttonStyles } from '@/components/ui';
+import {
+  Alert,
+  BaggSelect,
+  Button,
+  Card,
+  DateField,
+  Dialog,
+  ErrorState,
+  FormActions,
+  FormGrid,
+  FormSection,
+  MoneyField,
+  NumberField,
+  StickyFormActions,
+  TextArea,
+  TextField,
+  buttonStyles,
+} from '@/components/ui';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import { formatDate } from '@/lib/date';
 
@@ -696,137 +713,210 @@ export default function QuoteDetailPage() {
         )}
 
         {editing ? (
-        <Card zone="calm" className="space-y-6 p-4 sm:p-6">
-          <div>
-            <h2 className="text-heading">
-              {revisionMode ? 'Create a revised version' : 'Edit draft'}
-            </h2>
-            <p className="mt-1 text-body text-text-soft">
-              {revisionMode
-                ? 'The existing issued version must remain unchanged. The revision will require review and issuance before it can be shared.'
-                : 'Only draft quotes can be edited in place.'}
-            </p>
-          </div>
-
-          {revisionMode && (
-            <Field label="Reason for revision">
-              {(fieldProps) => (
-                <Input
-                  value={revisionReason}
-                  onChange={(event) => setRevisionReason(event.target.value)}
-                  maxLength={500}
-                  {...fieldProps}
-                />
-              )}
-            </Field>
+        <div className="space-y-5">
+          {revisionMode ? (
+            <FormSection
+              title="Revision"
+              description="The existing issued version must remain unchanged. The revision will require review and issuance before it can be shared."
+            >
+              <TextField
+                label="Reason for revision"
+                required
+                maxLength={500}
+                value={revisionReason}
+                onChange={(event) => setRevisionReason(event.target.value)}
+              />
+            </FormSection>
+          ) : (
+            <Alert variant="info">
+              Only draft quotes can be edited in place. Issued quotes must be
+              revised so the client can see what changed.
+            </Alert>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <BaggSelect
-              label="Client"
-              className="w-full"
-              value={clientId}
-              onChange={setClientId}
-              options={clients.map((c) => ({ value: c.id, label: c.name }))}
-            />
-            <BaggSelect
-              label="Currency"
-              className="w-full"
-              value={currency}
-              onChange={setCurrency}
-              options={SUPPORTED_CURRENCIES.map((c) => ({ value: c.code, label: c.label }))}
-            />
-            <Field label="Issue date">
-              {(fieldProps) => (
-                <Input type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} {...fieldProps} />
-              )}
-            </Field>
-            <Field label="Expiry date">
-              {(fieldProps) => (
-                <Input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} {...fieldProps} />
-              )}
-            </Field>
-            <Field label="Discount amount" hint="Enter the amount in the selected currency.">
-              {(fieldProps) => (
-                <Input inputMode="decimal" value={discount} onChange={(event) => setDiscount(event.target.value)} {...fieldProps} />
-              )}
-            </Field>
-            <Field label="Tax rate (%)">
-              {(fieldProps) => (
-                <Input inputMode="decimal" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} {...fieldProps} />
-              )}
-            </Field>
-            <Field label="Withholding tax rate (%)">
-              {(fieldProps) => (
-                <Input inputMode="decimal" value={whtRate} onChange={(event) => setWhtRate(event.target.value)} {...fieldProps} />
-              )}
-            </Field>
-            <Field label="Deposit (%)" hint="Leave blank if no deposit applies.">
-              {(fieldProps) => (
-                <Input inputMode="decimal" value={depositPercentage} onChange={(event) => setDepositPercentage(event.target.value)} {...fieldProps} />
-              )}
-            </Field>
-          </div>
+          <FormSection
+            title="Client and dates"
+            description="Who this quote is for and how long the offer stands."
+          >
+            <FormGrid>
+              <BaggSelect
+                label="Client"
+                required
+                value={clientId}
+                onChange={setClientId}
+                options={clients.map((c) => ({ value: c.id, label: c.name }))}
+              />
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-heading">Line items</h3>
+              <BaggSelect
+                label="Currency"
+                required
+                value={currency}
+                onChange={setCurrency}
+                options={SUPPORTED_CURRENCIES.map((c) => ({
+                  value: c.code,
+                  label: c.label,
+                }))}
+              />
+
+              <DateField
+                label="Issue date"
+                required
+                value={issueDate}
+                onChange={(event) => setIssueDate(event.target.value)}
+              />
+
+              <DateField
+                label="Expiry date"
+                required
+                value={expiresAt}
+                onChange={(event) => setExpiresAt(event.target.value)}
+              />
+            </FormGrid>
+          </FormSection>
+
+          <FormSection
+            title="Pricing"
+            description="Adjustments applied to the line items before tax."
+          >
+            <MoneyField
+              label="Discount amount"
+              currency={currency}
+              hint="Enter the amount in the selected currency."
+              value={discount}
+              onChange={setDiscount}
+            />
+
+            <FormGrid>
+              <NumberField
+                label="Tax rate"
+                suffix="%"
+                min={0}
+                max={100}
+                step="0.01"
+                value={taxRate}
+                onChange={(event) => setTaxRate(event.target.value)}
+              />
+
+              <NumberField
+                label="Withholding tax rate"
+                suffix="%"
+                min={0}
+                max={100}
+                step="0.01"
+                value={whtRate}
+                onChange={(event) => setWhtRate(event.target.value)}
+              />
+
+              <NumberField
+                label="Deposit"
+                suffix="%"
+                optional
+                min={0}
+                max={100}
+                step="0.01"
+                hint="Leave blank if no deposit applies."
+                value={depositPercentage}
+                onChange={(event) =>
+                  setDepositPercentage(event.target.value)
+                }
+              />
+            </FormGrid>
+          </FormSection>
+
+          <FormSection
+            title="Items"
+            description="What you're quoting for. Add one row per service or product."
+            action={
               <Button variant="outline" zone="calm" onClick={addItem}>
                 <Plus aria-hidden className="h-4 w-4" />
                 Add item
               </Button>
-            </div>
-            {items.map((item, index) => (
-              <div key={item._key} className="grid gap-3 border-brut border-ink p-3 sm:grid-cols-[minmax(0,1fr)_100px_150px_auto]">
-                <Field label={`Description ${index + 1}`}>
-                  {(fieldProps) => (
-                    <Input value={item.description} onChange={(event) => updateItem(index, 'description', event.target.value)} {...fieldProps} />
-                  )}
-                </Field>
-                <Field label="Quantity">
-                  {(fieldProps) => (
-                    <Input inputMode="numeric" value={item.quantity} onChange={(event) => updateItem(index, 'quantity', event.target.value)} {...fieldProps} />
-                  )}
-                </Field>
-                <Field label="Unit price">
-                  {(fieldProps) => (
-                    <Input inputMode="decimal" value={item.unit_price} onChange={(event) => updateItem(index, 'unit_price', event.target.value)} {...fieldProps} />
-                  )}
-                </Field>
-                <div className="flex items-end">
-                  <Button
-                    variant="outline"
-                    zone="calm"
-                    disabled={items.length <= 1}
-                    onClick={() => removeItem(index)}
-                  >
-                    Remove
-                  </Button>
+            }
+          >
+            <div className="space-y-3">
+              {items.map((item, index) => (
+                <div
+                  key={item._key}
+                  className="grid gap-3 border-brut-thin border-ink bg-surface-sunken p-3 sm:grid-cols-[minmax(0,1fr)_96px_150px_auto]"
+                >
+                  <TextField
+                    label={`Description ${index + 1}`}
+                    required
+                    value={item.description}
+                    onChange={(event) =>
+                      updateItem(index, 'description', event.target.value)
+                    }
+                  />
+
+                  <NumberField
+                    label="Quantity"
+                    required
+                    min={1}
+                    step="1"
+                    value={item.quantity}
+                    onChange={(event) =>
+                      updateItem(index, 'quantity', event.target.value)
+                    }
+                  />
+
+                  <MoneyField
+                    label="Unit price"
+                    required
+                    currency={currency}
+                    value={item.unit_price}
+                    onChange={(value) =>
+                      updateItem(index, 'unit_price', value)
+                    }
+                  />
+
+                  <div className="flex items-end">
+                    <Button
+                      variant="outline"
+                      zone="calm"
+                      disabled={items.length <= 1}
+                      onClick={() => removeItem(index)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </FormSection>
 
-          <Field label="Notes">
-            {(fieldProps) => (
-              <textarea
-                className="min-h-24 w-full rounded-input border-brut-thin border-ink bg-surface p-3 text-body"
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                {...fieldProps}
-              />
-            )}
-          </Field>
+          <FormSection
+            title="Notes"
+            description="Optional context shown to your client on the quote."
+          >
+            <TextArea
+              label="Note for your client"
+              optional
+              rows={4}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </FormSection>
 
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="outline" zone="calm" disabled={saving} onClick={resetForm}>
-              Cancel
-            </Button>
-            <Button zone="calm" loading={saving} onClick={() => void handleSave()}>
-              {revisionMode ? 'Save revision draft' : 'Save draft'}
-            </Button>
-          </div>
-        </Card>
+          <StickyFormActions>
+            <FormActions divider={false}>
+              <Button
+                variant="outline"
+                zone="calm"
+                disabled={saving}
+                onClick={resetForm}
+              >
+                Cancel
+              </Button>
+              <Button
+                zone="calm"
+                loading={saving}
+                onClick={() => void handleSave()}
+              >
+                {revisionMode ? 'Save revision draft' : 'Save draft'}
+              </Button>
+            </FormActions>
+          </StickyFormActions>
+        </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,1fr)]">
           <div className="space-y-6">

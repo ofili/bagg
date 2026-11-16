@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { BagMark, Wordmark } from '@/components/brand';
+import { OnboardingSteps } from '@/components/onboarding/OnboardingSteps';
 import { Alert, Button } from '@/components/ui';
 import { readOnboardingContinuation } from '@/lib/onboarding-navigation';
 
@@ -559,6 +560,10 @@ function PlanPageContent() {
 
       <main className="mx-auto w-full max-w-6xl px-5 pb-16 pt-5">
         <div className="mx-auto max-w-3xl text-center">
+          <div className="mb-8 flex justify-center">
+            <OnboardingSteps current="plan" />
+          </div>
+
           <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
             Your workspace, your choice
           </p>
@@ -580,7 +585,6 @@ function PlanPageContent() {
                 <span>{error}</span>
                 <Button
                   type="button"
-                  size="sm"
                   variant="outline"
                   disabled={refreshing}
                   onClick={() => void loadPlanData(true)}

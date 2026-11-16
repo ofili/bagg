@@ -1,8 +1,14 @@
+import type { Viewport } from 'next';
+
 import { CookieNotice } from '@/components/marketing/cookie-notice';
 import { MarketingFooter } from '@/components/marketing/footer';
 import { MarketingHeader } from '@/components/marketing/header';
 import { MarketingStructuredData } from '@/components/marketing/marketing-structured-data';
 import React from "react";
+
+export const viewport: Viewport = {
+    themeColor: '#FF7A1A',
+};
 
 export default function MarketingLayout({
                                             children,
@@ -10,7 +16,10 @@ export default function MarketingLayout({
     children: React.ReactNode;
 }) {
     return (
-        <div className="flex min-h-dvh flex-col bg-cream">
+        <div
+            data-theme="light"
+            className="flex min-h-dvh flex-col bg-cream text-text"
+        >
             <MarketingStructuredData />
 
             <a

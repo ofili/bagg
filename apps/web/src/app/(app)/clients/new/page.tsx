@@ -18,13 +18,16 @@ import {
   FormActions,
   FormGrid,
   FormSection,
+  FormSubsection,
+  PageContainer,
   PageHeader,
   PhoneField,
+  RadioGroup,
+  StickyFormActions,
   TextArea,
   TextField,
   buttonStyles,
 } from '@/components/ui';
-import { cn } from '@/lib/cn';
 
 const API_BASE = (
   '/api'
@@ -176,7 +179,7 @@ export default function NewClientPage() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
+    <PageContainer width="form">
       <PageHeader
         title="Add client"
         description="Save client details once to reuse them on future invoices."
@@ -185,73 +188,44 @@ export default function NewClientPage() {
             href="/clients"
             className={buttonStyles({ variant: 'outline', zone: 'calm' })}
           >
-            <ArrowLeft aria-hidden className="h-4 w-4" />
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
             Back to clients
           </Link>
         }
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <FormSection
+          title="Client type"
+          description="Choose how you invoice this client. This changes the fields below."
+        >
+          <RadioGroup
+            label="Type"
+            value={clientType}
+            onChange={(value) => setClientType(value as ClientType)}
+            variant="cards"
+            columns={2}
+            options={[
+              {
+                value: 'PERSON',
+                label: 'Individual',
+                description: 'A person you invoice.',
+                icon: <User className="h-5 w-5" aria-hidden="true" />,
+              },
+              {
+                value: 'BUSINESS',
+                label: 'Business',
+                description: 'A company or organisation.',
+                icon: <Buildings className="h-5 w-5" aria-hidden="true" />,
+              },
+            ]}
+          />
+        </FormSection>
+
         <FormSection
           title="Client details"
-          description="Choose the client type and enter their billing information."
+          description="The name and contact details used on invoices."
         >
-          <div>
-            <span className="mb-1.5 block text-label font-medium text-text">
-              Client type
-            </span>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setClientType('PERSON')}
-                aria-pressed={clientType === 'PERSON'}
-                className={cn(
-                  'flex min-h-20 items-center gap-3 border-brut-thin p-4 text-left transition-colors',
-                  clientType === 'PERSON'
-                    ? 'border-ink bg-peach-chip'
-                    : 'border-ink bg-surface hover:bg-surface-tint',
-                )}
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface">
-                  <User className="h-5 w-5 text-text" aria-hidden="true" />
-                </span>
-                <span>
-                  <span className="block text-body font-extrabold text-text">
-                    Individual
-                  </span>
-                  <span className="mt-0.5 block text-caption text-text-soft">
-                    A person you invoice
-                  </span>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setClientType('BUSINESS')}
-                aria-pressed={clientType === 'BUSINESS'}
-                className={cn(
-                  'flex min-h-20 items-center gap-3 border-brut-thin p-4 text-left transition-colors',
-                  clientType === 'BUSINESS'
-                    ? 'border-ink bg-peach-chip'
-                    : 'border-ink bg-surface hover:bg-surface-tint',
-                )}
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface">
-                  <Buildings className="h-5 w-5 text-text" aria-hidden="true" />
-                </span>
-                <span>
-                  <span className="block text-body font-extrabold text-text">
-                    Business
-                  </span>
-                  <span className="mt-0.5 block text-caption text-text-soft">
-                    A company or organisation
-                  </span>
-                </span>
-              </button>
-            </div>
-          </div>
-
           <TextField
             label={clientType === 'BUSINESS' ? 'Company name' : 'Client name'}
             required
@@ -289,16 +263,11 @@ export default function NewClientPage() {
           </p>
 
           {clientType === 'BUSINESS' && (
-            <section className="space-y-4 border-brut-thin border-ink bg-surface-sunken p-4 sm:p-5">
-              <div>
-                <h3 className="text-heading font-extrabold text-text">
-                  Primary contact
-                </h3>
-                <p className="mt-1 text-body text-text-soft">
-                  Every new business client must have at least one named contact.
-                </p>
-              </div>
-
+            <FormSubsection
+              divided
+              title="Primary contact"
+              description="Every new business client must have at least one named contact."
+            >
               <TextField
                 label="Contact name"
                 required
@@ -341,68 +310,77 @@ export default function NewClientPage() {
                   }
                 />
               </FormGrid>
-            </section>
+            </FormSubsection>
           )}
         </FormSection>
 
         <FormSection
-          title="Billing preferences"
-          description="These defaults will be used when preparing invoices for this client."
+          title="Billing defaults"
+          description="These defaults are used when preparing invoices for this client."
         >
-          <FormGrid>
-            <BaggSelect
-              label="Invoicing currency"
-              value={preferredCurrency}
-              onChange={setPreferredCurrency}
-              options={SUPPORTED_CURRENCIES.map((c) => ({
-                value: c.code,
-                label: c.label,
-              }))}
-            />
+          <FormSubsection title="Commercial terms">
+            <FormGrid>
+              <BaggSelect
+                label="Invoicing currency"
+                value={preferredCurrency}
+                onChange={setPreferredCurrency}
+                options={SUPPORTED_CURRENCIES.map((currency) => ({
+                  value: currency.code,
+                  label: currency.label,
+                }))}
+              />
 
-            <BaggSelect
-              label="Payment terms"
-              value={String(paymentTerms)}
-              onChange={(value) => setPaymentTerms(Number(value))}
-              options={[
-                { value: '0', label: 'Due on receipt' },
-                { value: '7', label: 'Net 7 days' },
-                { value: '14', label: 'Net 14 days' },
-                { value: '30', label: 'Net 30 days' },
-                { value: '60', label: 'Net 60 days' },
-              ]}
-            />
-          </FormGrid>
+              <BaggSelect
+                label="Payment terms"
+                value={String(paymentTerms)}
+                onChange={(value) => setPaymentTerms(Number(value))}
+                options={[
+                  { value: '0', label: 'Due on receipt' },
+                  { value: '7', label: 'Net 7 days' },
+                  { value: '14', label: 'Net 14 days' },
+                  { value: '30', label: 'Net 30 days' },
+                  { value: '60', label: 'Net 60 days' },
+                ]}
+              />
+            </FormGrid>
+          </FormSubsection>
 
-          <FormGrid>
+          <FormSubsection divided title="Tax and location">
+            <FormGrid>
+              <TextField
+                label="Tax ID or TIN"
+                optional
+                placeholder="e.g. VAT-987654"
+                value={taxId}
+                onChange={(event) => setTaxId(event.target.value)}
+              />
+
+              <TextField
+                label="Country"
+                autoComplete="country"
+                placeholder="e.g. NG"
+                value={country}
+                onChange={(event) => setCountry(event.target.value)}
+              />
+            </FormGrid>
+
             <TextField
-              label="Tax ID or TIN"
+              label="Billing address"
               optional
-              placeholder="e.g. VAT-987654"
-              value={taxId}
-              onChange={(event) => setTaxId(event.target.value)}
+              autoComplete="street-address"
+              placeholder="Street, city, state"
+              value={address}
+              onChange={(event) => setAddress(event.target.value)}
             />
+          </FormSubsection>
+        </FormSection>
 
-            <TextField
-              label="Country"
-              autoComplete="country"
-              placeholder="e.g. NG"
-              value={country}
-              onChange={(event) => setCountry(event.target.value)}
-            />
-          </FormGrid>
-
-          <TextField
-            label="Billing address"
-            optional
-            autoComplete="street-address"
-            placeholder="Street, city, state"
-            value={address}
-            onChange={(event) => setAddress(event.target.value)}
-          />
-
+        <FormSection
+          title="Private notes"
+          description="Only you can see this. It is never shown to the client."
+        >
           <TextArea
-            label="Private notes"
+            label="Notes"
             optional
             rows={4}
             placeholder="Anything you want to remember about this client"
@@ -413,26 +391,28 @@ export default function NewClientPage() {
 
         {errorMessage && <Alert variant="error">{errorMessage}</Alert>}
 
-        <FormActions>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push('/clients')}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
+        <StickyFormActions>
+          <FormActions divider={false}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push('/clients')}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
 
-          <Button type="submit" disabled={saving}>
-            {saving ? (
-              <CircleNotch className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <FloppyDisk className="h-4 w-4" aria-hidden="true" />
-            )}
-            {saving ? 'Creating client…' : 'Create client'}
-          </Button>
-        </FormActions>
+            <Button type="submit" disabled={saving}>
+              {saving ? (
+                <CircleNotch className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <FloppyDisk className="h-4 w-4" aria-hidden="true" />
+              )}
+              {saving ? 'Creating client…' : 'Create client'}
+            </Button>
+          </FormActions>
+        </StickyFormActions>
       </form>
-    </main>
+    </PageContainer>
   );
 }

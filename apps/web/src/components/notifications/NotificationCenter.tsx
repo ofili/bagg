@@ -40,37 +40,37 @@ function getNotificationIcon(type: string) {
   switch (type) {
     case 'quote_accepted':
       return (
-        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+        <CheckCircle2 className="h-3.5 w-3.5 text-status-paid-fg" />
       );
 
     case 'quote_declined':
       return (
-        <XCircle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+        <XCircle className="h-3.5 w-3.5 text-status-late-fg" />
       );
 
     case 'quote_review_requested':
       return (
-        <RotateCcw className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+        <RotateCcw className="h-3.5 w-3.5 text-status-due-fg" />
       );
 
     case 'payment_claimed':
     case 'payment_received':
     case 'invoice_paid':
       return (
-        <CreditCard className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+        <CreditCard className="h-3.5 w-3.5 text-status-paid-fg" />
       );
 
     case 'quote_viewed':
     case 'invoice_viewed':
       return (
-        <Eye className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+        <Eye className="h-3.5 w-3.5 text-status-pending-fg" />
       );
 
     case 'client_comment':
     case 'business_comment':
     default:
       return (
-        <MessageSquare className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+        <MessageSquare className="h-3.5 w-3.5 text-status-due-fg" />
       );
   }
 }
@@ -296,7 +296,7 @@ export function NotificationCenter() {
                       'flex w-full items-start gap-3 p-3.5',
                       'text-left transition-colors hover:bg-surface-tint',
                       isUnread
-                        ? 'bg-amber-50/60 dark:bg-amber-950/20'
+                        ? 'bg-peach-chip'
                         : 'bg-surface',
                     )}
                   >

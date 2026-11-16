@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
+
   /* Brand (Mango Sunrise) */
   --bagg-mango: #ff7a1a;
   --bagg-pink: #ff4f8b;
@@ -80,6 +82,8 @@
 
 /* Explicit light-mode token reset for light-only surfaces (e.g. marketing). */
 [data-theme='light'] {
+  color-scheme: light;
+
   --ink: #1a110a;
   --brut-shadow: #1a110a;
   --bg: #fbf7f0;
@@ -121,6 +125,8 @@
 /* Dark mode is a first pass: warm brown-black, brand colours unchanged.
    Outlines and hard shadows flip to cream so they stay visible. */
 [data-theme='dark'] {
+  color-scheme: dark;
+
   --ink: #fff1e0;
   --brut-shadow: #fff1e0;
   --bg: #1a110a;

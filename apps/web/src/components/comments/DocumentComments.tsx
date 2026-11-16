@@ -171,7 +171,7 @@ export function DocumentComments({
                   'space-y-1.5 p-4 transition-colors',
                   isClient
                     ? 'border-brut-thin border-ink bg-surface-sunken'
-                    : 'border border-mango/30 bg-amber-50/50 dark:bg-amber-950/20'
+                    : 'border-brut-thin border-ink bg-peach-chip'
                 )}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">

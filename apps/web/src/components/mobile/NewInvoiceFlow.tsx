@@ -20,7 +20,7 @@ import {InvoiceDocument, LineItemsEditor} from '@/components/invoice';
 import {MoneyField} from '@/components/ui/MoneyField';
 import {Money} from '@/components/money/Money';
 import { PaymentSetupPrompt } from '@/components/payments/PaymentSetupPrompt';
-import {BaggSelect, Button, Card, Dialog, Field, Input, buttonStyles, inputStyles} from '@/components/ui';
+import {BaggSelect, Button, Card, Dialog, Field, Input, inputStyles} from '@/components/ui';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
 import {SUPPORTED_CURRENCIES, addDays, type InvoiceDraft, type Client} from '@/hooks/useInvoiceDraft';
 import {cleanAmount} from '@/lib/amount';

@@ -6,8 +6,8 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   Check,
-  CreditCard,
   ExternalLink,
+  FileText,
   Globe,
   Landmark,
   Loader2,
@@ -26,6 +26,7 @@ import {
   Dialog,
   FormGrid,
   FormSection,
+  FormSubsection,
   OtpField,
   PageContainer,
   PageHeader,
@@ -46,8 +47,6 @@ const CURRENCIES = [
   { value: 'KES', label: 'KES · Kenyan shilling' },
   { value: 'ZAR', label: 'ZAR · South African rand' },
 ];
-
-type PaymentMethodType = 'bank' | 'link' | 'mobile_money';
 
 interface PaymentProfile {
   id: string;
@@ -76,6 +75,47 @@ interface ProfileForm {
   mobile_money_number: string;
   instructions: string;
   is_default: boolean;
+}
+
+type PaymentMethod = 'bank' | 'link' | 'mobile_money' | 'instructions';
+
+const PAYMENT_METHODS: {
+  value: PaymentMethod;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+}[] = [
+  {
+    value: 'bank',
+    label: 'Bank transfer',
+    description: 'Account name, bank and account number.',
+    icon: <Landmark className="h-5 w-5" aria-hidden="true" />,
+  },
+  {
+    value: 'link',
+    label: 'Payment link',
+    description: 'A URL to your payment provider.',
+    icon: <Globe className="h-5 w-5" aria-hidden="true" />,
+  },
+  {
+    value: 'mobile_money',
+    label: 'Mobile money',
+    description: 'A mobile wallet number and account name.',
+    icon: <Smartphone className="h-5 w-5" aria-hidden="true" />,
+  },
+  {
+    value: 'instructions',
+    label: 'Payment instructions',
+    description: 'Written instructions for your client.',
+    icon: <FileText className="h-5 w-5" aria-hidden="true" />,
+  },
+];
+
+function methodFromProfile(profile: PaymentProfile): PaymentMethod {
+  if (profile.bank_name || profile.account_number) return 'bank';
+  if (profile.payment_link) return 'link';
+  if (profile.mobile_money_number) return 'mobile_money';
+  return 'instructions';
 }
 
 interface PendingStepUp {
@@ -181,35 +221,42 @@ function formFromProfile(profile: PaymentProfile): ProfileForm {
   };
 }
 
-function formToPayload(form: ProfileForm) {
+function formToPayload(form: ProfileForm, method: PaymentMethod) {
   return {
     currency: form.currency,
-    bank_name: form.bank_name.trim() || null,
-    account_name: form.account_name.trim() || null,
-    account_number: form.account_number.trim() || null,
-    routing_number: form.routing_number.trim() || null,
-    payment_link: form.payment_link.trim() || null,
-    mobile_money_number: form.mobile_money_number.trim() || null,
+    bank_name: method === 'bank' ? form.bank_name.trim() || null : null,
+    account_name:
+      method === 'bank' || method === 'mobile_money'
+        ? form.account_name.trim() || null
+        : null,
+    account_number: method === 'bank' ? form.account_number.trim() || null : null,
+    routing_number: method === 'bank' ? form.routing_number.trim() || null : null,
+    payment_link: method === 'link' ? form.payment_link.trim() || null : null,
+    mobile_money_number:
+      method === 'mobile_money'
+        ? form.mobile_money_number.trim() || null
+        : null,
     instructions: form.instructions.trim() || null,
     is_default: form.is_default,
   };
 }
 
-function validateForm(form: ProfileForm): string | null {
-  const bankValues = [
-    form.bank_name.trim(),
-    form.account_name.trim(),
-    form.account_number.trim(),
-  ];
-
-  const hasAnyBankValue = bankValues.some(Boolean);
-  const hasCompleteBank = bankValues.every(Boolean);
-
-  if (hasAnyBankValue && !hasCompleteBank) {
-    return 'Complete the bank name, account name and account number, or clear all three fields.';
+function validateForm(form: ProfileForm, method: PaymentMethod): string | null {
+  if (method === 'bank') {
+    if (
+      !form.bank_name.trim() ||
+      !form.account_name.trim() ||
+      !form.account_number.trim()
+    ) {
+      return 'Enter the bank name, account name and account number.';
+    }
   }
 
-  if (form.payment_link.trim()) {
+  if (method === 'link') {
+    if (!form.payment_link.trim()) {
+      return 'Enter the payment link your clients should use.';
+    }
+
     try {
       const url = new URL(form.payment_link.trim());
 
@@ -221,18 +268,14 @@ function validateForm(form: ProfileForm): string | null {
     }
   }
 
-  if (form.mobile_money_number.trim() && !form.account_name.trim()) {
-    return 'Enter the account name for this mobile money number.';
+  if (method === 'mobile_money') {
+    if (!form.mobile_money_number.trim() || !form.account_name.trim()) {
+      return 'Enter the mobile money number and the account name.';
+    }
   }
 
-  const hasMethod =
-    hasCompleteBank ||
-    Boolean(form.payment_link.trim()) ||
-    (Boolean(form.mobile_money_number.trim()) && Boolean(form.account_name.trim())) ||
-    Boolean(form.instructions.trim());
-
-  if (!hasMethod) {
-    return 'Add at least one complete payment method or payment instruction.';
+  if (method === 'instructions' && !form.instructions.trim()) {
+    return 'Enter the payment instructions your clients should follow.';
   }
 
   return null;
@@ -248,6 +291,7 @@ export default function PaymentSettingsPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<PaymentProfile | null>(null);
   const [form, setForm] = useState<ProfileForm>(EMPTY_FORM);
+  const [method, setMethod] = useState<PaymentMethod>('bank');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -331,6 +375,7 @@ export default function PaymentSettingsPage() {
   const openCreateEditor = (currency = 'NGN') => {
     setEditingProfile(null);
     setForm({ ...EMPTY_FORM, currency });
+    setMethod('bank');
     setFormError(null);
     setActionError(null);
     setEditorOpen(true);
@@ -339,6 +384,7 @@ export default function PaymentSettingsPage() {
   const openEditEditor = (profile: PaymentProfile) => {
     setEditingProfile(profile);
     setForm(formFromProfile(profile));
+    setMethod(methodFromProfile(profile));
     setFormError(null);
     setActionError(null);
     setEditorOpen(true);
@@ -349,6 +395,7 @@ export default function PaymentSettingsPage() {
     setEditorOpen(false);
     setEditingProfile(null);
     setForm(EMPTY_FORM);
+    setMethod('bank');
     setFormError(null);
   };
 
@@ -400,7 +447,7 @@ export default function PaymentSettingsPage() {
   const handleSaveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const validationError = validateForm(form);
+    const validationError = validateForm(form, method);
 
     if (validationError) {
       setFormError(validationError);
@@ -413,17 +460,7 @@ export default function PaymentSettingsPage() {
       setActionError(null);
 
       if (editingProfile) {
-        const changes = {
-          currency: form.currency,
-          bank_name: form.bank_name.trim() || null,
-          account_name: form.account_name.trim() || null,
-          account_number: form.account_number.trim() || null,
-          routing_number: form.routing_number.trim() || null,
-          payment_link: form.payment_link.trim() || null,
-          mobile_money_number: form.mobile_money_number.trim() || null,
-          instructions: form.instructions.trim() || null,
-          is_default: form.is_default,
-        };
+        const changes = formToPayload(form, method);
 
         await requestStepUp(
           'payment_profile_update',
@@ -435,7 +472,7 @@ export default function PaymentSettingsPage() {
           editingProfile.id,
         );
       } else {
-        const payload = formToPayload(form);
+        const payload = formToPayload(form, method);
 
         await requestStepUp(
           'payment_profile_create',
@@ -741,7 +778,7 @@ export default function PaymentSettingsPage() {
             {profilesByCurrency.map((currency) => (
               <section
                 key={currency.value}
-                className="border-brut-thin border-ink bg-surface p-4"
+                className="border-brut border-ink bg-surface p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -772,7 +809,6 @@ export default function PaymentSettingsPage() {
 
                   <Button
                     type="button"
-                    size="sm"
                     variant="outline"
                     onClick={() => openCreateEditor(currency.value)}
                   >
@@ -782,7 +818,7 @@ export default function PaymentSettingsPage() {
                 </div>
 
                 {currency.profiles.length === 0 ? (
-                  <div className="mt-4 border border-dashed border-line p-4">
+                  <div className="mt-4 border border-dashed border-line-subtle p-4">
                     <p className="text-body text-text-soft">
                       No payment instructions have been added for this currency.
                     </p>
@@ -859,7 +895,6 @@ export default function PaymentSettingsPage() {
                               {!profile.is_default && usable && (
                                 <Button
                                   type="button"
-                                  size="sm"
                                   variant="outline"
                                   onClick={() => void handleMakeDefault(profile)}
                                 >
@@ -870,7 +905,6 @@ export default function PaymentSettingsPage() {
 
                               <Button
                                 type="button"
-                                size="sm"
                                 variant="outline"
                                 onClick={() => openEditEditor(profile)}
                               >
@@ -879,7 +913,6 @@ export default function PaymentSettingsPage() {
 
                               <Button
                                 type="button"
-                                size="sm"
                                 variant="danger"
                                 onClick={() => handleRequestDelete(profile)}
                                 aria-label={`Delete ${currency.value} payment profile`}
@@ -917,10 +950,10 @@ export default function PaymentSettingsPage() {
         onClose={closeEditor}
         title={editingProfile ? 'Edit payment profile' : 'Add payment profile'}
       >
-        <form onSubmit={handleSaveProfile} className="space-y-4 p-4">
+        <form onSubmit={handleSaveProfile} className="space-y-5">
           <p className="text-body text-text-soft">
-            Add one or more ways for clients to pay in this currency. You can combine
-            bank transfer, payment links and mobile money in one profile.
+            Each profile uses one payment method. Add another profile if you need
+            a different method for the same currency.
           </p>
 
           <BaggSelect
@@ -930,15 +963,30 @@ export default function PaymentSettingsPage() {
             options={CURRENCIES}
           />
 
-          <FormSection
-            icon={<Landmark className="h-4 w-4" aria-hidden="true" />}
-            title="Bank transfer"
-            description="Leave these fields empty if this profile does not use bank transfer."
-          >
-            <div className="space-y-3">
+          <RadioGroup
+            label="Payment method"
+            value={method}
+            onChange={(value) => {
+              setMethod(value as PaymentMethod);
+              setFormError(null);
+            }}
+            variant="cards"
+            columns={2}
+            options={PAYMENT_METHODS.map(
+              ({ value, label, description, icon }) => ({
+                value,
+                label,
+                description,
+                icon,
+              }),
+            )}
+          />
+
+          {method === 'bank' && (
+            <FormSubsection title="Bank details">
               <TextField
                 label="Bank name"
-                optional
+                required
                 placeholder="e.g. Guaranty Trust Bank"
                 value={form.bank_name}
                 onChange={(event) => updateForm('bank_name', event.target.value)}
@@ -947,18 +995,22 @@ export default function PaymentSettingsPage() {
               <FormGrid>
                 <TextField
                   label="Account name"
-                  optional
+                  required
                   placeholder="e.g. Ada Okafor"
                   value={form.account_name}
-                  onChange={(event) => updateForm('account_name', event.target.value)}
+                  onChange={(event) =>
+                    updateForm('account_name', event.target.value)
+                  }
                 />
 
                 <TextField
                   label="Account number or IBAN"
-                  optional
+                  required
                   placeholder="e.g. 0123456789"
                   value={form.account_number}
-                  onChange={(event) => updateForm('account_number', event.target.value)}
+                  onChange={(event) =>
+                    updateForm('account_number', event.target.value)
+                  }
                   className="font-mono"
                 />
               </FormGrid>
@@ -968,47 +1020,69 @@ export default function PaymentSettingsPage() {
                 optional
                 placeholder="e.g. GTBINGLA"
                 value={form.routing_number}
-                onChange={(event) => updateForm('routing_number', event.target.value)}
+                onChange={(event) =>
+                  updateForm('routing_number', event.target.value)
+                }
                 className="font-mono"
               />
-            </div>
-          </FormSection>
+            </FormSubsection>
+          )}
 
-          <FormSection
-            icon={<Globe className="h-4 w-4" aria-hidden="true" />}
-            title="Payment link"
-            description="Add a link to an external payment page or provider."
-          >
-            <TextField
-              label="Payment URL"
-              optional
-              type="url"
-              placeholder="https://..."
-              value={form.payment_link}
-              onChange={(event) => updateForm('payment_link', event.target.value)}
-            />
-          </FormSection>
+          {method === 'link' && (
+            <FormSubsection title="Payment link">
+              <TextField
+                label="Payment URL"
+                required
+                type="url"
+                placeholder="https://..."
+                value={form.payment_link}
+                onChange={(event) =>
+                  updateForm('payment_link', event.target.value)
+                }
+              />
+            </FormSubsection>
+          )}
 
-          <FormSection
-            icon={<Smartphone className="h-4 w-4" aria-hidden="true" />}
-            title="Mobile money"
-            description="Use the account name above with the mobile money number."
-          >
-            <PhoneField
-              label="Mobile money number"
-              optional
-              placeholder="e.g. +233 24 123 4567"
-              value={form.mobile_money_number}
-              onChange={(event) =>
-                updateForm('mobile_money_number', event.target.value)
-              }
-            />
-          </FormSection>
+          {method === 'mobile_money' && (
+            <FormSubsection title="Mobile money details">
+              <FormGrid>
+                <TextField
+                  label="Account name"
+                  required
+                  placeholder="e.g. Ada Okafor"
+                  value={form.account_name}
+                  onChange={(event) =>
+                    updateForm('account_name', event.target.value)
+                  }
+                />
+
+                <PhoneField
+                  label="Mobile money number"
+                  required
+                  placeholder="e.g. +233 24 123 4567"
+                  value={form.mobile_money_number}
+                  onChange={(event) =>
+                    updateForm('mobile_money_number', event.target.value)
+                  }
+                />
+              </FormGrid>
+            </FormSubsection>
+          )}
 
           <TextArea
-            label="Additional payment instructions"
-            optional
+            label={
+              method === 'instructions'
+                ? 'Payment instructions'
+                : 'Additional payment instructions'
+            }
+            required={method === 'instructions'}
+            optional={method !== 'instructions'}
             rows={3}
+            hint={
+              method === 'instructions'
+                ? 'Shown to your client on the invoice.'
+                : undefined
+            }
             placeholder="e.g. Include the invoice number in the transfer reference."
             value={form.instructions}
             onChange={(event) => updateForm('instructions', event.target.value)}
@@ -1041,7 +1115,7 @@ export default function PaymentSettingsPage() {
         onClose={() => setShowDeleteConfirm(false)}
         title="Delete payment profile?"
       >
-        <div className="space-y-4 p-4">
+        <div className="space-y-4">
           <p className="text-body text-text-soft">
             {profileToDelete
               ? `You are about to delete the ${profileToDelete.currency} profile "${getProfileTitle(profileToDelete)}". This action cannot be undone.`
@@ -1077,7 +1151,7 @@ export default function PaymentSettingsPage() {
         onClose={closeStepUp}
         title="Security verification"
       >
-        <form onSubmit={handleVerifyStepUp} className="space-y-4 p-4">
+        <form onSubmit={handleVerifyStepUp} className="space-y-4">
           <div className="flex items-center gap-2 text-text">
             <ShieldCheck className="h-5 w-5 text-mango" />
             <p className="text-body font-bold">Confirm payment profile change</p>

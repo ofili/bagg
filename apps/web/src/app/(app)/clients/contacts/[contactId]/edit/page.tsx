@@ -13,14 +13,16 @@ import {
   FormActions,
   FormGrid,
   FormSection,
+  FormSubsection,
+  PageContainer,
   PageHeader,
   PhoneField,
+  StaticField,
   TextArea,
   TextField,
   buttonStyles,
 } from '@/components/ui';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
-import { cn } from '@/lib/cn';
 
 const API_BASE = '/api';
 
@@ -209,23 +211,25 @@ export default function EditContactPage({ params }: PageProps) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <Link
-        href="/clients/contacts"
-        className={cn(buttonStyles({ variant: 'outline', zone: 'calm' }), 'w-fit')}
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to contacts
-      </Link>
+    <PageContainer width="form">
+      <div className="space-y-4">
+        <Link
+          href="/clients/contacts"
+          className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to contacts
+        </Link>
 
-      <PageHeader
-        title={contact?.name ? `Edit ${contact.name}` : 'Edit contact'}
-        description={
-          clientName && clientName !== 'Unknown client'
-            ? `Update contact details for ${clientName}.`
-            : 'Update this person’s contact details.'
-        }
-      />
+        <PageHeader
+          title={contact?.name ? `Edit ${contact.name}` : 'Edit contact'}
+          description={
+            clientName && clientName !== 'Unknown client'
+              ? `Update contact details for ${clientName}.`
+              : 'Update this person’s contact details.'
+          }
+        />
+      </div>
 
       {loading ? (
         <div
@@ -264,38 +268,51 @@ export default function EditContactPage({ params }: PageProps) {
       ) : contact ? (
         <form onSubmit={handleSubmit} className="space-y-5">
           <FormSection
-            title="Contact information"
-            description="Keep this person’s information accurate and up to date."
+            title="Client"
+            description="The client this contact belongs to."
           >
-            <TextField
+            <StaticField
               label="Associated client"
               value={clientName}
-              disabled
-              readOnly
-              hint="The associated client cannot be changed from this form."
+              hint="Contacts cannot be moved between clients from this form."
+              action={
+                <Link
+                  href={`/clients/${contact.client_id}`}
+                  className="text-caption font-bold text-link underline underline-offset-4"
+                >
+                  View client
+                </Link>
+              }
             />
+          </FormSection>
 
-            <TextField
-              label="Full name"
-              name="name"
-              required
-              autoComplete="name"
-              maxLength={255}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              disabled={saving}
-            />
+          <FormSection
+            title="Person"
+            description="Keep this person’s information accurate and up to date."
+          >
+            <FormGrid>
+              <TextField
+                label="Full name"
+                name="name"
+                required
+                autoComplete="name"
+                maxLength={255}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                disabled={saving}
+              />
 
-            <TextField
-              label="Job title"
-              name="job_title"
-              optional
-              maxLength={255}
-              value={jobTitle}
-              onChange={(event) => setJobTitle(event.target.value)}
-              disabled={saving}
-              placeholder="e.g. Finance Director"
-            />
+              <TextField
+                label="Job title"
+                name="job_title"
+                optional
+                maxLength={255}
+                value={jobTitle}
+                onChange={(event) => setJobTitle(event.target.value)}
+                disabled={saving}
+                placeholder="e.g. Finance Director"
+              />
+            </FormGrid>
 
             <FormGrid>
               <EmailField
@@ -320,7 +337,12 @@ export default function EditContactPage({ params }: PageProps) {
                 placeholder="+234 800 000 0000"
               />
             </FormGrid>
+          </FormSection>
 
+          <FormSection
+            title="Additional details"
+            description="Private context and how this person appears on the client record."
+          >
             <TextArea
               label="Notes"
               name="notes"
@@ -332,24 +354,21 @@ export default function EditContactPage({ params }: PageProps) {
               disabled={saving}
               placeholder="Add useful context about this contact…"
             />
-          </FormSection>
 
-          <FormSection
-            title="Contact preferences"
-            description="Set how this person appears on the client record."
-          >
-            <Checkbox
-              label="Primary contact"
-              hint="Mark this person as the main contact for this client."
-              checked={isPrimary}
-              onChange={setIsPrimary}
-              disabled={saving}
-            />
+            <FormSubsection divided title="Contact preferences">
+              <Checkbox
+                label="Primary contact"
+                hint="Mark this person as the main contact for this client."
+                checked={isPrimary}
+                onChange={setIsPrimary}
+                disabled={saving}
+              />
+            </FormSubsection>
           </FormSection>
 
           {error && <Alert variant="error">{error}</Alert>}
 
-          <FormActions divider={false}>
+          <FormActions>
             <Link
               href="/clients/contacts"
               className={buttonStyles({ variant: 'outline', zone: 'calm' })}
@@ -373,6 +392,6 @@ export default function EditContactPage({ params }: PageProps) {
           </FormActions>
         </form>
       ) : null}
-    </div>
+    </PageContainer>
   );
 }

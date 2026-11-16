@@ -3,9 +3,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   Bell,
+  Building2,
   Coins,
   CreditCard,
   Download,
@@ -22,15 +24,19 @@ import { Button } from '@/components/ui/button';
 import {
   Alert,
   BaggSelect,
+  ColorField,
   Dialog,
   FormGrid,
   FormSection,
+  FormSubsection,
   OtpField,
   PageContainer,
   PageHeader,
   TextField,
+  buttonStyles,
 } from '@/components/ui';
 import { Sheet, SheetContent, SheetFooter } from '@/components/ui/sheet';
+import { cn } from '@/lib/cn';
 import { formatMoney } from '@/lib/money';
 
 const API_BASE = '/api';
@@ -44,6 +50,16 @@ const CURRENCY_OPTIONS = [
   { value: 'KES', label: 'KES · Kenyan shilling' },
   { value: 'ZAR', label: 'ZAR · South African rand' },
 ];
+
+const SETTINGS_SECTIONS = [
+  { id: 'business-profile', label: 'Business profile' },
+  { id: 'plan', label: 'Plan & sends' },
+  { id: 'payments', label: 'Get paid' },
+  { id: 'reminders', label: 'Reminders' },
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'data', label: 'Your data' },
+  { id: 'danger', label: 'Delete account' },
+] as const;
 
 interface WorkspaceProfile {
   business_name: string;
@@ -115,6 +131,7 @@ const EMPTY_PROFILE: WorkspaceProfile = {
 };
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [profile, setProfile] = useState<WorkspaceProfile>(EMPTY_PROFILE);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [credits, setCredits] = useState<CreditsData | null>(null);
@@ -127,6 +144,8 @@ export default function SettingsPage() {
 
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [activeSection, setActiveSection] = useState<string>('business-profile');
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePhrase, setDeletePhrase] = useState('');
@@ -225,6 +244,35 @@ export default function SettingsPage() {
     void loadBilling();
     void loadReminders();
   }, [loadWorkspace, loadBilling, loadReminders]);
+
+  useEffect(() => {
+    const elements = SETTINGS_SECTIONS.map((section) =>
+      document.getElementById(section.id),
+    ).filter((element): element is HTMLElement => element !== null);
+
+    if (elements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort(
+            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top,
+          );
+
+        if (visible.length > 0) {
+          setActiveSection(visible[0].target.id);
+        }
+      },
+      { rootMargin: '-100px 0px -55% 0px', threshold: 0 },
+    );
+
+    for (const element of elements) {
+      observer.observe(element);
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   const updateProfileField = <K extends keyof WorkspaceProfile>(
     field: K,
@@ -461,7 +509,7 @@ export default function SettingsPage() {
         );
       }
 
-      window.location.assign('/login');
+      router.replace('/login');
     } catch (err) {
       setStepUpError(errorText(err, 'Verification failed. Try again.'));
     } finally {
@@ -488,13 +536,11 @@ export default function SettingsPage() {
     : 0;
 
   return (
-    <PageContainer width="form">
+    <PageContainer width="list">
       <PageHeader
         title="Settings"
         description="Manage your business details, subscription and account."
       />
-
-      <ThemePreferenceSection />
 
       {notice && (
         <Alert variant="success" dismissible onDismiss={() => setNotice(null)}>
@@ -508,350 +554,438 @@ export default function SettingsPage() {
         </Alert>
       )}
 
-      <FormSection
-        id="business-profile"
-        icon={<Sparkles className="h-4 w-4" aria-hidden="true" />}
-        title="Business profile"
-        description="The business identity and contact details displayed on your documents."
-        action={
-          <Button
-            type="submit"
-            form="business-profile-form"
-            disabled={savingProfile || loadingWorkspace}
-          >
-            {savingProfile ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Save className="h-4 w-4" aria-hidden="true" />
-            )}
-            Save profile
-          </Button>
-        }
-      >
-        {loadingWorkspace ? (
-          <div className="h-36 animate-pulse bg-surface-tint" aria-label="Loading workspace" />
-        ) : (
-          <form
-            id="business-profile-form"
-            onSubmit={handleSaveProfile}
-            className="space-y-4"
-          >
-            <FormGrid>
-              <TextField
-                label="Business name"
-                required
-                value={profile.business_name}
-                onChange={(event) =>
-                  updateProfileField('business_name', event.target.value)
-                }
-              />
-
-              <TextField
-                label="Tax ID or TIN"
-                optional
-                placeholder="e.g. TIN-98765432-0001"
-                value={profile.tax_id}
-                onChange={(event) => updateProfileField('tax_id', event.target.value)}
-              />
-
-              <BaggSelect
-                label="Default currency"
-                value={profile.default_currency}
-                onChange={(value) => updateProfileField('default_currency', value)}
-                options={CURRENCY_OPTIONS}
-              />
-
-              <TextField
-                label="Country code"
-                placeholder="e.g. NG"
-                value={profile.country}
-                onChange={(event) => updateProfileField('country', event.target.value)}
-              />
-
-              <TextField
-                label="Billing address"
-                optional
-                autoComplete="street-address"
-                placeholder="Street, city, state"
-                value={profile.address}
-                onChange={(event) => updateProfileField('address', event.target.value)}
-                className="sm:col-span-2"
-              />
-
-              <TextField
-                label="Document accent colour"
-                hint="Hex colour used on supported public document pages."
-                value={profile.brand_color}
-                onChange={(event) => updateProfileField('brand_color', event.target.value)}
-                className="sm:col-span-2"
-              />
-            </FormGrid>
-
-            <p className="text-caption text-text-muted">
-              Changes apply to new and draft documents. Documents already sent retain
-              their original details.
+      <div className="grid gap-6 lg:grid-cols-[210px_minmax(0,1fr)] lg:items-start">
+        <nav aria-label="Settings sections" className="lg:sticky lg:top-6">
+          <div className="border-brut border-ink bg-surface">
+            <p className="hidden border-b border-line-subtle px-3 py-2.5 text-label font-extrabold uppercase tracking-wide text-text-muted lg:block">
+              On this page
             </p>
-          </form>
-        )}
-      </FormSection>
 
-      <FormSection
-        icon={<Coins className="h-4 w-4" aria-hidden="true" />}
-        title="Plan and invoice sends"
-        description="Review your subscription and available invoice sends."
-      >
-        {loadingBilling ? (
-          <div className="grid gap-3 sm:grid-cols-2" aria-label="Loading billing">
-            <div className="h-40 animate-pulse bg-surface-tint" />
-            <div className="h-40 animate-pulse bg-surface-tint" />
+            <ul className="flex gap-1 overflow-x-auto p-2 lg:flex-col lg:gap-0 lg:overflow-visible lg:p-0">
+              {SETTINGS_SECTIONS.map((section) => (
+                <li
+                  key={section.id}
+                  className="shrink-0 lg:border-t lg:border-line-subtle lg:first:border-t-0"
+                >
+                  <a
+                    href={`#${section.id}`}
+                    aria-current={
+                      activeSection === section.id ? 'location' : undefined
+                    }
+                    className={cn(
+                      'flex min-h-9 items-center whitespace-nowrap px-3 text-body font-bold transition-colors lg:min-h-11 lg:whitespace-normal',
+                      activeSection === section.id
+                        ? 'bg-peach-chip text-text'
+                        : 'text-text-soft hover:bg-surface-tint hover:text-text',
+                    )}
+                  >
+                    {section.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col justify-between border-brut-thin border-ink bg-surface-sunken p-4">
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-caption font-extrabold text-text-soft">
-                    Current plan
-                  </p>
-                  <span className="rounded-full bg-surface px-2 py-0.5 text-caption font-extrabold text-text-soft">
-                    {planName}
-                  </span>
-                </div>
+        </nav>
 
-                <p className="mt-2 text-heading text-text">
-                  {isPaid ? planName : 'Free to start'}
+        <div className="min-w-0 space-y-5">
+          <FormSection
+            id="business-profile"
+            icon={<Building2 className="h-4 w-4" aria-hidden="true" />}
+            title="Business profile"
+            description="The business identity and contact details displayed on your documents."
+            className="scroll-mt-24"
+            action={
+              <Button
+                type="submit"
+                form="business-profile-form"
+                disabled={savingProfile || loadingWorkspace}
+              >
+                {savingProfile ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Save className="h-4 w-4" aria-hidden="true" />
+                )}
+                Save profile
+              </Button>
+            }
+          >
+            {loadingWorkspace ? (
+              <div
+                className="h-36 animate-pulse bg-surface-tint"
+                aria-label="Loading workspace"
+              />
+            ) : (
+              <form
+                id="business-profile-form"
+                onSubmit={handleSaveProfile}
+                className="space-y-5"
+              >
+                <FormSubsection
+                  title="Identity"
+                  description="How your business is named on invoices and receipts."
+                >
+                  <FormGrid>
+                    <TextField
+                      label="Business name"
+                      required
+                      value={profile.business_name}
+                      onChange={(event) =>
+                        updateProfileField('business_name', event.target.value)
+                      }
+                    />
+
+                    <TextField
+                      label="Tax ID or TIN"
+                      optional
+                      placeholder="e.g. TIN-98765432-0001"
+                      value={profile.tax_id}
+                      onChange={(event) =>
+                        updateProfileField('tax_id', event.target.value)
+                      }
+                    />
+                  </FormGrid>
+                </FormSubsection>
+
+                <FormSubsection
+                  divided
+                  title="Billing details"
+                  description="Where you operate and the defaults used on new documents."
+                >
+                  <FormGrid>
+                    <BaggSelect
+                      label="Default currency"
+                      value={profile.default_currency}
+                      onChange={(value) =>
+                        updateProfileField('default_currency', value)
+                      }
+                      options={CURRENCY_OPTIONS}
+                    />
+
+                    <TextField
+                      label="Country code"
+                      placeholder="e.g. NG"
+                      value={profile.country}
+                      onChange={(event) =>
+                        updateProfileField('country', event.target.value)
+                      }
+                    />
+                  </FormGrid>
+
+                  <TextField
+                    label="Billing address"
+                    optional
+                    autoComplete="street-address"
+                    placeholder="Street, city, state"
+                    value={profile.address}
+                    onChange={(event) =>
+                      updateProfileField('address', event.target.value)
+                    }
+                  />
+                </FormSubsection>
+
+                <FormSubsection
+                  divided
+                  title="Branding"
+                  description="The accent colour used on supported public document pages."
+                >
+                  <ColorField
+                    label="Document accent colour"
+                    hint="Hex colour used on supported public document pages."
+                    value={profile.brand_color}
+                    onChange={(value) =>
+                      updateProfileField('brand_color', value)
+                    }
+                  />
+                </FormSubsection>
+
+                <p className="text-caption text-text-muted">
+                  Changes apply to new and draft documents. Documents already sent
+                  retain their original details.
                 </p>
+              </form>
+            )}
+          </FormSection>
 
-                <p className="mt-1 text-body text-text-soft">
-                  {isPaid
-                    ? 'Your paid plan benefits are active for this workspace.'
-                    : 'Start free. Upgrade when you need more capacity and features.'}
-                </p>
-
-                {!isPaid && credits && (
-                  <div className="mt-3">
-                    <div className="flex justify-between gap-3 text-caption">
-                      <span className="text-text-muted">Free invoice sends this month</span>
-                      <span className="font-extrabold text-text">
-                        {credits.free_sends_used_this_month} / {credits.free_sends_limit}
+          <FormSection
+            id="plan"
+            icon={<Coins className="h-4 w-4" aria-hidden="true" />}
+            title="Plan and invoice sends"
+            description="Review your subscription and available invoice sends."
+            className="scroll-mt-24"
+          >
+            {loadingBilling ? (
+              <div className="grid gap-3 sm:grid-cols-2" aria-label="Loading billing">
+                <div className="h-40 animate-pulse bg-surface-tint" />
+                <div className="h-40 animate-pulse bg-surface-tint" />
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col justify-between border-brut-thin border-ink bg-surface-sunken p-4">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-caption font-extrabold text-text-soft">
+                        Current plan
+                      </p>
+                      <span className="rounded-full bg-surface px-2 py-0.5 text-caption font-extrabold text-text-soft">
+                        {planName}
                       </span>
                     </div>
-                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface">
-                      <div
-                        className="h-full rounded-full bg-mango"
-                        style={{ width: `${freeSendsPercent}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
 
-                {subscription?.current_period_end && isPaid && (
-                  <p className="mt-3 text-caption text-text-muted">
-                    {subscription.cancel_at_period_end
-                      ? `Access until ${formatDate(subscription.current_period_end)}`
-                      : `Renews ${formatDate(subscription.current_period_end)}`}
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-4 border-t border-line-subtle pt-3">
-                {isPaid ? (
-                  subscription?.cancel_at_period_end ? (
-                    <p className="text-caption text-text-muted">
-                      Auto-renewal is already stopped.
+                    <p className="mt-2 text-heading text-text">
+                      {isPaid ? planName : 'Free to start'}
                     </p>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="link"
-                      disabled={billingActionLoading}
-                      onClick={handleCancelSubscription}
-                      className="min-h-9 px-0 text-status-late-fg hover:no-underline"
-                    >
-                      {billingActionLoading ? 'Processing…' : 'Stop auto-renewal'}
-                    </Button>
-                  )
-                ) : (
-                  <Button
-                    type="button"
-                    disabled={billingActionLoading}
-                    onClick={handleUpgrade}
-                    className="min-h-10 px-4 text-caption"
-                  >
-                    {billingActionLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                    )}
-                    Explore Creator Pro
-                  </Button>
-                )}
-              </div>
-            </div>
 
-            <div className="flex flex-col justify-between border-brut-thin border-ink bg-surface p-4">
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-caption font-extrabold text-text-soft">
-                    Prepaid credits
-                  </p>
-                  <Coins className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                    <p className="mt-1 text-body text-text-soft">
+                      {isPaid
+                        ? 'Your paid plan benefits are active for this workspace.'
+                        : 'Start free. Upgrade when you need more capacity and features.'}
+                    </p>
+
+                    {!isPaid && credits && (
+                      <div className="mt-3">
+                        <div className="flex justify-between gap-3 text-caption">
+                          <span className="text-text-muted">
+                            Free invoice sends this month
+                          </span>
+                          <span className="font-extrabold text-text">
+                            {credits.free_sends_used_this_month} /{' '}
+                            {credits.free_sends_limit}
+                          </span>
+                        </div>
+                        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface">
+                          <div
+                            className="h-full rounded-full bg-mango"
+                            style={{ width: `${freeSendsPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {subscription?.current_period_end && isPaid && (
+                      <p className="mt-3 text-caption text-text-muted">
+                        {subscription.cancel_at_period_end
+                          ? `Access until ${formatDate(subscription.current_period_end)}`
+                          : `Renews ${formatDate(subscription.current_period_end)}`}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-4 border-t border-line-subtle pt-3">
+                    {isPaid ? (
+                      subscription?.cancel_at_period_end ? (
+                        <p className="text-caption text-text-muted">
+                          Auto-renewal is already stopped.
+                        </p>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="link"
+                          disabled={billingActionLoading}
+                          onClick={handleCancelSubscription}
+                          className="min-h-9 px-0 text-status-late-fg hover:no-underline"
+                        >
+                          {billingActionLoading ? 'Processing…' : 'Stop auto-renewal'}
+                        </Button>
+                      )
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        zone="calm"
+                        disabled={billingActionLoading}
+                        onClick={handleUpgrade}
+                      >
+                        {billingActionLoading ? (
+                          <Loader2
+                            className="h-4 w-4 animate-spin"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <Sparkles className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        Explore Creator Pro
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
-                <p className="mt-2 text-amount-l text-text">
-                  {credits?.balance ?? 0}
-                  <span className="ml-1.5 text-caption font-normal text-text-muted">
-                    credits
-                  </span>
-                </p>
+                <div className="flex flex-col justify-between border-brut-thin border-ink bg-surface p-4">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-caption font-extrabold text-text-soft">
+                        Prepaid credits
+                      </p>
+                      <Coins className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                    </div>
 
-                <p className="mt-1 text-body text-text-soft">
-                  Credits can be used for eligible invoice sends after your free monthly
-                  allowance.
-                </p>
+                    <p className="mt-2 text-amount-l text-text">
+                      {credits?.balance ?? 0}
+                      <span className="ml-1.5 text-caption font-normal text-text-muted">
+                        credits
+                      </span>
+                    </p>
+
+                    <p className="mt-1 text-body text-text-soft">
+                      Credits can be used for eligible invoice sends after your free
+                      monthly allowance.
+                    </p>
+                  </div>
+
+                  <div className="mt-4 border-t border-line-subtle pt-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      zone="calm"
+                      disabled={billingActionLoading}
+                      onClick={handleBuyCredits}
+                    >
+                      {billingActionLoading && (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      )}
+                      Buy 200 credits · {formatMoney(200000, 'NGN', 'list')}
+                    </Button>
+                  </div>
+                </div>
               </div>
+            )}
+          </FormSection>
 
-              <div className="mt-4 border-t border-line-subtle pt-3">
+          <FormSection
+            id="payments"
+            icon={<CreditCard className="h-4 w-4" aria-hidden="true" />}
+            title="Get paid"
+            description="Configure the payment instructions your clients see on invoices."
+            className="scroll-mt-24"
+            action={
+              <Link
+                href="/settings/payments"
+                className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+              >
+                Manage payment settings
+              </Link>
+            }
+          >
+            <div className="border-brut-thin border-ink bg-surface-sunken p-4">
+              <p className="font-extrabold text-text">
+                Payment instructions by currency
+              </p>
+              <p className="mt-1 text-body text-text-soft">
+                Add bank accounts, payment links and mobile money details. You can
+                keep multiple profiles and choose a default for each currency.
+              </p>
+            </div>
+
+            <p className="text-caption text-text-muted">
+              These are payment instructions for your clients. They are not a
+              connection to a Paystack merchant account or to Bagg subscription
+              billing.
+            </p>
+          </FormSection>
+
+          <FormSection
+            id="reminders"
+            icon={<Bell className="h-4 w-4" aria-hidden="true" />}
+            title="Reminder schedule"
+            description="A preview of the automatic invoice reminder schedule."
+            className="scroll-mt-24"
+          >
+            {reminders.length > 0 ? (
+              <ul className="divide-y divide-line-subtle border-brut-thin border-ink bg-surface">
+                {reminders.map((item, index) => {
+                  const timing =
+                    item.days_relative_to_due < 0
+                      ? `${Math.abs(item.days_relative_to_due)} days before due`
+                      : item.days_relative_to_due === 0
+                        ? 'On the due date'
+                        : `${item.days_relative_to_due} days after due`;
+
+                  return (
+                    <li
+                      key={`${item.reminder_type}-${item.channel}-${index}`}
+                      className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-body"
+                    >
+                      <span className="font-bold capitalize text-text">
+                        {item.channel}
+                      </span>
+                      <span className="text-text-soft">{timing}</span>
+                      {!item.enabled && (
+                        <span className="text-caption font-bold text-text-muted">
+                          Disabled
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-body text-text-soft">
+                Your reminder schedule will appear here when it is available.
+              </p>
+            )}
+          </FormSection>
+
+          <ThemePreferenceSection />
+
+          <FormSection
+            id="data"
+            icon={<Download className="h-4 w-4" aria-hidden="true" />}
+            title="Your data"
+            description="Download a copy of your workspace data."
+            className="scroll-mt-24"
+          >
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={`${API_BASE}/compliance/export/csv`}
+                className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+              >
+                <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+                Export CSV
+              </a>
+
+              <a
+                href={`${API_BASE}/compliance/export/zip`}
+                className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+              >
+                <FileArchive className="h-4 w-4" aria-hidden="true" />
+                Export archive
+              </a>
+            </div>
+          </FormSection>
+
+          <section
+            id="danger"
+            className="scroll-mt-24 border-brut border-danger bg-surface p-5"
+          >
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-status-late text-status-late-fg">
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+              </span>
+
+              <div className="min-w-0 flex-1">
+                <h2 className="text-heading text-text">Delete your account</h2>
+                <p className="mt-1 max-w-xl text-body text-text-soft">
+                  This permanently removes your workspace, clients, invoices and
+                  public links. This action cannot be undone.
+                </p>
+
                 <Button
                   type="button"
-                  variant="outline"
-                  disabled={billingActionLoading}
-                  onClick={handleBuyCredits}
-                  className="min-h-10 px-4 text-caption"
+                  variant="danger"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setDeletePhrase('');
+                    setDeleteReason('');
+                    setShowDeleteModal(true);
+                  }}
+                  className="mt-4"
                 >
-                  {billingActionLoading && (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                  )}
-                  Buy 200 credits · {formatMoney(200000, 'NGN', 'list')}
+                  Delete account and data
                 </Button>
               </div>
             </div>
-          </div>
-        )}
-      </FormSection>
-
-      <FormSection
-        icon={<CreditCard className="h-4 w-4" aria-hidden="true" />}
-        title="Get paid"
-        description="Configure the payment instructions your clients see on invoices."
-        action={
-          <Link
-            href="/settings/payments"
-            className="inline-flex min-h-10 items-center justify-center rounded-full border-brut-thin border-ink px-4 text-caption font-extrabold text-text transition-colors hover:bg-surface-tint"
-          >
-            Manage payment settings
-          </Link>
-        }
-      >
-        <div className="flex flex-col gap-3 border-brut-thin border-ink bg-surface-sunken p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-extrabold text-text">Payment instructions by currency</p>
-            <p className="mt-1 text-body text-text-soft">
-              Add bank accounts, payment links and mobile money details. You can keep
-              multiple profiles and choose a default for each currency.
-            </p>
-          </div>
-          <Link
-            href="/settings/payments"
-            className="shrink-0 text-body font-extrabold text-link hover:underline"
-          >
-            Open Get Paid settings →
-          </Link>
+          </section>
         </div>
-        <p className="text-caption text-text-muted">
-          These are payment instructions for your clients. They are not a connection
-          to a Paystack merchant account or to Bagg subscription billing.
-        </p>
-      </FormSection>
-
-      <FormSection
-        icon={<Bell className="h-4 w-4" aria-hidden="true" />}
-        title="Reminder schedule"
-        description="A preview of the automatic invoice reminder schedule."
-      >
-        {reminders.length > 0 ? (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {reminders.map((item, index) => {
-              const timing =
-                item.days_relative_to_due < 0
-                  ? `${Math.abs(item.days_relative_to_due)} days before due`
-                  : item.days_relative_to_due === 0
-                    ? 'On the due date'
-                    : `${item.days_relative_to_due} days after due`;
-
-              return (
-                <div
-                  key={`${item.reminder_type}-${item.channel}-${index}`}
-                  className="bg-surface-sunken px-3 py-3 text-caption font-bold text-text-soft"
-                >
-                  <span className="capitalize">{item.channel}</span>: {timing}
-                  {!item.enabled && (
-                    <span className="ml-2 font-normal text-text-muted">Disabled</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-body text-text-soft">
-            Your reminder schedule will appear here when it is available.
-          </p>
-        )}
-      </FormSection>
-
-      <FormSection
-        icon={<Download className="h-4 w-4" aria-hidden="true" />}
-        title="Your data"
-        description="Download a copy of your workspace data."
-      >
-        <div className="flex flex-wrap gap-2">
-          <a
-            href={`${API_BASE}/compliance/export/csv`}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-brut-thin border-ink px-4 text-body font-extrabold text-text transition-colors hover:bg-surface-tint"
-          >
-            <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
-            Export CSV
-          </a>
-
-          <a
-            href={`${API_BASE}/compliance/export/zip`}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-brut-thin border-ink px-4 text-body font-extrabold text-text transition-colors hover:bg-surface-tint"
-          >
-            <FileArchive className="h-4 w-4" aria-hidden="true" />
-            Export archive
-          </a>
-        </div>
-      </FormSection>
-
-      <section className="border-brut border-danger bg-surface p-5">
-        <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-status-late text-status-late-fg">
-            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-          </span>
-
-          <div className="min-w-0 flex-1">
-            <h2 className="text-heading text-text">Delete your account</h2>
-            <p className="mt-1 max-w-xl text-body text-text-soft">
-              This permanently removes your workspace, clients, invoices and public
-              links. This action cannot be undone.
-            </p>
-
-            <Button
-              type="button"
-              variant="danger"
-              onClick={() => {
-                setDeleteError(null);
-                setDeletePhrase('');
-                setDeleteReason('');
-                setShowDeleteModal(true);
-              }}
-              className="mt-4"
-            >
-              Delete account and data
-            </Button>
-          </div>
-        </div>
-      </section>
+      </div>
 
       <Sheet open={showDeleteModal} onOpenChange={setShowDeleteModal}>
         <SheetContent className="max-h-[92dvh] overflow-y-auto rounded-t-sheet border-brut border-ink bg-surface p-5 pb-0 sm:inset-0 sm:m-auto sm:h-fit sm:w-[calc(100vw-2rem)] sm:max-w-md sm:rounded-sheet">
@@ -923,7 +1057,7 @@ export default function SettingsPage() {
         }}
         title="Security verification"
       >
-        <form onSubmit={handleVerifyDeletion} className="space-y-4 p-4">
+        <form onSubmit={handleVerifyDeletion} className="space-y-4">
           <div className="flex items-center gap-2 text-text">
             <ShieldCheck className="h-5 w-5 text-mango" />
             <p className="text-body font-bold">Confirm account deletion</p>

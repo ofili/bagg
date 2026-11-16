@@ -16,10 +16,16 @@ import { InlineClientModal } from '@/components/clients/InlineClientModal';
 import { LineItemsEditor } from '@/components/invoice';
 import { Money } from '@/components/money/Money';
 import {
+  Alert,
+  BaggSelect,
   Button,
   Card,
-  Field,
-  Input,
+  DateField,
+  FormGrid,
+  NumberField,
+  RadioGroup,
+  SearchInput,
+  TextField,
 } from '@/components/ui';
 import {
   type RecurringDraft,
@@ -154,59 +160,36 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
 
       {/* Error Message */}
       {draft.errorMsg && (
-        <div
-          role="alert"
-          className="flex items-start justify-between gap-2 bg-status-late p-3 text-body text-status-late-fg"
+        <Alert
+          variant="error"
+          dismissible
+          onDismiss={() => draft.setErrorMsg(null)}
         >
-          <span className="pt-2">{draft.errorMsg}</span>
-          <button
-            type="button"
-            aria-label="Dismiss error"
-            onClick={() => draft.setErrorMsg(null)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn"
-          >
-            <X aria-hidden className="h-5 w-5" />
-          </button>
-        </div>
+          {draft.errorMsg}
+        </Alert>
       )}
 
       {/* STEP 0: CLIENT & BASIC DETAILS */}
       {step === 0 && (
         <div className="space-y-4">
-          <Field label="Schedule name" hint="For example: Monthly Retainer, Website Support">
-            {({ id, ...a11y }) => (
-              <Input
-                id={id}
-                {...a11y}
-                type="text"
-                required
-                placeholder="e.g. Monthly Design Retainer"
-                value={draft.name}
-                onChange={(e) => draft.setName(e.target.value)}
-              />
-            )}
-          </Field>
+          <TextField
+            label="Schedule name"
+            required
+            hint="For example: Monthly Retainer, Website Support"
+            placeholder="e.g. Monthly Design Retainer"
+            value={draft.name}
+            onChange={(e) => draft.setName(e.target.value)}
+          />
 
-          <div>
-            <p className="text-body font-medium text-text mb-1.5">Currency</p>
-            <div className="flex flex-wrap gap-2">
-              {SUPPORTED_CURRENCIES.map((c) => (
-                <button
-                  key={c.code}
-                  type="button"
-                  onClick={() => draft.setCurrency(c.code)}
-                  className={cn(
-                    'rounded-full px-3 py-1.5 text-caption font-bold transition-colors',
-                    draft.currency === c.code
-                      ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
-                      : 'border-brut-thin border-ink bg-surface text-text-soft hover:bg-surface-tint',
-                  )}
-                >
-                  {c.code}
-                </button>
-              ))}
-            </div>
-          </div>
+          <BaggSelect
+            label="Currency"
+            value={draft.currency}
+            onChange={draft.setCurrency}
+            options={SUPPORTED_CURRENCIES.map((c) => ({
+              value: c.code,
+              label: c.label,
+            }))}
+          />
 
           <div className="pt-2">
             <p className="text-body font-medium text-text mb-2">Select client</p>
@@ -225,11 +208,10 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
               <>
                 {draft.clients.length > 5 && (
                   <div className="mb-3">
-                    <Input
-                      type="search"
-                      placeholder="Search clients..."
+                    <SearchInput
                       value={query}
-                      onChange={(e) => setQuery(e.target.value)}
+                      onChange={setQuery}
+                      placeholder="Search clients"
                     />
                   </div>
                 )}
@@ -309,220 +291,161 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
 
       {/* STEP 2: CADENCE & TIMING */}
       {step === 2 && (
-        <div className="space-y-5">
-          <Card className="space-y-4 p-4">
-            <div>
-              <p className="text-caption font-bold text-ink mb-1.5">Frequency</p>
-              <div className="grid grid-cols-2 gap-2">
-                {FREQUENCY_OPTIONS.map((f) => (
-                  <button
-                    key={f.value}
-                    type="button"
-                    onClick={() => draft.setFrequency(f.value)}
-                    className={cn(
-                      'flex items-center justify-center border p-3 font-bold transition-colors',
-                      draft.frequency === f.value
-                        ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
-                        : 'border-line bg-surface text-text-soft hover:bg-surface-tint',
-                    )}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div className="space-y-4">
+          <Card zone="calm" className="space-y-4 p-4">
+            <RadioGroup
+              label="Frequency"
+              value={draft.frequency}
+              onChange={(value) =>
+                draft.setFrequency(value as RecurringDraft['frequency'])
+              }
+              variant="cards"
+              columns={2}
+              options={FREQUENCY_OPTIONS.map((f) => ({
+                value: f.value,
+                label: f.label,
+              }))}
+            />
 
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Repeat every">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="number"
-                    min="1"
-                    max="12"
-                    value={draft.interval}
-                    onChange={(e) => draft.setIntervalVal(Number(e.target.value) || 1)}                    />
-                )}
-              </Field>
+            <FormGrid>
+              <NumberField
+                label="Repeat every"
+                required
+                min={1}
+                max={12}
+                step={1}
+                value={draft.interval}
+                onChange={(e) =>
+                  draft.setIntervalVal(Number(e.target.value) || 1)
+                }
+              />
 
-              <Field label="Start date">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="date"
-                    required
-                    value={draft.startDate}
-                    onChange={(e) => draft.setStartDate(e.target.value)}                    />
-                )}
-              </Field>
-            </div>
+              <DateField
+                label="Start date"
+                required
+                value={draft.startDate}
+                onChange={(e) => draft.setStartDate(e.target.value)}
+              />
+            </FormGrid>
           </Card>
 
-          <Card className="space-y-4 p-4">
-            <h3 className="text-body font-bold text-ink">Issuance & Review</h3>
+          <Card zone="calm" className="space-y-4 p-4">
+            <RadioGroup
+              label="Issuance"
+              value={draft.issueMode}
+              onChange={(value) =>
+                draft.setIssueMode(value as 'draft' | 'auto_issue')
+              }
+              variant="cards"
+              columns={1}
+              options={[
+                {
+                  value: 'draft',
+                  label: 'Draft review',
+                  description: `Generate as draft ${draft.draftLeadDays} days in advance for manual review.`,
+                },
+                {
+                  value: 'auto_issue',
+                  label: 'Automatic issuance',
+                  description:
+                    'Automatically issues and emails invoices without waiting for approval.',
+                },
+              ]}
+            />
 
-            <div className="grid gap-2">
-              <label
-                className={cn(
-                  'flex cursor-pointer items-start gap-3 border-brut p-3 transition-colors',
-                  draft.issueMode === 'draft'
-                    ? 'border-ink bg-sun/20 shadow-brut-sm'
-                    : 'border-line bg-surface hover:bg-surface-tint',
-                )}
-              >
-                <input
-                  type="radio"
-                  name="issue_mode"
-                  checked={draft.issueMode === 'draft'}
-                  onChange={() => draft.setIssueMode('draft')}
-                  className="mt-1"
-                />
-                <div>
-                  <p className="font-bold text-ink">Draft review</p>
-                  <p className="text-caption text-text-soft">
-                    Generate as draft {draft.draftLeadDays} days in advance for manual review.
-                  </p>
-                </div>
-              </label>
+            <FormGrid>
+              <NumberField
+                label="Draft lead (days)"
+                min={0}
+                max={30}
+                step={1}
+                value={draft.draftLeadDays}
+                onChange={(e) =>
+                  draft.setDraftLeadDays(Number(e.target.value))
+                }
+              />
 
-              <label
-                className={cn(
-                  'flex cursor-pointer items-start gap-3 border-brut p-3 transition-colors',
-                  draft.issueMode === 'auto_issue'
-                    ? 'border-ink bg-sun/20 shadow-brut-sm'
-                    : 'border-line bg-surface hover:bg-surface-tint',
-                )}
-              >
-                <input
-                  type="radio"
-                  name="issue_mode"
-                  checked={draft.issueMode === 'auto_issue'}
-                  onChange={() => draft.setIssueMode('auto_issue')}
-                  className="mt-1"
-                />
-                <div>
-                  <p className="font-bold text-ink">Automatic issuance</p>
-                  <p className="text-caption text-text-soft">
-                    Automatically issues and emails invoices without waiting for approval.
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Field label="Draft lead (days)">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="number"
-                    min="0"
-                    max="30"
-                    value={draft.draftLeadDays}
-                    onChange={(e) => draft.setDraftLeadDays(Number(e.target.value))}                    />
-                )}
-              </Field>
-
-              <Field label="Payment due (days)">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="number"
-                    min="0"
-                    max="365"
-                    value={draft.dueDateOffsetDays}
-                    onChange={(e) => draft.setDueDateOffsetDays(Number(e.target.value))}                    />
-                )}
-              </Field>
-            </div>
+              <NumberField
+                label="Payment due (days)"
+                min={0}
+                max={365}
+                step={1}
+                value={draft.dueDateOffsetDays}
+                onChange={(e) =>
+                  draft.setDueDateOffsetDays(Number(e.target.value))
+                }
+              />
+            </FormGrid>
           </Card>
 
-          <Card className="space-y-4 p-4">
-            <h3 className="text-body font-bold text-ink">Duration & End condition</h3>
-
-            <div className="flex flex-wrap gap-2">
-              {(['never', 'after_count', 'on_date'] as const).map((rule) => (
-                <button
-                  key={rule}
-                  type="button"
-                  onClick={() => draft.setEndRule(rule)}
-                  className={cn(
-                    'rounded-full px-3 py-1.5 text-caption font-bold capitalize transition-colors',
-                    draft.endRule === rule
-                      ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
-                      : 'border-brut-thin border-ink bg-surface text-text-soft hover:bg-surface-tint',
-                  )}
-                >
-                  {rule === 'never'
-                    ? 'Never end'
-                    : rule === 'after_count'
-                    ? 'Fixed count'
-                    : 'On a date'}
-                </button>
-              ))}
-            </div>
+          <Card zone="calm" className="space-y-4 p-4">
+            <RadioGroup
+              label="End condition"
+              value={draft.endRule}
+              onChange={(value) =>
+                draft.setEndRule(
+                  value as 'never' | 'after_count' | 'on_date',
+                )
+              }
+              direction="horizontal"
+              options={[
+                { value: 'never', label: 'Never end' },
+                { value: 'after_count', label: 'Fixed count' },
+                { value: 'on_date', label: 'On a date' },
+              ]}
+            />
 
             {draft.endRule === 'after_count' && (
-              <Field label="Total number of invoices">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="number"
-                    min="1"
-                    value={draft.endAfterCount}
-                    onChange={(e) => draft.setEndAfterCount(Number(e.target.value))}                    />
-                )}
-              </Field>
+              <NumberField
+                label="Total number of invoices"
+                required
+                min={1}
+                step={1}
+                value={draft.endAfterCount}
+                onChange={(e) => draft.setEndAfterCount(Number(e.target.value))}
+              />
             )}
 
             {draft.endRule === 'on_date' && (
-              <Field label="End date">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="date"
-                    required
-                    value={draft.endDate}
-                    onChange={(e) => draft.setEndDate(e.target.value)}                    />
-                )}
-              </Field>
+              <DateField
+                label="End date"
+                required
+                value={draft.endDate}
+                onChange={(e) => draft.setEndDate(e.target.value)}
+              />
             )}
           </Card>
 
-          <Card className="space-y-3 p-4">
-            <h3 className="text-body font-bold text-ink">Tax & Deductions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="VAT (%)">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={draft.taxText}
-                    onChange={(e) => draft.setTaxText(cleanAmount(e.target.value, draft.taxText))}                    />
-                )}
-              </Field>
+          <Card zone="calm" className="space-y-3 p-4">
+            <h3 className="text-body font-bold text-text">Tax and deductions</h3>
 
-              <Field label="WHT (%)">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={draft.whtText}
-                    onChange={(e) => draft.setWhtText(cleanAmount(e.target.value, draft.whtText))}                    />
-                )}
-              </Field>
-            </div>
+            <FormGrid>
+              <NumberField
+                label="VAT"
+                suffix="%"
+                min={0}
+                max={100}
+                step="0.01"
+                placeholder="0"
+                value={draft.taxText}
+                onChange={(e) =>
+                  draft.setTaxText(cleanAmount(e.target.value, draft.taxText))
+                }
+              />
+
+              <NumberField
+                label="WHT"
+                suffix="%"
+                min={0}
+                max={100}
+                step="0.01"
+                placeholder="0"
+                value={draft.whtText}
+                onChange={(e) =>
+                  draft.setWhtText(cleanAmount(e.target.value, draft.whtText))
+                }
+              />
+            </FormGrid>
           </Card>
         </div>
       )}
@@ -531,7 +454,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
       {step === 3 && (
         <div className="space-y-4">
           <Card className="space-y-4 p-5">
-            <div className="flex items-center justify-between border-b border-line pb-3">
+            <div className="flex items-center justify-between border-b border-line-subtle pb-3">
               <div className="flex items-center gap-3">
                 <span className="flex h-11 w-11 items-center justify-center rounded-full border-brut-thin border-ink bg-mango font-black text-on-mango">
                   {client ? initials(client.name) : '?'}
@@ -558,7 +481,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
             </div>
 
             {/* Line items summary */}
-            <div className="border-t border-line pt-3">
+            <div className="border-t border-line-subtle pt-3">
               <p className="text-caption font-bold text-ink mb-2">Line items</p>
               <div className="space-y-2">
                 {draft.items.map((it) => (
@@ -577,7 +500,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
             </div>
 
             {/* Totals */}
-            <div className="space-y-1.5 border-t border-line pt-3 text-caption text-text-soft">
+            <div className="space-y-1.5 border-t border-line-subtle pt-3 text-caption text-text-soft">
               <div className="flex justify-between">
                 <span>Subtotal</span>
                 <Money amountMinor={draft.subtotalMinor} currency={draft.currency} />
@@ -594,7 +517,7 @@ export function NewRecurringFlow({ draft }: { draft: RecurringDraft }) {
                   <span>-<Money amountMinor={draft.whtMinor} currency={draft.currency} /></span>
                 </div>
               )}
-              <div className="flex justify-between border-t border-line pt-2 text-title font-black text-ink">
+              <div className="flex justify-between border-t border-line-subtle pt-2 text-title font-black text-ink">
                 <span>Cycle total</span>
                 <Money amountMinor={draft.totalMinor} currency={draft.currency} />
               </div>

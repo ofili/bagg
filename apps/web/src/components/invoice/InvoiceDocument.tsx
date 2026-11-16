@@ -238,31 +238,31 @@ export function InvoiceDocument({
         )}
 
         {isClaimed && (
-          <div className="space-y-2 border border-amber-300 bg-amber-50 p-3.5 text-body text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-            <div className="flex items-center gap-2 font-bold text-amber-900 dark:text-amber-100">
-              <Clock3 aria-hidden className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="space-y-2 border-brut-thin border-ink bg-status-due p-3.5 text-body text-status-due-fg">
+            <div className="flex items-center gap-2 font-bold">
+              <Clock3 aria-hidden className="h-4 w-4 shrink-0" />
               <span>{variant === 'issuer' ? 'Payment claim awaiting confirmation' : 'Payment reported · Awaiting confirmation'}</span>
             </div>
-            <p className="text-caption text-amber-800 dark:text-amber-300">
+            <p className="text-caption">
               {variant === 'issuer'
                 ? 'Your client has reported a payment. Confirm the funds in your account to generate the official receipt.'
                 : 'You reported this payment. Once your freelancer confirms the funds in their bank account, your receipt will be available here automatically.'}
             </p>
             {latest_claim && (
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-amber-200/60 pt-2 text-caption dark:border-amber-800/40">
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-status-due-fg/25 pt-2 text-caption">
                 <span>
-                  <strong className="text-amber-950 dark:text-amber-100">Amount:</strong>{' '}
+                  <strong>Amount:</strong>{' '}
                   <Money amountMinor={latest_claim.amount_minor || 0} currency={currency} hideCurrencyCode variant="inherit" />
                 </span>
                 {latest_claim.payment_date && (
                   <span>
-                    <strong className="text-amber-950 dark:text-amber-100">Date:</strong>{' '}
+                    <strong>Date:</strong>{' '}
                     {formatDate(latest_claim.payment_date)}
                   </span>
                 )}
                 {latest_claim.reference && (
                   <span>
-                    <strong className="text-amber-950 dark:text-amber-100">Reference:</strong>{' '}
+                    <strong>Reference:</strong>{' '}
                     {latest_claim.reference}
                   </span>
                 )}
@@ -271,7 +271,7 @@ export function InvoiceDocument({
                     href={latest_claim.proof_file_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 font-bold text-amber-900 underline dark:text-amber-100"
+                    className="inline-flex items-center gap-1 font-bold underline"
                   >
                     View proof document <ExternalLink aria-hidden className="h-3 w-3" />
                   </a>
@@ -282,12 +282,12 @@ export function InvoiceDocument({
         )}
 
         {isClaimRejected && (
-          <div className="space-y-2 border border-red-300 bg-red-50 p-3.5 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
-            <div className="flex items-center gap-2 font-bold text-red-900 dark:text-red-100">
-              <AlertCircle aria-hidden className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+          <div className="space-y-2 border-brut-thin border-ink bg-status-late p-3.5 text-body text-status-late-fg">
+            <div className="flex items-center gap-2 font-bold">
+              <AlertCircle aria-hidden className="h-4 w-4 shrink-0" />
               <span>Previous payment could not be verified</span>
             </div>
-            <p className="text-caption text-red-800 dark:text-red-300">
+            <p className="text-caption">
               {variant === 'issuer'
                 ? 'You rejected this payment claim.'
                 : 'Your freelancer was unable to confirm the previously reported payment.'}

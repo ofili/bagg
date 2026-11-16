@@ -1,15 +1,10 @@
 'use client';
 
-import {
-  Monitor,
-  Moon,
-  Sun,
-} from 'lucide-react';
+import { Monitor, Moon, Sun } from 'lucide-react';
 
-import {
-  ThemePreference,
-  useTheme,
-} from './theme-provider';
+import { FormSection, RadioGroup } from '@/components/ui';
+
+import { ThemePreference, useTheme } from './theme-provider';
 
 const OPTIONS: {
   value: ThemePreference;
@@ -41,84 +36,31 @@ export function ThemePreferenceSection() {
   const { preference, resolvedTheme, setPreference } = useTheme();
 
   return (
-    <section
-      aria-labelledby="appearance-heading"
-      className="border-brut border-ink bg-surface p-5"
+    <FormSection
+      id="appearance"
+      title="Appearance"
+      description="Choose how Bagg looks on this device."
+      className="scroll-mt-24"
     >
-      <div className="border-b border-line-subtle pb-4">
-        <h2
-          id="appearance-heading"
-          className="text-heading text-text"
-        >
-          Appearance
-        </h2>
+      <RadioGroup
+        label="Theme"
+        value={preference}
+        onChange={(value) => setPreference(value as ThemePreference)}
+        variant="cards"
+        columns={3}
+        options={OPTIONS.map(({ value, label, description, Icon }) => ({
+          value,
+          label,
+          description,
+          icon: <Icon className="h-5 w-5" aria-hidden="true" />,
+        }))}
+      />
 
-        <p className="mt-1 text-caption text-text-muted">
-          Choose how Bagg looks on this device.
-        </p>
-      </div>
-
-      <fieldset className="pt-4">
-        <legend className="mb-3 mt-3 text-label font-bold text-ink">
-          Theme
-        </legend>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {OPTIONS.map(({ value, label, description, Icon }) => {
-            const selected = preference === value;
-
-            return (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => setPreference(value)}
-                className={[
-                  'flex min-h-20 items-center gap-3 rounded-btn',
-                  'border-brut-thin p-3 text-left transition-colors',
-                  'focus-visible:outline-none',
-                  selected
-                    ? 'border-ink bg-peach shadow-brut-sm'
-                    : 'border-line bg-surface hover:bg-surface-tint',
-                ].join(' ')}
-              >
-                <span
-                  className={[
-                    'flex h-10 w-10 shrink-0 items-center justify-center',
-                    'rounded-full',
-                    selected
-                      ? 'bg-mango text-on-mango'
-                      : 'bg-surface-tint text-text-soft',
-                  ].join(' ')}
-                >
-                  <Icon
-                    aria-hidden="true"
-                    className="h-5 w-5"
-                  />
-                </span>
-
-                <span className="min-w-0">
-                  <span className="block text-body font-extrabold text-ink">
-                    {label}
-                  </span>
-                  <span className="mt-0.5 block text-caption text-text-muted">
-                    {description}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      <p
-        className="mt-4 text-caption text-text-muted"
-        aria-live="polite"
-      >
+      <p className="text-caption text-text-muted" aria-live="polite">
         {preference === 'system'
           ? `Following your device preference. Currently using ${resolvedTheme} mode.`
           : `Your preference is saved. Bagg is using ${resolvedTheme} mode.`}
       </p>
-    </section>
+    </FormSection>
   );
 }

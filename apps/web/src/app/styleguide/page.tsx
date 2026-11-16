@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { notFound } from 'next/navigation';
-import { Building2, Save } from 'lucide-react';
+import { Building2, Save, User } from 'lucide-react';
 
 import {
   Alert,
@@ -22,12 +22,18 @@ import {
   ErrorState,
   FormActions,
   FormGrid,
+  FormPageLayout,
   FormSection,
+  FormSubsection,
   MoneyField,
   NumberField,
   OtpField,
   PhoneField,
   RadioGroup,
+  StaticField,
+  StepIndicator,
+  StickyFormActions,
+  SummaryRail,
   TextArea,
   TextField,
   Toggle,
@@ -98,6 +104,7 @@ export default function StyleguidePage() {
   const [searchCountry, setSearchCountry] = useState('NG');
   const [terms, setTerms] = useState(true);
   const [plan, setPlan] = useState('monthly');
+  const [clientType, setClientType] = useState('individual');
 
   // Table demo
   const [sortBy, setSortBy] = useState('number');
@@ -351,6 +358,146 @@ export default function StyleguidePage() {
         </FormSection>
       </section>
 
+      {/* Form archetypes */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-title text-text">form archetypes</h2>
+          <p className="text-caption text-text-muted">
+            Record forms stack FormSections. Document builders pair a form column
+            with a sticky SummaryRail. Long forms keep their primary action
+            reachable with StickyFormActions.
+          </p>
+        </div>
+
+        <FormSection
+          title="Record form"
+          description="Group related fields into FormSubsections and show read-only relationships with StaticField."
+        >
+          <FormSubsection
+            title="Identity"
+            description="The name and contact details used on documents."
+          >
+            <FormGrid>
+              <TextField
+                label="Full name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+
+              <StaticField
+                label="Client type"
+                value="Business"
+                hint="Client type cannot be changed after creation."
+              />
+            </FormGrid>
+          </FormSubsection>
+
+          <FormSubsection divided title="Preferences">
+            <Checkbox
+              label="Send automatic reminders"
+              hint="Stops as soon as the invoice is paid."
+              checked={terms}
+              onChange={setTerms}
+            />
+          </FormSubsection>
+
+          <div className="max-h-56 overflow-y-auto border-brut-thin border-ink bg-surface-sunken">
+            <div className="h-32 p-4 text-caption text-text-muted">
+              Scroll this panel to see the sticky action bar.
+            </div>
+
+            <StickyFormActions tone="panel">
+              <FormActions divider={false}>
+                <Button zone="calm">Save changes</Button>
+              </FormActions>
+            </StickyFormActions>
+          </div>
+        </FormSection>
+
+        <FormSection
+          title="Step indicator"
+          description="Use for multi-step auth and onboarding flows."
+        >
+          <StepIndicator
+            steps={[
+              { id: 'business', label: 'Business details' },
+              { id: 'plan', label: 'Choose a plan' },
+            ]}
+            current="plan"
+            label="Setup progress"
+          />
+        </FormSection>
+
+        <FormPageLayout
+          aside={
+            <SummaryRail
+              title="Summary"
+              description="Totals update as you edit."
+              actions={
+                <>
+                  <Button variant="outline" zone="calm" fullWidth>
+                    Preview
+                  </Button>
+                  <Button zone="calm" fullWidth>
+                    Save draft
+                  </Button>
+                </>
+              }
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-body text-text-soft">Subtotal</span>
+                <Money
+                  amountMinor={45000000}
+                  currency="NGN"
+                  hideCurrencyCode
+                />
+              </div>
+
+              <div className="flex items-baseline justify-between gap-3 border-t border-line-subtle pt-3">
+                <span className="text-body-l font-extrabold text-text">
+                  Total due
+                </span>
+                <Money
+                  amountMinor={45000000}
+                  currency="NGN"
+                  className="text-amount-m"
+                  hideCurrencyCode
+                />
+              </div>
+            </SummaryRail>
+          }
+        >
+          <FormSection
+            title="Client"
+            description="Who this document is for."
+          >
+            <TextField
+              label="Client name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </FormSection>
+
+          <FormSection
+            title="Invoice details"
+            description="When the invoice is issued and when payment is due."
+          >
+            <FormGrid>
+              <DateField
+                label="Issue date"
+                value={dueDate}
+                onChange={(event) => setDueDate(event.target.value)}
+              />
+              <DateField
+                label="Due date"
+                value={rangeEnd}
+                onChange={(event) => setRangeEnd(event.target.value)}
+              />
+            </FormGrid>
+          </FormSection>
+        </FormPageLayout>
+      </section>
+
       {/* Fields */}
       <section className="space-y-5">
         <div>
@@ -474,6 +621,28 @@ export default function StyleguidePage() {
               { value: 'monthly', label: 'Monthly' },
               { value: 'quarterly', label: 'Quarterly' },
               { value: 'yearly', label: 'Yearly' },
+            ]}
+          />
+
+          <RadioGroup
+            label="Client type"
+            value={clientType}
+            onChange={setClientType}
+            variant="cards"
+            columns={2}
+            options={[
+              {
+                value: 'individual',
+                label: 'Individual',
+                description: 'A person you invoice.',
+                icon: <User className="h-5 w-5" aria-hidden="true" />,
+              },
+              {
+                value: 'business',
+                label: 'Business',
+                description: 'A company or organisation.',
+                icon: <Building2 className="h-5 w-5" aria-hidden="true" />,
+              },
             ]}
           />
         </FormSection>

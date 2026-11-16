@@ -3,14 +3,31 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, X } from '@phosphor-icons/react';
-import { LineItemsEditor, lineTotalMinor, newLineItem, type LineItem } from '@/components/invoice';
+import { ArrowLeft } from '@phosphor-icons/react';
+import {
+  LineItemsEditor,
+  lineTotalMinor,
+  newLineItem,
+  type LineItem,
+} from '@/components/invoice';
 import { MoneyField } from '@/components/ui/MoneyField';
 import { Money } from '@/components/money/Money';
-import { BaggSelect, Button, Card, Chip, Field, Input, buttonStyles, inputStyles } from '@/components/ui';
+import {
+  Alert,
+  BaggSelect,
+  Button,
+  FormPageLayout,
+  FormSection,
+  NumberField,
+  PageContainer,
+  PageHeader,
+  RadioGroup,
+  SummaryRail,
+  TextArea,
+  buttonStyles,
+} from '@/components/ui';
 import { InlineClientModal, type InlineCreatedClient } from '@/components/clients/InlineClientModal';
 import { cleanAmount, toMinor } from '@/lib/amount';
-import { cn } from '@/lib/cn';
 
 const API_BASE = '/api';
 
@@ -149,46 +166,163 @@ export function NewQuoteDesktop() {
   };
 
   return (
-    <div className="w-full max-w-3xl space-y-6 p-4 pb-24 sm:p-6 sm:pb-16 lg:p-8">
-      <div className="space-y-2">
+    <PageContainer width="form" className="pb-24 sm:pb-16">
+      <div className="space-y-4">
         <Link href="/quotes" className={buttonStyles({ variant: 'outline' })}>
           <ArrowLeft aria-hidden className="h-4 w-4" />
           Back to quotes
         </Link>
-        <h1 className="text-title-l sm:text-display">new quote</h1>
-        <p className="text-body text-text-soft">An estimate with an expiry date. Convert it to an invoice once it is accepted.</p>
+        <PageHeader
+          title="New quote"
+          description="An estimate with an expiry date. Convert it to an invoice once it is accepted."
+        />
       </div>
 
       {errorMsg && (
-        <div role="alert" className="flex items-start justify-between gap-2 bg-status-late p-3 text-body text-status-late-fg">
-          <span className="pt-2">{errorMsg}</span>
-          <button
-            type="button"
-            aria-label="Dismiss message"
-            onClick={() => setErrorMsg(null)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn"
-          >
-            <X aria-hidden className="h-5 w-5" />
-          </button>
-        </div>
+        <Alert variant="error" dismissible onDismiss={() => setErrorMsg(null)}>
+          {errorMsg}
+        </Alert>
       )}
 
-      <Card zone="calm" className="grid gap-4 p-5 sm:grid-cols-2">
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <label className="text-body font-medium text-text">Client</label>
-            <button
+      <FormPageLayout
+        aside={
+          <SummaryRail
+            title="Summary"
+            description="Totals update as you edit."
+            actions={
+              <>
+                <Link
+                  href="/quotes"
+                  className={buttonStyles({
+                    variant: 'outline',
+                    zone: 'calm',
+                    size: 'lg',
+                    fullWidth: true,
+                  })}
+                >
+                  Cancel
+                </Link>
+                <Button
+                  size="lg"
+                  fullWidth
+                  loading={saving}
+                  onClick={handleCreate}
+                >
+                  Create quote
+                </Button>
+              </>
+            }
+          >
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-body text-text-soft">Subtotal</span>
+              <Money
+                amountMinor={subtotalMinor}
+                currency={currency}
+                hideCurrencyCode
+              />
+            </div>
+
+            <MoneyField
+              label="Discount"
+              currency={currency}
+              value={discountText}
+              onChange={(v) => setDiscountText(cleanAmount(v, discountText))}
+            />
+
+            <NumberField
+              label="VAT or tax"
+              suffix="%"
+              min={0}
+              max={100}
+              step="0.01"
+              placeholder="0"
+              value={taxText}
+              onChange={(e) => setTaxText(cleanAmount(e.target.value, taxText))}
+            />
+
+            <NumberField
+              label="Withholding"
+              suffix="%"
+              min={0}
+              max={100}
+              step="0.01"
+              placeholder="0"
+              value={whtText}
+              onChange={(e) => setWhtText(cleanAmount(e.target.value, whtText))}
+            />
+
+            {taxMinor > 0 && (
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-body text-text-soft">Tax</span>
+                <Money
+                  amountMinor={taxMinor}
+                  currency={currency}
+                  hideCurrencyCode
+                />
+              </div>
+            )}
+
+            {whtMinor > 0 && (
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-body text-text-soft">
+                  Less withholding tax
+                </span>
+                <span>
+                  −
+                  <Money
+                    amountMinor={whtMinor}
+                    currency={currency}
+                    hideCurrencyCode
+                  />
+                </span>
+              </div>
+            )}
+
+            <div className="flex items-baseline justify-between gap-3 border-t border-line-subtle pt-3">
+              <span className="text-body-l font-extrabold text-text">
+                Net payable
+              </span>
+              <Money
+                amountMinor={netMinor}
+                currency={currency}
+                className="text-amount-m"
+                hideCurrencyCode
+              />
+            </div>
+
+            {depositMinor > 0 && (
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-body text-text-soft">
+                  Deposit on acceptance
+                </span>
+                <Money
+                  amountMinor={depositMinor}
+                  currency={currency}
+                  hideCurrencyCode
+                />
+              </div>
+            )}
+          </SummaryRail>
+        }
+      >
+        <FormSection
+          title="Client and offer"
+          description="Who this quote is for and how long the offer stands."
+          action={
+            <Button
               type="button"
+              variant="link"
               onClick={() => setShowClientModal(true)}
-              className="text-caption font-bold text-mango hover:underline"
             >
               + Add new client
-            </button>
-          </div>
+            </Button>
+          }
+        >
           {clients.length > 0 ? (
             <BaggSelect
-              label=""
-              className="w-full"
+              label="Client"
+              required
+              searchable={clients.length > 8}
               value={selectedClientId}
               onChange={handleClientChange}
               options={clients.map((c) => ({
@@ -197,7 +331,7 @@ export function NewQuoteDesktop() {
               }))}
             />
           ) : (
-            <div className="rounded-input border border-dashed border-line p-3">
+            <div className="border-brut-thin border-ink bg-surface-sunken p-4">
               <p className="text-body text-text-soft">
                 No clients yet.{' '}
                 <button
@@ -210,140 +344,77 @@ export function NewQuoteDesktop() {
               </p>
             </div>
           )}
-        </div>
 
-        <BaggSelect
-          label="Currency"
-          className="w-full"
-          value={currency}
-          onChange={setCurrency}
-          options={SUPPORTED_CURRENCIES.map((c) => ({
-            value: c.code,
-            label: c.label,
-          }))}
-        />
-
-        <div className="space-y-1.5 sm:col-span-2">
-          <p id="validity-label" className="text-body font-medium">
-            Offer is valid for
-          </p>
-          <div role="group" aria-labelledby="validity-label" className="flex flex-wrap gap-3">
-            {VALIDITY_OPTIONS.map((days) => (
-              <Chip key={days} selected={validityDays === days} onClick={() => setValidityDays(days)}>
-                {days} days
-              </Chip>
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      <LineItemsEditor items={items} onChange={setItems} currency={currency} />
-
-      <section className="grid gap-6 sm:grid-cols-2">
-        <div className="space-y-4">
-          <Field label="Deposit (%)" hint="Optional. The client sees the amount due upfront when they accept.">
-            {(a) => (
-              <Input
-                type="text"
-                inputMode="decimal"
-                placeholder="0"
-                value={depositText}
-                onChange={(e) => setDepositText(cleanAmount(e.target.value, depositText))}
-                {...a}
-              />
-            )}
-          </Field>
-          <Field label="Note for your client" hint="Scope, timelines or terms.">
-            {(a) => (
-              <textarea
-                rows={5}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className={cn(inputStyles, 'min-h-32 py-2')}
-                {...a}
-              />
-            )}
-          </Field>
-        </div>
-
-        <Card zone="calm" className="space-y-3 p-5">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-body text-text-soft">Subtotal</span>
-            <Money amountMinor={subtotalMinor} currency={currency} hideCurrencyCode />
-          </div>
-          <MoneyField
-            label="Discount"
-            currency={currency}
-            value={discountText}
-            onChange={(v) => setDiscountText(cleanAmount(v, discountText))}
+          <BaggSelect
+            label="Currency"
+            value={currency}
+            onChange={setCurrency}
+            options={SUPPORTED_CURRENCIES.map((c) => ({
+              value: c.code,
+              label: c.label,
+            }))}
           />
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="VAT or tax (%)">
-              {(a) => (
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={taxText}
-                  onChange={(e) => setTaxText(cleanAmount(e.target.value, taxText))}
-                  {...a}
-                />
-              )}
-            </Field>
-            <Field label="Withholding (%)">
-              {(a) => (
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={whtText}
-                  onChange={(e) => setWhtText(cleanAmount(e.target.value, whtText))}
-                  {...a}
-                />
-              )}
-            </Field>
-          </div>
-          {taxMinor > 0 && (
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-body text-text-soft">Tax</span>
-              <Money amountMinor={taxMinor} currency={currency} hideCurrencyCode />
-            </div>
-          )}
-          {whtMinor > 0 && (
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-body text-text-soft">Less withholding tax</span>
-              <span>
-                −<Money amountMinor={whtMinor} currency={currency} hideCurrencyCode />
-              </span>
-            </div>
-          )}
-          <div className="flex items-baseline justify-between gap-3 border-t border-line pt-3">
-            <span className="text-body-l font-extrabold">Net payable</span>
-            <Money amountMinor={netMinor} currency={currency} className="text-amount-m" hideCurrencyCode />
-          </div>
-          {depositMinor > 0 && (
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-body text-text-soft">Deposit on acceptance</span>
-              <Money amountMinor={depositMinor} currency={currency} hideCurrencyCode />
-            </div>
-          )}
-        </Card>
-      </section>
 
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Link href="/quotes" className={buttonStyles({ variant: 'outline', zone: 'calm', size: 'lg' })}>
-          Cancel
-        </Link>
-        <Button size="lg" loading={saving} onClick={handleCreate}>
-          Create quote
-        </Button>
-      </div>
+          <RadioGroup
+            label="Offer is valid for"
+            value={String(validityDays)}
+            onChange={(value) => setValidityDays(Number(value))}
+            direction="horizontal"
+            options={VALIDITY_OPTIONS.map((days) => ({
+              value: String(days),
+              label: `${days} days`,
+            }))}
+          />
+        </FormSection>
+
+        <FormSection
+          title="Items"
+          description="What you're quoting for. Add one row per service or product."
+        >
+          <LineItemsEditor
+            bare
+            items={items}
+            onChange={setItems}
+            currency={currency}
+          />
+        </FormSection>
+
+        <FormSection
+          title="Terms"
+          description="Optional payment terms and context shown to your client."
+        >
+          <NumberField
+            label="Deposit"
+            suffix="%"
+            optional
+            min={0}
+            max={100}
+            step="0.01"
+            placeholder="0"
+            hint="The client sees the amount due upfront when they accept."
+            value={depositText}
+            onChange={(e) =>
+              setDepositText(cleanAmount(e.target.value, depositText))
+            }
+          />
+
+          <TextArea
+            label="Note for your client"
+            optional
+            rows={5}
+            hint="Scope, timelines or terms."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </FormSection>
+      </FormPageLayout>
+
       <InlineClientModal
         open={showClientModal}
         onClose={() => setShowClientModal(false)}
         onClientCreated={handleClientCreated}
         defaultCurrency={currency}
       />
-    </div>
+    </PageContainer>
   );
 }

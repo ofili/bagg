@@ -31,11 +31,14 @@ import {
   FormActions,
   FormGrid,
   FormSection,
+  FormSubsection,
   NumberField,
   PageHeader,
   PhoneField,
   ProgressBar,
   StatCard,
+  StaticField,
+  StickyFormActions,
   TextArea,
   TextField,
   buttonStyles,
@@ -979,7 +982,7 @@ return (
 
       {/* TAB 6: EDIT DETAILS */}
       {activeTab === 'edit' && (
-        <form onSubmit={handleUpdateClient} className="space-y-6">
+        <form onSubmit={handleUpdateClient} className="space-y-5">
           {successMessage && (
             <Alert variant="success">
               {successMessage}
@@ -993,88 +996,135 @@ return (
           )}
 
           <FormSection
-            title="Edit client information"
-            description="Update the billing details used on future documents."
+            title="Client details"
+            description="The name and contact details used on future documents."
           >
-            <FormGrid>
-              <TextField
-                id="client-name"
-                label="Client or company name"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+            <FormSubsection
+              title="Identity"
+              description="How this client is named on invoices, quotes and receipts."
+            >
+              <FormGrid>
+                <TextField
+                  id="client-name"
+                  label="Client or company name"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
 
-              <EmailField
-                id="client-email"
-                label="Billing email"
-                optional
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+                <TextField
+                  id="client-tax"
+                  label="Tax ID or TIN"
+                  optional
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                />
+              </FormGrid>
 
-              <PhoneField
-                id="client-phone"
-                label="Phone"
-                optional
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+              <StaticField
+                label="Client type"
+                value={client.client_type === 'BUSINESS' ? 'Business' : 'Individual'}
+                hint="The client type cannot be changed after creation."
               />
+            </FormSubsection>
 
-              <TextField
-                id="client-tax"
-                label="Tax ID or TIN"
-                optional
-                value={taxId}
-                onChange={(e) => setTaxId(e.target.value)}
-              />
+            <FormSubsection
+              divided
+              title="Contact"
+              description="Where invoices and reminders are sent."
+            >
+              <FormGrid>
+                <EmailField
+                  id="client-email"
+                  label="Billing email"
+                  optional
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
 
-              <BaggSelect
-                id="client-currency"
-                label="Preferred currency"
-                value={preferredCurrency}
-                onChange={setPreferredCurrency}
-                options={SUPPORTED_CURRENCIES.map((c) => ({
-                  value: c.code,
-                  label: c.label,
-                }))}
-              />
+                <PhoneField
+                  id="client-phone"
+                  label="Phone"
+                  optional
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </FormGrid>
+            </FormSubsection>
+          </FormSection>
 
-              <NumberField
-                id="client-terms"
-                label="Payment terms"
-                suffix="days"
-                min={0}
-                value={paymentTerms}
-                onChange={(e) => setPaymentTerms(Number(e.target.value))}
-              />
+          <FormSection
+            title="Billing defaults"
+            description="These defaults are used when preparing invoices for this client."
+          >
+            <FormSubsection title="Commercial terms">
+              <FormGrid>
+                <BaggSelect
+                  id="client-currency"
+                  label="Preferred currency"
+                  value={preferredCurrency}
+                  onChange={setPreferredCurrency}
+                  options={SUPPORTED_CURRENCIES.map((c) => ({
+                    value: c.code,
+                    label: c.label,
+                  }))}
+                />
 
-              <TextField
-                id="client-address"
-                label="Billing address"
-                optional
-                className="sm:col-span-2"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              />
+                <NumberField
+                  id="client-terms"
+                  label="Payment terms"
+                  suffix="days"
+                  min={0}
+                  value={paymentTerms}
+                  onChange={(e) => setPaymentTerms(Number(e.target.value))}
+                />
+              </FormGrid>
+            </FormSubsection>
 
-              <TextArea
-                id="client-notes"
-                label="Notes"
-                optional
-                rows={3}
-                className="sm:col-span-2"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </FormGrid>
+            <FormSubsection divided title="Tax and location">
+              <FormGrid>
+                <TextField
+                  id="client-country"
+                  label="Country"
+                  autoComplete="country"
+                  placeholder="e.g. NG"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                />
 
-            <FormActions>
+                <TextField
+                  id="client-address"
+                  label="Billing address"
+                  optional
+                  autoComplete="street-address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
+              </FormGrid>
+            </FormSubsection>
+          </FormSection>
+
+          <FormSection
+            title="Private notes"
+            description="Only you can see this. It is never shown to the client."
+          >
+            <TextArea
+              id="client-notes"
+              label="Notes"
+              optional
+              rows={4}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </FormSection>
+
+          <StickyFormActions>
+            <FormActions divider={false}>
               <Button type="submit" zone="calm" loading={saving}>
                 <FloppyDisk className="h-4 w-4" /> Save changes
               </Button>
             </FormActions>
-          </FormSection>
+          </StickyFormActions>
         </form>
       )}
     </div>

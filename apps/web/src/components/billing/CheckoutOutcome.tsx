@@ -119,7 +119,7 @@ export function CheckoutOutcome({ variant }: Props) {
           return;
         }
 
-        let data: unknown = await response.json().catch(() => null);
+        const data: unknown = await response.json().catch(() => null);
 
         if (!response.ok || !data || typeof data !== 'object') {
           const detail =

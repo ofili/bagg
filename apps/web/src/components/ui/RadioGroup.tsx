@@ -1,13 +1,13 @@
-
 'use client';
 
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 export interface RadioGroupOption {
   label: string;
   value: string;
   description?: string;
+  icon?: ReactNode;
   disabled?: boolean;
 }
 
@@ -23,8 +23,18 @@ export interface RadioGroupProps {
   optional?: boolean;
   disabled?: boolean;
   direction?: 'vertical' | 'horizontal';
+  /** cards renders each option as a bordered, tappable choice card. */
+  variant?: 'default' | 'cards';
+  /** Card grid columns from sm upward. */
+  columns?: 1 | 2 | 3;
   className?: string;
 }
+
+const COLUMNS = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-1 sm:grid-cols-2',
+  3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+};
 
 export function RadioGroup({
   label,
@@ -38,6 +48,8 @@ export function RadioGroup({
   optional = false,
   disabled = false,
   direction = 'vertical',
+  variant = 'default',
+  columns = 2,
   className,
 }: RadioGroupProps) {
   const id = useId();
@@ -81,20 +93,34 @@ export function RadioGroup({
 
       <div
         className={cn(
-          'flex gap-x-5 gap-y-3',
-          direction === 'vertical' ? 'flex-col' : 'flex-row flex-wrap',
+          variant === 'cards'
+            ? cn('grid gap-3', COLUMNS[columns])
+            : cn(
+                'flex gap-x-5 gap-y-3',
+                direction === 'vertical'
+                  ? 'flex-col'
+                  : 'flex-row flex-wrap',
+              ),
         )}
       >
         {options.map((option, index) => {
           const optionId = `${id}-${index}`;
           const optionDisabled = disabled || option.disabled;
+          const selected = value === option.value;
 
           return (
             <label
               key={option.value}
               htmlFor={optionId}
               className={cn(
-                'flex min-h-11 cursor-pointer items-start gap-3',
+                'flex cursor-pointer items-start gap-3',
+                variant === 'cards'
+                  ? 'min-h-20 border-brut-thin border-ink p-4 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink'
+                  : 'min-h-11',
+                variant === 'cards' &&
+                  (selected
+                    ? 'bg-peach-chip'
+                    : 'bg-surface hover:bg-surface-tint'),
                 optionDisabled && 'cursor-not-allowed opacity-50',
               )}
             >
@@ -103,7 +129,7 @@ export function RadioGroup({
                 type="radio"
                 name={groupName}
                 value={option.value}
-                checked={value === option.value}
+                checked={selected}
                 onChange={() => onChange(option.value)}
                 disabled={optionDisabled}
                 required={required}
@@ -115,13 +141,40 @@ export function RadioGroup({
                 )}
               />
 
-              <span className="min-w-0">
-                <span className="block text-body font-medium text-text">
-                  {option.label}
+              <span className={cn('min-w-0', variant === 'cards' && 'flex-1')}>
+                {option.icon && variant === 'cards' && (
+                  <span
+                    aria-hidden="true"
+                    className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-surface text-text"
+                  >
+                    {option.icon}
+                  </span>
+                )}
+
+                <span className="flex items-center gap-2">
+                  {option.icon && variant !== 'cards' && (
+                    <span
+                      aria-hidden="true"
+                      className="shrink-0 text-text-muted"
+                    >
+                      {option.icon}
+                    </span>
+                  )}
+
+                  <span
+                    className={cn(
+                      'block text-body text-text',
+                      variant === 'cards'
+                        ? 'font-extrabold'
+                        : 'font-medium',
+                    )}
+                  >
+                    {option.label}
+                  </span>
                 </span>
 
                 {option.description && (
-                  <span className="mt-0.5 block text-caption text-text-muted">
+                  <span className="mt-1 block text-caption text-text-muted">
                     {option.description}
                   </span>
                 )}

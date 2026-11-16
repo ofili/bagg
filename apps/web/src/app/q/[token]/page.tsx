@@ -9,7 +9,7 @@ import { DocumentComments } from "@/components/comments/DocumentComments";
 import { QuoteRespondBar } from '@/components/mobile/QuoteRespondBar';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
-import { Button, Card, Dialog, Field, Input, Alert, buttonStyles, inputStyles } from '@/components/ui';
+import { Button, Card, Dialog, TextArea, TextField, Alert, buttonStyles } from '@/components/ui';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 
@@ -282,7 +282,7 @@ export default function PublicQuotePage() {
         {/* Where this quotes stands */}
         {isAccepted && (
           <Card zone="calm" tone="peach" className="flex items-start gap-3">
-            <BagCharacter size={44} mood="celebrating" decorative />.
+            <BagCharacter size={44} mood="celebrating" decorative />
             <div>
               <p className="text-body font-extrabold">Quote accepted</p>
               <p className="text-body text-text-soft">
@@ -374,11 +374,11 @@ export default function PublicQuotePage() {
               <h2 id="scope-heading" className="text-heading">
                 scope and deliverables
               </h2>
-              <ul className="space-y-2">
+              <ul className="divide-y divide-line-subtle border-brut-thin border-ink bg-surface">
                 {quote.items.map((item) => (
                   <li
                     key={item.id}
-                    className="flex items-center justify-between gap-3 border-brut border-ink bg-surface p-3"
+                    className="flex items-center justify-between gap-3 p-3"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-body font-medium">{item.description}</p>
@@ -528,28 +528,15 @@ export default function PublicQuotePage() {
             />
           </div>
 
-          <Field label="Your full name or authorised signatory">
-            {(a) => (
-              <Input
-                type="text"
-                required
-                placeholder="e.g. Amara Okonkwo"
-                value={acceptName}
-                onChange={(e) => setAcceptName(e.target.value)}
-                {...a}
-              />
-            )}
-          </Field>
+          <TextField
+            label="Your full name or authorised signatory"
+            required
+            placeholder="e.g. Amara Okonkwo"
+            value={acceptName}
+            onChange={(e) => setAcceptName(e.target.value)}
+          />
 
-          {acceptError && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-            >
-              <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-              <span>{acceptError}</span>
-            </div>
-          )}
+          {acceptError && <Alert variant="error">{acceptError}</Alert>}
 
           <div className="grid grid-cols-2 gap-3 pt-2">
             <Button
@@ -578,28 +565,16 @@ export default function PublicQuotePage() {
         className="max-h-[92dvh] overflow-y-auto"
       >
         <form onSubmit={handleDeclineQuote} className="space-y-4">
-          <Field label="Reason (optional)">
-            {(a) => (
-              <textarea
-                rows={4}
-                placeholder="For example: budget changed, timeline too tight, or the scope changed."
-                value={declineReason}
-                onChange={(e) => setDeclineReason(e.target.value)}
-                className={cn(inputStyles, 'min-h-28 py-2')}
-                {...a}
-              />
-            )}
-          </Field>
+          <TextArea
+            label="Reason"
+            optional
+            rows={4}
+            placeholder="For example: budget changed, timeline too tight, or the scope changed."
+            value={declineReason}
+            onChange={(e) => setDeclineReason(e.target.value)}
+          />
 
-          {declineError && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 border border-red-300 bg-red-50 p-3 text-body text-red-950 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-            >
-              <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-              <span>{declineError}</span>
-            </div>
-          )}
+          {declineError && <Alert variant="error">{declineError}</Alert>}
 
           <div className="grid grid-cols-2 gap-3 pt-2">
             <Button
@@ -628,19 +603,33 @@ export default function PublicQuotePage() {
         className="max-h-[92dvh] overflow-y-auto"
       >
         <form onSubmit={handleRequestReview} className="space-y-4">
-          <Field label="What should change?">
-            {(a) => (
-              <textarea
-                rows={4}
-                required
-                placeholder="For example: split the deposit into two payments, or add a line for photography."
-                value={reviewReason}
-                onChange={(e) => setReviewReason(e.target.value)}
-                className={cn(inputStyles, 'min-h-28 py-2')}
-                {...a}
+          <div className="space-y-1 border-brut-thin border-ink bg-surface-sunken p-3">
+            <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
+              Requesting changes to
+            </p>
+            <p className="text-body font-extrabold text-text">
+              Quote {quote.quote_number}
+            </p>
+            <p className="text-caption text-text-muted">
+              Net payable:{' '}
+              <Money
+                amountMinor={quote.net_payable_minor}
+                currency={quote.currency}
+                variant="inherit"
+                className="font-extrabold text-text"
               />
-            )}
-          </Field>
+            </p>
+          </div>
+
+          <TextArea
+            label="What should change?"
+            required
+            rows={5}
+            hint="Be specific about line items, pricing, dates or scope."
+            placeholder="For example: split the deposit into two payments, or add a line for photography."
+            value={reviewReason}
+            onChange={(e) => setReviewReason(e.target.value)}
+          />
 
           {reviewError && <Alert variant="error">{reviewError}</Alert>}
 

@@ -6,16 +6,19 @@
  * to the new address, which is a separate piece of work.
  */
 import { useEffect, useState } from 'react';
+import { Mail, Phone, User } from 'lucide-react';
+
 import { Avatar } from '@/components/navigation/UserMenu';
 import {
   Alert,
   Button,
-  EmailField,
   FormActions,
   FormSection,
   PageContainer,
   PageHeader,
   PhoneField,
+  StaticField,
+  StickyFormActions,
   TextField,
 } from '@/components/ui';
 
@@ -73,17 +76,24 @@ export default function ProfilePage() {
         description="Your personal details. Your business details are in Workspace settings."
       />
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 border-brut border-ink bg-surface p-4">
         <Avatar name={fullName} email={email} size={72} />
-        <p className="text-body text-text-muted">
-          Photo uploads are coming soon. Your initials show until then.
-        </p>
+
+        <div className="min-w-0">
+          <p className="truncate text-body-l font-extrabold text-text">
+            {fullName || 'Your profile'}
+          </p>
+          <p className="mt-0.5 text-caption text-text-muted">
+            Photo uploads are coming soon. Your initials show until then.
+          </p>
+        </div>
       </div>
 
-      <form onSubmit={save}>
+      <form onSubmit={save} className="space-y-5">
         <FormSection
-          title="Your details"
-          description="The name and phone number shown on your account."
+          icon={<User className="h-4 w-4" aria-hidden="true" />}
+          title="Identity"
+          description="The name shown on your account and in the app."
         >
           <TextField
             label="Full name"
@@ -97,14 +107,19 @@ export default function ProfilePage() {
             }}
           />
 
-          <EmailField
+          <StaticField
             label="Email"
-            value={email}
-            disabled
-            readOnly
-            hint="You sign in with a code sent to this email."
+            icon={<Mail className="h-4 w-4" aria-hidden="true" />}
+            value={email || 'Not set'}
+            hint="You sign in with a code sent to this email. Changing it is coming soon."
           />
+        </FormSection>
 
+        <FormSection
+          icon={<Phone className="h-4 w-4" aria-hidden="true" />}
+          title="Contact"
+          description="How we reach you about your account."
+        >
           <PhoneField
             label="Phone"
             value={phone}
@@ -115,21 +130,23 @@ export default function ProfilePage() {
               if (status === 'saved') setStatus('ready');
             }}
           />
+        </FormSection>
 
-          {error ? <Alert variant="error">{error}</Alert> : null}
+        {error ? <Alert variant="error">{error}</Alert> : null}
 
-          {status === 'saved' ? (
-            <p role="status" className="text-body font-semibold text-text">
-              Saved.
-            </p>
-          ) : null}
+        {status === 'saved' ? (
+          <Alert variant="success" dismissible onDismiss={() => setStatus('ready')}>
+            Profile saved.
+          </Alert>
+        ) : null}
 
-          <FormActions>
+        <StickyFormActions>
+          <FormActions divider={false}>
             <Button type="submit" disabled={disabled} loading={status === 'saving'}>
               Save changes
             </Button>
           </FormActions>
-        </FormSection>
+        </StickyFormActions>
       </form>
     </PageContainer>
   );

@@ -2,8 +2,16 @@
 
 import { useState } from 'react';
 import { Buildings, User } from '@phosphor-icons/react';
-import { BaggSelect, Button, Dialog, Field, Input } from '@/components/ui';
-import { cn } from '@/lib/cn';
+import {
+  Alert,
+  BaggSelect,
+  Button,
+  Dialog,
+  EmailField,
+  PhoneField,
+  RadioGroup,
+  TextField,
+} from '@/components/ui';
 
 const API_BASE = '/api';
 
@@ -24,13 +32,13 @@ interface InlineClientModalProps {
 }
 
 const CURRENCIES = [
-  { code: 'NGN', label: 'NGN – Nigerian naira' },
-  { code: 'USD', label: 'USD – US dollar' },
-  { code: 'GBP', label: 'GBP – British pound' },
-  { code: 'EUR', label: 'EUR – Euro' },
-  { code: 'GHS', label: 'GHS – Ghanaian cedi' },
-  { code: 'KES', label: 'KES – Kenyan shilling' },
-  { code: 'ZAR', label: 'ZAR – South African rand' },
+  { code: 'NGN', label: 'NGN · Nigerian naira' },
+  { code: 'USD', label: 'USD · US dollar' },
+  { code: 'GBP', label: 'GBP · British pound' },
+  { code: 'EUR', label: 'EUR · Euro' },
+  { code: 'GHS', label: 'GHS · Ghanaian cedi' },
+  { code: 'KES', label: 'KES · Kenyan shilling' },
+  { code: 'ZAR', label: 'ZAR · South African rand' },
 ];
 
 export function InlineClientModal({
@@ -117,83 +125,56 @@ export function InlineClientModal({
       title="Add new client"
       className="max-h-[90dvh] max-w-md overflow-y-auto"
     >
-      <form onSubmit={handleSubmit} className="space-y-4 p-4">
-        {/* Person / Business Toggle */}
-        <div>
-          <label className="block text-caption font-bold text-ink mb-1">Client type</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setClientType('PERSON')}
-              className={cn(
-                'flex items-center justify-center gap-2 rounded-btn border p-2.5 text-body font-bold transition-colors',
-                clientType === 'PERSON'
-                  ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
-                  : 'border-line bg-surface text-text-soft hover:bg-surface-tint',
-              )}
-            >
-              <User className="h-4 w-4" /> Individual
-            </button>
-            <button
-              type="button"
-              onClick={() => setClientType('BUSINESS')}
-              className={cn(
-                'flex items-center justify-center gap-2 rounded-btn border p-2.5 text-body font-bold transition-colors',
-                clientType === 'BUSINESS'
-                  ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
-                  : 'border-line bg-surface text-text-soft hover:bg-surface-tint',
-              )}
-            >
-              <Buildings className="h-4 w-4" /> Business
-            </button>
-          </div>
-        </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <RadioGroup
+          label="Client type"
+          value={clientType}
+          onChange={(value) => setClientType(value as 'PERSON' | 'BUSINESS')}
+          variant="cards"
+          columns={2}
+          options={[
+            {
+              value: 'PERSON',
+              label: 'Individual',
+              icon: <User className="h-5 w-5" aria-hidden="true" />,
+            },
+            {
+              value: 'BUSINESS',
+              label: 'Business',
+              icon: <Buildings className="h-5 w-5" aria-hidden="true" />,
+            },
+          ]}
+        />
 
-        {/* Client Name */}
-        <Field label={clientType === 'BUSINESS' ? 'Company name' : 'Full name'}>
-          {({ id, ...a11y }) => (
-            <Input
-              id={id}
-              {...a11y}
-              type="text"
-              required
-              autoFocus
-              placeholder={clientType === 'BUSINESS' ? 'e.g. Acme Corp' : 'e.g. Jane Doe'}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          )}
-        </Field>
+        <TextField
+          label={clientType === 'BUSINESS' ? 'Company name' : 'Full name'}
+          required
+          autoFocus
+          placeholder={
+            clientType === 'BUSINESS' ? 'e.g. Acme Corp' : 'e.g. Jane Doe'
+          }
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
 
-        {/* Email */}
-        <Field label="Email address" hint="Where invoices and quotes will be sent">
-          {({ id, ...a11y }) => (
-            <Input
-              id={id}
-              {...a11y}
-              type="email"
-              placeholder="billing@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          )}
-        </Field>
+        <EmailField
+          label="Email address"
+          optional
+          placeholder="billing@example.com"
+          hint="Where invoices and quotes will be sent."
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
-        {/* Phone */}
-        <Field label="Phone number" hint="For WhatsApp notifications and payment reminders">
-          {({ id, ...a11y }) => (
-            <Input
-              id={id}
-              {...a11y}
-              type="tel"
-              placeholder="+234 801 234 5678"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          )}
-        </Field>
+        <PhoneField
+          label="Phone number"
+          optional
+          placeholder="+234 801 234 5678"
+          hint="For WhatsApp notifications and payment reminders."
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+        />
 
-        {/* Currency */}
         <BaggSelect
           label="Preferred currency"
           value={currency}
@@ -201,13 +182,9 @@ export function InlineClientModal({
           options={CURRENCIES.map((c) => ({ value: c.code, label: c.label }))}
         />
 
-        {error && (
-          <div role="alert" className=" bg-status-late/30 border border-danger p-3 text-caption font-bold text-danger">
-            {error}
-          </div>
-        )}
+        {error && <Alert variant="error">{error}</Alert>}
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-line">
+        <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">
           <Button
             type="button"
             variant="outline"
@@ -216,11 +193,7 @@ export function InlineClientModal({
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            variant="accent"
-            loading={saving}
-          >
+          <Button type="submit" variant="accent" loading={saving}>
             Add client
           </Button>
         </div>

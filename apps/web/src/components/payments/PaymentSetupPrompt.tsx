@@ -11,14 +11,12 @@ interface PaymentSetupPromptProps {
   currency: string;
   validation: ValidationState;
   onRetry: () => void;
-  compact?: boolean;
 }
 
 export function PaymentSetupPrompt({
   currency,
   validation,
   onRetry,
-  compact = false,
 }: PaymentSetupPromptProps) {
   if (validation.status === 'loading') {
     return (

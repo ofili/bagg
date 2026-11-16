@@ -120,7 +120,7 @@ export function ProductPreview() {
             </div>
           </div>
 
-          <span className="shrink-0 border border-line bg-cream px-2 py-1 text-caption font-extrabold text-text-soft">
+          <span className="shrink-0 border-brut-thin border-ink bg-cream px-2 py-1 text-caption font-extrabold text-text-soft">
           NGN
         </span>
         </div>
@@ -138,7 +138,7 @@ export function ProductPreview() {
           </p>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="border border-line bg-cream p-3">
+            <div className="border-brut-thin border-ink bg-cream p-3">
               <p className="text-caption font-bold text-text-muted">
                 Received
               </p>
@@ -151,7 +151,7 @@ export function ProductPreview() {
               </p>
             </div>
 
-            <div className="border border-line bg-cream p-3">
+            <div className="border-brut-thin border-ink bg-cream p-3">
               <p className="text-caption font-bold text-text-muted">
                 Balance
               </p>
@@ -202,14 +202,14 @@ export function ProductPreview() {
             {step.key === 'paid' ? (
                 <StatusPill status="paid" />
             ) : (
-                <span className="border border-line bg-surface px-2.5 py-1 text-caption font-extrabold text-text-soft">
+                <span className="border-brut-thin border-ink bg-surface px-2.5 py-1 text-caption font-extrabold text-text-soft">
               {step.tab}
             </span>
             )}
           </div>
 
           <div className="mt-3 flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-line bg-surface text-ink">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center border-brut-thin border-ink bg-surface text-ink">
             {step.key === 'sent' && (
                 <Link2 className="h-4 w-4" aria-hidden="true" />
             )}

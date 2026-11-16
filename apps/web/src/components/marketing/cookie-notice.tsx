@@ -35,7 +35,7 @@ export function CookieNotice() {
       <div
         role="region"
         aria-label="Cookie notice"
-        className="mx-auto flex max-w-3xl flex-col gap-4 border border-line bg-surface p-4 shadow-sheet sm:flex-row sm:items-center sm:justify-between sm:p-5"
+        className="mx-auto flex max-w-3xl flex-col gap-4 border-brut border-ink bg-surface p-4 shadow-sheet sm:flex-row sm:items-center sm:justify-between sm:p-5"
       >
         <div className="flex items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-peach-chip text-ink">

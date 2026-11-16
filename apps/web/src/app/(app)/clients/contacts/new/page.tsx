@@ -16,12 +16,13 @@ import {
   FormActions,
   FormGrid,
   FormSection,
+  FormSubsection,
+  PageContainer,
   PageHeader,
   PhoneField,
   TextField,
   buttonStyles,
 } from '@/components/ui';
-import { cn } from '@/lib/cn';
 
 const API_BASE = '/api';
 
@@ -184,19 +185,21 @@ export default function NewContactPage() {
   const selectedClient = clients.find((client) => client.id === clientId);
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <Link
-        href="/clients/contacts"
-        className={cn(buttonStyles({ variant: 'outline', zone: 'calm' }), 'w-fit')}
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to contacts
-      </Link>
+    <PageContainer width="form">
+      <div className="space-y-4">
+        <Link
+          href="/clients/contacts"
+          className={buttonStyles({ variant: 'outline', zone: 'calm', fullWidth: false })}
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to contacts
+        </Link>
 
-      <PageHeader
-        title="Add contact"
-        description="Save a person’s details and associate them with a client."
-      />
+        <PageHeader
+          title="Add contact"
+          description="Save a person’s details and associate them with a client."
+        />
+      </div>
 
       {loadError && (
         <Alert
@@ -231,52 +234,58 @@ export default function NewContactPage() {
       {(clientsLoading || clients.length > 0) && !loadError && (
         <form onSubmit={handleSubmit} className="space-y-5">
           <FormSection
-            title="Contact details"
-            description="Enter the person’s name and contact information."
+            title="Client"
+            description="Choose the client this person belongs to."
           >
-            <div>
-              <BaggSelect
-                label="Associated client"
+            <BaggSelect
+              label="Associated client"
+              required
+              searchable={clients.length > 8}
+              value={clientId}
+              onChange={setClientId}
+              disabled={clientsLoading || clients.length === 0 || saving}
+              placeholder={clientsLoading ? 'Loading clients…' : 'Choose a client'}
+              options={clients.map((client) => ({
+                value: client.id,
+                label: `${client.name} · ${client.client_type === 'BUSINESS' ? 'Business' : 'Individual'}`,
+              }))}
+            />
+
+            {selectedClient && (
+              <p className="text-caption text-text-muted">
+                This contact will be linked to {selectedClient.name}.
+              </p>
+            )}
+          </FormSection>
+
+          <FormSection
+            title="Person"
+            description="The name and contact details shown on the client record."
+          >
+            <FormGrid>
+              <TextField
+                label="Full name"
+                name="name"
                 required
-                value={clientId}
-                onChange={setClientId}
-                disabled={clientsLoading || clients.length === 0 || saving}
-                placeholder={clientsLoading ? 'Loading clients…' : 'Choose a client'}
-                options={clients.map((client) => ({
-                  value: client.id,
-                  label: `${client.name} · ${client.client_type === 'BUSINESS' ? 'Business' : 'Individual'}`,
-                }))}
+                autoComplete="name"
+                maxLength={255}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                disabled={saving}
+                placeholder="e.g. Ada Okafor"
               />
 
-              {selectedClient && (
-                <p className="mt-2 text-caption text-text-muted">
-                  This contact will be linked to {selectedClient.name}.
-                </p>
-              )}
-            </div>
-
-            <TextField
-              label="Full name"
-              name="name"
-              required
-              autoComplete="name"
-              maxLength={255}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              disabled={saving}
-              placeholder="e.g. Ada Okafor"
-            />
-
-            <TextField
-              label="Job title"
-              name="job_title"
-              optional
-              maxLength={255}
-              value={jobTitle}
-              onChange={(event) => setJobTitle(event.target.value)}
-              disabled={saving}
-              placeholder="e.g. Finance Manager"
-            />
+              <TextField
+                label="Job title"
+                name="job_title"
+                optional
+                maxLength={255}
+                value={jobTitle}
+                onChange={(event) => setJobTitle(event.target.value)}
+                disabled={saving}
+                placeholder="e.g. Finance Manager"
+              />
+            </FormGrid>
 
             <FormGrid>
               <EmailField
@@ -301,24 +310,21 @@ export default function NewContactPage() {
                 placeholder="+234 803 123 4567"
               />
             </FormGrid>
-          </FormSection>
 
-          <FormSection
-            title="Contact preferences"
-            description="Set how this person appears on the client record."
-          >
-            <Checkbox
-              label="Primary contact"
-              hint="Mark this person as the main contact for the selected client."
-              checked={isPrimary}
-              onChange={setIsPrimary}
-              disabled={saving}
-            />
+            <FormSubsection divided title="Contact preferences">
+              <Checkbox
+                label="Primary contact"
+                hint="Mark this person as the main contact for the selected client."
+                checked={isPrimary}
+                onChange={setIsPrimary}
+                disabled={saving}
+              />
+            </FormSubsection>
           </FormSection>
 
           {error && <Alert variant="error">{error}</Alert>}
 
-          <FormActions divider={false}>
+          <FormActions>
             <Link
               href="/clients/contacts"
               className={buttonStyles({ variant: 'outline', zone: 'calm' })}
@@ -348,6 +354,6 @@ export default function NewContactPage() {
           </FormActions>
         </form>
       )}
-    </div>
+    </PageContainer>
   );
 }

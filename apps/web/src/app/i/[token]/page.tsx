@@ -10,10 +10,18 @@ import { InvoiceDocument, PaymentDetails } from '@/components/invoice';
 import { ClientPayBar, ClientPayView, type ClientPayProps } from '@/components/mobile/ClientPay';
 import { Money } from '@/components/money/Money';
 import { MoneyField } from '@/components/ui/MoneyField';
-import { Alert, Button, Card, Dialog, Field, Input, inputStyles } from '@/components/ui';
+import {
+  Alert,
+  Button,
+  Card,
+  DateField,
+  Dialog,
+  EmailField,
+  TextArea,
+  TextField,
+} from '@/components/ui';
 import { cleanAmount, toMinor } from '@/lib/amount';
 import { formatDate } from '@/lib/date';
-import { cn } from '@/lib/cn';
 
 const API_BASE = '/api';
 
@@ -700,48 +708,31 @@ export default function PublicClientInvoiceView() {
               </div>
             </div>
 
-            <Field label="Date you paid">
-              {(a) => (
-                  <Input
-                      type="date"
-                      required
-                      max={new Date().toISOString().split('T')[0]}
-                      value={claimDate}
-                      onChange={(e) => setClaimDate(e.target.value)}
-                      {...a}
-                  />
-              )}
-            </Field>
+            <DateField
+              label="Date you paid"
+              required
+              max={new Date().toISOString().split('T')[0]}
+              value={claimDate}
+              onChange={(e) => setClaimDate(e.target.value)}
+            />
 
-            <Field
-                label="Transfer reference (optional)"
-                hint="Bank session ID, transaction ref, or your sender bank/account name."
-            >
-              {(a) => (
-                  <Input
-                      type="text"
-                      placeholder="e.g. 0901238492 or Access Bank transfer"
-                      value={claimReference}
-                      onChange={(e) => setClaimReference(e.target.value)}
-                      {...a}
-                  />
-              )}
-            </Field>
+            <TextField
+              label="Transfer reference"
+              optional
+              placeholder="e.g. 0901238492 or Access Bank transfer"
+              hint="Bank session ID, transaction ref, or your sender bank/account name."
+              value={claimReference}
+              onChange={(e) => setClaimReference(e.target.value)}
+            />
 
-            <Field
-                label="Link to proof (optional)"
-                hint="A link to a receipt screenshot or bank payment slip."
-            >
-              {(a) => (
-                  <Input
-                      type="text"
-                      placeholder="https://..."
-                      value={claimProofUrl}
-                      onChange={(e) => setClaimProofUrl(e.target.value)}
-                      {...a}
-                  />
-              )}
-            </Field>
+            <TextField
+              label="Link to proof"
+              optional
+              placeholder="https://..."
+              hint="A link to a receipt screenshot or bank payment slip."
+              value={claimProofUrl}
+              onChange={(e) => setClaimProofUrl(e.target.value)}
+            />
 
             <div className="grid grid-cols-2 gap-3 pt-2">
               <Button
@@ -791,41 +782,29 @@ export default function PublicClientInvoiceView() {
                 <form onSubmit={handleReportAbuse} className="space-y-4">
                   {abuseError && <Alert variant="error">{abuseError}</Alert>}
 
-                  <Field label="What looks wrong?" hint="At least 10 characters.">
-                    {(a) => (
-                        <textarea
-                            required
-                            minLength={10}
-                            rows={4}
-                            value={abuseReason}
-                            onChange={(e) => setAbuseReason(e.target.value)}
-                            className={cn(inputStyles, 'min-h-28 py-2')}
-                            {...a}
-                        />
-                    )}
-                  </Field>
+                  <TextArea
+                    label="What looks wrong?"
+                    required
+                    minLength={10}
+                    rows={4}
+                    hint="At least 10 characters."
+                    value={abuseReason}
+                    onChange={(e) => setAbuseReason(e.target.value)}
+                  />
 
-                  <Field label="Your email (optional)">
-                    {(a) => (
-                        <Input
-                            type="email"
-                            value={abuseEmail}
-                            onChange={(e) => setAbuseEmail(e.target.value)}
-                            {...a}
-                        />
-                    )}
-                  </Field>
+                  <EmailField
+                    label="Your email"
+                    optional
+                    value={abuseEmail}
+                    onChange={(e) => setAbuseEmail(e.target.value)}
+                  />
 
-                  <Field label="Your name (optional)">
-                    {(a) => (
-                        <Input
-                            type="text"
-                            value={abuseName}
-                            onChange={(e) => setAbuseName(e.target.value)}
-                            {...a}
-                        />
-                    )}
-                  </Field>
+                  <TextField
+                    label="Your name"
+                    optional
+                    value={abuseName}
+                    onChange={(e) => setAbuseName(e.target.value)}
+                  />
 
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <Button

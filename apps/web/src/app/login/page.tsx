@@ -12,6 +12,7 @@ import {
   Button,
   EmailField,
   OtpField,
+  StepIndicator,
   buttonStyles,
 } from '@/components/ui';
 import { cn } from '@/lib/cn';
@@ -227,6 +228,15 @@ function LoginPageContent() {
         </section>
 
         <section className="space-y-5 md:border-brut md:border-ink md:bg-surface md:p-8">
+          <StepIndicator
+            steps={[
+              { id: 'email', label: 'Email' },
+              { id: 'code', label: 'Verify' },
+            ]}
+            current={step}
+            label="Sign-in progress"
+          />
+
           <div className="flex items-center gap-3 md:hidden">
             <BagCharacter
               size={64}

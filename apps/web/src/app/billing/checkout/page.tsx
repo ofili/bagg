@@ -116,12 +116,6 @@ function isPaystackAuthorizationUrl(value: string): boolean {
   }
 }
 
-function getPlanLabel(plan: string): string {
-  if (plan === 'creator_pro') return 'Creator Pro';
-  if (plan === 'professional') return 'Professional';
-  return 'Selected plan';
-}
-
 function getApiError(data: unknown, fallback: string): string {
   if (!data || typeof data !== 'object') return fallback;
 
@@ -202,11 +196,15 @@ function CheckoutPageContent() {
         });
 
         if (response.status === 401) {
-          const params = new URLSearchParams({
-            next: '/onboarding/plan',
-            plan: planCode,
-            billing_interval: interval,
-          });
+          const params = new URLSearchParams({ next: '/onboarding/plan' });
+
+          if (planCode) {
+            params.set('plan', planCode);
+          }
+
+          if (interval) {
+            params.set('billing_interval', interval);
+          }
 
           if (continuation.next) {
             params.set('next', continuation.next);

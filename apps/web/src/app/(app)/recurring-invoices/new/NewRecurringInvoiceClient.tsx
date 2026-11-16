@@ -8,21 +8,28 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, X } from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react';
 import { LineItemsEditor } from '@/components/invoice';
 import { NewRecurringFlow } from '@/components/mobile/NewRecurringFlow';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
 import { Money } from '@/components/money/Money';
 import {
+  Alert,
   BaggSelect,
   Button,
-  Card,
-  Field,
-  Input,
+  DateField,
+  FormGrid,
+  FormPageLayout,
+  FormSection,
+  FormSubsection,
+  NumberField,
   PageContainer,
   PageHeader,
+  RadioGroup,
+  SummaryRail,
+  TextArea,
+  TextField,
   buttonStyles,
-  inputStyles,
 } from '@/components/ui';
 import {
   useRecurringDraft,
@@ -30,12 +37,43 @@ import {
   SUPPORTED_CURRENCIES,
 } from '@/hooks/useRecurringDraft';
 import { cleanAmount } from '@/lib/amount';
-import { cn } from '@/lib/cn';
+
+const CADENCE_UNIT: Record<string, string> = {
+  daily: 'day',
+  weekly: 'week',
+  monthly: 'month',
+  quarterly: 'quarter',
+  yearly: 'year',
+};
+
+function formatIsoDate(value: string) {
+  if (!value) return 'Not set';
+
+  const [year, month, day] = value.split('-').map(Number);
+
+  if (!year || !month || !day) return value;
+
+  return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 export default function NewRecurringInvoiceClient() {
   const router = useRouter();
   const draft = useRecurringDraft();
   const [showClientModal, setShowClientModal] = useState(false);
+
+  const selectedClient = draft.clients.find(
+    (client) => client.id === draft.selectedClientId,
+  );
+
+  const cadenceUnit = CADENCE_UNIT[draft.frequency] ?? 'month';
+  const cadence =
+    draft.interval === 1
+      ? `every ${cadenceUnit}`
+      : `every ${draft.interval} ${cadenceUnit}s`;
 
   async function handleDesktopSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,427 +104,377 @@ export default function NewRecurringInvoiceClient() {
         </div>
 
         {draft.errorMsg && (
-          <div
-            role="alert"
-            className="flex items-start justify-between gap-2 bg-status-late p-3 text-body text-status-late-fg"
+          <Alert
+            variant="error"
+            dismissible
+            onDismiss={() => draft.setErrorMsg(null)}
           >
-            <span className="pt-2">{draft.errorMsg}</span>
-            <button
-              type="button"
-              aria-label="Dismiss error"
-              onClick={() => draft.setErrorMsg(null)}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn"
-            >
-              <X aria-hidden className="h-5 w-5" />
-            </button>
-          </div>
+            {draft.errorMsg}
+          </Alert>
         )}
 
-        <form onSubmit={handleDesktopSubmit} className="space-y-6">
-          {/* General Details */}
-          <Card className="space-y-4 p-5 sm:p-6">
-            <h2 className="text-heading font-black text-ink">General details</h2>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Schedule name">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="text"
-                    required
-                    placeholder="e.g. Monthly Design Retainer"
-                    value={draft.name}
-                    onChange={(e) => draft.setName(e.target.value)}
-                  />
-                )}
-              </Field>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-body font-medium text-text">Client</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowClientModal(true)}
-                    className="text-caption font-bold text-mango hover:underline"
-                  >
-                    + Add new client
-                  </button>
+        <form onSubmit={handleDesktopSubmit}>
+          <FormPageLayout
+            aside={
+              <SummaryRail
+                title="Schedule summary"
+                description="Totals are per generated invoice."
+                actions={
+                  <>
+                    <Link
+                      href="/recurring-invoices"
+                      className={buttonStyles({
+                        variant: 'outline',
+                        zone: 'calm',
+                        fullWidth: true,
+                      })}
+                    >
+                      Cancel
+                    </Link>
+                    <Button
+                      type="submit"
+                      variant="accent"
+                      size="lg"
+                      fullWidth
+                      loading={draft.saving}
+                    >
+                      Create recurring schedule
+                    </Button>
+                  </>
+                }
+              >
+                <div className="space-y-1 border-b border-line-subtle pb-3">
+                  <p className="text-body font-extrabold text-text">
+                    {draft.name || 'Untitled schedule'}
+                  </p>
+                  <p className="text-caption text-text-muted">
+                    {selectedClient?.name ?? 'No client selected'}
+                  </p>
+                  <p className="text-caption text-text-muted">
+                    Invoices {cadence} · due {draft.dueDateOffsetDays} days after
+                    issue
+                  </p>
+                  <p className="text-caption text-text-muted">
+                    Starts {formatIsoDate(draft.startDate)}
+                  </p>
                 </div>
-                {draft.clients.length > 0 ? (
-                  <BaggSelect
-                    label=""
-                    className="w-full"
-                    value={draft.selectedClientId}
-                    onChange={draft.handleClientChange}
-                    options={draft.clients.map((c) => ({
-                      value: c.id,
-                      label: `${c.name} (${c.preferred_currency})`,
-                    }))}
-                  />
-                ) : (
-                  <div className="rounded-input border border-dashed border-line p-3">
-                    <p className="text-body text-text-soft">
-                      No clients yet.{' '}
-                      <button
-                        type="button"
-                        onClick={() => setShowClientModal(true)}
-                        className="font-extrabold text-link underline underline-offset-4"
-                      >
-                        Add a client
-                      </button>
-                    </p>
-                  </div>
-                )}
-              </div>
 
-              <BaggSelect
-                label="Currency"
-                className="w-full"
-                value={draft.currency}
-                onChange={draft.setCurrency}
-                options={SUPPORTED_CURRENCIES.map((c) => ({
-                  value: c.code,
-                  label: c.label,
-                }))}
-              />
-
-              <Field label="Start date">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="date"
-                    required
-                    value={draft.startDate}
-                    onChange={(e) => draft.setStartDate(e.target.value)}
-                  />
-                )}
-              </Field>
-            </div>
-          </Card>
-
-          {/* Schedule Cadence */}
-          <Card className="space-y-4 p-5 sm:p-6">
-            <h2 className="text-heading font-black text-ink">Frequency & Timing</h2>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <BaggSelect
-                label="Frequency"
-                className="w-full"
-                value={draft.frequency}
-                onChange={(val) => draft.setFrequency(val as typeof draft.frequency)}
-                options={FREQUENCY_OPTIONS.map((f) => ({
-                  value: f.value,
-                  label: f.label,
-                }))}
-              />
-
-              <Field label="Every (interval count)">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="number"
-                    min="1"
-                    max="12"
-                    value={draft.interval}
-                    onChange={(e) => draft.setIntervalVal(Number(e.target.value) || 1)}
-                  />
-                )}
-              </Field>
-
-              <Field label="Draft lead time (days in advance)">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="number"
-                    min="0"
-                    max="30"
-                    value={draft.draftLeadDays}
-                    onChange={(e) => draft.setDraftLeadDays(Number(e.target.value))}
-                  />
-                )}
-              </Field>
-
-              <Field label="Payment due in (days)">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="number"
-                    min="0"
-                    max="365"
-                    value={draft.dueDateOffsetDays}
-                    onChange={(e) => draft.setDueDateOffsetDays(Number(e.target.value))}
-                  />
-                )}
-              </Field>
-            </div>
-
-            <div className="pt-2">
-              <p className="text-caption font-bold text-ink">Issuance mode</p>
-              <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                <label
-                  className={cn(
-                    'flex cursor-pointer items-start gap-3 border-brut p-3 transition-colors',
-                    draft.issueMode === 'draft'
-                      ? 'border-ink bg-sun/20 shadow-brut-sm'
-                      : 'border-line bg-surface hover:bg-surface-tint',
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="issue_mode_desktop"
-                    checked={draft.issueMode === 'draft'}
-                    onChange={() => draft.setIssueMode('draft')}
-                    className="mt-1"
-                  />
-                  <div>
-                    <p className="font-bold text-ink">Draft review (Recommended)</p>
-                    <p className="text-caption text-text-soft">
-                      Generate as draft {draft.draftLeadDays} days prior to allow manual review before sending.
-                    </p>
-                  </div>
-                </label>
-
-                <label
-                  className={cn(
-                    'flex cursor-pointer items-start gap-3 border-brut p-3 transition-colors',
-                    draft.issueMode === 'auto_issue'
-                      ? 'border-ink bg-sun/20 shadow-brut-sm'
-                      : 'border-line bg-surface hover:bg-surface-tint',
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="issue_mode_desktop"
-                    checked={draft.issueMode === 'auto_issue'}
-                    onChange={() => draft.setIssueMode('auto_issue')}
-                    className="mt-1"
-                  />
-                  <div>
-                    <p className="font-bold text-ink">Automatic issuance</p>
-                    <p className="text-caption text-text-soft">
-                      Automatically issues and emails invoices without waiting for approval.
-                    </p>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {/* End condition */}
-            <div className="pt-2">
-              <p className="text-caption font-bold text-ink">When should this schedule end?</p>
-              <div className="mt-2 grid gap-3 sm:grid-cols-3">
-                <label
-                  className={cn(
-                    'flex cursor-pointer items-center gap-2 border-brut p-3',
-                    draft.endRule === 'never'
-                      ? 'border-ink bg-sun/20 shadow-brut-sm'
-                      : 'border-line bg-surface',
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="end_rule_desktop"
-                    checked={draft.endRule === 'never'}
-                    onChange={() => draft.setEndRule('never')}
-                  />
-                  <span className="font-bold text-ink">Never (until cancelled)</span>
-                </label>
-
-                <label
-                  className={cn(
-                    'flex cursor-pointer items-center gap-2 border-brut p-3',
-                    draft.endRule === 'after_count'
-                      ? 'border-ink bg-sun/20 shadow-brut-sm'
-                      : 'border-line bg-surface',
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="end_rule_desktop"
-                    checked={draft.endRule === 'after_count'}
-                    onChange={() => draft.setEndRule('after_count')}
-                  />
-                  <span className="font-bold text-ink">After fixed count</span>
-                </label>
-
-                <label
-                  className={cn(
-                    'flex cursor-pointer items-center gap-2 border-brut p-3',
-                    draft.endRule === 'on_date'
-                      ? 'border-ink bg-sun/20 shadow-brut-sm'
-                      : 'border-line bg-surface',
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="end_rule_desktop"
-                    checked={draft.endRule === 'on_date'}
-                    onChange={() => draft.setEndRule('on_date')}
-                  />
-                  <span className="font-bold text-ink">On a specific date</span>
-                </label>
-              </div>
-
-              {draft.endRule === 'after_count' && (
-                <div className="mt-3 max-w-xs">
-                  <Field label="Total occurrences">
-                    {({ id, ...a11y }) => (
-                      <Input
-                        id={id}
-                        {...a11y}
-                        type="number"
-                        min="1"
-                        required
-                        value={draft.endAfterCount}
-                        onChange={(e) => draft.setEndAfterCount(Number(e.target.value))}
-                      />
-                    )}
-                  </Field>
-                </div>
-              )}
-
-              {draft.endRule === 'on_date' && (
-                <div className="mt-3 max-w-xs">
-                  <Field label="End date">
-                    {({ id, ...a11y }) => (
-                      <Input
-                        id={id}
-                        {...a11y}
-                        type="date"
-                        required
-                        value={draft.endDate}
-                        onChange={(e) => draft.setEndDate(e.target.value)}
-                      />
-                    )}
-                  </Field>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Line items editor (shared component) */}
-          <LineItemsEditor
-            items={draft.items}
-            onChange={draft.setItems}
-            currency={draft.currency}
-          />
-
-          {/* Taxes & Summary Card */}
-          <section className="grid gap-6 sm:grid-cols-2">
-            <Field
-              label="Schedule notes"
-              hint="Shown on every generated invoice, for example contract or service references."
-            >
-              {({ id, ...a11y }) => (
-                <textarea
-                  id={id}
-                  {...a11y}
-                  rows={4}
-                  placeholder="e.g. Invoiced per signed monthly retainer agreement"
-                  value={draft.notes}
-                  onChange={(e) => draft.setNotes(e.target.value)}
-                  className={cn(inputStyles, 'min-h-32 py-2')}
-                />
-              )}
-            </Field>
-
-            <Card zone="calm" className="space-y-3 p-5">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-body text-text-soft">Subtotal</span>
-                <Money
-                  amountMinor={draft.subtotalMinor}
-                  currency={draft.currency}
-                  hideCurrencyCode
-                />
-              </div>
-
-              <Field label="VAT / Tax (%)">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={draft.taxText}
-                    onChange={(e) => draft.setTaxText(cleanAmount(e.target.value, draft.taxText))}
-                  />
-                )}
-              </Field>
-
-              <Field label="Withholding Tax (%)">
-                {({ id, ...a11y }) => (
-                  <Input
-                    id={id}
-                    {...a11y}
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={draft.whtText}
-                    onChange={(e) => draft.setWhtText(cleanAmount(e.target.value, draft.whtText))}
-                  />
-                )}
-              </Field>
-
-              {draft.taxMinor > 0 && (
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-body text-text-soft">Tax amount</span>
+                  <span className="text-body text-text-soft">Subtotal</span>
                   <Money
-                    amountMinor={draft.taxMinor}
+                    amountMinor={draft.subtotalMinor}
                     currency={draft.currency}
                     hideCurrencyCode
                   />
                 </div>
-              )}
 
-              {draft.whtMinor > 0 && (
-                <div className="flex items-baseline justify-between gap-3 text-danger">
-                  <span className="text-body">WHT deduction</span>
-                  <span>
-                    -<Money
-                      amountMinor={draft.whtMinor}
+                <NumberField
+                  label="VAT or tax"
+                  suffix="%"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  placeholder="0"
+                  value={draft.taxText}
+                  onChange={(e) =>
+                    draft.setTaxText(cleanAmount(e.target.value, draft.taxText))
+                  }
+                />
+
+                <NumberField
+                  label="Withholding tax"
+                  suffix="%"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  placeholder="0"
+                  value={draft.whtText}
+                  onChange={(e) =>
+                    draft.setWhtText(cleanAmount(e.target.value, draft.whtText))
+                  }
+                />
+
+                {draft.taxMinor > 0 && (
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-body text-text-soft">Tax amount</span>
+                    <Money
+                      amountMinor={draft.taxMinor}
                       currency={draft.currency}
                       hideCurrencyCode
                     />
+                  </div>
+                )}
+
+                {draft.whtMinor > 0 && (
+                  <div className="flex items-baseline justify-between gap-3 text-danger">
+                    <span className="text-body">WHT deduction</span>
+                    <span>
+                      -<Money
+                        amountMinor={draft.whtMinor}
+                        currency={draft.currency}
+                        hideCurrencyCode
+                      />
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-baseline justify-between gap-3 border-t border-line-subtle pt-3">
+                  <span className="text-body-l font-extrabold text-text">
+                    Total per cycle
                   </span>
+                  <Money
+                    amountMinor={draft.totalMinor}
+                    currency={draft.currency}
+                    className="text-amount-m"
+                    hideCurrencyCode
+                  />
+                </div>
+              </SummaryRail>
+            }
+          >
+            <FormSection
+              title="Schedule"
+              description="Name the schedule and choose who it bills."
+              action={
+                <Button
+                  type="button"
+                  variant="link"
+                  onClick={() => setShowClientModal(true)}
+                >
+                  + Add new client
+                </Button>
+              }
+            >
+              <TextField
+                label="Schedule name"
+                required
+                placeholder="e.g. Monthly Design Retainer"
+                value={draft.name}
+                onChange={(e) => draft.setName(e.target.value)}
+              />
+
+              {draft.clients.length > 0 ? (
+                <BaggSelect
+                  label="Client"
+                  required
+                  searchable={draft.clients.length > 8}
+                  value={draft.selectedClientId}
+                  onChange={draft.handleClientChange}
+                  options={draft.clients.map((client) => ({
+                    value: client.id,
+                    label: `${client.name} (${client.preferred_currency})`,
+                  }))}
+                />
+              ) : (
+                <div className="border-brut-thin border-ink bg-surface-sunken p-4">
+                  <p className="text-body text-text-soft">
+                    No clients yet.{' '}
+                    <button
+                      type="button"
+                      onClick={() => setShowClientModal(true)}
+                      className="font-extrabold text-link underline underline-offset-4"
+                    >
+                      Add a client
+                    </button>
+                  </p>
                 </div>
               )}
 
-              <div className="flex items-baseline justify-between gap-3 border-t border-line pt-3">
-                <span className="text-body-l font-extrabold">Total per cycle</span>
-                <Money
-                  amountMinor={draft.totalMinor}
-                  currency={draft.currency}
-                  className="text-amount-m"
-                  hideCurrencyCode
+              <FormGrid>
+                <BaggSelect
+                  label="Currency"
+                  value={draft.currency}
+                  onChange={draft.setCurrency}
+                  options={SUPPORTED_CURRENCIES.map((currency) => ({
+                    value: currency.code,
+                    label: currency.label,
+                  }))}
                 />
-              </div>
-            </Card>
-          </section>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3">
-            <Link
-              href="/recurring-invoices"
-              className={buttonStyles({ variant: 'outline' })}
+                <DateField
+                  label="Start date"
+                  required
+                  value={draft.startDate}
+                  onChange={(e) => draft.setStartDate(e.target.value)}
+                />
+              </FormGrid>
+            </FormSection>
+
+            <FormSection
+              title="Cadence"
+              description="How often invoices are generated and when they are due."
             >
-              Cancel
-            </Link>
-            <Button
-              type="submit"
-              variant="accent"
-              size="lg"
-              loading={draft.saving}
+              <FormGrid>
+                <BaggSelect
+                  label="Frequency"
+                  value={draft.frequency}
+                  onChange={(value) =>
+                    draft.setFrequency(
+                      value as typeof draft.frequency,
+                    )
+                  }
+                  options={FREQUENCY_OPTIONS.map((frequency) => ({
+                    value: frequency.value,
+                    label: frequency.label,
+                  }))}
+                />
+
+                <NumberField
+                  label="Every"
+                  suffix={cadenceUnit}
+                  min={1}
+                  max={12}
+                  value={draft.interval}
+                  onChange={(e) =>
+                    draft.setIntervalVal(Number(e.target.value) || 1)
+                  }
+                />
+
+                <NumberField
+                  label="Payment due in"
+                  suffix="days"
+                  min={0}
+                  max={365}
+                  value={draft.dueDateOffsetDays}
+                  onChange={(e) =>
+                    draft.setDueDateOffsetDays(Number(e.target.value))
+                  }
+                />
+
+                <NumberField
+                  label="Draft lead time"
+                  suffix="days"
+                  min={0}
+                  max={30}
+                  hint="How early a draft is created for review."
+                  value={draft.draftLeadDays}
+                  onChange={(e) =>
+                    draft.setDraftLeadDays(Number(e.target.value))
+                  }
+                />
+              </FormGrid>
+
+              <p className="border-brut-thin border-ink bg-surface-sunken p-3 text-body text-text-soft">
+                Invoices {cadence}, due {draft.dueDateOffsetDays} days after
+                issue
+                {draft.issueMode === 'draft'
+                  ? `, drafted ${draft.draftLeadDays} days early.`
+                  : ', issued automatically.'}
+              </p>
+            </FormSection>
+
+            <FormSection
+              title="Issuance & end"
+              description="Decide whether drafts need review and when the schedule stops."
             >
-              Create recurring schedule
-            </Button>
-          </div>
+              <FormSubsection title="Issuance mode">
+                <RadioGroup
+                  label="How should invoices be issued?"
+                  value={draft.issueMode}
+                  onChange={(value) =>
+                    draft.setIssueMode(value as typeof draft.issueMode)
+                  }
+                  variant="cards"
+                  columns={2}
+                  options={[
+                    {
+                      value: 'draft',
+                      label: 'Draft review',
+                      description: `Generate as a draft ${draft.draftLeadDays} days before the due date so you can review it.`,
+                    },
+                    {
+                      value: 'auto_issue',
+                      label: 'Automatic issuance',
+                      description:
+                        'Issue and email invoices automatically without waiting for approval.',
+                    },
+                  ]}
+                />
+              </FormSubsection>
+
+              <FormSubsection title="End condition" divided>
+                <RadioGroup
+                  label="When should this schedule end?"
+                  value={draft.endRule}
+                  onChange={(value) =>
+                    draft.setEndRule(value as typeof draft.endRule)
+                  }
+                  variant="cards"
+                  columns={3}
+                  options={[
+                    {
+                      value: 'never',
+                      label: 'Never',
+                      description: 'Runs until you cancel it.',
+                    },
+                    {
+                      value: 'after_count',
+                      label: 'After a count',
+                      description: 'Stop after a fixed number of invoices.',
+                    },
+                    {
+                      value: 'on_date',
+                      label: 'On a date',
+                      description: 'Stop on a specific date.',
+                    },
+                  ]}
+                />
+
+                {draft.endRule === 'after_count' && (
+                  <div className="max-w-xs">
+                    <NumberField
+                      label="Total occurrences"
+                      min={1}
+                      required
+                      value={draft.endAfterCount}
+                      onChange={(e) =>
+                        draft.setEndAfterCount(Number(e.target.value))
+                      }
+                    />
+                  </div>
+                )}
+
+                {draft.endRule === 'on_date' && (
+                  <div className="max-w-xs">
+                    <DateField
+                      label="End date"
+                      required
+                      value={draft.endDate}
+                      onChange={(e) => draft.setEndDate(e.target.value)}
+                    />
+                  </div>
+                )}
+              </FormSubsection>
+            </FormSection>
+
+            <FormSection
+              title="Items"
+              description="What each generated invoice will bill for."
+            >
+              <LineItemsEditor
+                bare
+                items={draft.items}
+                onChange={draft.setItems}
+                currency={draft.currency}
+              />
+            </FormSection>
+
+            <FormSection
+              title="Notes"
+              description="Shown on every generated invoice."
+            >
+              <TextArea
+                label="Schedule notes"
+                optional
+                rows={4}
+                placeholder="e.g. Invoiced per signed monthly retainer agreement"
+                value={draft.notes}
+                onChange={(e) => draft.setNotes(e.target.value)}
+              />
+            </FormSection>
+          </FormPageLayout>
         </form>
+
         <InlineClientModal
           open={showClientModal}
           onClose={() => setShowClientModal(false)}

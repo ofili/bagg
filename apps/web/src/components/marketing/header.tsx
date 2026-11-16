@@ -85,7 +85,7 @@ export function MarketingHeader() {
                             aria-expanded={open}
                             aria-controls="mobile-menu"
                             onClick={() => setOpen((value) => !value)}
-                            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-surface-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:hidden"
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-full border-brut-thin border-ink text-ink transition-colors hover:bg-surface-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:hidden"
                         >
                             {open ? (
                                 <X className="h-5 w-5" aria-hidden="true" />

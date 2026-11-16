@@ -1,16 +1,18 @@
 ﻿'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 import { BagCharacter, BagMark, Wordmark } from '@/components/brand';
+import { OnboardingSteps } from '@/components/onboarding/OnboardingSteps';
 import {
   Alert,
   BaggSelect,
   Button,
   FormGrid,
+  FormSubsection,
   TextArea,
   TextField,
 } from '@/components/ui';
@@ -94,7 +96,7 @@ async function readJson<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-export default function OnboardingPage() {
+function OnboardingForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -262,17 +264,23 @@ export default function OnboardingPage() {
           </div>
         ) : (
           <section className="w-full border-brut border-ink bg-surface p-6 sm:p-9">
-            <BagCharacter size={64} className="mb-5" />
+            <OnboardingSteps current="business" />
 
-            <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-              First, the basics
-            </p>
+            <div className="mt-6 flex items-start gap-4">
+              <BagCharacter size={64} className="shrink-0" />
 
-            <h1 className="mt-2 text-display text-text">
-              Set up your business.
-            </h1>
+              <div className="min-w-0">
+                <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
+                  First, the basics
+                </p>
 
-            <p className="mt-3 text-body-l text-text-soft">
+                <h1 className="mt-2 text-title-l text-text sm:text-display">
+                  Set up your business.
+                </h1>
+              </div>
+            </div>
+
+            <p className="mt-4 text-body-l text-text-soft">
               Your business name appears on invoices, quotes and receipts.
               You can change these details later in Settings.
             </p>
@@ -284,80 +292,97 @@ export default function OnboardingPage() {
             )}
 
             <form onSubmit={handleSubmit} className="mt-7 space-y-5">
-              <TextField
-                id="business-name"
-                name="business_name"
-                label="Business name"
-                required
-                autoFocus
-                autoComplete="organization"
-                maxLength={200}
-                placeholder="e.g. Ada Studio or Acme Limited"
-                hint="Use your trading name or registered business name."
-                value={businessName}
-                onChange={(event) =>
-                  setBusinessName(event.target.value)
-                }
-              />
-
-              <FormGrid>
-                <BaggSelect
-                  label="Country"
-                  value={country}
-                  onChange={(next) => {
-                    setCountry(next);
-
-                    const defaults: Record<string, string> = {
-                      NG: 'NGN',
-                      GH: 'GHS',
-                      KE: 'KES',
-                      ZA: 'ZAR',
-                      GB: 'GBP',
-                      US: 'USD',
-                    };
-
-                    if (defaults[next]) {
-                      setCurrency(defaults[next]);
-                    }
-                  }}
-                  options={[
-                    { value: 'NG', label: 'Nigeria' },
-                    { value: 'GH', label: 'Ghana' },
-                    { value: 'KE', label: 'Kenya' },
-                    { value: 'ZA', label: 'South Africa' },
-                    { value: 'GB', label: 'United Kingdom' },
-                    { value: 'US', label: 'United States' },
-                  ]}
+              <FormSubsection
+                title="Business identity"
+                description="The name your clients will recognise."
+              >
+                <TextField
+                  id="business-name"
+                  name="business_name"
+                  label="Business name"
+                  required
+                  autoFocus
+                  autoComplete="organization"
+                  maxLength={200}
+                  placeholder="e.g. Ada Studio or Acme Limited"
+                  hint="Use your trading name or registered business name."
+                  value={businessName}
+                  onChange={(event) =>
+                    setBusinessName(event.target.value)
+                  }
                 />
+              </FormSubsection>
 
-                <BaggSelect
-                  label="Default currency"
-                  value={currency}
-                  onChange={setCurrency}
-                  options={[
-                    { value: 'NGN', label: 'NGN · Nigerian naira' },
-                    { value: 'USD', label: 'USD · US dollar' },
-                    { value: 'GBP', label: 'GBP · British pound' },
-                    { value: 'EUR', label: 'EUR · Euro' },
-                    { value: 'GHS', label: 'GHS · Ghanaian cedi' },
-                    { value: 'KES', label: 'KES · Kenyan shilling' },
-                    { value: 'ZAR', label: 'ZAR · South African rand' },
-                  ]}
+              <FormSubsection
+                divided
+                title="Location and currency"
+                description="Where you operate and the currency you invoice in."
+              >
+                <FormGrid>
+                  <BaggSelect
+                    label="Country"
+                    value={country}
+                    onChange={(next) => {
+                      setCountry(next);
+
+                      const defaults: Record<string, string> = {
+                        NG: 'NGN',
+                        GH: 'GHS',
+                        KE: 'KES',
+                        ZA: 'ZAR',
+                        GB: 'GBP',
+                        US: 'USD',
+                      };
+
+                      if (defaults[next]) {
+                        setCurrency(defaults[next]);
+                      }
+                    }}
+                    options={[
+                      { value: 'NG', label: 'Nigeria' },
+                      { value: 'GH', label: 'Ghana' },
+                      { value: 'KE', label: 'Kenya' },
+                      { value: 'ZA', label: 'South Africa' },
+                      { value: 'GB', label: 'United Kingdom' },
+                      { value: 'US', label: 'United States' },
+                    ]}
+                  />
+
+                  <BaggSelect
+                    label="Default currency"
+                    value={currency}
+                    onChange={setCurrency}
+                    options={[
+                      { value: 'NGN', label: 'NGN · Nigerian naira' },
+                      { value: 'USD', label: 'USD · US dollar' },
+                      { value: 'GBP', label: 'GBP · British pound' },
+                      { value: 'EUR', label: 'EUR · Euro' },
+                      { value: 'GHS', label: 'GHS · Ghanaian cedi' },
+                      { value: 'KES', label: 'KES · Kenyan shilling' },
+                      { value: 'ZAR', label: 'ZAR · South African rand' },
+                    ]}
+                  />
+                </FormGrid>
+              </FormSubsection>
+
+              <FormSubsection
+                divided
+                title="Document details"
+                description="Shown in the footer of invoices, quotes and receipts."
+              >
+                <TextArea
+                  id="address"
+                  name="address"
+                  label="Business address"
+                  optional
+                  autoComplete="street-address"
+                  rows={3}
+                  maxLength={500}
+                  placeholder="Address to display on your documents"
+                  value={address}
+                  onChange={(event) => setAddress(event.target.value)}
                 />
-              </FormGrid>
-
-              <TextArea
-                id="address"
-                name="address"
-                label="Business address"
-                optional
-                autoComplete="street-address"
-                rows={3}
-                maxLength={500}
-                placeholder="Address to display on your documents"
-                value={address}
-                onChange={(event) => setAddress(event.target.value)}
-              />
+              </FormSubsection>
 
               <Button
                 type="submit"
@@ -392,5 +417,20 @@ export default function OnboardingPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center bg-cream">
+          <Loader2 className="h-7 w-7 animate-spin" aria-hidden="true" />
+          <span className="sr-only">Loading setup</span>
+        </div>
+      }
+    >
+      <OnboardingForm />
+    </Suspense>
   );
 }
