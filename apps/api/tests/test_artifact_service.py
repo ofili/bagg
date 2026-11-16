@@ -1,18 +1,16 @@
 import asyncio
-
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from app.domains.documents.artifacts import service as service_module
 from app.domains.documents.artifacts.hashing import sha256_hex
 from app.domains.documents.artifacts.identity import ArtifactIdentity
 from app.domains.documents.artifacts.service import DocumentArtifactService
-from app.domains.documents.artifacts import service as service_module
-from app.domains.documents.storage.s3 import ImmutableDocumentConflict
 from app.domains.documents.models import DocumentArtifact
-
+from app.domains.documents.storage.s3 import ImmutableDocumentConflict
 
 PDF_BYTES = b"%PDF-1.7 test document bytes"
 
@@ -42,7 +40,7 @@ def db():
 @pytest.fixture
 def storage():
     store = MagicMock()
-    store.put.return_value = SimpleNamespace(
+    store.put_if_absent.return_value = SimpleNamespace(
         storage_key="workspaces/ws_123/documents/invoice/inv_123/v1/g1.pdf",
         content_type="application/pdf",
         content_length=len(PDF_BYTES),
@@ -62,12 +60,20 @@ def scalar_result(value):
     return result
 
 
+def existing_artifact(*, digest=PDF_BYTES):
+    return SimpleNamespace(sha256=sha256_hex(digest))
+
+
+def integrity_error():
+    return IntegrityError(
+        "INSERT",
+        {},
+        Exception("unique constraint"),
+    )
+
+
 @pytest.mark.asyncio
-async def test_get_existing_returns_matching_artifact(
-    service,
-    db,
-    identity,
-):
+async def test_get_existing_returns_matching_artifact(service, db, identity):
     artifact = MagicMock(spec=DocumentArtifact)
     db.execute.return_value = scalar_result(artifact)
 
@@ -78,11 +84,7 @@ async def test_get_existing_returns_matching_artifact(
 
 
 @pytest.mark.asyncio
-async def test_get_existing_returns_none_when_not_found(
-    service,
-    db,
-    identity,
-):
+async def test_get_existing_returns_none_when_not_found(service, db, identity):
     db.execute.return_value = scalar_result(None)
 
     result = await service.get_existing(identity)
@@ -152,7 +154,7 @@ async def test_create_issued_artifact_returns_existing_artifact(
     storage,
     identity,
 ):
-    existing = MagicMock(spec=DocumentArtifact)
+    existing = existing_artifact()
     db.execute.return_value = scalar_result(existing)
 
     result = await service.create_issued_artifact(
@@ -163,15 +165,13 @@ async def test_create_issued_artifact_returns_existing_artifact(
     )
 
     assert result is existing
-    storage.put.assert_not_called()
+    storage.put_if_absent.assert_not_called()
     db.add.assert_not_called()
     db.commit.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_create_issued_artifact_rejects_preview_identity(
-    service,
-):
+async def test_create_issued_artifact_rejects_preview_identity(service):
     preview_identity = ArtifactIdentity(
         workspace_id="ws_123",
         document_type="invoice",
@@ -196,9 +196,9 @@ async def test_create_issued_artifact_rejects_preview_identity(
 @pytest.mark.asyncio
 async def test_create_issued_artifact_rejects_invalid_pdf(
     service,
-    identity,
     storage,
     db,
+    identity,
 ):
     with pytest.raises(ValueError, match="Invalid PDF bytes"):
         await service.create_issued_artifact(
@@ -208,8 +208,9 @@ async def test_create_issued_artifact_rejects_invalid_pdf(
             renderer_version="65.0",
         )
 
-    storage.put.assert_not_called()
+    storage.put_if_absent.assert_not_called()
     db.add.assert_not_called()
+    db.commit.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -245,11 +246,7 @@ async def test_create_issued_artifact_rolls_back_on_integrity_error(
         scalar_result(None),
         scalar_result(None),
     ]
-    db.flush.side_effect = IntegrityError(
-        "INSERT",
-        {},
-        Exception("unique constraint"),
-    )
+    db.flush.side_effect = integrity_error()
 
     with pytest.raises(IntegrityError):
         await service.create_issued_artifact(
@@ -270,17 +267,13 @@ async def test_create_issued_artifact_returns_concurrent_winner(
     storage,
     identity,
 ):
-    winner = MagicMock(spec=DocumentArtifact)
+    winner = existing_artifact()
 
     db.execute.side_effect = [
         scalar_result(None),
         scalar_result(winner),
     ]
-    db.flush.side_effect = IntegrityError(
-        "INSERT",
-        {},
-        Exception("unique constraint"),
-    )
+    db.flush.side_effect = integrity_error()
 
     result = await service.create_issued_artifact(
         identity=identity,
@@ -291,6 +284,7 @@ async def test_create_issued_artifact_returns_concurrent_winner(
 
     assert result is winner
     db.rollback.assert_awaited_once()
+    db.commit.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -378,7 +372,6 @@ async def test_create_issued_artifact_offloads_storage_upload_to_thread(
         service_module.asyncio,
         "to_thread",
         tracked_to_thread,
-        raising=False,
     )
 
     await service.create_issued_artifact(
@@ -388,7 +381,7 @@ async def test_create_issued_artifact_offloads_storage_upload_to_thread(
         renderer_version="65.0",
     )
 
-    assert service.storage.put in calls
+    assert service.storage.put_if_absent in calls
 
 
 @pytest.mark.asyncio
@@ -398,10 +391,6 @@ async def test_get_pdf_offloads_storage_download_to_thread(
     storage,
     monkeypatch,
 ):
-    import asyncio
-
-    from app.domains.documents.artifacts import service as service_module
-
     artifact = SimpleNamespace(
         id="doc_123",
         workspace_id="ws_123",
@@ -421,7 +410,6 @@ async def test_get_pdf_offloads_storage_download_to_thread(
         service_module.asyncio,
         "to_thread",
         tracked_to_thread,
-        raising=False,
     )
 
     await service.get_pdf(
@@ -439,7 +427,7 @@ async def test_existing_artifact_rejects_different_pdf_bytes(
     storage,
     identity,
 ):
-    existing = SimpleNamespace(sha256=sha256_hex(b"%PDF-1.7 original document"))
+    existing = existing_artifact(digest=b"%PDF-1.7 original document")
     db.execute.return_value = scalar_result(existing)
 
     with pytest.raises(
@@ -464,17 +452,13 @@ async def test_concurrent_winner_with_different_hash_is_rejected(
     storage,
     identity,
 ):
-    winner = SimpleNamespace(sha256=sha256_hex(b"%PDF-1.7 different document"))
+    winner = existing_artifact(digest=b"%PDF-1.7 different document")
 
     db.execute.side_effect = [
         scalar_result(None),
         scalar_result(winner),
     ]
-    db.flush.side_effect = IntegrityError(
-        "INSERT",
-        {},
-        Exception("unique constraint"),
-    )
+    db.flush.side_effect = integrity_error()
 
     with pytest.raises(
         ImmutableDocumentConflict,
@@ -497,17 +481,13 @@ async def test_concurrent_winner_with_same_hash_is_idempotent(
     storage,
     identity,
 ):
-    winner = SimpleNamespace(sha256=sha256_hex(PDF_BYTES))
+    winner = existing_artifact()
 
     db.execute.side_effect = [
         scalar_result(None),
         scalar_result(winner),
     ]
-    db.flush.side_effect = IntegrityError(
-        "INSERT",
-        {},
-        Exception("unique constraint"),
-    )
+    db.flush.side_effect = integrity_error()
 
     result = await service.create_issued_artifact(
         identity=identity,

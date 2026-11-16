@@ -1,5 +1,6 @@
-from app.domains.sharing.schemas import CommentCreate, CommentResponse
-from app.domains.auth.dependencies import get_current_user_and_workspace, require_auth
+from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
+
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query, status
@@ -11,11 +12,14 @@ from app.core.database import get_db
 from app.core.money import format_money
 from app.core.pagination import PaginatedResponse
 from app.domains.invoices import service
+from app.domains.sharing.schemas import CommentCreate, CommentResponse
+from app.domains.auth.dependencies import get_current_user_and_workspace, require_auth
+from app.domains.documents.service import render_invoice_pdf
 from app.domains.invoices.presenter import (
     generate_whatsapp_share_url,
     map_invoice_to_response,
 )
-from app.domains.documents.service import render_invoice_html
+
 from app.domains.invoices.schemas import (
     CurrencyMetricsResponse,
     DocumentStatusEventResponse,
@@ -253,20 +257,22 @@ async def get_invoice_pdf(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return the existing invoice HTML representation.
-
-    The route name is retained for API compatibility. Actual PDF generation
-    will be added after a renderer is selected and deployment-tested.
-    """
+    """Return the invoice as a real PDF document."""
     invoice = await service.get_invoice(db, workspace, invoice_id)
-    html_content = render_invoice_html(invoice)
 
-    return HTMLResponse(
-        content=html_content,
+    pdf_content = await run_in_threadpool(
+        render_invoice_pdf,
+        invoice,
+    )
+
+    filename = f"Invoice-{invoice.invoice_number or invoice.id}.pdf"
+
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
         headers={
-            "Content-Disposition": (
-                f'inline; filename="Invoice-{invoice.invoice_number}.html"'
-            )
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "X-Content-Type-Options": "nosniff",
         },
     )
 

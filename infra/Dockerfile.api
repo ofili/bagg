@@ -1,29 +1,26 @@
+
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Native libraries required by WeasyPrint.
+# ReportLab uses bundled Python rendering code.
+# DejaVu provides broad Unicode coverage, including the Naira symbol.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
     curl \
-    libcairo2 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf-2.0-0 \
-    libffi-dev \
-    shared-mime-info \
     fontconfig \
-    fonts-liberation \
+    fonts-dejavu-core \
+    && fc-cache -f \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 COPY apps/api/pyproject.toml ./
-RUN uv pip install --system -r pyproject.toml
+COPY apps/api/uv.lock ./
+RUN uv sync --frozen --no-dev
 
 COPY apps/api/app ./app
 COPY fixtures /fixtures
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "--no-sync", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

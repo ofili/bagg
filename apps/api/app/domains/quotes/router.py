@@ -1,11 +1,13 @@
-from app.domains.auth.dependencies import require_auth
 from datetime import date
 from typing import List, Optional
 
+from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domains.auth.dependencies import require_auth
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.proxy import get_client_ip
@@ -15,6 +17,7 @@ from app.domains.documents.service import render_quote_html
 from app.domains.invoices.presenter import map_invoice_to_response
 from app.domains.invoices.schemas import InvoiceResponse
 from app.domains.quotes import service
+from app.domains.documents.service import render_quote_pdf
 from app.domains.quotes.presenter import (
     map_public_quote_view,
     map_quote_send_response,
@@ -116,15 +119,13 @@ async def get_quote_pdf(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return the quote's HTML document.
-
-    The route name is retained for API convention and compatibility.
-    This endpoint does not claim to generate a binary PDF.
-    """
+    """Return the quote as a real PDF document."""
     quote_obj = await service.get_quote(db, workspace, id)
 
     client = quote_obj.client
-    html_content = render_quote_html(
+
+    pdf_content = await run_in_threadpool(
+        render_quote_pdf,
         quote_obj,
         business_name=workspace.business_name,
         client_name=client.name if client else None,
@@ -132,12 +133,14 @@ async def get_quote_pdf(
         business_tax_id=workspace.tax_id,
     )
 
-    return HTMLResponse(
-        content=html_content,
+    filename = f"Quote-{quote_obj.quote_number or quote_obj.id}.pdf"
+
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
         headers={
-            "Content-Disposition": (
-                f'inline; filename="Quote-{quote_obj.quote_number}.html"'
-            )
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "X-Content-Type-Options": "nosniff",
         },
     )
 

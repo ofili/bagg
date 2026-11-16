@@ -5,6 +5,10 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
+
+from app.domains.documents.service import render_receipt_pdf
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.pagination import PaginatedResponse
@@ -22,7 +26,6 @@ from app.domains.receipts.queries import (
     get_public_receipt,
     get_statement,
 )
-from app.domains.documents.service import render_receipt_html
 from app.domains.receipts.schemas import (
     ReceiptCreate,
     ReceiptResponse,
@@ -250,17 +253,25 @@ async def get_receipt_pdf(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
+    """Return the receipt as a real PDF document."""
     row = await get_receipt(db, workspace.id, receipt_id)
     receipt, client_name, _client_phone, invoice_number = row
-    html = render_receipt_html(
+
+    pdf_content = await run_in_threadpool(
+        render_receipt_pdf,
         receipt,
         business_name=workspace.business_name,
         client_name=client_name,
         invoice_number=invoice_number,
     )
-    return HTMLResponse(
-        content=html,
+
+    filename = f"Receipt-{receipt.receipt_number or receipt.id}.pdf"
+
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
         headers={
-            "Content-Disposition": f'inline; filename="Receipt-{receipt.receipt_number}.html"'
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "X-Content-Type-Options": "nosniff",
         },
     )
