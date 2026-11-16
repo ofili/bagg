@@ -60,13 +60,13 @@ def build_receipt_document(
         currency=currency,
         payment_date=receipt.payment_date,
         payment_method=(receipt.payment_method or "bank_transfer")
+        .replace("_", " ")
+        .title(),
         business_address=business_address,
         business_tax_id=business_tax_id,
         business_logo_url=business_logo_url,
         payer_email=payer_email,
         payer_address=payer_address,
-        .replace("_", " ")
-        .title(),
         reference=receipt.reference or "N/A",
         payer_name=client_name or receipt.payer_name or "Client",
         business_name=business_name,
