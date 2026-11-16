@@ -1,4 +1,3 @@
-
 import uuid
 
 import pytest
@@ -47,16 +46,12 @@ async def test_analytics_endpoints_require_control_plane_access(
         transport=ASGITransport(app=app),
         base_url="http://test",
     ) as client:
-        response = await client.get(
-            "/control-plane/analytics/cohorts"
-        )
+        response = await client.get("/control-plane/analytics/cohorts")
         assert response.status_code == 401
 
         await authenticate(client, email)
 
-        response = await client.get(
-            "/control-plane/analytics/cohorts"
-        )
+        response = await client.get("/control-plane/analytics/cohorts")
         assert response.status_code == 403
 
 
@@ -129,9 +124,7 @@ async def test_analytics_endpoints_set_no_store(monkeypatch):
     ) as client:
         await authenticate(client, email)
 
-        response = await client.get(
-            "/control-plane/analytics/overview"
-        )
+        response = await client.get("/control-plane/analytics/overview")
 
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
