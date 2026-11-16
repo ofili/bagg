@@ -64,7 +64,6 @@ class Settings(BaseSettings):
     PAYSTACK_PLAN_PROFESSIONAL_MONTHLY: Optional[str] = None
     PAYSTACK_PLAN_PROFESSIONAL_ANNUAL: Optional[str] = None
 
-
     # Explicit trusted reverse-proxy addresses or CIDR ranges.
     # Examples:
     #   10.0.0.10
@@ -79,6 +78,10 @@ class Settings(BaseSettings):
     # Trusted reverse proxy hop count for X-Forwarded-For stripping.
     # Set to 1 for a single Nginx/Caddy/CF layer in production.
     TRUSTED_PROXY_HOPS: int = 1
+
+    # Internal Bagg control-plane access.
+    # Comma-separated email addresses. Empty means deny all.
+    CONTROL_PLANE_ADMIN_EMAILS: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"

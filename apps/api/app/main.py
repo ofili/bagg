@@ -20,6 +20,7 @@ from app.domains.workspaces.router import router as workspaces_router
 from app.domains.onboarding.router import router as onboarding_router
 
 from app.domains.clients.router import router as clients_router
+from app.domains.control_plane.router import router as control_plane_router
 from app.domains.entitlements.router import router as entitlements_router
 from app.domains.invoices.router import router as invoices_router
 from app.domains.payments.router import router as payments_router
@@ -109,6 +110,8 @@ app.include_router(recurring_invoices_router)
 
 app.include_router(activation_router)
 app.include_router(analytics_router)
+
+app.include_router(control_plane_router)
 
 
 @app.get("/health", tags=["System"])
