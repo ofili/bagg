@@ -20,6 +20,7 @@ import {
   getPostAuthDestination,
   readOnboardingContinuation,
 } from '@/lib/onboarding-navigation';
+import { captureFirstTouchAttribution, readFirstTouchAttribution } from '@/lib/acquisition-attribution';
 
 const API_BASE = '/api';
 const RESEND_SECONDS = 30;
@@ -62,6 +63,10 @@ function LoginPageContent() {
   const [cooldown, setCooldown] = useState(0);
 
   const codeRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    captureFirstTouchAttribution();
+  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -156,9 +161,10 @@ function LoginPageContent() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          code: value,
-        }),
+        email: email.trim().toLowerCase(),
+        code: value,
+        attribution: readFirstTouchAttribution(),
+      }),
       });
 
       const data = await readApiResponse(res);

@@ -1,7 +1,29 @@
-
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.domains.workspaces.schemas import WorkspaceResponse
+
+
+class AttributionPayload(BaseModel):
+    """Validated first-touch acquisition context supplied during registration."""
+
+    source: str | None = Field(default=None, max_length=100)
+    medium: str | None = Field(default=None, max_length=100)
+    campaign: str | None = Field(default=None, max_length=150)
+    content: str | None = Field(default=None, max_length=150)
+    term: str | None = Field(default=None, max_length=150)
+    referral_code: str | None = Field(default=None, max_length=100)
+    referrer: str | None = Field(default=None, max_length=500)
+    landing_path: str | None = Field(default=None, max_length=300)
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def normalize_strings(cls, value):
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError("Attribution values must be strings.")
+        value = value.strip()
+        return value[:500] or None
 
 
 class MagicLinkRequest(BaseModel):
@@ -15,6 +37,7 @@ class VerifyCodeRequest(BaseModel):
         max_length=6,
         pattern=r"^[0-9]{6}$",
     )
+    attribution: AttributionPayload | None = None
 
 
 class UserResponse(BaseModel):

@@ -8,6 +8,7 @@
   /* Brand (Mango Sunrise) */
   --bagg-mango: #ff7a1a;
   --bagg-pink: #ff4f8b;
+  --bagg-pink-ink: #f53f7e;
   --bagg-sun: #ffc933;
   --bagg-leaf: #1fa971;
   --bagg-danger: #b3261e;
@@ -53,7 +54,7 @@
   /* Text */
   --text: #3a1f0a;
   --text-soft: #6b5642;
-  --text-muted: #8a6a50;
+  --text-muted: #7d6046;
   --link: #8a3d0c;
 
   /* Legacy aliases, remove once nothing reads them */
@@ -77,7 +78,7 @@
   --status-pending-fg: #174a7e;
 
   --status-void-bg: #eee9e3;
-  --status-void-fg: #75685c;
+  --status-void-fg: #6e6155;
 }
 
 /* Explicit light-mode token reset for light-only surfaces (e.g. marketing). */
@@ -96,7 +97,7 @@
   --peach-chip: #faebdc;
   --text: #1a110a;
   --text-soft: #634b35;
-  --text-muted: #85694f;
+  --text-muted: #7d6046;
   --link: #b84900;
 
   --shadow-menu:
@@ -119,7 +120,7 @@
   --status-pending-fg: #174a7e;
 
   --status-void-bg: #eee9e3;
-  --status-void-fg: #75685c;
+  --status-void-fg: #6e6155;
 }
 
 /* Dark mode is a first pass: warm brown-black, brand colours unchanged.

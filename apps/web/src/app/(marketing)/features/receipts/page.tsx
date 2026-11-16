@@ -92,7 +92,7 @@ export default function ReceiptsFeaturePage() {
 
                                 <h1 className="mt-7 max-w-3xl text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem]">
                                     Payment received.
-                                    <span className="mt-2 block text-pink">
+                                    <span className="mt-2 block text-pink-ink">
                   Proof provided.
                 </span>
                                 </h1>

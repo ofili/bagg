@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.errors import BadRequestException
+from app.domains.activation.service import record_product_event
 from app.domains.auth.models import MagicLoginCode, User, UserSession
 from app.domains.email.service import enqueue_login_code
 from app.domains.workspaces.models import Workspace
@@ -132,6 +133,7 @@ class AuthService:
         self,
         email: str,
         code: str,
+        attribution: dict | None = None,
     ) -> tuple[User, Workspace, str, bool]:
 
         clean_email = email.lower().strip()
@@ -156,7 +158,7 @@ class AuthService:
                 self.db,
                 clean_email,
             )
-            
+
             result = await self.db.execute(stmt)
             entry = result.scalars().first()
 
@@ -196,6 +198,8 @@ class AuthService:
 
             workspace = workspace_result.scalars().first()
 
+            workspace_was_created = workspace is None
+
             if workspace is None:
                 workspace = Workspace(
                     owner_id=user.id,
@@ -208,6 +212,55 @@ class AuthService:
 
                 self.db.add(workspace)
                 await self.db.flush()
+
+            # Acquisition attribution is captured only during first-time account
+            # creation. Existing users must not be re-attributed when signing in.
+            attribution_snapshot = {}
+
+            if is_new_user and attribution:
+                attribution_snapshot = {
+                    key: value
+                    for key, value in attribution.items()
+                    if value is not None and value != ""
+                }
+
+            if is_new_user:
+                await record_product_event(
+                    self.db,
+                    workspace_id=workspace.id,
+                    user_id=user.id,
+                    event_name="account.created",
+                    event_id=f"account-created:{user.id}",
+                    source="api",
+                    properties={
+                        "country": workspace.country,
+                        "plan_code": "free",
+                        "attribution": attribution_snapshot,
+                    },
+                    occurred_at=now,
+                )
+
+            if workspace_was_created:
+                await record_product_event(
+                    self.db,
+                    workspace_id=workspace.id,
+                    user_id=user.id,
+                    event_name="workspace.created",
+                    event_id=f"workspace-created:{workspace.id}",
+                    source="api",
+                    properties={
+                        "country": workspace.country,
+                        "default_currency": workspace.default_currency,
+                        "plan_code": "free",
+                        "attribution": attribution_snapshot,
+                        "attribution_status": (
+                            "captured"
+                            if is_new_user and attribution_snapshot
+                            else "unknown"
+                        ),
+                    },
+                    occurred_at=now,
+                )
 
             raw_session_token = secrets.token_urlsafe(32)
 

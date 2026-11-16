@@ -1,7 +1,7 @@
 import { chromium } from '@playwright/test';
 import fs from 'node:fs';
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.AUDIT_BASE ?? 'http://localhost:3000';
 const OUT = 'C:/Users/ofili/AppData/Local/Temp/opencode/shots';
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -24,12 +24,12 @@ if (!login.ok()) {
   process.exit(1);
 }
 await authContext.storageState({ path: `${OUT}/state.json` });
+const STATE = `${OUT}/state.json`;
 
 // --- Fixtures: a draft quote and a contact --------------------------------
+const asArray = (value) => (Array.isArray(value) ? value : value?.items ?? []);
 let draftQuoteId = null;
 let contactId = null;
-
-const asArray = (value) => (Array.isArray(value) ? value : value?.items ?? []);
 
 const existingQuotes = asArray(
   await (await authContext.request.get(`${BASE}/api/quotes`)).json(),
@@ -84,50 +84,49 @@ await authContext.close();
 
 // --- Pages ---------------------------------------------------------------
 const PAGES = [
-  { name: 'dashboard', path: '/dashboard', waitForText: 'Dashboard' },
-  { name: 'clients', path: '/clients', waitForText: 'Clients' },
-  { name: 'client-new', path: '/clients/new', waitForText: 'Add client' },
-  { name: 'client-detail', path: '/clients/cl_demo_sample', waitForText: 'Kofi Mensah' },
+  { name: 'dashboard', path: '/dashboard' },
+  { name: 'clients', path: '/clients' },
+  { name: 'client-new', path: '/clients/new' },
+  { name: 'client-detail', path: '/clients/cl_demo_sample' },
   {
     name: 'client-edit',
     path: '/clients/cl_demo_sample',
-    waitForText: 'Kofi Mensah',
     prepare: async (page) => {
-      await page.getByRole('button', { name: 'Edit Details' }).click({ timeout: 8000 });
-      await page.waitForTimeout(500);
+      await page.getByRole('button', { name: 'Edit Details' }).click({ timeout: 15000 });
+      await page.waitForTimeout(800);
     },
   },
-  { name: 'contacts', path: '/clients/contacts', waitForText: 'Contacts' },
-  { name: 'contact-new', path: '/clients/contacts/new', waitForText: 'Contact' },
-  { name: 'contact-edit', path: `/clients/contacts/${contactId}/edit`, waitForText: 'Ngozi', skipIf: !contactId },
-  { name: 'invoices', path: '/invoices', waitForText: 'Invoices' },
-  { name: 'invoice-new', path: '/invoices/new', waitForText: 'New invoice' },
-  { name: 'invoice-detail', path: '/invoices/inv_demo_sample_ngn', waitForText: 'INV-0001' },
-  { name: 'quotes', path: '/quotes', waitForText: 'Quotes' },
-  { name: 'quote-new', path: '/quotes/new', waitForText: 'New quote' },
-  { name: 'quote-detail', path: '/quotes/qot_demo_sample', waitForText: 'QOT-0001' },
+  { name: 'contacts', path: '/clients/contacts' },
+  { name: 'contact-new', path: '/clients/contacts/new' },
+  { name: 'contact-edit', path: `/clients/contacts/${contactId}/edit`, skipIf: !contactId },
+  { name: 'invoices', path: '/invoices' },
+  { name: 'invoice-new', path: '/invoices/new' },
+  { name: 'invoice-detail', path: '/invoices/inv_demo_sample_ngn' },
+  { name: 'quotes', path: '/quotes' },
+  { name: 'quote-new', path: '/quotes/new' },
+  { name: 'quote-detail', path: '/quotes/qot_demo_sample' },
   {
     name: 'quote-edit',
     path: `/quotes/${draftQuoteId}`,
-    waitForText: 'Draft',
     skipIf: !draftQuoteId,
     prepare: async (page) => {
-      await page.getByRole('button', { name: /Edit draft/i }).first().click({ timeout: 8000 });
-      await page.waitForTimeout(500);
+      await page.getByRole('button', { name: /Edit draft/i }).first().click({ timeout: 15000 });
+      await page.waitForTimeout(800);
     },
   },
-  { name: 'recurring-new', path: '/recurring-invoices/new', waitForText: 'recurring' },
-  { name: 'settings', path: '/settings', waitForText: 'Settings' },
-  { name: 'settings-payments', path: '/settings/payments', waitForText: 'Payment' },
-  { name: 'profile', path: '/profile', waitForText: 'Profile' },
-  { name: 'onboarding', path: '/onboarding', waitForText: 'Business' },
-  { name: 'onboarding-plan', path: '/onboarding/plan', waitForText: 'plan' },
-  { name: 'public-quote', path: '/q/token_demo_sample_qot', waitForText: 'QOT-0001', loggedOut: true },
-  { name: 'public-invoice', path: '/i/token_demo_sample_ngn', waitForText: 'INV-0001', loggedOut: true },
-  { name: 'public-invoice-paid', path: '/i/token_demo_sample_paid', waitForText: 'INV-0002', loggedOut: true },
-  { name: 'marketing-home', path: '/', waitForText: 'Bagg', loggedOut: true },
-  { name: 'marketing-receipts', path: '/features/receipts', waitForText: 'receipt', loggedOut: true },
-  { name: 'styleguide', path: '/styleguide', waitForText: 'Styleguide' },
+  { name: 'recurring-new', path: '/recurring-invoices/new' },
+  { name: 'settings', path: '/settings' },
+  { name: 'settings-payments', path: '/settings/payments' },
+  { name: 'profile', path: '/profile' },
+  { name: 'onboarding', path: '/onboarding' },
+  { name: 'onboarding-plan', path: '/onboarding/plan' },
+  { name: 'public-quote', path: '/q/token_demo_sample_qot', loggedOut: true },
+  { name: 'public-invoice', path: '/i/token_demo_sample_ngn', loggedOut: true },
+  { name: 'public-invoice-paid', path: '/i/token_demo_sample_paid', loggedOut: true },
+  { name: 'marketing-home', path: '/', loggedOut: true },
+  { name: 'marketing-receipts', path: '/features/receipts', loggedOut: true },
+  { name: 'login', path: '/login', loggedOut: true },
+  { name: 'styleguide', path: '/styleguide' },
 ];
 
 // --- In-page audit -------------------------------------------------------
@@ -167,7 +166,6 @@ const AUDIT_FN = () => {
     return parse(getComputedStyle(document.body).backgroundColor);
   };
 
-  // Horizontal overflow and its culprits.
   const overflow = document.documentElement.scrollWidth - vw;
   const overflowEls = [];
   if (overflow > 1) {
@@ -188,7 +186,6 @@ const AUDIT_FN = () => {
     }
   }
 
-  // Visible controls without an accessible name source.
   const unlabeled = [];
   for (const el of document.querySelectorAll('input, select, textarea')) {
     const type = (el.getAttribute('type') || '').toLowerCase();
@@ -211,7 +208,6 @@ const AUDIT_FN = () => {
     }
   }
 
-  // Low-contrast text.
   const lowContrast = [];
   const seen = new Set();
   for (const el of document.querySelectorAll('body *')) {
@@ -263,7 +259,7 @@ const AUDIT_FN = () => {
     unlabeled,
     lowContrast,
     theme: document.documentElement.dataset.theme,
-    title: document.title,
+    path: location.pathname,
   };
 };
 
@@ -271,114 +267,129 @@ const AUDIT_FN = () => {
 const results = [];
 let totalIssues = 0;
 
+async function checkPage(context, viewport, theme, pageDef) {
+  const pageContext = pageDef.loggedOut
+    ? await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } })
+    : context;
+  const page = await pageContext.newPage();
+  const consoleErrors = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 200));
+  });
+  page.on('pageerror', (error) => consoleErrors.push(`PAGEERROR ${error.message}`.slice(0, 200)));
+
+  await page.addInitScript((value) => {
+    try {
+      localStorage.setItem('bagg-theme', value);
+    } catch {}
+  }, theme);
+
+  const started = Date.now();
+  let status = null;
+  try {
+    const response = await page.goto(`${BASE}${pageDef.path}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 60000,
+    });
+    status = response ? response.status() : null;
+
+    // Wait for the app shell to hydrate and client data to arrive.
+    await page.waitForSelector('main, form, h1', { timeout: 20000 }).catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: 4000 }).catch(() => {});
+    await page.evaluate(() => document.fonts.ready).catch(() => {});
+    await page.waitForTimeout(500);
+
+    if (pageDef.prepare) {
+      await pageDef.prepare(page).catch((error) => {
+        console.log(`  prepare failed for ${pageDef.name}: ${String(error).slice(0, 120)}`);
+      });
+    }
+    await page.waitForTimeout(200);
+
+    const audit = await page.evaluate(AUDIT_FN);
+    const issues = {
+      overflow: audit.overflow > 1 ? audit.overflow : 0,
+      overflowEls: audit.overflowEls,
+      unlabeled: audit.unlabeled,
+      lowContrast: audit.lowContrast,
+      consoleErrors,
+      landedOnLogin: audit.path === '/login',
+    };
+    const issueCount =
+      (issues.overflow ? 1 : 0) +
+      issues.unlabeled.length +
+      issues.lowContrast.length +
+      consoleErrors.length +
+      (issues.landedOnLogin ? 1 : 0);
+    totalIssues += issueCount;
+
+    results.push({
+      theme,
+      viewport: viewport.name,
+      page: pageDef.name,
+      status,
+      themeResolved: audit.theme,
+      durationMs: Date.now() - started,
+      ...issues,
+    });
+
+    if (issueCount > 0) {
+      console.log(
+        `\n[${theme} ${viewport.name}] ${pageDef.name} (${status}) ` +
+          `overflow=${issues.overflow} unlabeled=${issues.unlabeled.length} contrast=${issues.lowContrast.length} errors=${consoleErrors.length} login=${issues.landedOnLogin}`,
+      );
+      if (issues.landedOnLogin) console.log('  landed on login page');
+      if (issues.overflow) console.log('  overflow:', JSON.stringify(issues.overflowEls));
+      if (issues.unlabeled.length) console.log('  unlabeled:', JSON.stringify(issues.unlabeled));
+      if (issues.lowContrast.length) console.log('  contrast:', JSON.stringify(issues.lowContrast));
+      if (consoleErrors.length) console.log('  errors:', JSON.stringify(consoleErrors.slice(0, 4)));
+    }
+  } catch (error) {
+    totalIssues += 1;
+    results.push({
+      theme,
+      viewport: viewport.name,
+      page: pageDef.name,
+      status,
+      durationMs: Date.now() - started,
+      failure: String(error).slice(0, 300),
+    });
+    console.log(`\n[${theme} ${viewport.name}] ${pageDef.name} FAILED: ${String(error).slice(0, 300)}`);
+  } finally {
+    await page.close();
+    if (pageDef.loggedOut) await pageContext.close();
+  }
+}
+
 for (const theme of ['light', 'dark']) {
   for (const viewport of VIEWPORTS) {
     const context = await browser.newContext({
       viewport: { width: viewport.width, height: viewport.height },
-      reducedMotion: 'no-preference',
-    });
-    const loggedOutContext = await browser.newContext({
-      viewport: { width: viewport.width, height: viewport.height },
+      storageState: STATE,
     });
 
-    for (const pageDef of PAGES) {
-      if (pageDef.skipIf) continue;
-
-      const page = await context.newPage();
-      const consoleErrors = [];
-      page.on('console', (message) => {
-        if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 200));
-      });
-      page.on('pageerror', (error) => consoleErrors.push(`PAGEERROR ${error.message}`.slice(0, 200)));
-
-      const pageContext = pageDef.loggedOut ? loggedOutContext : context;
-      const target = pageDef.loggedOut ? await pageContext.newPage() : page;
-
-      await target.addInitScript((value) => {
-        try {
-          localStorage.setItem('bagg-theme', value);
-        } catch {}
-      }, theme);
-
-      let status = null;
-      try {
-        const response = await target.goto(`${BASE}${pageDef.path}`, {
-          waitUntil: 'domcontentloaded',
-          timeout: 60000,
-        });
-        status = response ? response.status() : null;
-        if (pageDef.waitForText) {
-          await target
-            .getByText(pageDef.waitForText, { exact: false })
-            .first()
-            .waitFor({ timeout: 12000 })
-            .catch(() => {});
-        }
-        await target.waitForLoadState('networkidle', { timeout: 2500 }).catch(() => {});
-        await target.evaluate(() => document.fonts.ready).catch(() => {});
-        await target.waitForTimeout(300);
-        if (pageDef.prepare) {
-          await pageDef.prepare(target).catch((error) => {
-            console.log(`  prepare failed for ${pageDef.name}: ${String(error).slice(0, 120)}`);
-          });
-        }
-        await target.waitForTimeout(200);
-
-        const audit = await target.evaluate(AUDIT_FN);
-        const issues = {
-          overflow: audit.overflow > 1 ? audit.overflow : 0,
-          overflowEls: audit.overflowEls,
-          unlabeled: audit.unlabeled,
-          lowContrast: audit.lowContrast,
-          consoleErrors,
-        };
-        const issueCount =
-          (issues.overflow ? 1 : 0) +
-          issues.unlabeled.length +
-          issues.lowContrast.length +
-          consoleErrors.length;
-        totalIssues += issueCount;
-
-        results.push({
-          theme,
-          viewport: viewport.name,
-          page: pageDef.name,
-          status,
-          themeResolved: audit.theme,
-          ...issues,
-        });
-
-        if (issueCount > 0) {
-          console.log(
-            `\n[${theme} ${viewport.name}] ${pageDef.name} (${status}) ` +
-              `overflow=${issues.overflow} unlabeled=${issues.unlabeled.length} contrast=${issues.lowContrast.length} errors=${consoleErrors.length}`,
-          );
-          if (issues.overflow) console.log('  overflow:', JSON.stringify(issues.overflowEls));
-          if (issues.unlabeled.length) console.log('  unlabeled:', JSON.stringify(issues.unlabeled));
-          if (issues.lowContrast.length) console.log('  contrast:', JSON.stringify(issues.lowContrast));
-          if (consoleErrors.length) console.log('  errors:', JSON.stringify(consoleErrors.slice(0, 4)));
-        }
-      } catch (error) {
-        totalIssues += 1;
-        results.push({
-          theme,
-          viewport: viewport.name,
-          page: pageDef.name,
-          status,
-          failure: String(error).slice(0, 300),
-        });
-        console.log(`\n[${theme} ${viewport.name}] ${pageDef.name} FAILED: ${String(error).slice(0, 300)}`);
-      } finally {
-        if (pageDef.loggedOut) await target.close();
-        else await page.close();
+    const queue = PAGES.filter((p) => !p.skipIf);
+    const workers = Array.from({ length: 4 }, async () => {
+      while (queue.length > 0) {
+        const pageDef = queue.shift();
+        if (pageDef) await checkPage(context, viewport, theme, pageDef);
       }
-    }
-
+    });
+    await Promise.all(workers);
     await context.close();
-    await loggedOutContext.close();
   }
 }
 
 fs.writeFileSync(`${OUT}/audit.json`, JSON.stringify(results, null, 2));
-console.log(`\nDone. ${results.length} page checks, ${totalIssues} issues.`);
+const byPage = {};
+for (const r of results) {
+  if (r.failure) byPage[r.page] = (byPage[r.page] ?? 0) + 1;
+  else {
+    const n =
+      (r.overflow ? 1 : 0) + r.unlabeled.length + r.lowContrast.length + r.consoleErrors.length + (r.landedOnLogin ? 1 : 0);
+    byPage[r.page] = (byPage[r.page] ?? 0) + n;
+  }
+}
+console.log('\nIssues by page:', JSON.stringify(byPage));
+console.log(`Done. ${results.length} page checks, ${totalIssues} issues.`);
 await browser.close();

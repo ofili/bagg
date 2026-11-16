@@ -133,6 +133,11 @@ async def verify_code(
     user, workspace, session_token, is_new_user = await service.verify_login(
         str(payload.email),
         payload.code,
+        attribution=(
+            payload.attribution.model_dump(exclude_none=True)
+            if payload.attribution
+            else None
+        ),
     )
 
     response.set_cookie(

@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.domains.activation.service import record_product_event
 from app.domains.billing.catalog import (
     PLAN_PRICING,
     CREDIT_PACK_PRICING,
@@ -227,6 +228,22 @@ async def create_billing_checkout(
 
     await repo.add(checkout)
 
+    await record_product_event(
+        db,
+        workspace_id=workspace.id,
+        event_name="billing.checkout_created",
+        event_id=f"billing-checkout-created:{checkout.id}",
+        source="api",
+        properties={
+            "checkout_id": checkout.id,
+            "purchase_type": purchase_type,
+            "plan_code": plan,
+            "billing_interval": billing_interval,
+            "currency": currency,
+            "amount_minor": amount_minor,
+        },
+    )
+
     try:
         await db.commit()
         await db.refresh(checkout)
@@ -303,6 +320,21 @@ async def create_billing_checkout(
         checkout.authorization_url = authorization_url
         checkout.status = "pending"
 
+        await record_product_event(
+            db,
+            workspace_id=workspace.id,
+            event_name="billing.payment_pending",
+            event_id=f"billing-payment-pending:{checkout.id}",
+            source="api",
+            properties={
+                "checkout_id": checkout.id,
+                "purchase_type": purchase_type,
+                "plan_code": plan,
+                "billing_interval": billing_interval,
+                "currency": currency,
+            },
+        )
+
         await db.commit()
         await db.refresh(checkout)
 
@@ -327,11 +359,12 @@ async def create_billing_checkout(
 
 
 async def apply_verified_checkout_payment(
-        *,
-        db: AsyncSession,
-        checkout: BillingCheckout,
-        data: dict,
-        require_metadata: bool = False,
+    *,
+    db: AsyncSession,
+    checkout: BillingCheckout,
+    data: dict,
+    source: str,
+    require_metadata: bool = False,
 ) -> BillingCheckout:
     """Apply a successful provider payment to its stored purchase intent.
 
@@ -445,6 +478,38 @@ async def apply_verified_checkout_payment(
     )
     checkout.paid_at = datetime.now(timezone.utc)
 
+    await record_product_event(
+        db,
+        workspace_id=checkout.workspace_id,
+        event_name="billing.payment_succeeded",
+        event_id=f"billing-payment-succeeded:{checkout.id}",
+        source="webhook",
+        properties={
+            "checkout_id": checkout.id,
+            "purchase_type": checkout.purchase_type,
+            "plan_code": checkout.plan_code,
+            "billing_interval": checkout.billing_interval,
+            "currency": checkout.currency,
+        },
+        occurred_at=checkout.paid_at,
+    )
+
+    if checkout.purchase_type == "subscription":
+        await record_product_event(
+            db,
+            workspace_id=checkout.workspace_id,
+            event_name="billing.subscription_activated",
+            event_id=f"billing-subscription-activated:{checkout.id}",
+            source="webhook",
+            properties={
+                "checkout_id": checkout.id,
+                "plan_code": checkout.plan_code,
+                "billing_interval": checkout.billing_interval,
+                "currency": checkout.currency,
+            },
+            occurred_at=checkout.paid_at,
+        )
+
     await db.flush()
 
     return checkout
@@ -493,11 +558,28 @@ async def apply_reconciliation_result(
                 db=db,
                 checkout=checkout,
                 data=provider_data,
+                source="api",
                 require_metadata=False,
             )
 
         else:
             checkout.status = "failed"
+
+            await record_product_event(
+                db,
+                workspace_id=checkout.workspace_id,
+                event_name="billing.payment_failed",
+                event_id=f"billing-payment-failed:{checkout.id}",
+                source="api",
+                properties={
+                    "checkout_id": checkout.id,
+                    "purchase_type": checkout.purchase_type,
+                    "plan_code": checkout.plan_code,
+                    "billing_interval": checkout.billing_interval,
+                    "currency": checkout.currency,
+                },
+            )
+
             checkout.failure_reason = "Paystack verification returned failed."
 
         await db.commit()

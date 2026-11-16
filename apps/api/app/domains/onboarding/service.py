@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domains.activation.service import record_product_event
 from app.domains.onboarding.repository import OnboardingRepository
 from app.domains.onboarding.schemas import (
     BusinessProfileResponse,
@@ -96,6 +97,20 @@ class OnboardingService:
 
         # Compatibility with existing frontend and API consumers.
         workspace.onboarding_completed = True
+
+        await record_product_event(
+            self.db,
+            workspace_id=workspace.id,
+            user_id=workspace.owner_id,
+            event_name="workspace.profile_completed",
+            event_id=f"workspace-profile-completed:{workspace.id}",
+            source="api",
+            properties={
+                "country": workspace.country,
+                "default_currency": workspace.default_currency,
+            },
+            occurred_at=now,
+        )
 
         await self.db.flush()
 

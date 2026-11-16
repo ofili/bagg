@@ -19,6 +19,7 @@ const config: Config = {
         // Brand
         mango: 'var(--bagg-mango)',
         pink: 'var(--bagg-pink)',
+        'pink-ink': 'var(--bagg-pink-ink)',
         sun: 'var(--bagg-sun)',
         leaf: 'var(--bagg-leaf)',
         danger: 'var(--bagg-danger)',
