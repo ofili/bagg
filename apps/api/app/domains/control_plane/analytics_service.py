@@ -1,7 +1,7 @@
-
 from collections import defaultdict
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,6 +64,8 @@ SAFE_EVENT_PROPERTIES = {
     "utm_content",
     "utm_term",
     "referral_code",
+    "landing_path",
+    "referrer",
 }
 
 def _date_bounds(
@@ -107,6 +109,107 @@ def _safe_properties(properties: Any) -> dict[str, Any]:
                 safe[key] = value
 
     return safe
+
+
+def _safe_url_property(key: str, value: str) -> str | None:
+    """
+    Return a safe URL attribution value without query strings or fragments.
+
+    landing_path is treated as a path, not as an arbitrary URL.
+    referrer accepts only HTTP(S) URLs with a valid hostname.
+
+    Credentials in URL authority components are never returned.
+    """
+    value = value.strip()
+
+    if not value:
+        return None
+
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return None
+
+    if key == "landing_path":
+        # Retain only the path. Query strings and fragments can contain
+        # email addresses, tokens, or other sensitive information.
+        path = parsed.path or "/"
+        return path[:100]
+
+    if key == "referrer":
+        if parsed.scheme.lower() not in {"http", "https"}:
+            return None
+
+        hostname = parsed.hostname
+
+        if not hostname:
+            return None
+
+        try:
+            port = parsed.port
+        except ValueError:
+            return None
+
+        # Reconstruct the authority without username/password information.
+        if ":" in hostname and not hostname.startswith("["):
+            safe_host = f"[{hostname}]"
+        else:
+            safe_host = hostname
+
+        netloc = (
+            f"{safe_host}:{port}"
+            if port is not None
+            else safe_host
+        )
+
+        safe_url = urlunsplit(
+            (
+                parsed.scheme.lower(),
+                netloc,
+                parsed.path,
+                "",
+                "",
+            )
+        )
+
+        return safe_url[:100]
+
+    return None
+
+
+def _safe_properties(properties: Any) -> dict[str, Any]:
+    """
+    Project event properties through an explicit safe allowlist.
+
+    Unknown keys and complex values are discarded. URL attribution
+    properties are sanitised before they are returned.
+    """
+    if not isinstance(properties, dict):
+        return {}
+
+    safe: dict[str, Any] = {}
+
+    for key, value in properties.items():
+        if key not in SAFE_EVENT_PROPERTIES:
+            continue
+
+        if key in {"landing_path", "referrer"}:
+            if isinstance(value, str):
+                sanitised = _safe_url_property(key, value)
+
+                if sanitised is not None:
+                    safe[key] = sanitised
+
+            continue
+
+        if value is None or isinstance(value, (str, int, float, bool)):
+            if isinstance(value, str):
+                safe[key] = value[:100]
+            else:
+                safe[key] = value
+
+    return safe
+
 
 async def _user_ids_in_signup_window(
     db: AsyncSession,
