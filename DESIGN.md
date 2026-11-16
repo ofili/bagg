@@ -220,7 +220,7 @@ peach-chip| "#FFE3CC"| "#4A3220"
 
 The application supports system, light and dark theme preferences. The root layout applies the stored preference before hydration to minimize theme flash. The ThemeProvider manages preference changes, operating-system changes while in system mode, and cross-tab synchronization. Tailwind dark-mode utilities are activated through [data-theme="dark"].
 
-Client-facing pages should respect the selected viewer theme where appropriate. PDFs remain light.
+Client-facing pages should respect the selected viewer theme where appropriate. PDFs remain light. Marketing and authentication/onboarding pages (including `/login`, `/signup`, and `/onboarding`) are strictly light mode only; dark mode is reserved for authenticated in-app workspace surfaces.
 
 4.6 Contrast
 

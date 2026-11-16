@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Check,
+  ChevronDown,
   ChevronRight,
   Circle,
   RotateCcw,
@@ -110,6 +111,26 @@ export function SetupChecklist() {
   const [failed, setFailed] = useState(false);
   const [savingPreference, setSavingPreference] = useState(false);
   const [preferenceError, setPreferenceError] = useState('');
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('bagg_setup_collapsed');
+      if (stored === 'true') {
+        setCollapsed(true);
+      }
+    } catch {}
+  }, []);
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('bagg_setup_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -431,28 +452,55 @@ export function SetupChecklist() {
                   : 'Let’s get your first invoice moving.'}
               </h2>
 
-              <p className="mt-1 text-body text-text-muted">
-                {allCompleted
-                  ? 'You have created, sent and received payment for a document through Bagg.'
-                  : 'A few steps to help you start getting paid through Bagg.'}
-              </p>
+              {collapsed ? (
+                <p className="mt-1 text-caption font-bold text-text-muted">
+                  {completedCount} of {steps.length} steps completed
+                </p>
+              ) : (
+                <p className="mt-1 text-body text-text-muted">
+                  {allCompleted
+                    ? 'You have created, sent and received payment for a document through Bagg.'
+                    : 'A few steps to help you start getting paid through Bagg.'}
+                </p>
+              )}
             </div>
 
-            <button
-              type="button"
-              aria-label="Hide getting-started checklist"
-              title="Hide checklist"
-              disabled={savingPreference}
-              onClick={() => void handleDismiss()}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center border-brut-thin border-ink text-text-muted transition-colors hover:bg-surface-tint hover:text-ink disabled:opacity-50"
-            >
-              <X aria-hidden className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                aria-label={collapsed ? 'Expand getting-started checklist' : 'Collapse getting-started checklist'}
+                title={collapsed ? 'Expand checklist' : 'Collapse checklist'}
+                aria-expanded={!collapsed}
+                onClick={toggleCollapsed}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center border-brut-thin border-ink text-text-muted transition-colors hover:bg-surface-tint hover:text-ink"
+              >
+                <ChevronDown
+                  aria-hidden
+                  className={cn(
+                    'h-4 w-4 transition-transform duration-200',
+                    !collapsed && 'rotate-180',
+                  )}
+                />
+              </button>
+
+              <button
+                type="button"
+                aria-label="Hide getting-started checklist"
+                title="Hide checklist"
+                disabled={savingPreference}
+                onClick={() => void handleDismiss()}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center border-brut-thin border-ink text-text-muted transition-colors hover:bg-surface-tint hover:text-ink disabled:opacity-50"
+              >
+                <X aria-hidden className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="space-y-2">
+      {!collapsed && (
+        <>
+          <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <span className="text-caption font-bold text-text">
             Progress
@@ -614,6 +662,8 @@ export function SetupChecklist() {
             </Link>
           </div>
         )}
+        </>
+      )}
 
       {preferenceError && (
         <p role="alert" className="text-caption text-status-late-fg">

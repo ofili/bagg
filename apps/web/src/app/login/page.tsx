@@ -201,7 +201,7 @@ function LoginPageContent() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-cream">
+    <div className="flex min-h-dvh flex-col bg-cream" data-theme="light">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-4">
         <Link
           href="/"

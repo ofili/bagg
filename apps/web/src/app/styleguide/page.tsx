@@ -704,6 +704,7 @@ export default function StyleguidePage() {
               setSortOrder('asc');
             }
           }}
+          onRowClick={() => {}}
           renderMobileCard={renderMobileCard}
         />
 

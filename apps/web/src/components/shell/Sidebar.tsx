@@ -47,47 +47,68 @@ export function Sidebar({
         className={cn(
           'flex h-16 shrink-0 items-center border-b-2',
           'border-solid border-ink',
-          collapsed
-            ? 'justify-between px-2'
-            : 'justify-between px-5',
+          collapsed ? 'justify-center px-2' : 'justify-between px-5',
         )}
       >
-        <Link
-          href="/dashboard"
-          aria-label="Bagg home"
-          title="Bagg home"
-          className="flex min-w-0 items-center"
-        >
-          {collapsed ? (
-            <BagMark size={32} />
-          ) : (
-            <Wordmark />
-          )}
-        </Link>
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label="Expand sidebar"
+            aria-expanded={false}
+            aria-controls="app-sidebar"
+            title="Expand sidebar"
+            className={cn(
+              'group relative flex h-10 w-10 shrink-0 items-center justify-center',
+              'rounded-btn border-brut-thin border-ink',
+              'bg-surface text-ink shadow-brut-sm',
+              'transition-[transform,box-shadow,background-color] duration-100',
+              'hover:bg-surface-tint hover:shadow-brut',
+              'active:translate-x-[2px] active:translate-y-[2px] active:shadow-none',
+            )}
+          >
+            {/* Default state: Bagg logo */}
+            <span className="flex items-center justify-center transition-all duration-150 group-hover:scale-75 group-hover:opacity-0 group-focus-visible:scale-75 group-focus-visible:opacity-0">
+              <BagMark size={28} />
+            </span>
 
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-expanded={!collapsed}
-          aria-controls="app-sidebar"
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className={cn(
-            'inline-flex h-9 w-9 shrink-0 items-center justify-center',
-            'rounded-btn border-brut-thin border-ink',
-            'bg-surface text-ink shadow-brut-sm',
-            'transition-[transform,box-shadow] duration-75',
-            'hover:bg-surface-tint',
-            'active:translate-x-[2px] active:translate-y-[2px]',
-            'active:shadow-none',
-          )}
-        >
-          {collapsed ? (
-            <CaretRightIcon aria-hidden weight="bold" className="h-4 w-4" />
-          ) : (
-            <CaretLeftIcon aria-hidden weight="bold" className="h-4 w-4" />
-          )}
-        </button>
+            {/* Hover / focus state: Expand icon */}
+            <span className="absolute inset-0 flex items-center justify-center scale-75 opacity-0 transition-all duration-150 group-hover:scale-100 group-hover:opacity-100 group-focus-visible:scale-100 group-focus-visible:opacity-100">
+              <CaretRightIcon aria-hidden weight="bold" className="h-5 w-5 text-ink" />
+            </span>
+          </button>
+        ) : (
+          <>
+            <Link
+              href="/dashboard"
+              aria-label="Bagg home"
+              title="Bagg home"
+              className="flex min-w-0 items-center"
+            >
+              <Wordmark />
+            </Link>
+
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label="Collapse sidebar"
+              aria-expanded={true}
+              aria-controls="app-sidebar"
+              title="Collapse sidebar"
+              className={cn(
+                'inline-flex h-9 w-9 shrink-0 items-center justify-center',
+                'rounded-btn border-brut-thin border-ink',
+                'bg-surface text-ink shadow-brut-sm',
+                'transition-[transform,box-shadow] duration-75',
+                'hover:bg-surface-tint',
+                'active:translate-x-[2px] active:translate-y-[2px]',
+                'active:shadow-none',
+              )}
+            >
+              <CaretLeftIcon aria-hidden weight="bold" className="h-4 w-4" />
+            </button>
+          </>
+        )}
       </div>
 
       <div className="p-3 lg:p-4">

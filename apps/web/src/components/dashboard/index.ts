@@ -1,3 +1,8 @@
+export { HeroOwedCard } from './HeroOwedCard';
+export { NeedsAttentionStrip } from './NeedsAttentionStrip';
+export { ThisMonthCard } from './ThisMonthCard';
+export { RecentActivityFeed } from './RecentActivityFeed';
+export { SetupChecklistCard } from './SetupChecklistCard';
 export { OutstandingCard } from './OutstandingCard';
 export type { CurrencyMetrics } from './OutstandingCard';
 export { KpiGrid } from './KpiGrid';

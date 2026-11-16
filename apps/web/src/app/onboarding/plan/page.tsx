@@ -539,7 +539,7 @@ function PlanPageContent() {
   const graceEnd = formatDate(subscription?.grace_period_end);
 
   return (
-    <div className="min-h-dvh bg-cream">
+    <div className="min-h-dvh bg-cream" data-theme="light">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5">
         <Link
           href="/"

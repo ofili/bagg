@@ -7,12 +7,9 @@ import {
   ArrowLeft,
   Buildings,
   ChatCircle,
-  CircleNotch,
   Envelope,
-  PencilSimple,
   Phone,
   Plus,
-  Trash,
   User,
   Users,
 } from '@phosphor-icons/react';
@@ -55,19 +52,6 @@ interface Contact {
   client_name?: string | null;
 }
 
-function responseError(data: unknown, fallback: string): string {
-  if (
-    typeof data === 'object' &&
-    data !== null &&
-    'detail' in data &&
-    typeof data.detail === 'string'
-  ) {
-    return data.detail;
-  }
-
-  return fallback;
-}
-
 function normalisePhone(phone?: string | null) {
   return phone ? phone.replace(/[^0-9+]/g, '') : '';
 }
@@ -80,10 +64,8 @@ export default function ContactsPage() {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
 
   const [sortBy, setSortBy] = useState<'name' | 'client_name'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -95,11 +77,6 @@ export default function ContactsPage() {
     }
     return map;
   }, [clients]);
-
-  const showSuccess = (msg: string) => {
-    setSuccessMessage(msg);
-    window.setTimeout(() => setSuccessMessage(null), 3000);
-  };
 
   const fetchDirectory = useCallback(async () => {
     try {
@@ -136,40 +113,6 @@ export default function ContactsPage() {
   useEffect(() => {
     void fetchDirectory();
   }, [fetchDirectory]);
-
-  const handleDeleteContact = async (contact: Contact) => {
-    if (!window.confirm(`Delete contact ${contact.name}?`)) return;
-
-    try {
-      setDeletingContactId(contact.id);
-
-      const res = await fetch(
-        `${API_BASE}/clients/contacts/${encodeURIComponent(contact.id)}`,
-        {
-          method: 'DELETE',
-          credentials: 'include',
-        },
-      );
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(
-          responseError(data, 'Could not delete this contact.'),
-        );
-      }
-
-      showSuccess('Contact deleted.');
-      await fetchDirectory();
-    } catch (err: unknown) {
-      setLoadError(
-        err instanceof Error
-          ? err.message
-          : 'Could not delete this contact.',
-      );
-    } finally {
-      setDeletingContactId(null);
-    }
-  };
 
   const filteredContacts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -320,37 +263,6 @@ export default function ContactsPage() {
         );
       },
     },
-    {
-      key: 'actions',
-      header: 'Actions',
-      align: 'center',
-      render: (contact) => (
-        <div className="flex items-center justify-center gap-1">
-          <Link
-            href={`/clients/contacts/${encodeURIComponent(contact.id)}/edit`}
-            aria-label={`Edit ${contact.name}`}
-            title="Edit contact"
-            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
-          >
-            <PencilSimple className="h-4 w-4" aria-hidden="true" />
-          </Link>
-          <button
-            type="button"
-            onClick={() => void handleDeleteContact(contact)}
-            disabled={deletingContactId === contact.id}
-            aria-label={`Delete ${contact.name}`}
-            title="Delete contact"
-            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-status-late hover:text-status-late-fg disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {deletingContactId === contact.id ? (
-              <CircleNotch className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Trash className="h-4 w-4" aria-hidden="true" />
-            )}
-          </button>
-        </div>
-      ),
-    },
   ];
 
   const renderMobileCard = (contact: Contact) => (
@@ -417,10 +329,6 @@ export default function ContactsPage() {
         />
       </div>
 
-      {successMessage && (
-        <Alert variant="success">{successMessage}</Alert>
-      )}
-
       {loadError && (
         <Alert
           variant="error"
@@ -481,6 +389,7 @@ export default function ContactsPage() {
           renderMobileCard={renderMobileCard}
           tableClassName="min-w-[800px]"
           caption="Contacts table"
+          getRowHref={(contact) => `/clients/contacts/${encodeURIComponent(contact.id)}/edit`}
         />
       </section>
     </PageContainer>

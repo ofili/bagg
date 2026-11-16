@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { ArrowUpRight } from '@phosphor-icons/react';
 import {
   Card,
-  buttonStyles,
   DataTable,
   ErrorState,
   PageContainer,
@@ -153,24 +152,6 @@ export default function ReceiptsPage() {
         </span>
       ),
     },
-    {
-      key: 'actions',
-      header: 'Actions',
-      align: 'center',
-      render: (receipt) => (
-        <div className="flex items-center justify-center gap-2">
-          <Link
-            href={`/receipts/${encodeURIComponent(receipt.id)}`}
-            className={buttonStyles({
-              variant: 'outline',
-              zone: 'calm',
-            })}
-          >
-            View
-          </Link>
-        </div>
-      ),
-    },
   ];
 
   const emptyState = (
@@ -250,6 +231,7 @@ export default function ReceiptsPage() {
         renderMobileCard={renderMobileCard}
         tableClassName="min-w-[850px]"
         caption="Receipts table"
+        getRowHref={(receipt) => `/receipts/${encodeURIComponent(receipt.id)}`}
       />
 
       {/* Pagination */}

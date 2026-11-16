@@ -4,6 +4,7 @@ import { Wordmark } from '@/components/brand';
 import { ClientOnly } from '@/components/mobile/ClientOnly';
 import { UserMenu } from '@/components/navigation/UserMenu';
 import { ThemeSwitcher } from '@/components/navigation/ThemeSwitcher';
+import { WorkspaceSwitcher } from '@/components/navigation/WorkspaceSwitcher';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { cn } from '@/lib/cn';
 
@@ -19,12 +20,9 @@ export function HeaderBar({
         'border-b-2 border-solid border-ink bg-surface px-8 sm:flex',
       )}
     >
-      <p
-        className="truncate text-sm font-extrabold text-ink"
-        title={businessName || undefined}
-      >
-        {businessName || 'Your business'}
-      </p>
+      <ClientOnly>
+        <WorkspaceSwitcher businessName={businessName} />
+      </ClientOnly>
 
       <div className="flex items-center gap-3">
         <ClientOnly>

@@ -83,6 +83,14 @@ class Settings(BaseSettings):
     # Comma-separated email addresses. Empty means deny all.
     CONTROL_PLANE_ADMIN_EMAILS: str = ""
 
+    # Private document artifact storage
+    DOCUMENTS_S3_BUCKET_NAME: str = "bagg-documents"
+    DOCUMENTS_S3_REGION: str = "us-east-1"
+    DOCUMENTS_S3_ENDPOINT_URL: str = "http://localhost:9000"
+    DOCUMENTS_S3_ACCESS_KEY_ID: str = "minioadmin"
+    DOCUMENTS_S3_SECRET_ACCESS_KEY: str = DEFAULT_S3_SECRET_ACCESS_KEY
+    DOCUMENTS_S3_ADDRESSING_STYLE: str = "path"
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )

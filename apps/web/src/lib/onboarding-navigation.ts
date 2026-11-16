@@ -121,10 +121,7 @@ export function getPostSetupDestination(
 ): string {
   const query = buildContinuationQuery(continuation);
 
-  // Preserve paid-plan intent for the ONB-05 plan-selection journey.
-  if (continuation.plan) {
-    return `/onboarding/plan${query ? `?${query}` : ''}`;
-  }
-
-  return continuation.next ?? '/dashboard';
+  // After workspace profile setup (Step 1), route user to Step 2 (Choose a plan).
+  // From there, they can select a paid plan or click "Continue with Free" to reach the dashboard.
+  return `/onboarding/plan${query ? `?${query}` : ''}`;
 }

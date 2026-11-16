@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 
 import { ThemePreferenceSection } from '@/components/theme/theme-preference';
+import { UpgradeModal } from '@/components/billing';
 import { Button } from '@/components/ui/button';
 import {
   Alert,
@@ -141,6 +142,7 @@ export default function SettingsPage() {
   const [loadingBilling, setLoadingBilling] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [billingActionLoading, setBillingActionLoading] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -321,23 +323,30 @@ export default function SettingsPage() {
     }
   };
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = () => {
+    setShowUpgradeModal(true);
+  };
+
+  const handleBuyCredits = async () => {
     try {
       setBillingActionLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/billing/checkout`, {
+      const callbackUrl = `${window.location.origin}/billing/checkout/pending`;
+
+      const response = await fetch(`${API_BASE}/billing/credits/buy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          plan_code: 'creator_pro_monthly',
-          callback_url: window.location.href,
+          pack: '200_credits',
+          currency: 'NGN',
+          callback_url: callbackUrl,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(await responseError(response, 'We could not start checkout.'));
+        throw new Error(await responseError(response, 'We could not start credit purchase.'));
       }
 
       const data = await response.json();
@@ -346,35 +355,17 @@ export default function SettingsPage() {
         throw new Error('The payment provider did not return a checkout URL.');
       }
 
-      window.location.assign(data.authorization_url);
-    } catch (err) {
-      setError(errorText(err, 'We could not start checkout. Try again.'));
-      setBillingActionLoading(false);
-    }
-  };
-
-  const handleBuyCredits = async () => {
-    try {
-      setBillingActionLoading(true);
-      setError(null);
-
-      const response = await fetch(`${API_BASE}/billing/credits/buy`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ pack_size: 200 }),
-      });
-
-      if (!response.ok) {
-        throw new Error(await responseError(response, 'We could not buy credits.'));
+      try {
+        window.sessionStorage.setItem('bagg:active-checkout-id', data.checkout_id);
+        window.localStorage.setItem('bagg:last-checkout-id', data.checkout_id);
+        window.localStorage.setItem('bagg:checkout:return-next', '/settings#plan');
+      } catch {
+        // Continue if storage is restricted
       }
 
-      const data = await response.json();
-      setCredits(data);
-      showNotice('Your credit purchase has been processed.');
+      window.location.assign(data.authorization_url);
     } catch (err) {
       setError(errorText(err, 'We could not buy credits. Try again.'));
-    } finally {
       setBillingActionLoading(false);
     }
   };
@@ -773,8 +764,17 @@ export default function SettingsPage() {
                     )}
                   </div>
 
-                  <div className="mt-4 border-t border-line-subtle pt-3">
-                    {isPaid ? (
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line-subtle pt-3">
+                    <Button
+                      type="button"
+                      variant={isPaid ? 'outline' : 'primary'}
+                      onClick={handleUpgrade}
+                    >
+                      <Sparkles className="h-4 w-4" aria-hidden="true" />
+                      {isPaid ? 'Change or switch plan' : 'Upgrade plan'}
+                    </Button>
+
+                    {isPaid && (
                       subscription?.cancel_at_period_end ? (
                         <p className="text-caption text-text-muted">
                           Auto-renewal is already stopped.
@@ -785,29 +785,11 @@ export default function SettingsPage() {
                           variant="link"
                           disabled={billingActionLoading}
                           onClick={handleCancelSubscription}
-                          className="min-h-9 px-0 text-status-late-fg hover:no-underline"
+                          className="min-h-9 px-2 text-status-late-fg hover:no-underline"
                         >
                           {billingActionLoading ? 'Processing…' : 'Stop auto-renewal'}
                         </Button>
                       )
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        zone="calm"
-                        disabled={billingActionLoading}
-                        onClick={handleUpgrade}
-                      >
-                        {billingActionLoading ? (
-                          <Loader2
-                            className="h-4 w-4 animate-spin"
-                            aria-hidden="true"
-                          />
-                        ) : (
-                          <Sparkles className="h-4 w-4" aria-hidden="true" />
-                        )}
-                        Explore Creator Pro
-                      </Button>
                     )}
                   </div>
                 </div>
@@ -1107,6 +1089,13 @@ export default function SettingsPage() {
           </div>
         </form>
       </Dialog>
+
+      <UpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        currentTier={subscription?.tier || 'free'}
+        returnPath="/settings#plan"
+      />
     </PageContainer>
   );
 }

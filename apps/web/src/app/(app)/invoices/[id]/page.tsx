@@ -28,6 +28,7 @@ import { DocumentComments } from '@/components/comments/DocumentComments';
 import { InvoiceDocument } from '@/components/invoice';
 import { InvoiceActionBar } from '@/components/mobile/InvoiceActionBar';
 import { InvoiceMobileSummary } from '@/components/mobile/InvoiceMobileSummary';
+import { UpgradeModal } from '@/components/billing';
 import { MoneyField } from '@/components/ui/MoneyField';
 import { Money } from '@/components/money/Money';
 import {
@@ -304,6 +305,7 @@ export default function InvoiceDetailPage() {
 
   const [sendingInvoice, setSendingInvoice] = useState(false);
   const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [deliveryEmail, setDeliveryEmail] = useState('');
 
   const [showRecallDialog, setShowRecallDialog] = useState(false);
@@ -801,6 +803,13 @@ export default function InvoiceDetailPage() {
         .catch(() => ({}))) as InvoiceSendResult;
 
       if (!sendResponse.ok) {
+        if (sendResponse.status === 402) {
+          whatsappTab?.close();
+          setShowDeliveryDialog(false);
+          setShowUpgradeModal(true);
+          return;
+        }
+
         throw new Error(
           result.detail ||
             result.message ||
@@ -2139,6 +2148,12 @@ export default function InvoiceDetailPage() {
           </div>
         </form>
       </Dialog>
+
+      <UpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        returnPath={`/invoices/${invoice?.id || invoiceId || ''}`}
+      />
     </div>
   );
 }

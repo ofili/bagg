@@ -284,63 +284,6 @@ export default function QuotesPage() {
         );
       },
     },
-    {
-      key: 'actions',
-      header: 'Actions',
-      align: 'center',
-      render: (quote) => (
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {quote.status === 'draft' && (
-            <Link
-              href={`/quotes/${quote.id}`}
-              className={buttonStyles({
-                variant: 'outline',
-                zone: 'calm',
-              })}
-            >
-              View
-            </Link>
-          )}
-
-          {['issued', 'sent', 'viewed'].includes(quote.status) && (
-            <Button
-              zone="calm"
-              variant="outline"
-              loading={sendingId === quote.id}
-              onClick={() => openDeliveryDialog(quote)}
-            >
-              Send
-            </Button>
-          )}
-
-          {quote.status === 'accepted' && (
-            <Button
-              zone="calm"
-              loading={convertingId === quote.id}
-              onClick={() => void handleConvert(quote)}
-            >
-              Convert to invoice
-            </Button>
-          )}
-
-          {quote.status === 'converted' && (
-            <Link
-              href={
-                quote.invoice_id
-                  ? `/invoices/${quote.invoice_id}`
-                  : '/invoices'
-              }
-              className={buttonStyles({
-                variant: 'outline',
-                zone: 'calm',
-              })}
-            >
-              View invoice
-            </Link>
-          )}
-        </div>
-      ),
-    },
   ];
 
   const emptyState = (
@@ -427,6 +370,7 @@ export default function QuotesPage() {
         renderMobileCard={renderMobileCard}
         tableClassName="min-w-[850px]"
         caption="Quotes table"
+        getRowHref={(quote) => `/quotes/${quote.id}`}
       />
 
       {/* Pagination */}

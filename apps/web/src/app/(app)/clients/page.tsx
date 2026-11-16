@@ -488,31 +488,6 @@ export default function ClientsPage() {
         );
       },
     },
-    {
-      key: 'actions',
-      header: 'Actions',
-      align: 'center',
-      render: (contact) => (
-          <div className="flex items-center justify-center gap-1">
-            <Link
-                href={`/clients/contacts/${encodeURIComponent(contact.id)}/edit`}
-                aria-label={`Edit ${contact.name}`}
-                className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
-            >
-              <Edit2 className="h-4 w-4" aria-hidden="true" />
-            </Link>
-
-            <button
-                type="button"
-                onClick={() => void handleDeleteContact(contact)}
-                aria-label={`Delete ${contact.name}`}
-                className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-status-late hover:text-status-late-fg"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-      ),
-    },
   ];
 
   // ---------------------------------------------------------
@@ -1136,6 +1111,7 @@ export default function ClientsPage() {
                   renderMobileCard={renderMobileContactCard}
                   caption="Contacts directory"
                   tableClassName="min-w-[800px]"
+                  getRowHref={(contact) => `/clients/contacts/${encodeURIComponent(contact.id)}/edit`}
               />
             </section>
         )}

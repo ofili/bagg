@@ -19,6 +19,14 @@ const themeInitScript = `
   const VALID_THEMES = ['system', 'light', 'dark'];
 
   try {
+    const path = window.location.pathname;
+    const isLightOnly = path === '/' || /^\\/(about|pricing|contact|early-access|freelancers|creatives|consultants|studios|help|security|legal|features|login|signup|onboarding)(\\/|$)/.test(path);
+
+    if (isLightOnly) {
+      document.documentElement.dataset.theme = 'light';
+      return;
+    }
+
     const storedPreference = localStorage.getItem(STORAGE_KEY);
     const preference = VALID_THEMES.includes(storedPreference)
       ? storedPreference

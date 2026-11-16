@@ -31,7 +31,13 @@ def _paystack_plan_code(plan: str, interval: str) -> str | None:
     setting_name = f"PAYSTACK_PLAN_{plan.upper()}_{interval.upper()}"
     value = getattr(settings, setting_name, None)
 
-    return value.strip() if isinstance(value, str) and value.strip() else None
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+
+    if not settings.is_production:
+        return f"PLN_{plan}_{interval}_dev"
+
+    return None
 
 
 def _checkout_response(checkout: BillingCheckout) -> CheckoutResponse:

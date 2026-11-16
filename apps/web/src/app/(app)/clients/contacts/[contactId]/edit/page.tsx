@@ -3,7 +3,7 @@
 import { use, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, CircleNotch } from '@phosphor-icons/react';
+import { ArrowLeft, Check, CircleNotch, Trash } from '@phosphor-icons/react';
 
 import {
   Alert,
@@ -59,6 +59,7 @@ export default function EditContactPage({ params }: PageProps) {
   const [clientName, setClientName] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [error, setError] = useState('');
 
@@ -207,6 +208,43 @@ export default function EditContactPage({ params }: PageProps) {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm(`Are you sure you want to delete ${contact?.name || 'this contact'}?`)) {
+      return;
+    }
+
+    setDeleting(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_BASE}/clients/contacts/${contactId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        let message = 'Unable to delete contact. Please try again.';
+        try {
+          const data = await response.json();
+          if (typeof data.detail === 'string') {
+            message = data.detail;
+          }
+        } catch {
+          // Keep the fallback error message.
+        }
+        throw new Error(message);
+      }
+
+      router.push('/clients/contacts');
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Unable to delete contact. Please try again.',
+      );
+      setDeleting(false);
     }
   }
 
@@ -369,6 +407,27 @@ export default function EditContactPage({ params }: PageProps) {
           {error && <Alert variant="error">{error}</Alert>}
 
           <FormActions>
+            <Button
+              type="button"
+              variant="danger"
+              zone="calm"
+              disabled={saving || deleting}
+              onClick={() => void handleDelete()}
+              className="mr-auto"
+            >
+              {deleting ? (
+                <>
+                  <CircleNotch className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                  Deleting…
+                </>
+              ) : (
+                <>
+                  <Trash className="mr-2 size-4" aria-hidden="true" />
+                  Delete contact
+                </>
+              )}
+            </Button>
+
             <Link
               href="/clients/contacts"
               className={buttonStyles({ variant: 'outline', zone: 'calm' })}
@@ -376,7 +435,7 @@ export default function EditContactPage({ params }: PageProps) {
               Cancel
             </Link>
 
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || deleting}>
               {saving ? (
                 <>
                   <CircleNotch className="mr-2 size-4 animate-spin" aria-hidden="true" />

@@ -23,6 +23,7 @@ import { QuoteMobileSummary } from '@/components/mobile/QuoteMobileSummary';
 import { QuoteActionBar } from '@/components/mobile/QuoteActionBar';
 import { Money } from '@/components/money/Money';
 import { StatusPill } from '@/components/status';
+import { UpgradeModal } from '@/components/billing';
 import {
   Alert,
   BaggSelect,
@@ -194,6 +195,7 @@ export default function QuoteDetailPage() {
   const [saving, setSaving] = useState(false);
   const [issuing, setIssuing] = useState(false);
   const [sending, setSending] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const router = useRouter();
   const [showApproveDialog, setShowApproveDialog] = useState(false);
@@ -509,6 +511,10 @@ export default function QuoteDetailPage() {
       });
 
       if (!response.ok) {
+        if (response.status === 402) {
+          setShowUpgradeModal(true);
+          return;
+        }
         throw await readError(response, 'Could not prepare the quotes for sharing.');
       }
 
@@ -551,7 +557,13 @@ export default function QuoteDetailPage() {
         credentials: 'include',
         body: JSON.stringify({ delivery_channel: 'whatsapp' }),
       });
-      if (!response.ok) throw await readError(response, 'Could not prepare the quote for sharing.');
+      if (!response.ok) {
+        if (response.status === 402) {
+          setShowUpgradeModal(true);
+          return;
+        }
+        throw await readError(response, 'Could not prepare the quote for sharing.');
+      }
       const result = await response.json();
       if (result.whatsapp_share_url) window.open(result.whatsapp_share_url, '_blank');
       else await copyPublicLink();
@@ -1241,6 +1253,12 @@ export default function QuoteDetailPage() {
           </div>
         </Dialog>
       )}
+
+      <UpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        returnPath={`/quotes/${quote?.id || quoteId || ''}`}
+      />
     </main>
 
   );

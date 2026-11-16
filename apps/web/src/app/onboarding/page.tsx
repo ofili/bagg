@@ -238,7 +238,7 @@ function OnboardingForm() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-cream">
+    <div className="flex min-h-dvh flex-col bg-cream" data-theme="light">
       <header className="mx-auto flex w-full max-w-5xl items-center px-5 py-5">
         <Link
           href="/"

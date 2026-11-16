@@ -596,43 +596,29 @@ export default function InvoicesPage() {
         const overdue = isInvoiceOverdue(invoice);
 
         return (
-          <StatusPill
-            status={
-              overdue
-                ? 'overdue'
-                : invoice.effective_status || invoice.status
-            }
-          />
+          <div className="flex items-center gap-2">
+            <StatusPill
+              status={
+                overdue
+                  ? 'overdue'
+                  : invoice.effective_status || invoice.status
+              }
+            />
+            {invoice.latest_claim?.status === 'pending' && (
+              <Button
+                variant="outline"
+                zone="calm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleOpenReview(invoice);
+                }}
+              >
+                Review payment
+              </Button>
+            )}
+          </div>
         );
       },
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      align: 'center',
-      render: (invoice) => (
-        <div className="flex items-center justify-center gap-2">
-          <Link
-            href={`/invoices/${encodeURIComponent(invoice.id)}`}
-            className={buttonStyles({
-              variant: 'outline',
-              zone: 'calm',
-            })}
-          >
-            View
-          </Link>
-
-          {invoice.latest_claim?.status === 'pending' && (
-            <Button
-              variant="outline"
-              zone="calm"
-              onClick={() => void handleOpenReview(invoice)}
-            >
-              Review payment
-            </Button>
-          )}
-        </div>
-      ),
     },
   ];
 
@@ -781,6 +767,7 @@ export default function InvoicesPage() {
           renderMobileCard={renderMobileCard}
           tableClassName="min-w-[900px]"
           caption="Invoices table"
+          getRowHref={(invoice) => `/invoices/${encodeURIComponent(invoice.id)}`}
         />
       )}
 

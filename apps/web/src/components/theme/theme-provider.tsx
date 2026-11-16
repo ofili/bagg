@@ -9,11 +9,22 @@ import {
   useRef,
   useState,
 } from 'react';
+import { usePathname } from 'next/navigation';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
 
 const STORAGE_KEY = 'bagg-theme';
+
+export function isLightOnlyPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  if (pathname === '/') return true;
+  return /^\/(about|pricing|contact|early-access|freelancers|creatives|consultants|studios|help|security|legal|features|login|signup|onboarding)(\/|$)/.test(
+    pathname,
+  );
+}
+
+export const isMarketingPath = isLightOnlyPath;
 
 type ThemeContextValue = {
   preference: ThemePreference;
@@ -46,6 +57,9 @@ export function ThemeProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isMarketing = isMarketingPath(pathname);
+
   const [preference, setPreferenceState] =
     useState<ThemePreference>('system');
 
@@ -67,11 +81,25 @@ export function ThemeProvider({
 
       const nextTheme = resolveTheme(nextPreference);
 
-      applyTheme(nextTheme);
+      if (!isMarketingPath(window.location.pathname)) {
+        applyTheme(nextTheme);
+      } else {
+        applyTheme('light');
+      }
       setResolvedTheme(nextTheme);
     },
     [],
   );
+
+  useEffect(() => {
+    if (isMarketing) {
+      applyTheme('light');
+    } else {
+      const nextTheme = resolveTheme(preferenceRef.current);
+      applyTheme(nextTheme);
+      setResolvedTheme(nextTheme);
+    }
+  }, [isMarketing, pathname]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(
@@ -99,7 +127,12 @@ export function ThemeProvider({
     preferenceRef.current = initialPreference;
     setPreferenceState(initialPreference);
     setResolvedTheme(initialTheme);
-    applyTheme(initialTheme);
+
+    if (isMarketingPath(window.location.pathname)) {
+      applyTheme('light');
+    } else {
+      applyTheme(initialTheme);
+    }
 
     function handleSystemChange(event: MediaQueryListEvent) {
       if (preferenceRef.current !== 'system') {
@@ -110,7 +143,9 @@ export function ThemeProvider({
         ? 'dark'
         : 'light';
 
-      applyTheme(nextTheme);
+      if (!isMarketingPath(window.location.pathname)) {
+        applyTheme(nextTheme);
+      }
       setResolvedTheme(nextTheme);
     }
 
@@ -133,7 +168,9 @@ export function ThemeProvider({
             : 'light'
           : nextPreference;
 
-      applyTheme(nextTheme);
+      if (!isMarketingPath(window.location.pathname)) {
+        applyTheme(nextTheme);
+      }
       setResolvedTheme(nextTheme);
     }
 
