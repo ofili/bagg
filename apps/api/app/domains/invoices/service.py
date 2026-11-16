@@ -15,6 +15,8 @@ from app.domains.billing.service import (
 )
 from app.domains.clients.models import Client
 from app.domains.documents.delivery import DocumentDeliveryStatus
+from app.domains.documents.builders.invoices import build_invoice_document
+from app.domains.documents.generation import enqueue_document_generation
 from app.domains.invoices.models import Invoice, InvoiceLineItem, InvoiceRevision
 from app.domains.invoices.repository import InvoiceRepository
 from app.domains.invoices.recall_service import InvoiceRecallService
@@ -557,6 +559,24 @@ async def finalize_invoice(
                     "invoice_number": invoice.invoice_number,
                 },
             )
+
+    document = build_invoice_document(
+        invoice,
+        business_name=locked_workspace.business_name,
+        business_address=locked_workspace.address,
+        business_tax_id=locked_workspace.tax_id,
+        business_logo_url=locked_workspace.logo_url,
+        client_name=client.name,
+        client_email=client.email,
+        client_address=client.address,
+        client_tax_id=client.tax_id,
+    )
+
+    await enqueue_document_generation(
+        db,
+        document,
+        issuance_generation=invoice.issuance_generation,
+    )
 
     await InvoiceRecallService.create_issued_snapshot(db, invoice)
     await db.commit()

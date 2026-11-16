@@ -13,6 +13,8 @@ from app.core.errors import BadRequestException
 from app.core.money import format_money
 from app.core.security import generate_share_token
 from app.domains.activation.service import record_payment_confirmed
+from app.domains.documents.builders.receipts import build_receipt_document
+from app.domains.documents.generation import enqueue_document_generation
 from app.domains.workspaces.models import Workspace
 from app.domains.invoices.models import Invoice
 from app.domains.receipts.models import Receipt
@@ -200,6 +202,26 @@ async def confirm_payment(
                 "Payment notification creation failed for receipt %s", receipt.id
             )
     await repo.flush()
+
+    client = invoice.client
+
+    document = build_receipt_document(
+        receipt,
+        business_name=workspace.business_name,
+        client_name=client.name if client else receipt.payer_name,
+        invoice_number=invoice.invoice_number,
+        business_address=workspace.address,
+        business_tax_id=workspace.tax_id,
+        business_logo_url=workspace.logo_url,
+        payer_email=client.email if client else None,
+        payer_address=client.address if client else None,
+    )
+
+    await enqueue_document_generation(
+        db,
+        document,
+        issuance_generation=1,
+    )
 
     await record_payment_confirmed(
         db,

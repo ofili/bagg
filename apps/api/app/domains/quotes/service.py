@@ -17,6 +17,8 @@ from app.domains.billing.service import (
     check_delivery_quota,
     consume_delivery_send,
 )
+from app.domains.documents.builders.quotes import build_quote_document
+from app.domains.documents.generation import enqueue_document_generation
 from app.domains.documents.delivery import DocumentDeliveryStatus
 from app.domains.invoices import service as invoices_service
 from app.domains.lifecycle.service import record_status_event
@@ -290,6 +292,26 @@ async def finalize_quote(
         actor_type="issuer",
         actor_id=workspace.owner_id,
         source="issuer_finalize",
+    )
+
+    client = quote_obj.client
+
+    document = build_quote_document(
+        quote_obj,
+        business_name=workspace.business_name,
+        business_address=workspace.address,
+        business_tax_id=workspace.tax_id,
+        business_logo_url=workspace.logo_url,
+        client_name=client.name if client else None,
+        client_email=client.email if client else None,
+        client_address=client.address if client else None,
+        client_tax_id=client.tax_id if client else None,
+    )
+
+    await enqueue_document_generation(
+        db,
+        document,
+        issuance_generation=1,
     )
 
     await db.commit()

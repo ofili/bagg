@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     EMAIL_MAX_ATTEMPTS: int = 5
     RECURRING_INVOICE_POLL_SECONDS: int = 60
 
+    DOCUMENT_WORKER_POLL_SECONDS: int = 2
+    DOCUMENT_WORKER_BATCH_SIZE: int = 5
+    DOCUMENT_WORKER_LEASE_SECONDS: int = 180
+    DOCUMENT_WORKER_MAX_ATTEMPTS: int = 5
+
     # Email
     SENDLY_API_KEY: Optional[str] = None
     SENDLY_FROM_EMAIL: Optional[str] = None
