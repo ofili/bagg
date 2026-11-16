@@ -46,6 +46,9 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
         "PLN_CREATOR_PRO_ANNUAL_TEST",
     )
 
+    subscription_code = f"SUB_DEMO_{uuid.uuid4().hex[:12].upper()}"
+    customer_code = f"CUST_DEMO_{uuid.uuid4().hex[:12].upper()}"
+
     async def fake_initialize(self, **kwargs):
         if kwargs.get("plan_code"):
             assert kwargs["amount_minor"] == 3_500_000
@@ -61,8 +64,8 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
         fake_initialize,
     )
 
-    async def fake_manage_link(self, subscription_code):
-        assert subscription_code == "SUB_DEMO_001"
+    async def fake_manage_link(self, received_subscription_code):
+        assert received_subscription_code == subscription_code
         return "https://checkout.test/subscription/manage"
 
     monkeypatch.setattr(
@@ -230,8 +233,8 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
                     "reference": sub_ref,
                     "amount": 3_500_000,
                     "currency": "NGN",
-                    "subscription_code": "SUB_DEMO_001",
-                    "customer": {"customer_code": "CUST_DEMO_001"},
+                    "subscription_code": subscription_code,
+                    "customer": {"customer_code": customer_code},
                     "status": "success",
                     "metadata": {
                         "type": "bagg_billing_checkout",
@@ -266,7 +269,7 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
                 "data": {
                     "reference": f"fail_{uuid.uuid4().hex[:6]}",
                     "subscription": {
-                        "subscription_code": "SUB_DEMO_001",
+                        "subscription_code": subscription_code,
                     },
                 },
             },
@@ -293,7 +296,7 @@ async def test_subscriptions_and_monetization_lifecycle(monkeypatch):
                 "event": "subscription.not_renew",
                 "data": {
                     "subscription": {
-                        "subscription_code": "SUB_DEMO_001",
+                        "subscription_code": subscription_code,
                     }
                 },
             },
