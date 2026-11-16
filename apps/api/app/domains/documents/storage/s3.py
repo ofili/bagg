@@ -9,6 +9,10 @@ from botocore.exceptions import ClientError
 from app.core.config import settings
 
 
+class ImmutableDocumentConflict(RuntimeError):
+    """An immutable document key already contains different content."""
+
+
 @dataclass(frozen=True)
 class StoredDocument:
     storage_key: str
@@ -31,9 +35,23 @@ class S3DocumentStorage:
             aws_secret_access_key=settings.DOCUMENTS_S3_SECRET_ACCESS_KEY,
             config=Config(
                 signature_version="s3v4",
-                s3={"addressing_style": (settings.DOCUMENTS_S3_ADDRESSING_STYLE)},
+                s3={"addressing_style": settings.DOCUMENTS_S3_ADDRESSING_STYLE},
             ),
         )
+
+    @staticmethod
+    def _validate_key(key: str) -> None:
+        if (
+            not key
+            or key.startswith("/")
+            or any(part in {".", ".."} for part in key.split("/"))
+        ):
+            raise ValueError("Invalid document storage key")
+
+    @staticmethod
+    def _validate_content(content: bytes) -> None:
+        if not content:
+            raise ValueError("Cannot store an empty document")
 
     def ensure_bucket(self) -> None:
         """Create the bucket if it does not exist.
@@ -66,21 +84,12 @@ class S3DocumentStorage:
         content: bytes,
         content_type: str = "application/pdf",
     ) -> StoredDocument:
-        if not key or key.startswith("/") or ".." in key.split("/"):
-            raise ValueError("Invalid document storage key")
+        """Upload an object, replacing an existing object at the same key.
 
-        if not content:
-            raise ValueError("Cannot store an empty document")
-
-        # self.client.put_object(
-        #     Bucket=self.bucket,
-        #     Key=key,
-        #     Body=content,
-        #     ContentType=content_type,
-        #     ServerSideEncryption=(
-        #         "AES256" if not settings.DOCUMENTS_S3_ENDPOINT_URL else None
-        #     ),
-        # )
+        Use put_if_absent for immutable issued document artifacts.
+        """
+        self._validate_key(key)
+        self._validate_content(content)
 
         arguments = {
             "Bucket": self.bucket,
@@ -89,20 +98,79 @@ class S3DocumentStorage:
             "ContentType": content_type,
         }
 
-        # Enable this for AWS S3. Configure equivalent encryption
-        # at the bucket/provider level for other S3-compatible services.
-        if not settings.S3_ENDPOINT_URL:
+        if not settings.DOCUMENTS_S3_ENDPOINT_URL:
             arguments["ServerSideEncryption"] = "AES256"
 
-        self.client.put_object(**arguments)
+        response = self.client.put_object(**arguments)
 
         return StoredDocument(
             storage_key=key,
             content_type=content_type,
             content_length=len(content),
+            etag=response.get("ETag"),
+        )
+
+    def put_if_absent(
+        self,
+        *,
+        key: str,
+        content: bytes,
+        content_type: str = "application/pdf",
+    ) -> StoredDocument:
+        """Create an object only if its key does not already exist.
+
+        If the key already exists with identical bytes, the operation is
+        treated as an idempotent retry. Different bytes raise
+        ImmutableDocumentConflict.
+
+        This relies on S3-compatible conditional PutObject support for
+        IfNoneMatch="*". The configured storage provider must support it.
+        """
+        self._validate_key(key)
+        self._validate_content(content)
+
+        arguments = {
+            "Bucket": self.bucket,
+            "Key": key,
+            "Body": content,
+            "ContentType": content_type,
+            "IfNoneMatch": "*",
+        }
+
+        if not settings.DOCUMENTS_S3_ENDPOINT_URL:
+            arguments["ServerSideEncryption"] = "AES256"
+
+        try:
+            response = self.client.put_object(**arguments)
+            return StoredDocument(
+                storage_key=key,
+                content_type=content_type,
+                content_length=len(content),
+                etag=response.get("ETag"),
+            )
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code")
+            status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+
+            if code not in {"PreconditionFailed", "412"} and status != 412:
+                raise
+
+        existing_content = self.get(key)
+
+        if existing_content != content:
+            raise ImmutableDocumentConflict(
+                "An immutable document already exists with different content"
+            )
+
+        return StoredDocument(
+            storage_key=key,
+            content_type=content_type,
+            content_length=len(existing_content),
         )
 
     def get(self, key: str) -> bytes:
+        self._validate_key(key)
+
         response = self.client.get_object(
             Bucket=self.bucket,
             Key=key,
@@ -110,6 +178,8 @@ class S3DocumentStorage:
         return response["Body"].read()
 
     def delete(self, key: str) -> None:
+        self._validate_key(key)
+
         self.client.delete_object(
             Bucket=self.bucket,
             Key=key,

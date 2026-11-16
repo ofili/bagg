@@ -1,5 +1,7 @@
+
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -9,7 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domains.documents.artifacts.hashing import sha256_hex
 from app.domains.documents.artifacts.identity import ArtifactIdentity
 from app.domains.documents.models import DocumentArtifact
-from app.domains.documents.storage.s3 import S3DocumentStorage
+from app.domains.documents.storage.s3 import (
+    ImmutableDocumentConflict,
+    S3DocumentStorage,
+)
 
 
 class DocumentArtifactService:
@@ -18,6 +23,12 @@ class DocumentArtifactService:
     The caller must supply a workspace-authorized source document and
     its already-built immutable snapshot. This service does not load
     invoices, quotes, or receipts and does not calculate financial values.
+
+    Transaction ownership:
+    - This service commits when it successfully creates an artifact.
+    - It rolls back after an IntegrityError.
+    - Callers should not combine unrelated pending database changes with
+      artifact creation in the same session.
     """
 
     def __init__(
@@ -37,7 +48,8 @@ class DocumentArtifactService:
             DocumentArtifact.document_type == identity.document_type,
             DocumentArtifact.source_id == identity.source_id,
             DocumentArtifact.source_version == identity.source_version,
-            DocumentArtifact.issuance_generation == identity.issuance_generation,
+            DocumentArtifact.issuance_generation
+            == identity.issuance_generation,
             DocumentArtifact.artifact_kind == identity.artifact_kind,
         )
 
@@ -61,16 +73,19 @@ class DocumentArtifactService:
 
         existing = await self.get_existing(identity)
         if existing:
+            if existing.sha256 != sha256_hex(pdf_bytes):
+                raise ImmutableDocumentConflict(
+                    "An issued artifact already exists with different content"
+                )
             return existing
 
         key = identity.storage_key()
         digest = sha256_hex(pdf_bytes)
 
-        # Upload before inserting metadata. If the database transaction
-        # fails, the object may be orphaned; a reconciliation job can
-        # remove unreferenced objects. Never overwrite an existing key
-        # with different content.
-        self.storage.put(
+        # S3 calls are synchronous; never execute them on the async
+        # application event loop.
+        await asyncio.to_thread(
+            self.storage.put_if_absent,
             key=key,
             content=pdf_bytes,
             content_type="application/pdf",
@@ -102,13 +117,21 @@ class DocumentArtifactService:
             await self.db.commit()
             await self.db.refresh(artifact)
             return artifact
+
         except IntegrityError:
             await self.db.rollback()
 
-            # Another request may have won the unique-key race.
+            # Another request may have inserted the same identity.
             winner = await self.get_existing(identity)
+
             if winner:
+                if winner.sha256 != digest:
+                    raise ImmutableDocumentConflict(
+                        "A concurrent request created this artifact identity "
+                        "with different content"
+                    )
                 return winner
+
             raise
 
     async def get_pdf(
@@ -128,9 +151,14 @@ class DocumentArtifactService:
         if artifact is None:
             return None
 
-        content = self.storage.get(artifact.storage_key)
+        content = await asyncio.to_thread(
+            self.storage.get,
+            artifact.storage_key,
+        )
 
         if sha256_hex(content) != artifact.sha256:
-            raise RuntimeError("Stored document integrity verification failed")
+            raise RuntimeError(
+                "Stored document integrity verification failed"
+            )
 
         return artifact, content
