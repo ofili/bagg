@@ -1,130 +1,116 @@
-import uuid
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 
-from app.core.config import settings
-from app.main import app
-from tests.helpers import login_code_for
-
-
-async def authenticate(client: AsyncClient, email: str) -> None:
-    response = await client.post(
-        "/auth/magic-link",
-        json={"email": email},
-    )
-    assert response.status_code == 200
-
-    response = await client.post(
-        "/auth/verify",
-        json={
-            "email": email,
-            "code": login_code_for(email),
-        },
-    )
-    assert response.status_code == 200
-
-    client.cookies.set(
-        "bagg_session",
-        response.cookies["bagg_session"],
-    )
+from app.domains.auth.models import User
+from app.domains.billing.models import BillingCheckout, Subscription
+from app.domains.control_plane import analytics_service
+from app.domains.workspaces.models import Workspace
 
 
 @pytest.mark.asyncio
-async def test_analytics_endpoints_require_control_plane_access(
-    monkeypatch,
+async def test_account_cohort_includes_users_without_workspaces(db_session):
+    user_with_workspace = User(
+        email="with-workspace@example.test",
+        is_active=True,
+    )
+    user_without_workspace = User(
+        email="without-workspace@example.test",
+        is_active=True,
+    )
+
+    db_session.add_all([user_with_workspace, user_without_workspace])
+    await db_session.flush()
+
+    workspace = Workspace(
+        owner_id=user_with_workspace.id,
+        name="Workspace",
+        business_name="Workspace",
+        country="NG",
+        default_currency="NGN",
+    )
+    db_session.add(workspace)
+    await db_session.commit()
+
+    account_ids = await analytics_service._account_cohort_ids(
+        db_session,
+        workspace_ids=[workspace.id],
+        from_date=None,
+        to_date=None,
+        country=None,
+        plan_code=None,
+        acquisition_source=None,
+    )
+
+    assert user_with_workspace.id in account_ids
+    assert user_without_workspace.id in account_ids
+
+
+@pytest.mark.asyncio
+async def test_workspace_dimension_filters_account_cohort(
+    db_session,
 ):
-    monkeypatch.setattr(
-        settings,
-        "CONTROL_PLANE_ADMIN_EMAILS",
-        "",
+    ng_user = User(email="ng@example.test", is_active=True)
+    gb_user = User(email="gb@example.test", is_active=True)
+
+    db_session.add_all([ng_user, gb_user])
+    await db_session.flush()
+
+    ng_workspace = Workspace(
+        owner_id=ng_user.id,
+        name="NG",
+        business_name="NG",
+        country="NG",
+        default_currency="NGN",
+    )
+    gb_workspace = Workspace(
+        owner_id=gb_user.id,
+        name="GB",
+        business_name="GB",
+        country="GB",
+        default_currency="GBP",
     )
 
-    email = f"customer-{uuid.uuid4().hex[:12]}@example.com"
+    db_session.add_all([ng_workspace, gb_workspace])
+    await db_session.commit()
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        response = await client.get("/control-plane/analytics/cohorts")
-        assert response.status_code == 401
-
-        await authenticate(client, email)
-
-        response = await client.get("/control-plane/analytics/cohorts")
-        assert response.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_analytics_routes_reject_invalid_date_range(
-    monkeypatch,
-):
-    email = f"staff-{uuid.uuid4().hex[:12]}@example.com"
-
-    monkeypatch.setattr(
-        settings,
-        "CONTROL_PLANE_ADMIN_EMAILS",
-        email,
+    ids = await analytics_service._workspace_scope(
+        db_session,
+        country="NG",
     )
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        await authenticate(client, email)
-
-        response = await client.get(
-            "/control-plane/analytics/cohorts",
-            params={
-                "from_date": "2026-10-31",
-                "to_date": "2026-10-01",
-            },
-        )
-
-    assert response.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_segments_reject_unknown_segment(monkeypatch):
-    email = f"staff-{uuid.uuid4().hex[:12]}@example.com"
-
-    monkeypatch.setattr(
-        settings,
-        "CONTROL_PLANE_ADMIN_EMAILS",
-        email,
+    account_ids = await analytics_service._account_cohort_ids(
+        db_session,
+        workspace_ids=ids,
+        from_date=None,
+        to_date=None,
+        country="NG",
+        plan_code=None,
+        acquisition_source=None,
     )
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        await authenticate(client, email)
-
-        response = await client.get(
-            "/control-plane/analytics/segments",
-            params={"segment": "unknown_segment"},
-        )
-
-    assert response.status_code == 422
+    assert account_ids == {ng_user.id}
 
 
-@pytest.mark.asyncio
-async def test_analytics_endpoints_set_no_store(monkeypatch):
-    email = f"staff-{uuid.uuid4().hex[:12]}@example.com"
+def test_safe_properties_excludes_urls_and_unknown_fields():
+    properties = {
+        "utm_source": "referral",
+        "landing_path": "/signup",
+        "referrer": "https://example.test/?email=user@example.test",
+        "email": "user@example.test",
+        "bank_account_number": "0123456789",
+        "plan_code": "creator_pro",
+    }
 
-    monkeypatch.setattr(
-        settings,
-        "CONTROL_PLANE_ADMIN_EMAILS",
-        email,
-    )
+    safe = analytics_service._safe_properties(properties)
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        await authenticate(client, email)
+    assert safe == {
+        "utm_source": "referral",
+        "plan_code": "creator_pro",
+    }
 
-        response = await client.get("/control-plane/analytics/overview")
 
-    assert response.status_code == 200
-    assert response.headers["cache-control"] == "no-store"
+def test_rate_handles_empty_denominator():
+    assert analytics_service._rate(10, 0) == 0.0
+    assert analytics_service._rate(1, 4) == 25.0

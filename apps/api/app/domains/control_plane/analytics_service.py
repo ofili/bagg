@@ -13,7 +13,6 @@ from app.domains.invoices.models import Invoice
 from app.domains.quotes.models import Quote
 from app.domains.workspaces.models import Workspace
 
-
 ACTIVATION_EVENTS = {
     "first_document_created": (
         "invoice.first_created",
@@ -45,7 +44,7 @@ SEGMENTS = {
     "paid_not_activated",
 }
 
-# Only these properties may be exposed by the internal event explorer.
+# Explicit allowlist. Never return arbitrary event properties.
 SAFE_EVENT_PROPERTIES = {
     "purchase_type",
     "plan_code",
@@ -65,10 +64,7 @@ SAFE_EVENT_PROPERTIES = {
     "utm_content",
     "utm_term",
     "referral_code",
-    "landing_path",
-    "referrer",
 }
-
 
 def _date_bounds(
     from_date: date | None,
@@ -84,18 +80,21 @@ def _date_bounds(
     )
     return start, end
 
+def _normalise_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
 
 def _rate(numerator: int, denominator: int) -> float:
     if denominator <= 0:
         return 0.0
     return round(numerator / denominator * 100, 2)
 
-
 def _safe_properties(properties: Any) -> dict[str, Any]:
     if not isinstance(properties, dict):
         return {}
 
-    result = {}
+    safe: dict[str, Any] = {}
 
     for key, value in properties.items():
         if key not in SAFE_EVENT_PROPERTIES:
@@ -103,12 +102,30 @@ def _safe_properties(properties: Any) -> dict[str, Any]:
 
         if value is None or isinstance(value, (str, int, float, bool)):
             if isinstance(value, str):
-                result[key] = value[:250]
+                safe[key] = value[:100]
             else:
-                result[key] = value
+                safe[key] = value
 
-    return result
+    return safe
 
+async def _user_ids_in_signup_window(
+    db: AsyncSession,
+    *,
+    from_date: date | None = None,
+    to_date: date | None = None,
+) -> set[str]:
+    start, end = _date_bounds(from_date, to_date)
+
+    stmt = select(User.id)
+
+    if start:
+        stmt = stmt.where(User.created_at >= start)
+
+    if end:
+        stmt = stmt.where(User.created_at < end)
+
+    result = await db.scalars(stmt)
+    return set(result.all())
 
 async def _workspace_scope(
     db: AsyncSession,
@@ -119,6 +136,13 @@ async def _workspace_scope(
     plan_code: str | None = None,
     acquisition_source: str | None = None,
 ) -> list[str]:
+    """
+    Return workspaces matching the selected workspace attributes.
+
+    Date filters here refer to workspace-owner signup date. Billing
+    analytics deliberately calls this without date filters because
+    its date range refers to checkout creation time.
+    """
     start, end = _date_bounds(from_date, to_date)
 
     stmt = (
@@ -170,6 +194,49 @@ async def _workspace_scope(
     result = await db.scalars(stmt.distinct())
     return list(result.all())
 
+async def _account_ids_for_workspaces(
+    db: AsyncSession,
+    workspace_ids: list[str],
+) -> set[str]:
+    if not workspace_ids:
+        return set()
+
+    result = await db.scalars(
+        select(Workspace.owner_id).where(
+            Workspace.id.in_(workspace_ids)
+        )
+    )
+    return set(result.all())
+
+async def _account_cohort_ids(
+    db: AsyncSession,
+    *,
+    workspace_ids: list[str],
+    from_date: date | None,
+    to_date: date | None,
+    country: str | None,
+    plan_code: str | None,
+    acquisition_source: str | None,
+) -> set[str]:
+    """
+    With no workspace dimensions, the account cohort is all registered
+    users in the signup date range, including users without workspaces.
+
+    When a workspace dimension is supplied, the cohort is restricted
+    to owners of workspaces matching that dimension.
+    """
+    has_workspace_filter = any(
+        (country, plan_code, acquisition_source)
+    )
+
+    if has_workspace_filter:
+        return await _account_ids_for_workspaces(db, workspace_ids)
+
+    return await _user_ids_in_signup_window(
+        db,
+        from_date=from_date,
+        to_date=to_date,
+    )
 
 async def _workspace_event_names(
     db: AsyncSession,
@@ -202,7 +269,6 @@ async def _workspace_event_names(
 
     return dict(events)
 
-
 def _stage_ids(
     workspace_ids: list[str],
     events: dict[str, set[str]],
@@ -216,49 +282,33 @@ def _stage_ids(
         if events.get(workspace_id, set()).intersection(names)
     }
 
+def _owners_for_workspaces(
+    workspace_owner: dict[str, str],
+    workspace_ids: set[str],
+) -> set[str]:
+    return {
+        workspace_owner[workspace_id]
+        for workspace_id in workspace_ids
+        if workspace_id in workspace_owner
+    }
 
-async def _account_scope(
+async def _workspace_owner_map(
     db: AsyncSession,
     workspace_ids: list[str],
-) -> set[str]:
+) -> dict[str, str]:
     if not workspace_ids:
-        return set()
+        return {}
 
-    result = await db.scalars(
-        select(Workspace.owner_id).where(
+    result = await db.execute(
+        select(Workspace.id, Workspace.owner_id).where(
             Workspace.id.in_(workspace_ids)
         )
     )
-    return set(result.all())
 
-
-async def _account_created_count(
-    db: AsyncSession,
-    *,
-    from_date: date | None,
-    to_date: date | None,
-    workspace_ids: list[str],
-) -> int:
-    if not workspace_ids:
-        return 0
-
-    owners = await _account_scope(db, workspace_ids)
-
-    if not owners:
-        return 0
-
-    start, end = _date_bounds(from_date, to_date)
-
-    stmt = select(func.count(User.id)).where(User.id.in_(owners))
-
-    if start:
-        stmt = stmt.where(User.created_at >= start)
-
-    if end:
-        stmt = stmt.where(User.created_at < end)
-
-    return int(await db.scalar(stmt) or 0)
-
+    return {
+        workspace_id: owner_id
+        for workspace_id, owner_id in result.all()
+    }
 
 async def get_overview(
     db: AsyncSession,
@@ -278,15 +328,28 @@ async def get_overview(
         acquisition_source=acquisition_source,
     )
 
+    account_ids = await _account_cohort_ids(
+        db,
+        workspace_ids=ids,
+        from_date=from_date,
+        to_date=to_date,
+        country=country,
+        plan_code=plan_code,
+        acquisition_source=acquisition_source,
+    )
+
     total = len(ids)
     events = await _workspace_event_names(db, ids)
 
-    profile_result = await db.scalar(
-        select(func.count(Workspace.id)).where(
-            Workspace.id.in_(ids),
-            Workspace.onboarding_completed.is_(True),
+    profile_result = (
+        await db.scalar(
+            select(func.count(Workspace.id)).where(
+                Workspace.id.in_(ids),
+                Workspace.onboarding_completed.is_(True),
+            )
         )
-    ) if ids else 0
+        if ids else 0
+    )
 
     profile = int(profile_result or 0)
 
@@ -295,6 +358,7 @@ async def get_overview(
     confirmed = len(_stage_ids(ids, events, "first_payment_confirmed"))
 
     paid_subscriptions = 0
+
     if ids:
         paid_subscriptions = int(
             await db.scalar(
@@ -306,15 +370,8 @@ async def get_overview(
             ) or 0
         )
 
-    account_count = await _account_created_count(
-        db,
-        from_date=from_date,
-        to_date=to_date,
-        workspace_ids=ids,
-    )
-
     return {
-        "account_count": account_count,
+        "account_count": len(account_ids),
         "workspace_count": total,
         "profile_completed": profile,
         "first_document_created": created,
@@ -329,7 +386,6 @@ async def get_overview(
             paid_subscriptions, total
         ),
     }
-
 
 async def get_funnel(
     db: AsyncSession,
@@ -349,107 +405,82 @@ async def get_funnel(
         acquisition_source=acquisition_source,
     )
 
-    owners = await _account_scope(db, ids)
-    account_count = await _account_created_count(
+    account_ids = await _account_cohort_ids(
         db,
+        workspace_ids=ids,
         from_date=from_date,
         to_date=to_date,
-        workspace_ids=ids,
+        country=country,
+        plan_code=plan_code,
+        acquisition_source=acquisition_source,
     )
 
     events = await _workspace_event_names(db, ids)
+    owner_by_workspace = await _workspace_owner_map(db, ids)
 
-    workspace_owners_result = await db.execute(
-        select(Workspace.id, Workspace.owner_id).where(
-            Workspace.id.in_(ids)
+    workspace_owner_ids = set(owner_by_workspace.values())
+
+    profile_result = (
+        await db.scalars(
+            select(Workspace.id).where(
+                Workspace.id.in_(ids),
+                Workspace.onboarding_completed.is_(True),
+            )
         )
-    ) if ids else None
-
-    owner_by_workspace = (
-        {
-            workspace_id: owner_id
-            for workspace_id, owner_id in workspace_owners_result.all()
-        }
-        if workspace_owners_result else {}
+        if ids else None
     )
-
-    def owners_for_stage(workspace_stage_ids: set[str]) -> set[str]:
-        return {
-            owner_by_workspace[workspace_id]
-            for workspace_id in workspace_stage_ids
-            if workspace_id in owner_by_workspace
-        }
-
-    profile_result = await db.scalars(
-        select(Workspace.id).where(
-            Workspace.id.in_(ids),
-            Workspace.onboarding_completed.is_(True),
-        )
-    ) if ids else None
-
     profile_ids = set(profile_result.all()) if profile_result else set()
 
-    stages = [
-        ("account_created", owners),
-        ("workspace_created", owners),
-        ("profile_completed", owners_for_stage(profile_ids)),
-        (
-            "first_document_created",
-            owners_for_stage(
-                _stage_ids(ids, events, "first_document_created")
-            ),
-        ),
-        (
-            "first_document_dispatched",
-            owners_for_stage(
-                _stage_ids(ids, events, "first_document_dispatched")
-            ),
-        ),
-        (
-            "first_payment_confirmed",
-            owners_for_stage(
-                _stage_ids(ids, events, "first_payment_confirmed")
-            ),
-        ),
-    ]
+    created_ids = _stage_ids(ids, events, "first_document_created")
+    dispatched_ids = _stage_ids(ids, events, "first_document_dispatched")
+    confirmed_ids = _stage_ids(ids, events, "first_payment_confirmed")
 
-    paid_ids: set[str] = set()
+    paid_workspace_ids: set[str] = set()
+
     if ids:
-        result = await db.execute(
-            select(Subscription.workspace_id, Workspace.owner_id)
-            .join(Workspace, Workspace.id == Subscription.workspace_id)
-            .where(
+        paid_result = await db.scalars(
+            select(Subscription.workspace_id).where(
                 Subscription.workspace_id.in_(ids),
                 Subscription.tier != "free",
                 Subscription.status.in_(("active", "past_due")),
             )
         )
-        paid_ids = {owner_id for _, owner_id in result.all()}
+        paid_workspace_ids = set(paid_result.all())
 
-    stages.append(("paid_subscription", paid_ids))
+    stages = [
+        ("account_created", account_ids),
+        ("workspace_created", workspace_owner_ids),
+        ("profile_completed", _owners_for_workspaces(owner_by_workspace, profile_ids)),
+        ("first_document_created", _owners_for_workspaces(owner_by_workspace, created_ids)),
+        ("first_document_dispatched", _owners_for_workspaces(owner_by_workspace, dispatched_ids)),
+        ("first_payment_confirmed", _owners_for_workspaces(owner_by_workspace, confirmed_ids)),
+        ("paid_subscription", _owners_for_workspaces(owner_by_workspace, paid_workspace_ids)),
+    ]
 
-    previous_count = None
+    previous_count: int | None = None
     stage_results = []
 
-    for key, account_ids in stages:
-        count = len(account_ids)
+    for key, stage_accounts in stages:
+        count = len(stage_accounts)
+
         stage_results.append({
             "key": key,
             "count": count,
-            "conversion_rate": _rate(count, account_count),
+            "conversion_rate": _rate(count, len(account_ids)),
             "previous_stage_rate": (
                 _rate(count, previous_count)
-                if previous_count is not None else 100.0 if account_count else 0.0
+                if previous_count is not None
+                else 100.0 if account_ids else 0.0
             ),
         })
+
         previous_count = count
 
     return {
-        "cohort_size": account_count,
+        "cohort_size": len(account_ids),
         "measurement_unit": "accounts",
         "stages": stage_results,
     }
-
 
 async def get_cohorts(
     db: AsyncSession,
@@ -469,98 +500,98 @@ async def get_cohorts(
         acquisition_source=acquisition_source,
     )
 
-    if not workspace_ids:
+    account_ids = await _account_cohort_ids(
+        db,
+        workspace_ids=workspace_ids,
+        from_date=from_date,
+        to_date=to_date,
+        country=country,
+        plan_code=plan_code,
+        acquisition_source=acquisition_source,
+    )
+
+    windows = list(COHORT_WINDOWS)
+
+    if not account_ids:
         return {
             "measurement_unit": "accounts",
-            "windows": list(COHORT_WINDOWS),
+            "windows": windows,
             "items": [],
         }
 
-    workspace_result = await db.execute(
-        select(Workspace.id, Workspace.owner_id).where(
-            Workspace.id.in_(workspace_ids)
-        )
-    )
-    workspace_owner = {
-        workspace_id: owner_id
-        for workspace_id, owner_id in workspace_result.all()
-    }
-
-    owner_ids = set(workspace_owner.values())
     start, end = _date_bounds(from_date, to_date)
 
     user_stmt = select(User.id, User.created_at).where(
-        User.id.in_(owner_ids)
+        User.id.in_(account_ids)
     )
+
     if start:
         user_stmt = user_stmt.where(User.created_at >= start)
+
     if end:
         user_stmt = user_stmt.where(User.created_at < end)
 
     user_result = await db.execute(user_stmt)
+
     users = {
-        user_id: created_at
+        user_id: _normalise_datetime(created_at)
         for user_id, created_at in user_result.all()
     }
 
-    if not users:
-        return {
-            "measurement_unit": "accounts",
-            "windows": list(COHORT_WINDOWS),
-            "items": [],
-        }
-
-    owner_workspaces: dict[str, list[str]] = defaultdict(list)
-    for workspace_id, owner_id in workspace_owner.items():
-        if owner_id in users:
-            owner_workspaces[owner_id].append(workspace_id)
+    owner_by_workspace = await _workspace_owner_map(db, workspace_ids)
 
     milestone_names = (
         "document.first_dispatched",
         "payment.first_confirmed",
     )
 
-    event_result = await db.execute(
-        select(
-            ProductEvent.workspace_id,
-            ProductEvent.event_name,
-            ProductEvent.occurred_at,
-        ).where(
-            ProductEvent.workspace_id.in_(workspace_ids),
-            ProductEvent.event_name.in_(milestone_names),
+    event_result = (
+        await db.execute(
+            select(
+                ProductEvent.workspace_id,
+                ProductEvent.event_name,
+                ProductEvent.occurred_at,
+            ).where(
+                ProductEvent.workspace_id.in_(workspace_ids),
+                ProductEvent.event_name.in_(milestone_names),
+            )
         )
+        if workspace_ids else None
     )
 
     events_by_owner: dict[str, list[tuple[str, datetime]]] = defaultdict(list)
 
-    for workspace_id, event_name, occurred_at in event_result.all():
-        owner_id = workspace_owner.get(workspace_id)
-        if owner_id:
-            events_by_owner[owner_id].append((event_name, occurred_at))
+    if event_result:
+        for workspace_id, event_name, occurred_at in event_result.all():
+            owner_id = owner_by_workspace.get(workspace_id)
+
+            if owner_id:
+                events_by_owner[owner_id].append(
+                    (event_name, _normalise_datetime(occurred_at))
+                )
 
     now = datetime.now(UTC)
     cohorts: dict[str, list[str]] = defaultdict(list)
 
     for user_id, created_at in users.items():
-        if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=UTC)
-        month = created_at.strftime("%Y-%m")
-        cohorts[month].append(user_id)
+        cohorts[created_at.strftime("%Y-%m")].append(user_id)
 
     items = []
 
     for month in sorted(cohorts):
         cohort_users = cohorts[month]
+
         counts = {
-            window: {"eligible": 0, "initially_activated": 0, "commercially_activated": 0}
+            window: {
+                "eligible": 0,
+                "initially_activated": 0,
+                "commercially_activated": 0,
+            }
             for window in COHORT_WINDOWS
         }
 
         for user_id in cohort_users:
             signup_at = users[user_id]
-            if signup_at.tzinfo is None:
-                signup_at = signup_at.replace(tzinfo=UTC)
-
             user_events = events_by_owner.get(user_id, [])
 
             for window_name, duration in COHORT_WINDOWS.items():
@@ -589,10 +620,12 @@ async def get_cohorts(
                 ):
                     counts[window_name]["commercially_activated"] += 1
 
-        windows = {}
+        cohort_windows = {}
+
         for window_name, values in counts.items():
             eligible = values["eligible"]
-            windows[window_name] = {
+
+            cohort_windows[window_name] = {
                 "eligible_accounts": eligible,
                 "initially_activated": values["initially_activated"],
                 "commercially_activated": values["commercially_activated"],
@@ -608,15 +641,14 @@ async def get_cohorts(
         items.append({
             "cohort_month": month,
             "signup_accounts": len(cohort_users),
-            "windows": windows,
+            "windows": cohort_windows,
         })
 
     return {
         "measurement_unit": "accounts",
-        "windows": list(COHORT_WINDOWS),
+        "windows": windows,
         "items": items,
     }
-
 
 async def _segment_workspace_ids(
     db: AsyncSession,
@@ -659,6 +691,7 @@ async def _segment_workspace_ids(
         .where(Invoice.workspace_id == Workspace.id)
         .exists()
     )
+
     quote_exists = (
         select(Quote.id)
         .where(Quote.workspace_id == Workspace.id)
@@ -682,6 +715,7 @@ async def _segment_workspace_ids(
         )
         .exists()
     )
+
     draft_quote = (
         select(Quote.id)
         .where(
@@ -697,7 +731,10 @@ async def _segment_workspace_ids(
             or_(draft_invoice, draft_quote),
         )
     )
-    drafts = set(drafts_result.all()) - dispatched
+
+    # This segment means: has at least one draft document and has
+    # never reached the first-dispatch milestone.
+    drafts_not_dispatched = set(drafts_result.all()) - dispatched
 
     pending_result = await db.scalars(
         select(BillingCheckout.workspace_id).where(
@@ -727,13 +764,12 @@ async def _segment_workspace_ids(
     return {
         "incomplete_setup": incomplete,
         "no_document": no_document,
-        "drafts_not_dispatched": drafts,
+        "drafts_not_dispatched": drafts_not_dispatched,
         "dispatched_no_payment": dispatched - confirmed,
         "pending_checkout": pending,
         "failed_checkout": failed,
         "paid_not_activated": paid - dispatched,
     }
-
 
 async def get_segments(
     db: AsyncSession,
@@ -819,8 +855,7 @@ async def get_segments(
         tier,
         subscription_status,
     ) in result.all():
-        if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=UTC)
+        created_at = _normalise_datetime(created_at)
 
         items.append({
             "workspace_id": workspace_id,
@@ -828,9 +863,7 @@ async def get_segments(
             "country": country_code,
             "onboarding_completed": onboarding_completed,
             "created_at": created_at,
-            "workspace_age_days": max(
-                0, (now - created_at).days
-            ),
+            "workspace_age_days": max(0, (now - created_at).days),
             "owner_email": email,
             "owner_name": full_name,
             "plan_code": tier or "free",
@@ -846,7 +879,6 @@ async def get_segments(
         "items": items,
     }
 
-
 async def get_billing(
     db: AsyncSession,
     *,
@@ -856,16 +888,16 @@ async def get_billing(
     plan_code: str | None = None,
     acquisition_source: str | None = None,
 ) -> dict[str, Any]:
-    ids = await _workspace_scope(
+    # Do not apply signup-date filters here. The billing date range
+    # means checkout creation date, not account creation date.
+    workspace_ids = await _workspace_scope(
         db,
-        from_date=from_date,
-        to_date=to_date,
         country=country,
         plan_code=plan_code,
         acquisition_source=acquisition_source,
     )
 
-    if not ids:
+    if not workspace_ids:
         return {
             "checkout_count": 0,
             "successful_checkouts": 0,
@@ -873,6 +905,10 @@ async def get_billing(
             "pending_checkouts": 0,
             "revenue_by_currency": [],
             "checkout_breakdown": [],
+            "currency_note": (
+                "Revenue is grouped by currency. Different currencies "
+                "must not be added together."
+            ),
         }
 
     start, end = _date_bounds(from_date, to_date)
@@ -883,10 +919,13 @@ async def get_billing(
         BillingCheckout.status,
         func.count(BillingCheckout.id),
         func.coalesce(func.sum(BillingCheckout.amount_minor), 0),
-    ).where(BillingCheckout.workspace_id.in_(ids))
+    ).where(
+        BillingCheckout.workspace_id.in_(workspace_ids)
+    )
 
     if start:
         stmt = stmt.where(BillingCheckout.created_at >= start)
+
     if end:
         stmt = stmt.where(BillingCheckout.created_at < end)
 
@@ -922,8 +961,10 @@ async def get_billing(
 
     for row in successful:
         currency = row["currency"]
+
         if row["purchase_type"] == "subscription":
             revenue[currency]["subscription_revenue_minor"] += row["amount_minor"]
+
         elif row["purchase_type"] == "credit_pack":
             revenue[currency]["credit_pack_revenue_minor"] += row["amount_minor"]
 
@@ -951,11 +992,10 @@ async def get_billing(
         ],
         "checkout_breakdown": rows,
         "currency_note": (
-            "Revenue is grouped by currency. Different currencies must not "
-            "be added together."
+            "Revenue is grouped by currency. Different currencies "
+            "must not be added together."
         ),
     }
-
 
 async def get_events(
     db: AsyncSession,
@@ -964,19 +1004,44 @@ async def get_events(
     to_date: date | None = None,
     event_name: str | None = None,
     event_source: str | None = None,
+    country: str | None = None,
+    plan_code: str | None = None,
+    acquisition_source: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> dict[str, Any]:
+    workspace_ids = await _workspace_scope(
+        db,
+        from_date=from_date,
+        to_date=to_date,
+        country=country,
+        plan_code=plan_code,
+        acquisition_source=acquisition_source,
+    )
+
+    if not workspace_ids:
+        return {
+            "total": 0,
+            "limit": limit,
+            "offset": offset,
+            "items": [],
+        }
+
     start, end = _date_bounds(from_date, to_date)
 
-    stmt = select(ProductEvent)
+    stmt = select(ProductEvent).where(
+        ProductEvent.workspace_id.in_(workspace_ids)
+    )
 
     if start:
         stmt = stmt.where(ProductEvent.occurred_at >= start)
+
     if end:
         stmt = stmt.where(ProductEvent.occurred_at < end)
+
     if event_name:
         stmt = stmt.where(ProductEvent.event_name == event_name)
+
     if event_source:
         stmt = stmt.where(ProductEvent.source == event_source)
 

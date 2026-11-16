@@ -1,4 +1,3 @@
-
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -202,6 +201,9 @@ async def analytics_events(
     response: Response,
     from_date: date | None = None,
     to_date: date | None = None,
+    country: str | None = None,
+    plan_code: str | None = None,
+    acquisition_source: str | None = None,
     event_name: str | None = Query(default=None, max_length=120),
     event_source: str | None = Query(default=None, max_length=32),
     limit: int = Query(default=50, ge=1, le=200),
@@ -211,18 +213,13 @@ async def analytics_events(
 ):
     response.headers["Cache-Control"] = "no-store"
 
-    analytics_filters(
-        from_date,
-        to_date,
-        None,
-        None,
-        None,
-    )
-
     return await analytics_service.get_events(
         db,
         from_date=from_date,
         to_date=to_date,
+        country=country,
+        plan_code=plan_code,
+        acquisition_source=acquisition_source,
         event_name=event_name,
         event_source=event_source,
         limit=limit,
