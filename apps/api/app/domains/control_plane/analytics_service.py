@@ -92,24 +92,6 @@ def _rate(numerator: int, denominator: int) -> float:
         return 0.0
     return round(numerator / denominator * 100, 2)
 
-def _safe_properties(properties: Any) -> dict[str, Any]:
-    if not isinstance(properties, dict):
-        return {}
-
-    safe: dict[str, Any] = {}
-
-    for key, value in properties.items():
-        if key not in SAFE_EVENT_PROPERTIES:
-            continue
-
-        if value is None or isinstance(value, (str, int, float, bool)):
-            if isinstance(value, str):
-                safe[key] = value[:100]
-            else:
-                safe[key] = value
-
-    return safe
-
 
 def _safe_url_property(key: str, value: str) -> str | None:
     """
@@ -835,9 +817,12 @@ async def _segment_workspace_ids(
         )
     )
 
-    # This segment means: has at least one draft document and has
-    # never reached the first-dispatch milestone.
-    drafts_not_dispatched = set(drafts_result.all()) - dispatched
+    # This segment means: has at least one currently-draft document.
+    #
+    # Historical dispatches must not exclude a workspace: a workspace
+    # may have dispatched an earlier document and subsequently created
+    # another draft that has not yet been dispatched.
+    drafts_not_dispatched = set(drafts_result.all())
 
     pending_result = await db.scalars(
         select(BillingCheckout.workspace_id).where(
