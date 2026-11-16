@@ -555,8 +555,11 @@ export default function SettingsPage() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[210px_minmax(0,1fr)] lg:items-start">
-        <nav aria-label="Settings sections" className="lg:sticky lg:top-6">
-          <div className="border-brut border-ink bg-surface">
+        <nav
+          aria-label="Settings sections"
+          className="min-w-0 max-w-full lg:sticky lg:top-6"
+        >
+          <div className="min-w-0 max-w-full border-brut border-ink bg-surface">
             <p className="hidden border-b border-line-subtle px-3 py-2.5 text-label font-extrabold uppercase tracking-wide text-text-muted lg:block">
               On this page
             </p>
