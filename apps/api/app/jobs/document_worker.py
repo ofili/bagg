@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import random
+import signal
 import socket
 import uuid
 
@@ -16,7 +17,7 @@ from sqlalchemy import and_, case, or_, select
 import app.models  # noqa: F401
 
 from app.core.config import settings
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, engine
 from app.domains.documents.artifacts.identity import ArtifactIdentity
 from app.domains.documents.artifacts.service import DocumentArtifactService
 from app.domains.documents.models import DocumentGenerationJob
@@ -317,6 +318,10 @@ async def process_job(claim: ClaimedDocumentJob) -> None:
             },
         )
 
+    except asyncio.CancelledError:
+        # Leave the job processing. Its lease allows another worker to recover it.
+        raise
+
     except Exception as exc:
         error_code = type(exc).__name__[:100] or "document_generation_error"
 
@@ -336,31 +341,126 @@ async def process_job(claim: ClaimedDocumentJob) -> None:
         )
 
 
+async def _process_claim_safely(claim: ClaimedDocumentJob) -> None:
+    """Keep one unexpected job exception from aborting the rest of a batch."""
+
+    try:
+        await process_job(claim)
+
+    except asyncio.CancelledError:
+        raise
+
+    except Exception:
+        logger.exception(
+            "Unexpected document job processing error",
+            extra={"job_id": claim.job_id},
+        )
+
+
+async def run_worker(stop_event: asyncio.Event) -> None:
+    """Run batches until shutdown is requested.
+
+    Jobs within a claimed batch execute concurrently. Shutdown stops new claims
+    but waits for the current batch to finish.
+    """
+
+    while not stop_event.is_set():
+        claims = await claim_batch()
+
+        if not claims:
+            try:
+                await asyncio.wait_for(
+                    stop_event.wait(),
+                    timeout=settings.DOCUMENT_WORKER_POLL_SECONDS,
+                )
+            except asyncio.TimeoutError:
+                pass
+
+            continue
+
+        logger.info(
+            "Document jobs claimed",
+            extra={
+                "worker_id": WORKER_ID,
+                "claimed_count": len(claims),
+            },
+        )
+
+        await asyncio.gather(*(_process_claim_safely(claim) for claim in claims))
+
+
+def install_shutdown_handlers(
+    loop: asyncio.AbstractEventLoop,
+    stop_event: asyncio.Event,
+) -> None:
+    """Install SIGINT/SIGTERM handlers, with a Windows-compatible fallback."""
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, stop_event.set)
+
+        except (NotImplementedError, RuntimeError):
+            try:
+                signal.signal(
+                    sig,
+                    lambda *_: loop.call_soon_threadsafe(stop_event.set),
+                )
+            except (OSError, ValueError):
+                logger.warning(
+                    "Could not install signal handler",
+                    extra={"signal": sig.name},
+                )
+
+
 async def main() -> None:
+    stop_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+
+    install_shutdown_handlers(loop, stop_event)
+
     logger.info(
         "Bagg document worker started",
-        extra={"worker_id": WORKER_ID},
+        extra={
+            "worker_id": WORKER_ID,
+            "poll_seconds": settings.DOCUMENT_WORKER_POLL_SECONDS,
+            "batch_size": settings.DOCUMENT_WORKER_BATCH_SIZE,
+            "lease_seconds": settings.DOCUMENT_WORKER_LEASE_SECONDS,
+        },
     )
 
-    while True:
-        try:
-            claims = await claim_batch()
+    try:
+        await run_worker(stop_event)
 
-            if not claims:
-                await asyncio.sleep(settings.DOCUMENT_WORKER_POLL_SECONDS)
-                continue
+    except asyncio.CancelledError:
+        logger.info(
+            "Document worker task cancelled",
+            extra={"worker_id": WORKER_ID},
+        )
+        raise
 
-            for claim in claims:
-                await process_job(claim)
+    except Exception:
+        logger.exception(
+            "Document worker terminated after an unexpected error",
+            extra={"worker_id": WORKER_ID},
+        )
+        raise
 
-        except asyncio.CancelledError:
-            raise
+    finally:
+        logger.info(
+            "Disposing document worker database engine",
+            extra={"worker_id": WORKER_ID},
+        )
+        await engine.dispose()
 
-        except Exception:
-            logger.error("Document worker loop failed")
-            await asyncio.sleep(5)
+        logger.info(
+            "Bagg document worker stopped",
+            extra={"worker_id": WORKER_ID},
+        )
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
     asyncio.run(main())

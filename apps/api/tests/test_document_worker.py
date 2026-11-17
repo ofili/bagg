@@ -10,9 +10,11 @@ from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.domains.documents.models import DocumentGenerationJob
 from app.jobs.document_worker import (
+    ClaimedDocumentJob,
     claim_batch,
     record_failure,
     record_success,
+    run_worker,
     utcnow,
 )
 from app.domains.documents.artifacts.identity import ArtifactIdentity
@@ -228,15 +230,18 @@ async def test_claim_batch_recovers_expired_or_unlocked_jobs(
 
     before = await read_worker_job(job_id)
 
-    print("PERSISTED BEFORE CLAIM:", {
-        "id": before.id,
-        "status": before.status,
-        "locked_at": before.locked_at,
-        "locked_by": before.locked_by,
-        "claim_token": before.claim_token,
-        "attempts": before.attempts,
-        "available_at": before.available_at,
-    })
+    print(
+        "PERSISTED BEFORE CLAIM:",
+        {
+            "id": before.id,
+            "status": before.status,
+            "locked_at": before.locked_at,
+            "locked_by": before.locked_by,
+            "claim_token": before.claim_token,
+            "attempts": before.attempts,
+            "available_at": before.available_at,
+        },
+    )
 
     try:
         claims = await claim_batch()
@@ -263,8 +268,7 @@ async def test_claim_batch_recovers_expired_or_unlocked_jobs(
                 select(
                     DocumentGenerationJob.status,
                     func.count(DocumentGenerationJob.id),
-                )
-                .group_by(DocumentGenerationJob.status)
+                ).group_by(DocumentGenerationJob.status)
             )
 
             print("JOB COUNTS:", counts.all())
@@ -483,3 +487,97 @@ async def test_claim_batch_prioritises_recoverable_jobs_over_pending_backlog(
     finally:
         await delete_worker_job(recovery_job_id)
         await delete_worker_job(pending_job_id)
+
+
+@pytest.mark.asyncio
+async def test_run_worker_processes_claimed_batch_concurrently(monkeypatch):
+    stop_event = asyncio.Event()
+
+    claims = [
+        ClaimedDocumentJob(job_id="job-one", claim_token="token-one"),
+        ClaimedDocumentJob(job_id="job-two", claim_token="token-two"),
+    ]
+
+    active = 0
+    maximum_active = 0
+    completed = []
+
+    async def fake_claim_batch():
+        return claims
+
+    async def fake_process_job(claim):
+        nonlocal active, maximum_active
+
+        active += 1
+        maximum_active = max(maximum_active, active)
+
+        await asyncio.sleep(0.05)
+
+        completed.append(claim.job_id)
+        active -= 1
+
+        if len(completed) == len(claims):
+            stop_event.set()
+
+    monkeypatch.setattr(
+        "app.jobs.document_worker.claim_batch",
+        fake_claim_batch,
+    )
+    monkeypatch.setattr(
+        "app.jobs.document_worker.process_job",
+        fake_process_job,
+    )
+
+    await run_worker(stop_event)
+
+    assert maximum_active == 2
+    assert set(completed) == {"job-one", "job-two"}
+
+
+@pytest.mark.asyncio
+async def test_run_worker_finishes_claimed_batch_before_shutdown(monkeypatch):
+    stop_event = asyncio.Event()
+
+    claims = [
+        ClaimedDocumentJob(job_id="job-one", claim_token="token-one"),
+        ClaimedDocumentJob(job_id="job-two", claim_token="token-two"),
+    ]
+
+    started = set()
+    completed = set()
+    all_started = asyncio.Event()
+    claim_calls = 0
+
+    async def fake_claim_batch():
+        nonlocal claim_calls
+        claim_calls += 1
+        return claims
+
+    async def fake_process_job(claim):
+        started.add(claim.job_id)
+
+        if len(started) == len(claims):
+            all_started.set()
+
+        await all_started.wait()
+
+        if claim.job_id == "job-one":
+            stop_event.set()
+
+        await asyncio.sleep(0.01)
+        completed.add(claim.job_id)
+
+    monkeypatch.setattr(
+        "app.jobs.document_worker.claim_batch",
+        fake_claim_batch,
+    )
+    monkeypatch.setattr(
+        "app.jobs.document_worker.process_job",
+        fake_process_job,
+    )
+
+    await run_worker(stop_event)
+
+    assert claim_calls == 1
+    assert started == {"job-one", "job-two"}
+    assert completed == {"job-one", "job-two"}
