@@ -24,6 +24,7 @@ import {
   PageHeader,
   buttonStyles,
 } from '@/components/ui';
+import { DocumentPdfAction } from '@/components/documents/DocumentPdfAction';
 import { ReceiptActionBar } from '@/components/mobile/ReceiptActionBar';
 import { Money } from '@/components/money/Money';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
@@ -239,16 +240,11 @@ export default function ReceiptDetailPage() {
                   Print
                 </Button>
 
-                <a
-                    href={`${API_BASE}/receipts/${receipt.id}/pdf`}
-                    download
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={buttonStyles({ variant: 'outline', zone: 'calm' })}
-                >
-                  <DownloadSimple aria-hidden className="h-4 w-4" />
-                  PDF
-                </a>
+                <DocumentPdfAction
+                  documentType="receipt"
+                  sourceId={receipt.id}
+                  issued={receipt.is_verified}
+                />
 
                 <Button
                     zone="calm"

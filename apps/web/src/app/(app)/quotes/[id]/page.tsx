@@ -42,6 +42,7 @@ import {
   TextField,
   buttonStyles,
 } from '@/components/ui';
+import { DocumentPdfAction } from '@/components/documents/DocumentPdfAction';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import { formatDate } from '@/lib/date';
 
@@ -670,16 +671,11 @@ export default function QuoteDetailPage() {
             </Button>
           )}
           {quote.status !== 'draft' && (
-            <a
-              href={`${API_BASE}/quotes/${quote.id}/pdf`}
-              download
-              target="_blank"
-              rel="noopener noreferrer"
-              className={buttonStyles({ variant: 'outline', zone: 'calm' })}
-            >
-              <DownloadSimple aria-hidden className="h-4 w-4" />
-              PDF
-            </a>
+            <DocumentPdfAction
+              documentType="quote"
+              sourceId={quote.id}
+              issued
+            />
           )}
 
         </div>

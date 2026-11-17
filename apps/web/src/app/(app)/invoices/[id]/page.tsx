@@ -24,6 +24,7 @@ import {
   XCircleIcon,
 } from '@phosphor-icons/react';
 
+import { DocumentPdfAction } from '@/components/documents/DocumentPdfAction';
 import { DocumentComments } from '@/components/comments/DocumentComments';
 import { InvoiceDocument } from '@/components/invoice';
 import { InvoiceActionBar } from '@/components/mobile/InvoiceActionBar';
@@ -1262,10 +1263,18 @@ export default function InvoiceDetailPage() {
                 </div>
               )}
 
-              <div className="space-y-1 border-b border-line-subtle py-2">
+              <div className="space-y-2 border-b border-line-subtle py-2">
                 <p className="px-3 py-1 text-caption font-bold uppercase tracking-wide text-text-muted">
                   Document
                 </p>
+
+                {invoice.status !== 'draft' && (
+                  <DocumentPdfAction
+                    documentType="invoice"
+                    sourceId={invoice.id}
+                    issued
+                  />
+                )}
 
                 <button
                   type="button"

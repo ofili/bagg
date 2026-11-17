@@ -485,6 +485,17 @@ export default function PublicClientInvoiceView() {
                 {invoiceDoc}
               </div>
 
+              <div className="flex justify-end print:hidden">
+                <a
+                  href={`${API_BASE}/invoices/share/${encodeURIComponent(token)}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                >
+                  Download invoice PDF
+                </a>
+              </div>
+
               {/* Discussion */}
               <DocumentComments
                   documentType="invoice"

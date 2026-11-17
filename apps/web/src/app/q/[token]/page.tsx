@@ -370,6 +370,17 @@ export default function PublicQuotePage() {
               />
             </div>
 
+            <div className="flex justify-end print:hidden">
+              <a
+                href={`${API_BASE}/quotes/share/${encodeURIComponent(token)}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+              >
+                Download quote PDF
+              </a>
+            </div>
+
             <section aria-labelledby="scope-heading" className="space-y-3">
               <h2 id="scope-heading" className="text-heading">
                 scope and deliverables

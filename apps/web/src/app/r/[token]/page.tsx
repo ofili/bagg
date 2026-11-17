@@ -248,6 +248,19 @@ export default function PublicReceiptPage() {
 
             </div>
 
+            {receipt.is_verified && (
+              <div className="flex justify-center print:hidden">
+                <a
+                  href={`${API_BASE}/receipts/share/${encodeURIComponent(token)}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                >
+                  Download receipt PDF
+                </a>
+              </div>
+            )}
+
             <p className="border-t border-line-subtle pt-4 text-center text-caption text-text-muted">
               This document constitutes valid legal proof of payment issued via Bagg. The verification code can be used
               to confirm authenticity.
