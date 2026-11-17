@@ -1,15 +1,19 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { Check, CreditCard, Info, Loader2 } from 'lucide-react';
-import { BagCharacter } from '@/components/brand';
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { Check, CreditCard, Info, Loader2 } from "lucide-react";
+import { BagCharacter } from "@/components/brand";
 import { DocumentComments } from "@/components/comments/DocumentComments";
-import { InvoiceDocument, PaymentDetails } from '@/components/invoice';
-import { ClientPayBar, ClientPayView, type ClientPayProps } from '@/components/mobile/ClientPay';
-import { Money } from '@/components/money/Money';
-import { MoneyField } from '@/components/ui/MoneyField';
+import { InvoiceDocument, PaymentDetails } from "@/components/invoice";
+import {
+  ClientPayBar,
+  ClientPayView,
+  type ClientPayProps,
+} from "@/components/mobile/ClientPay";
+import { Money } from "@/components/money/Money";
+import { MoneyField } from "@/components/ui/MoneyField";
 import {
   Alert,
   Button,
@@ -19,11 +23,11 @@ import {
   EmailField,
   TextArea,
   TextField,
-} from '@/components/ui';
-import { cleanAmount, toMinor } from '@/lib/amount';
-import { formatDate } from '@/lib/date';
+} from "@/components/ui";
+import { cleanAmount, toMinor } from "@/lib/amount";
+import { formatDate } from "@/lib/date";
 
-const API_BASE = '/api';
+const API_BASE = "/api";
 
 interface PublicInvoiceData {
   invoice: {
@@ -124,13 +128,14 @@ export default function PublicClientInvoiceView() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const [isClaimDialogOpen, setIsClaimDialogOpen] = useState(false);
-  const [claimAmount, setClaimAmount] = useState('');
-  const [claimDate, setClaimDate] = useState(new Date().toISOString().split('T')[0]);
-  const [claimReference, setClaimReference] = useState('');
-  const [claimProofUrl, setClaimProofUrl] = useState('');
+  const [claimAmount, setClaimAmount] = useState("");
+  const [claimDate, setClaimDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [claimReference, setClaimReference] = useState("");
+  const [claimProofUrl, setClaimProofUrl] = useState("");
   const [submittingClaim, setSubmittingClaim] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
-
 
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
@@ -140,31 +145,35 @@ export default function PublicClientInvoiceView() {
       setCheckingOut(true);
       setCheckoutError(null);
       const res = await fetch(`${API_BASE}/share/${token}/checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           callback_url: window.location.href,
         }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || 'Online payment could not be started.');
+        throw new Error(err.detail || "Online payment could not be started.");
       }
       const data = await res.json();
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
       }
     } catch (err) {
-      setCheckoutError(err instanceof Error ? err.message : 'Online payment could not be started.');
+      setCheckoutError(
+        err instanceof Error
+          ? err.message
+          : "Online payment could not be started.",
+      );
     } finally {
       setCheckingOut(false);
     }
   };
 
   const [showAbuseDialog, setShowAbuseDialog] = useState(false);
-  const [abuseReason, setAbuseReason] = useState('');
-  const [abuseEmail, setAbuseEmail] = useState('');
-  const [abuseName, setAbuseName] = useState('');
+  const [abuseReason, setAbuseReason] = useState("");
+  const [abuseEmail, setAbuseEmail] = useState("");
+  const [abuseName, setAbuseName] = useState("");
   const [submittingAbuse, setSubmittingAbuse] = useState(false);
   const [abuseSuccess, setAbuseSuccess] = useState(false);
   const [abuseError, setAbuseError] = useState<string | null>(null);
@@ -173,14 +182,14 @@ export default function PublicClientInvoiceView() {
     if (!token) return;
     fetch(`${API_BASE}/share/${token}`)
       .then(async (res) => {
-        if (!res.ok) throw new Error('Invoice link not found or expired');
+        if (!res.ok) throw new Error("Invoice link not found or expired");
         return res.json();
       })
       .then((json: PublicInvoiceData) => {
         setData(json);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Could not load invoice');
+        setError(err instanceof Error ? err.message : "Could not load invoice");
       })
       .finally(() => {
         setLoading(false);
@@ -196,14 +205,16 @@ export default function PublicClientInvoiceView() {
 
     const amountMinor = toMinor(claimAmount);
     if (amountMinor <= 0) {
-      setClaimError('Enter the amount you paid.');
+      setClaimError("Enter the amount you paid.");
       setSubmittingClaim(false);
       return;
     }
 
     const { invoice } = data;
     const payable = invoice.net_payable_minor || invoice.total_minor;
-    const remainingMinor = invoice.remaining_minor ?? Math.max(0, payable - (invoice.amount_paid_minor || 0));
+    const remainingMinor =
+      invoice.remaining_minor ??
+      Math.max(0, payable - (invoice.amount_paid_minor || 0));
     if (amountMinor > remainingMinor) {
       setClaimError(
         `The amount cannot exceed the remaining balance of ${(remainingMinor / 100).toFixed(2)} ${invoice.currency}.`,
@@ -219,8 +230,8 @@ export default function PublicClientInvoiceView() {
 
     try {
       const res = await fetch(`${API_BASE}/share/${token}/claim`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount_minor: amountMinor,
           payment_date: claimDate || undefined,
@@ -231,15 +242,19 @@ export default function PublicClientInvoiceView() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Failed to submit payment claim.');
+        throw new Error(errData.detail || "Failed to submit payment claim.");
       }
 
       setIsClaimDialogOpen(false);
-      setToastMsg('Done. Your payment details have been sent to your freelancer.');
+      setToastMsg(
+        "Done. Your payment details have been sent to your freelancer.",
+      );
       setTimeout(() => setToastMsg(null), 4000);
       fetchInvoiceData();
     } catch (err) {
-      setClaimError(err instanceof Error ? err.message : 'Error submitting claim.');
+      setClaimError(
+        err instanceof Error ? err.message : "Error submitting claim.",
+      );
     } finally {
       setSubmittingClaim(false);
     }
@@ -248,15 +263,15 @@ export default function PublicClientInvoiceView() {
   const handleReportAbuse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (abuseReason.trim().length < 10) {
-      setAbuseError('Please provide a reason with at least 10 characters.');
+      setAbuseError("Please provide a reason with at least 10 characters.");
       return;
     }
     try {
       setSubmittingAbuse(true);
       setAbuseError(null);
       const res = await fetch(`${API_BASE}/share/${token}/report-abuse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reason: abuseReason.trim(),
           reporter_email: abuseEmail.trim() || undefined,
@@ -265,16 +280,18 @@ export default function PublicClientInvoiceView() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || 'Failed to submit report');
+        throw new Error(err.detail || "Failed to submit report");
       }
       setAbuseSuccess(true);
       setTimeout(() => {
         setShowAbuseDialog(false);
         setAbuseSuccess(false);
-        setAbuseReason('');
+        setAbuseReason("");
       }, 3000);
     } catch (err) {
-      setAbuseError(err instanceof Error ? err.message : 'Error submitting report.');
+      setAbuseError(
+        err instanceof Error ? err.message : "Error submitting report.",
+      );
     } finally {
       setSubmittingAbuse(false);
     }
@@ -287,24 +304,23 @@ export default function PublicClientInvoiceView() {
   useEffect(() => {
     if (!token) return;
     const urlParams = new URLSearchParams(window.location.search);
-    const ref = urlParams.get('reference');
+    const ref = urlParams.get("reference");
     if (ref) {
       fetch(`${API_BASE}/share/${token}/verify-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reference: ref }),
       })
         .then((res) => (res.ok ? res.json() : null))
         .then((verification) => {
           if (verification?.verified) {
-            setToastMsg('Payment verified successfully! Thank you.');
+            setToastMsg("Payment verified successfully! Thank you.");
             fetchInvoiceData();
           }
         })
         .catch(() => {});
     }
   }, [token, fetchInvoiceData]);
-
 
   const handleCopy = (text: string, key: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -318,7 +334,10 @@ export default function PublicClientInvoiceView() {
 
   if (loading) {
     return (
-      <div role="status" className="flex min-h-dvh items-center justify-center bg-cream p-4 text-text-muted">
+      <div
+        role="status"
+        className="flex min-h-dvh items-center justify-center bg-cream p-4 text-text-muted"
+      >
         <Loader2 aria-hidden className="h-8 w-8 animate-spin" />
         <span className="sr-only">Loading invoice</span>
       </div>
@@ -331,7 +350,9 @@ export default function PublicClientInvoiceView() {
         <Card zone="calm" className="w-full max-w-sm space-y-3 p-6 text-center">
           <Info aria-hidden className="mx-auto h-9 w-9 text-text-muted" />
           <h1 className="text-title">invoice unavailable</h1>
-          <p className="text-body text-text-soft">{error || 'This link may have been revoked or expired.'}</p>
+          <p className="text-body text-text-soft">
+            {error || "This link may have been revoked or expired."}
+          </p>
         </Card>
       </div>
     );
@@ -349,19 +370,24 @@ export default function PublicClientInvoiceView() {
 
   const resolvedLatestClaim = invoice.latest_claim ?? rootLatestClaim ?? null;
   const payable = invoice.net_payable_minor || invoice.total_minor;
-  const remainingMinor = invoice.remaining_minor ?? Math.max(0, payable - (invoice.amount_paid_minor || 0));
+  const remainingMinor =
+    invoice.remaining_minor ??
+    Math.max(0, payable - (invoice.amount_paid_minor || 0));
 
   const openClaimSheet = () => {
-    if (resolvedLatestClaim && resolvedLatestClaim.status === 'pending') {
+    if (resolvedLatestClaim && resolvedLatestClaim.status === "pending") {
       setClaimAmount((resolvedLatestClaim.amount_minor / 100).toFixed(2));
-      setClaimDate(resolvedLatestClaim.payment_date || new Date().toISOString().split('T')[0]);
-      setClaimReference(resolvedLatestClaim.reference || '');
-      setClaimProofUrl(resolvedLatestClaim.proof_file_url || '');
+      setClaimDate(
+        resolvedLatestClaim.payment_date ||
+          new Date().toISOString().split("T")[0],
+      );
+      setClaimReference(resolvedLatestClaim.reference || "");
+      setClaimProofUrl(resolvedLatestClaim.proof_file_url || "");
     } else {
       setClaimAmount((remainingMinor / 100).toFixed(2));
-      setClaimDate(new Date().toISOString().split('T')[0]);
-      setClaimReference('');
-      setClaimProofUrl('');
+      setClaimDate(new Date().toISOString().split("T")[0]);
+      setClaimReference("");
+      setClaimProofUrl("");
     }
     setClaimError(null);
     setIsClaimDialogOpen(true);
@@ -378,471 +404,469 @@ export default function PublicClientInvoiceView() {
     claim: resolvedLatestClaim,
     receipt: invoice.latest_receipt ?? null,
     paymentDetails: (
-        <PaymentDetails
-            profile={payment_profile}
-            currency={invoice.currency}
-            onCopy={handleCopy}
-            copiedKey={copiedKey}
-        />
+      <PaymentDetails
+        profile={payment_profile}
+        currency={invoice.currency}
+        onCopy={handleCopy}
+        copiedKey={copiedKey}
+      />
     ),
-    businessName: (data as { business_name?: string | null }).business_name ?? null,
+    businessName:
+      (data as { business_name?: string | null }).business_name ?? null,
     onClaim: openClaimSheet,
   };
 
   const invoiceDoc = (
-      <InvoiceDocument
-          variant="public"
-          onClaimPaid={openClaimSheet}
-          paymentSlot={payProps.paymentDetails}
-          invoice={{
-            ...invoice,
-            remaining_minor: remainingMinor,
-            amount_paid_minor: invoice.amount_paid_minor,
-            latest_claim: resolvedLatestClaim,
-            latest_receipt: invoice.latest_receipt ?? null,
-          }}
-      />
+    <InvoiceDocument
+      variant="public"
+      onClaimPaid={openClaimSheet}
+      paymentSlot={payProps.paymentDetails}
+      invoice={{
+        ...invoice,
+        remaining_minor: remainingMinor,
+        amount_paid_minor: invoice.amount_paid_minor,
+        latest_claim: resolvedLatestClaim,
+        latest_receipt: invoice.latest_receipt ?? null,
+      }}
+    />
   );
 
-
   return (
-      <div className="min-h-dvh bg-cream p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
-        <div className="mx-auto max-w-7xl space-y-6">
-          {/* Toast */}
-          {toastMsg && (
-              <div
-                  role="status"
-                  className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2 rounded-btn border-brut-thin border-ink bg-surface px-4 py-2 text-body font-extrabold shadow-brut"
-              >
-                <Check aria-hidden className="h-4 w-4 text-leaf" />
-                <span>{toastMsg}</span>
-              </div>
-          )}
+    <div className="min-h-dvh bg-cream p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        {/* Toast */}
+        {toastMsg && (
+          <div
+            role="status"
+            className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2 rounded-btn border-brut-thin border-ink bg-surface px-4 py-2 text-body font-extrabold shadow-brut"
+          >
+            <Check aria-hidden className="h-4 w-4 text-leaf" />
+            <span>{toastMsg}</span>
+          </div>
+        )}
 
-          {/* Revision notice */}
-          {is_revised && revision_banner && (
+        {/* Revision notice */}
+        {is_revised && revision_banner && (
+          <Card
+            zone="calm"
+            tone="peach"
+            className="flex items-start gap-2.5 text-body"
+          >
+            <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{revision_banner}</span>
+          </Card>
+        )}
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+          {/* Main document column */}
+          <div className="min-w-0 space-y-6">
+            {/* Online payment: mobile and tablet */}
+            {remainingMinor > 0 && invoice.status !== "paid" && (
               <Card
-                  zone="calm"
-                  tone="peach"
-                  className="flex items-start gap-2.5 text-body"
+                zone="calm"
+                className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between lg:hidden"
               >
-                <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{revision_banner}</span>
+                <div>
+                  <p className="font-extrabold text-heading">
+                    Pay online securely
+                  </p>
+                  <p className="text-body text-text-soft">
+                    Pay with debit card, bank transfer, or USSD.
+                  </p>
+                  {checkoutError && (
+                    <p role="alert" className="mt-1 text-caption text-danger">
+                      {checkoutError}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  zone="calm"
+                  size="lg"
+                  loading={checkingOut}
+                  onClick={handleInitiateCheckout}
+                >
+                  <CreditCard aria-hidden className="h-4 w-4" />
+                  Pay now
+                </Button>
               </Card>
-          )}
+            )}
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-            {/* Main document column */}
-            <div className="min-w-0 space-y-6">
-              {/* Online payment: mobile and tablet */}
-              {remainingMinor > 0 && invoice.status !== 'paid' && (
-                  <Card
-                      zone="calm"
-                      className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between lg:hidden"
-                  >
-                    <div>
-                      <p className="font-extrabold text-heading">
-                        Pay online securely
-                      </p>
-                      <p className="text-body text-text-soft">
-                        Pay with debit card, bank transfer, or USSD.
-                      </p>
-                      {checkoutError && (
-                          <p role="alert" className="mt-1 text-caption text-danger">
-                            {checkoutError}
-                          </p>
-                      )}
-                    </div>
+            {/* Mobile payment experience */}
+            <ClientPayView {...payProps} />
 
-                    <Button
-                        zone="calm"
-                        size="lg"
-                        loading={checkingOut}
-                        onClick={handleInitiateCheckout}
-                    >
-                      <CreditCard aria-hidden className="h-4 w-4" />
-                      Pay now
-                    </Button>
-                  </Card>
-              )}
-
-              {/* Mobile payment experience */}
-              <ClientPayView {...payProps} />
-
-              {/* Full invoice: expandable on mobile */}
-              <details className="border-brut border-ink bg-surface sm:hidden">
-                <summary className="flex min-h-12 cursor-pointer items-center justify-between px-4 font-extrabold">
-                  <span>View full invoice</span>
-                  <span className="text-caption text-text-muted">
+            {/* Full invoice: expandable on mobile */}
+            <details className="border-brut border-ink bg-surface sm:hidden">
+              <summary className="flex min-h-12 cursor-pointer items-center justify-between px-4 font-extrabold">
+                <span>View full invoice</span>
+                <span className="text-caption text-text-muted">
                   {invoice.invoice_number}
                 </span>
-                </summary>
-                <div className="p-3">{invoiceDoc}</div>
-              </details>
+              </summary>
+              <div className="p-3">{invoiceDoc}</div>
+            </details>
 
-              {/* Full invoice: desktop and tablet */}
-              <div className="hidden sm:block">
-                {invoiceDoc}
-              </div>
+            {/* Full invoice: desktop and tablet */}
+            <div className="hidden sm:block">{invoiceDoc}</div>
 
-              <div className="flex justify-end print:hidden">
-                <a
-                  href={`${API_BASE}/invoices/share/${encodeURIComponent(token)}/pdf`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={buttonStyles({ variant: 'outline', zone: 'calm' })}
-                >
-                  Download invoice PDF
-                </a>
-              </div>
-
-              {/* Discussion */}
-              <DocumentComments
-                  documentType="invoice"
-                  documentId={invoice.id}
-                  isPublicView={true}
-                  shareToken={token}
-                  documentNumber={invoice.invoice_number}
-              />
+            <div className="flex justify-end print:hidden">
+              <a
+                href={`${API_BASE}/invoices/share/${encodeURIComponent(token)}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-10 items-center justify-center border border-line-subtle px-4 py-2 text-sm font-semibold text-text-primary hover:bg-surface-tint"
+              >
+                Download invoice PDF
+              </a>
             </div>
 
-            {/* Supporting payment column */}
-            <aside className="hidden space-y-6 lg:sticky lg:top-6 lg:block">
-              {/* Payment action */}
-              {remainingMinor > 0 && invoice.status !== 'paid' && (
-                  <Card
-                      zone="calm"
-                      className="space-y-4 border-brut border-ink p-5 shadow-brut"
-                  >
-                    <div>
-                      <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                        Ready to pay?
-                      </p>
-                      <p className="mt-2 text-amount-l font-extrabold">
-                        <Money
-                            amountMinor={remainingMinor}
-                            currency={invoice.currency}
-                            variant="total"
-                            hideCurrencyCode
-                        />
-                      </p>
-                      <p className="mt-1 text-body text-text-soft">
-                        Outstanding balance
-                      </p>
-                    </div>
+            {/* Discussion */}
+            <DocumentComments
+              documentType="invoice"
+              documentId={invoice.id}
+              isPublicView={true}
+              shareToken={token}
+              documentNumber={invoice.invoice_number}
+            />
+          </div>
 
-                    <Button
-                        zone="calm"
-                        size="lg"
-                        fullWidth
-                        loading={checkingOut}
-                        onClick={handleInitiateCheckout}
-                    >
-                      <CreditCard aria-hidden className="h-4 w-4" />
-                      Pay online
-                    </Button>
-
-                    {checkoutError && (
-                        <p role="alert" className="text-caption text-danger">
-                          {checkoutError}
-                        </p>
-                    )}
-
-                    <p className="text-caption text-text-muted">
-                      Secure checkout. Your payment is confirmed through the
-                      payment provider.
-                    </p>
-                  </Card>
-              )}
-
-              {/* Payment summary */}
-              <Card zone="calm" className="space-y-4 p-5">
+          {/* Supporting payment column */}
+          <aside className="hidden space-y-6 lg:sticky lg:top-6 lg:block">
+            {/* Payment action */}
+            {remainingMinor > 0 && invoice.status !== "paid" && (
+              <Card
+                zone="calm"
+                className="space-y-4 border-brut border-ink p-5 shadow-brut"
+              >
                 <div>
-                  <h2 className="text-heading">payment summary</h2>
-                  <p className="mt-1 text-caption text-text-muted">
-                    Invoice {invoice.invoice_number}
+                  <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
+                    Ready to pay?
+                  </p>
+                  <p className="mt-2 text-amount-l font-extrabold">
+                    <Money
+                      amountMinor={remainingMinor}
+                      currency={invoice.currency}
+                      variant="total"
+                      hideCurrencyCode
+                    />
+                  </p>
+                  <p className="mt-1 text-body text-text-soft">
+                    Outstanding balance
                   </p>
                 </div>
 
-                <dl className="space-y-3 text-body">
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-text-soft">Invoice total</dt>
-                    <dd className="font-semibold">
-                      <Money
-                          amountMinor={payable}
-                          currency={invoice.currency}
-                          hideCurrencyCode
-                      />
-                    </dd>
-                  </div>
+                <Button
+                  zone="calm"
+                  size="lg"
+                  fullWidth
+                  loading={checkingOut}
+                  onClick={handleInitiateCheckout}
+                >
+                  <CreditCard aria-hidden className="h-4 w-4" />
+                  Pay online
+                </Button>
 
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-text-soft">Paid</dt>
-                    <dd className="font-semibold">
-                      <Money
-                          amountMinor={invoice.amount_paid_minor || 0}
-                          currency={invoice.currency}
-                          variant="paid"
-                          hideCurrencyCode
-                      />
-                    </dd>
-                  </div>
+                {checkoutError && (
+                  <p role="alert" className="text-caption text-danger">
+                    {checkoutError}
+                  </p>
+                )}
 
-                  <div className="border-t border-line pt-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="font-extrabold">Outstanding</dt>
-                      <dd className="font-extrabold">
-                        <Money
-                            amountMinor={remainingMinor}
-                            currency={invoice.currency}
-                            variant="total"
-                            hideCurrencyCode
-                        />
-                      </dd>
-                    </div>
-                  </div>
-                </dl>
+                <p className="text-caption text-text-muted">
+                  Secure checkout. Your payment is confirmed through the payment
+                  provider.
+                </p>
+              </Card>
+            )}
 
-                <div className="space-y-2 border-t border-line pt-3 text-body">
-                  <div className="flex justify-between gap-3">
-                    <span className="text-text-soft">Issued</span>
-                    <span className="font-medium">
-                    {formatDate(invoice.issue_date)}
-                  </span>
-                  </div>
+            {/* Payment summary */}
+            <Card zone="calm" className="space-y-4 p-5">
+              <div>
+                <h2 className="text-heading">payment summary</h2>
+                <p className="mt-1 text-caption text-text-muted">
+                  Invoice {invoice.invoice_number}
+                </p>
+              </div>
 
-                  <div className="flex justify-between gap-3">
-                    <span className="text-text-soft">Due</span>
-                    <span className="font-medium">
-                    {formatDate(invoice.due_date)}
-                  </span>
-                  </div>
+              <dl className="space-y-3 text-body">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-text-soft">Invoice total</dt>
+                  <dd className="font-semibold">
+                    <Money
+                      amountMinor={payable}
+                      currency={invoice.currency}
+                      hideCurrencyCode
+                    />
+                  </dd>
                 </div>
 
-                {invoice.status === 'paid' || remainingMinor === 0 ? (
-                    <div className="border border-leaf/40 bg-leaf/10 p-3 text-body font-bold">
-                      <Check aria-hidden className="mr-2 inline h-4 w-4" />
-                      Payment complete
-                    </div>
-                ) : (
-                    <div className="bg-surface-tint p-3 text-caption text-text-soft">
-                      Use the payment instructions on the invoice if you prefer
-                      a bank transfer.
-                    </div>
-                )}
-              </Card>
-            </aside>
-          </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-text-soft">Paid</dt>
+                  <dd className="font-semibold">
+                    <Money
+                      amountMinor={invoice.amount_paid_minor || 0}
+                      currency={invoice.currency}
+                      variant="paid"
+                      hideCurrencyCode
+                    />
+                  </dd>
+                </div>
 
-          {/* Bagg referral footer */}
-          {show_viral_footer && (
-              <div className="text-center">
-                <Link
-                    href={
-                        viral_footer_link ||
-                        'https://bagg.africa?utm_source=invoice_footer&utm_medium=referral'
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-11 items-center gap-2 text-caption text-text-muted hover:text-text"
-                >
-                  <BagCharacter size={20} decorative />
-                  <span>Sent with bagg. Invoicing for African creators.</span>
-                </Link>
+                <div className="border-t border-line pt-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="font-extrabold">Outstanding</dt>
+                    <dd className="font-extrabold">
+                      <Money
+                        amountMinor={remainingMinor}
+                        currency={invoice.currency}
+                        variant="total"
+                        hideCurrencyCode
+                      />
+                    </dd>
+                  </div>
+                </div>
+              </dl>
+
+              <div className="space-y-2 border-t border-line pt-3 text-body">
+                <div className="flex justify-between gap-3">
+                  <span className="text-text-soft">Issued</span>
+                  <span className="font-medium">
+                    {formatDate(invoice.issue_date)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between gap-3">
+                  <span className="text-text-soft">Due</span>
+                  <span className="font-medium">
+                    {formatDate(invoice.due_date)}
+                  </span>
+                </div>
               </div>
-          )}
 
-          {/* Report suspicious invoice */}
-          <div className="text-center">
-            <Button
-                variant="link"
-                onClick={() => setShowAbuseDialog(true)}
-                className="text-caption font-medium"
-            >
-              Report this invoice as suspicious
-            </Button>
-          </div>
+              {invoice.status === "paid" || remainingMinor === 0 ? (
+                <div className="border border-leaf/40 bg-leaf/10 p-3 text-body font-bold">
+                  <Check aria-hidden className="mr-2 inline h-4 w-4" />
+                  Payment complete
+                </div>
+              ) : (
+                <div className="bg-surface-tint p-3 text-caption text-text-soft">
+                  Use the payment instructions on the invoice if you prefer a
+                  bank transfer.
+                </div>
+              )}
+            </Card>
+          </aside>
         </div>
 
-        {/* Mobile sticky payment action */}
-        <ClientPayBar {...payProps} />
+        {/* Bagg referral footer */}
+        {show_viral_footer && (
+          <div className="text-center">
+            <Link
+              href={
+                viral_footer_link ||
+                "https://bagg.africa?utm_source=invoice_footer&utm_medium=referral"
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center gap-2 text-caption text-text-muted hover:text-text"
+            >
+              <BagCharacter size={20} decorative />
+              <span>Sent with bagg. Invoicing for African creators.</span>
+            </Link>
+          </div>
+        )}
 
-        {/* Payment claim dialog */}
-        <Dialog
-            open={isClaimDialogOpen}
-            onClose={() => !submittingClaim && setIsClaimDialogOpen(false)}
-            title="I've paid this invoice"
-            description="Share your payment details so your freelancer can verify the funds and send your receipt."
-            className="max-h-[92dvh] overflow-y-auto"
-        >
-          <form onSubmit={handleClaimPayment} className="space-y-4">
-            {claimError && <Alert variant="error">{claimError}</Alert>}
+        {/* Report suspicious invoice */}
+        <div className="text-center">
+          <Button
+            variant="link"
+            onClick={() => setShowAbuseDialog(true)}
+            className="text-caption font-medium"
+          >
+            Report this invoice as suspicious
+          </Button>
+        </div>
+      </div>
 
-            <div className="space-y-2">
-              <MoneyField
-                  label="Amount you paid"
-                  currency={invoice.currency}
-                  value={claimAmount}
-                  onChange={(v) => setClaimAmount(cleanAmount(v, claimAmount))}
-                  required
-              />
+      {/* Mobile sticky payment action */}
+      <ClientPayBar {...payProps} />
 
-              <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                <button
+      {/* Payment claim dialog */}
+      <Dialog
+        open={isClaimDialogOpen}
+        onClose={() => !submittingClaim && setIsClaimDialogOpen(false)}
+        title="I've paid this invoice"
+        description="Share your payment details so your freelancer can verify the funds and send your receipt."
+        className="max-h-[92dvh] overflow-y-auto"
+      >
+        <form onSubmit={handleClaimPayment} className="space-y-4">
+          {claimError && <Alert variant="error">{claimError}</Alert>}
+
+          <div className="space-y-2">
+            <MoneyField
+              label="Amount you paid"
+              currency={invoice.currency}
+              value={claimAmount}
+              onChange={(v) => setClaimAmount(cleanAmount(v, claimAmount))}
+              required
+            />
+
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <button
+                type="button"
+                onClick={() =>
+                  setClaimAmount((remainingMinor / 100).toFixed(2))
+                }
+                className="rounded-btn border-brut-thin border-ink bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
+              >
+                Full balance ({(remainingMinor / 100).toFixed(2)}{" "}
+                {invoice.currency})
+              </button>
+
+              {invoice.deposit_amount_minor &&
+                invoice.deposit_amount_minor > 0 &&
+                remainingMinor > invoice.deposit_amount_minor && (
+                  <button
                     type="button"
                     onClick={() =>
-                        setClaimAmount((remainingMinor / 100).toFixed(2))
+                      setClaimAmount(
+                        ((invoice.deposit_amount_minor || 0) / 100).toFixed(2),
+                      )
                     }
                     className="rounded-btn border-brut-thin border-ink bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
-                >
-                  Full balance ({(remainingMinor / 100).toFixed(2)}{' '}
-                  {invoice.currency})
-                </button>
-
-                {invoice.deposit_amount_minor &&
-                    invoice.deposit_amount_minor > 0 &&
-                    remainingMinor > invoice.deposit_amount_minor && (
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setClaimAmount(
-                                    ((invoice.deposit_amount_minor || 0) / 100).toFixed(2),
-                                )
-                            }
-                            className="rounded-btn border-brut-thin border-ink bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
-                        >
-                          Deposit only (
-                          {((invoice.deposit_amount_minor || 0) / 100).toFixed(2)}{' '}
-                          {invoice.currency})
-                        </button>
-                    )}
-              </div>
+                  >
+                    Deposit only (
+                    {((invoice.deposit_amount_minor || 0) / 100).toFixed(2)}{" "}
+                    {invoice.currency})
+                  </button>
+                )}
             </div>
+          </div>
 
-            <DateField
-              label="Date you paid"
-              required
-              max={new Date().toISOString().split('T')[0]}
-              value={claimDate}
-              onChange={(e) => setClaimDate(e.target.value)}
-            />
+          <DateField
+            label="Date you paid"
+            required
+            max={new Date().toISOString().split("T")[0]}
+            value={claimDate}
+            onChange={(e) => setClaimDate(e.target.value)}
+          />
 
-            <TextField
-              label="Transfer reference"
-              optional
-              placeholder="e.g. 0901238492 or Access Bank transfer"
-              hint="Bank session ID, transaction ref, or your sender bank/account name."
-              value={claimReference}
-              onChange={(e) => setClaimReference(e.target.value)}
-            />
+          <TextField
+            label="Transfer reference"
+            optional
+            placeholder="e.g. 0901238492 or Access Bank transfer"
+            hint="Bank session ID, transaction ref, or your sender bank/account name."
+            value={claimReference}
+            onChange={(e) => setClaimReference(e.target.value)}
+          />
 
-            <TextField
-              label="Link to proof"
-              optional
-              placeholder="https://..."
-              hint="A link to a receipt screenshot or bank payment slip."
-              value={claimProofUrl}
-              onChange={(e) => setClaimProofUrl(e.target.value)}
-            />
+          <TextField
+            label="Link to proof"
+            optional
+            placeholder="https://..."
+            hint="A link to a receipt screenshot or bank payment slip."
+            value={claimProofUrl}
+            onChange={(e) => setClaimProofUrl(e.target.value)}
+          />
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Button
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              zone="calm"
+              size="lg"
+              disabled={submittingClaim}
+              onClick={() => setIsClaimDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              zone="calm"
+              size="lg"
+              loading={submittingClaim}
+            >
+              Send details
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* Report abuse dialog */}
+      <Dialog
+        open={showAbuseDialog}
+        onClose={() => !submittingAbuse && setShowAbuseDialog(false)}
+        title="Report this invoice"
+        description="If this invoice looks like impersonation, phishing, or a charge you did not expect, let us know."
+        className="max-h-[92dvh] overflow-y-auto"
+      >
+        <div className="space-y-4">
+          {abuseSuccess ? (
+            <p
+              role="status"
+              className="flex items-start gap-2 bg-peach p-3 text-body font-medium"
+            >
+              <Check
+                aria-hidden
+                className="mt-0.5 h-4 w-4 shrink-0 text-leaf"
+              />
+              Thank you. Your report was sent and our team will look at this
+              invoice promptly.
+            </p>
+          ) : (
+            <form onSubmit={handleReportAbuse} className="space-y-4">
+              {abuseError && <Alert variant="error">{abuseError}</Alert>}
+
+              <TextArea
+                label="What looks wrong?"
+                required
+                minLength={10}
+                rows={4}
+                hint="At least 10 characters."
+                value={abuseReason}
+                onChange={(e) => setAbuseReason(e.target.value)}
+              />
+
+              <EmailField
+                label="Your email"
+                optional
+                value={abuseEmail}
+                onChange={(e) => setAbuseEmail(e.target.value)}
+              />
+
+              <TextField
+                label="Your name"
+                optional
+                value={abuseName}
+                onChange={(e) => setAbuseName(e.target.value)}
+              />
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <Button
                   type="button"
                   variant="outline"
                   zone="calm"
                   size="lg"
-                  disabled={submittingClaim}
-                  onClick={() => setIsClaimDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
+                  onClick={() => setShowAbuseDialog(false)}
+                  disabled={submittingAbuse}
+                >
+                  Cancel
+                </Button>
+
+                <Button
                   type="submit"
+                  variant="danger"
                   zone="calm"
                   size="lg"
-                  loading={submittingClaim}
-              >
-                Send details
-              </Button>
-            </div>
-          </form>
-        </Dialog>
-
-        {/* Report abuse dialog */}
-        <Dialog
-            open={showAbuseDialog}
-            onClose={() => !submittingAbuse && setShowAbuseDialog(false)}
-            title="Report this invoice"
-            description="If this invoice looks like impersonation, phishing, or a charge you did not expect, let us know."
-            className="max-h-[92dvh] overflow-y-auto"
-        >
-          <div className="space-y-4">
-            {abuseSuccess ? (
-                <p
-                    role="status"
-                    className="flex items-start gap-2 bg-peach p-3 text-body font-medium"
+                  loading={submittingAbuse}
                 >
-                  <Check
-                      aria-hidden
-                      className="mt-0.5 h-4 w-4 shrink-0 text-leaf"
-                  />
-                  Thank you. Your report was sent and our team will look at this
-                  invoice promptly.
-                </p>
-            ) : (
-                <form onSubmit={handleReportAbuse} className="space-y-4">
-                  {abuseError && <Alert variant="error">{abuseError}</Alert>}
-
-                  <TextArea
-                    label="What looks wrong?"
-                    required
-                    minLength={10}
-                    rows={4}
-                    hint="At least 10 characters."
-                    value={abuseReason}
-                    onChange={(e) => setAbuseReason(e.target.value)}
-                  />
-
-                  <EmailField
-                    label="Your email"
-                    optional
-                    value={abuseEmail}
-                    onChange={(e) => setAbuseEmail(e.target.value)}
-                  />
-
-                  <TextField
-                    label="Your name"
-                    optional
-                    value={abuseName}
-                    onChange={(e) => setAbuseName(e.target.value)}
-                  />
-
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        zone="calm"
-                        size="lg"
-                        onClick={() => setShowAbuseDialog(false)}
-                        disabled={submittingAbuse}
-                    >
-                      Cancel
-                    </Button>
-
-                    <Button
-                        type="submit"
-                        variant="danger"
-                        zone="calm"
-                        size="lg"
-                        loading={submittingAbuse}
-                    >
-                      Send report
-                    </Button>
-                  </div>
-                </form>
-            )}
-          </div>
-        </Dialog>
-      </div>
+                  Send report
+                </Button>
+              </div>
+            </form>
+          )}
+        </div>
+      </Dialog>
+    </div>
   );
 }

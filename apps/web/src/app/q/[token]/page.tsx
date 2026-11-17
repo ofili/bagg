@@ -1,19 +1,35 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { AlertCircle, Check, Clock, Loader2, Sparkles, XCircle, RotateCcw } from 'lucide-react';
-import { BagCharacter } from '@/components/brand';
+import { useState, useEffect, useCallback, type ReactNode } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import {
+  AlertCircle,
+  Check,
+  Clock,
+  Loader2,
+  Sparkles,
+  XCircle,
+  RotateCcw,
+} from "lucide-react";
+import { BagCharacter } from "@/components/brand";
 import { DocumentComments } from "@/components/comments/DocumentComments";
-import { QuoteRespondBar } from '@/components/mobile/QuoteRespondBar';
-import { Money } from '@/components/money/Money';
-import { StatusPill } from '@/components/status';
-import { Button, Card, Dialog, TextArea, TextField, Alert, buttonStyles } from '@/components/ui';
-import { formatDate } from '@/lib/date';
-import { cn } from '@/lib/cn';
+import { QuoteRespondBar } from "@/components/mobile/QuoteRespondBar";
+import { Money } from "@/components/money/Money";
+import { StatusPill } from "@/components/status";
+import {
+  Button,
+  Card,
+  Dialog,
+  TextArea,
+  TextField,
+  Alert,
+  buttonStyles,
+} from "@/components/ui";
+import { formatDate } from "@/lib/date";
+import { cn } from "@/lib/cn";
 
-const API_BASE = '/api';
+const API_BASE = "/api";
 
 interface LineItem {
   id: string;
@@ -72,8 +88,15 @@ function Row({
   strong?: boolean;
 }) {
   return (
-    <div className={cn('flex items-baseline justify-between gap-4', strong && 'font-extrabold')}>
-      <span className={strong ? 'text-body-l' : 'text-body text-text-soft'}>{label}</span>
+    <div
+      className={cn(
+        "flex items-baseline justify-between gap-4",
+        strong && "font-extrabold",
+      )}
+    >
+      <span className={strong ? "text-body-l" : "text-body text-text-soft"}>
+        {label}
+      </span>
       <span className="text-right">{children}</span>
     </div>
   );
@@ -89,19 +112,19 @@ export default function PublicQuotePage() {
 
   // Accept Bottom Sheet State
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
-  const [acceptName, setAcceptName] = useState('');
+  const [acceptName, setAcceptName] = useState("");
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
 
   // Review request dialog state
   const [showReviewDialog, setShowReviewDialog] = useState(false);
-  const [reviewReason, setReviewReason] = useState('');
+  const [reviewReason, setReviewReason] = useState("");
   const [requestingReview, setRequestingReview] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
   // Decline Bottom Sheet State
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
-  const [declineReason, setDeclineReason] = useState('');
+  const [declineReason, setDeclineReason] = useState("");
   const [declining, setDeclining] = useState(false);
   const [declineError, setDeclineError] = useState<string | null>(null);
 
@@ -113,17 +136,19 @@ export default function PublicQuotePage() {
       const res = await fetch(`${API_BASE}/quotes/share/${token}`);
       if (!res.ok) {
         if (res.status === 404) {
-          setError('Quote not found or link has expired.');
+          setError("Quote not found or link has expired.");
         } else {
           const errData = await res.json().catch(() => ({}));
-          setError(errData.detail || 'Unable to load quotes details.');
+          setError(errData.detail || "Unable to load quotes details.");
         }
         return;
       }
       const data: PublicQuoteData = await res.json();
       setQuote(data);
     } catch {
-      setError('Network error while loading quotes. Please check your connection.');
+      setError(
+        "Network error while loading quotes. Please check your connection.",
+      );
     } finally {
       setLoading(false);
     }
@@ -137,12 +162,12 @@ export default function PublicQuotePage() {
     e.preventDefault();
 
     if (!quote) {
-      setAcceptError('Quote details are not loaded. Refresh and try again.');
+      setAcceptError("Quote details are not loaded. Refresh and try again.");
       return;
     }
 
     if (!acceptName.trim()) {
-      setAcceptError('Please enter your full name to accept this quotes.');
+      setAcceptError("Please enter your full name to accept this quotes.");
       return;
     }
 
@@ -151,8 +176,8 @@ export default function PublicQuotePage() {
       setAcceptError(null);
 
       const res = await fetch(`${API_BASE}/quotes/share/${token}/accept`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           accepted_by_name: acceptName.trim(),
           version: quote.version,
@@ -161,7 +186,7 @@ export default function PublicQuotePage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setAcceptError(err.detail || 'Failed to accept quotes.');
+        setAcceptError(err.detail || "Failed to accept quotes.");
         return;
       }
 
@@ -169,32 +194,34 @@ export default function PublicQuotePage() {
       setQuote(updated);
       setShowAcceptDialog(false);
     } catch {
-      setAcceptError('Network error while submitting acceptance.');
+      setAcceptError("Network error while submitting acceptance.");
     } finally {
       setAccepting(false);
     }
   };
 
-
   const handleRequestReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewReason.trim()) {
-      setReviewError('Please describe the adjustments or questions you have.');
+      setReviewError("Please describe the adjustments or questions you have.");
       return;
     }
 
     try {
       setRequestingReview(true);
       setReviewError(null);
-      const res = await fetch(`${API_BASE}/quotes/share/${token}/request-review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: reviewReason.trim() }),
-      });
+      const res = await fetch(
+        `${API_BASE}/quotes/share/${token}/request-review`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: reviewReason.trim() }),
+        },
+      );
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setReviewError(err.detail || 'Failed to request review.');
+        setReviewError(err.detail || "Failed to request review.");
         return;
       }
 
@@ -202,7 +229,7 @@ export default function PublicQuotePage() {
       setQuote(updated);
       setShowReviewDialog(false);
     } catch {
-      setReviewError('Network error while requesting review.');
+      setReviewError("Network error while requesting review.");
     } finally {
       setRequestingReview(false);
     }
@@ -214,20 +241,20 @@ export default function PublicQuotePage() {
       setDeclining(true);
       setDeclineError(null);
       const res = await fetch(`${API_BASE}/quotes/share/${token}/decline`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: declineReason.trim() || undefined }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setDeclineError(err.detail || 'Failed to decline quotes.');
+        setDeclineError(err.detail || "Failed to decline quotes.");
         return;
       }
       const updated = await res.json();
       setQuote(updated);
       setShowDeclineDialog(false);
     } catch {
-      setDeclineError('Network error while declining quotes.');
+      setDeclineError("Network error while declining quotes.");
     } finally {
       setDeclining(false);
     }
@@ -235,7 +262,10 @@ export default function PublicQuotePage() {
 
   if (loading) {
     return (
-      <div role="status" className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-cream p-6 text-text-muted">
+      <div
+        role="status"
+        className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-cream p-6 text-text-muted"
+      >
         <Loader2 aria-hidden className="h-8 w-8 animate-spin" />
         <p className="text-body">Loading your quote</p>
       </div>
@@ -248,8 +278,13 @@ export default function PublicQuotePage() {
         <Card zone="calm" className="w-full max-w-md space-y-4 p-6 text-center">
           <AlertCircle aria-hidden className="mx-auto h-10 w-10" />
           <h1 className="text-title">quote unavailable</h1>
-          <p className="text-body text-text-soft">{error || 'Quote could not be found.'}</p>
-          <Link href="/" className={buttonStyles({ variant: 'outline', zone: 'calm' })}>
+          <p className="text-body text-text-soft">
+            {error || "Quote could not be found."}
+          </p>
+          <Link
+            href="/"
+            className={buttonStyles({ variant: "outline", zone: "calm" })}
+          >
             Visit bagg
           </Link>
         </Card>
@@ -258,26 +293,33 @@ export default function PublicQuotePage() {
   }
 
   const displayStatus = quote.user_facing_status || quote.status;
-  const isAccepted = quote.status === 'accepted';
-  const isDeclined = quote.status === 'declined';
-  const isConverted = quote.status === 'converted';
-  const isExpired = quote.is_expired || displayStatus === 'expired';
+  const isAccepted = quote.status === "accepted";
+  const isDeclined = quote.status === "declined";
+  const isConverted = quote.status === "converted";
+  const isExpired = quote.is_expired || displayStatus === "expired";
   const canRespond = !isAccepted && !isDeclined && !isConverted && !isExpired;
 
-  const brandColor = quote.business_brand_color || 'var(--bagg-mango)';
-  const initials = (quote.business_name || 'b')
+  const brandColor = quote.business_brand_color || "var(--bagg-mango)";
+  const initials = (quote.business_name || "b")
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0])
-    .join('')
+    .join("")
     .toLowerCase();
 
-  const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
-  const whatsappText = encodeURIComponent(`Hi, I’d like to discuss quote ${quote.quote_number}: ${shareUrl}/q/${token}`);
+  const shareUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const whatsappText = encodeURIComponent(
+    `Hi, I’d like to discuss quote ${quote.quote_number}: ${shareUrl}/q/${token}`,
+  );
 
   return (
-      <div className={cn('min-h-dvh bg-cream p-4 sm:p-6 lg:p-8', canRespond && 'pb-40 sm:pb-6')}>
+    <div
+      className={cn(
+        "min-h-dvh bg-cream p-4 sm:p-6 lg:p-8",
+        canRespond && "pb-40 sm:pb-6",
+      )}
+    >
       <div className="mx-auto max-w-xl space-y-6">
         {/* Where this quotes stands */}
         {isAccepted && (
@@ -286,8 +328,14 @@ export default function PublicQuotePage() {
             <div>
               <p className="text-body font-extrabold">Quote accepted</p>
               <p className="text-body text-text-soft">
-                Accepted by <span className="font-medium text-text">{quote.accepted_by_name}</span>
-                {quote.accepted_at ? ` on ${formatDate(quote.accepted_at)}` : ''}.
+                Accepted by{" "}
+                <span className="font-medium text-text">
+                  {quote.accepted_by_name}
+                </span>
+                {quote.accepted_at
+                  ? ` on ${formatDate(quote.accepted_at)}`
+                  : ""}
+                .
               </p>
             </div>
           </Card>
@@ -298,7 +346,9 @@ export default function PublicQuotePage() {
             <div>
               <p className="text-body font-extrabold">Quote declined</p>
               <p className="text-body text-text-soft">
-                {quote.decline_reason ? `Feedback: ${quote.decline_reason}` : 'Declined by the client.'}
+                {quote.decline_reason
+                  ? `Feedback: ${quote.decline_reason}`
+                  : "Declined by the client."}
               </p>
             </div>
           </Card>
@@ -309,7 +359,8 @@ export default function PublicQuotePage() {
             <div>
               <p className="text-body font-extrabold">Now an invoice</p>
               <p className="text-body text-text-soft">
-                This quote was approved and became invoice {quote.invoice_number || ''}.
+                This quote was approved and became invoice{" "}
+                {quote.invoice_number || ""}.
               </p>
             </div>
           </Card>
@@ -320,7 +371,8 @@ export default function PublicQuotePage() {
             <div>
               <p className="text-body font-extrabold">This quote has expired</p>
               <p className="text-body text-text-soft">
-                The offer lapsed on {formatDate(quote.expires_at)}. Ask for an updated quote.
+                The offer lapsed on {formatDate(quote.expires_at)}. Ask for an
+                updated quote.
               </p>
             </div>
           </Card>
@@ -334,7 +386,11 @@ export default function PublicQuotePage() {
               <div className="flex min-w-0 items-center gap-3">
                 {quote.business_logo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={quote.business_logo_url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+                  <img
+                    src={quote.business_logo_url}
+                    alt=""
+                    className="h-10 w-10 shrink-0 rounded-full object-cover"
+                  />
                 ) : (
                   <span
                     aria-hidden
@@ -344,9 +400,14 @@ export default function PublicQuotePage() {
                   </span>
                 )}
                 <div className="min-w-0">
-                  <h1 className="truncate text-heading">{quote.business_name}</h1>
+                  <h1 className="truncate text-heading">
+                    {quote.business_name}
+                  </h1>
                   <p className="text-body text-text-soft">
-                    Prepared for <span className="font-medium text-text">{quote.client_name || 'you'}</span>
+                    Prepared for{" "}
+                    <span className="font-medium text-text">
+                      {quote.client_name || "you"}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -354,14 +415,23 @@ export default function PublicQuotePage() {
             </header>
 
             <div className="space-y-1 bg-surface-sunken p-4">
-              <p className="text-body text-text-soft">Quote {quote.quote_number}</p>
+              <p className="text-body text-text-soft">
+                Quote {quote.quote_number}
+              </p>
               <p className="text-body-l">
-                Issued {formatDate(quote.issue_date)} ·{' '}
-                <span className={cn('font-extrabold', isExpired && 'text-status-late-fg')}>
+                Issued {formatDate(quote.issue_date)} ·{" "}
+                <span
+                  className={cn(
+                    "font-extrabold",
+                    isExpired && "text-status-late-fg",
+                  )}
+                >
                   Valid until {formatDate(quote.expires_at)}
                 </span>
               </p>
-              <p className="pt-2 text-caption text-text-muted">Net payable ({quote.currency})</p>
+              <p className="pt-2 text-caption text-text-muted">
+                Net payable ({quote.currency})
+              </p>
               <Money
                 amountMinor={quote.net_payable_minor}
                 currency={quote.currency}
@@ -375,7 +445,7 @@ export default function PublicQuotePage() {
                 href={`${API_BASE}/quotes/share/${encodeURIComponent(token)}/pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                className="inline-flex min-h-10 items-center justify-center border border-line-subtle px-4 py-2 text-sm font-semibold text-text-primary hover:bg-surface-tint"
               >
                 Download quote PDF
               </a>
@@ -392,13 +462,25 @@ export default function PublicQuotePage() {
                     className="flex items-center justify-between gap-3 p-3"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-body font-medium">{item.description}</p>
+                      <p className="text-body font-medium">
+                        {item.description}
+                      </p>
                       <p className="text-caption text-text-muted">
-                        {item.quantity} ×{' '}
-                        <Money amountMinor={item.unit_price_minor} currency={quote.currency} variant="muted" hideCurrencyCode />
+                        {item.quantity} ×{" "}
+                        <Money
+                          amountMinor={item.unit_price_minor}
+                          currency={quote.currency}
+                          variant="muted"
+                          hideCurrencyCode
+                        />
                       </p>
                     </div>
-                    <Money amountMinor={item.total_minor} currency={quote.currency} className="text-amount-s" hideCurrencyCode />
+                    <Money
+                      amountMinor={item.total_minor}
+                      currency={quote.currency}
+                      className="text-amount-s"
+                      hideCurrencyCode
+                    />
                   </li>
                 ))}
               </ul>
@@ -406,46 +488,77 @@ export default function PublicQuotePage() {
 
             <section aria-label="Totals" className="space-y-2">
               <Row label="Subtotal">
-                <Money amountMinor={quote.subtotal_minor} currency={quote.currency} hideCurrencyCode />
+                <Money
+                  amountMinor={quote.subtotal_minor}
+                  currency={quote.currency}
+                  hideCurrencyCode
+                />
               </Row>
               {quote.discount_minor > 0 && (
                 <Row label="Discount">
-                  −<Money amountMinor={quote.discount_minor} currency={quote.currency} hideCurrencyCode />
+                  −
+                  <Money
+                    amountMinor={quote.discount_minor}
+                    currency={quote.currency}
+                    hideCurrencyCode
+                  />
                 </Row>
               )}
               {quote.tax_rate_percent > 0 && (
                 <Row label={`VAT (${quote.tax_rate_percent}%)`}>
-                  <Money amountMinor={quote.tax_minor} currency={quote.currency} hideCurrencyCode />
+                  <Money
+                    amountMinor={quote.tax_minor}
+                    currency={quote.currency}
+                    hideCurrencyCode
+                  />
                 </Row>
               )}
               {quote.wht_rate_percent > 0 && (
                 <>
                   <Row label="Gross total">
-                    <Money amountMinor={quote.total_minor} currency={quote.currency} hideCurrencyCode />
+                    <Money
+                      amountMinor={quote.total_minor}
+                      currency={quote.currency}
+                      hideCurrencyCode
+                    />
                   </Row>
-                  <Row label={`Less withholding tax (${quote.wht_rate_percent}%)`}>
-                    −<Money amountMinor={quote.wht_minor} currency={quote.currency} hideCurrencyCode />
+                  <Row
+                    label={`Less withholding tax (${quote.wht_rate_percent}%)`}
+                  >
+                    −
+                    <Money
+                      amountMinor={quote.wht_minor}
+                      currency={quote.currency}
+                      hideCurrencyCode
+                    />
                   </Row>
                 </>
               )}
               <div className="border-t border-line pt-3">
                 <Row label="Net payable" strong>
-                  <Money amountMinor={quote.net_payable_minor} currency={quote.currency} className="text-amount-m" hideCurrencyCode />
+                  <Money
+                    amountMinor={quote.net_payable_minor}
+                    currency={quote.currency}
+                    className="text-amount-m"
+                    hideCurrencyCode
+                  />
                 </Row>
               </div>
             </section>
 
             {quote.deposit_percentage && quote.deposit_percentage > 0 ? (
               <Card zone="calm" tone="peach" className="space-y-1">
-                <p className="text-body font-extrabold">Deposit on acceptance: {quote.deposit_percentage}%</p>
+                <p className="text-body font-extrabold">
+                  Deposit on acceptance: {quote.deposit_percentage}%
+                </p>
                 <p className="text-body text-text-soft">
-                  When you accept, an initial deposit of{' '}
+                  When you accept, an initial deposit of{" "}
                   <Money
                     amountMinor={quote.deposit_amount_minor || 0}
                     currency={quote.currency}
                     variant="inherit"
                     className="font-extrabold text-text"
-                  />{' '}
+                  />{" "}
                   is due to start the work.
                 </p>
               </Card>
@@ -454,22 +567,42 @@ export default function PublicQuotePage() {
             {quote.notes && (
               <Card zone="calm">
                 <h2 className="text-heading">Notes</h2>
-                <p className="mt-2 whitespace-pre-line text-body text-text-soft">{quote.notes}</p>
+                <p className="mt-2 whitespace-pre-line text-body text-text-soft">
+                  {quote.notes}
+                </p>
               </Card>
             )}
 
             {canRespond && (
               <div className="space-y-3 border-t border-line pt-5">
-                <p className="text-body text-text-soft">Happy with the scope and price? Accept to get started.</p>
+                <p className="text-body text-text-soft">
+                  Happy with the scope and price? Accept to get started.
+                </p>
                 <div className="hidden space-y-3 sm:block">
-                  <Button zone="calm" size="lg" fullWidth onClick={() => setShowAcceptDialog(true)}>
+                  <Button
+                    zone="calm"
+                    size="lg"
+                    fullWidth
+                    onClick={() => setShowAcceptDialog(true)}
+                  >
                     <Check aria-hidden className="h-4 w-4" /> Accept quote
                   </Button>
                   <div className="grid grid-cols-2 gap-3">
-                    <Button variant="outline" zone="calm" size="lg" onClick={() => setShowReviewDialog(true)}>
-                      <RotateCcw aria-hidden="true" className="h-4 w-4" /> Request changes
+                    <Button
+                      variant="outline"
+                      zone="calm"
+                      size="lg"
+                      onClick={() => setShowReviewDialog(true)}
+                    >
+                      <RotateCcw aria-hidden="true" className="h-4 w-4" />{" "}
+                      Request changes
                     </Button>
-                    <Button variant="outline" zone="calm" size="lg" onClick={() => setShowDeclineDialog(true)}>
+                    <Button
+                      variant="outline"
+                      zone="calm"
+                      size="lg"
+                      onClick={() => setShowDeclineDialog(true)}
+                    >
                       Decline
                     </Button>
                   </div>
@@ -479,7 +612,7 @@ export default function PublicQuotePage() {
                     href={`https://wa.me/?text=${whatsappText}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={buttonStyles({ variant: 'link' })}
+                    className={buttonStyles({ variant: "link" })}
                   >
                     Discuss on WhatsApp
                   </a>
@@ -505,22 +638,25 @@ export default function PublicQuotePage() {
               className="inline-flex min-h-11 items-center gap-2 text-caption text-text-muted hover:text-text"
             >
               <BagCharacter size={20} decorative />
-              <span>Sent with bagg. Free invoices and quotes for African freelancers.</span>
+              <span>
+                Sent with bagg. Free invoices and quotes for African
+                freelancers.
+              </span>
             </Link>
           </div>
         )}
       </div>
 
-        {canRespond && (
-            <QuoteRespondBar
-                netPayableMinor={quote.net_payable_minor}
-                currency={quote.currency}
-                onAccept={() => setShowAcceptDialog(true)}
-                onDecline={() => setShowDeclineDialog(true)}
-            />
-        )}
+      {canRespond && (
+        <QuoteRespondBar
+          netPayableMinor={quote.net_payable_minor}
+          currency={quote.currency}
+          onAccept={() => setShowAcceptDialog(true)}
+          onDecline={() => setShowDeclineDialog(true)}
+        />
+      )}
 
-        {/* Accept dialog */}
+      {/* Accept dialog */}
       <Dialog
         open={showAcceptDialog}
         onClose={() => !accepting && setShowAcceptDialog(false)}
@@ -530,7 +666,9 @@ export default function PublicQuotePage() {
       >
         <form onSubmit={handleAcceptQuote} className="space-y-4">
           <div className="bg-surface-sunken p-3 text-body">
-            <span className="text-text-soft">{quote.quote_number} · Net payable: </span>
+            <span className="text-text-soft">
+              {quote.quote_number} · Net payable:{" "}
+            </span>
             <Money
               amountMinor={quote.net_payable_minor}
               currency={quote.currency}
@@ -598,7 +736,13 @@ export default function PublicQuotePage() {
             >
               Cancel
             </Button>
-            <Button type="submit" variant="danger" zone="calm" size="lg" loading={declining}>
+            <Button
+              type="submit"
+              variant="danger"
+              zone="calm"
+              size="lg"
+              loading={declining}
+            >
               Decline quote
             </Button>
           </div>
@@ -622,7 +766,7 @@ export default function PublicQuotePage() {
               Quote {quote.quote_number}
             </p>
             <p className="text-caption text-text-muted">
-              Net payable:{' '}
+              Net payable:{" "}
               <Money
                 amountMinor={quote.net_payable_minor}
                 currency={quote.currency}
@@ -655,7 +799,12 @@ export default function PublicQuotePage() {
             >
               Cancel
             </Button>
-            <Button type="submit" zone="calm" size="lg" loading={requestingReview}>
+            <Button
+              type="submit"
+              zone="calm"
+              size="lg"
+              loading={requestingReview}
+            >
               Send request
             </Button>
           </div>

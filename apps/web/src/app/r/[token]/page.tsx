@@ -1,16 +1,24 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { AlertCircle, Check, CheckCircle2, Copy, FileText, Loader2, ShieldCheck } from 'lucide-react';
-import { BagCharacter } from '@/components/brand';
-import { Money } from '@/components/money/Money';
-import { ConfirmationProvenance } from '@/components/status';
-import { Button, Card, buttonStyles } from '@/components/ui';
-import { formatDate } from '@/lib/date';
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import {
+  AlertCircle,
+  Check,
+  CheckCircle2,
+  Copy,
+  FileText,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
+import { BagCharacter } from "@/components/brand";
+import { Money } from "@/components/money/Money";
+import { ConfirmationProvenance } from "@/components/status";
+import { Button, Card, buttonStyles } from "@/components/ui";
+import { formatDate } from "@/lib/date";
 
-const API_BASE = '/api';
+const API_BASE = "/api";
 
 interface PublicReceiptData {
   id: string;
@@ -54,17 +62,17 @@ export default function PublicReceiptPage() {
         const res = await fetch(`${API_BASE}/receipts/share/${token}`);
         if (!res.ok) {
           if (res.status === 404) {
-            setError('Receipt not found or link has expired.');
+            setError("Receipt not found or link has expired.");
           } else {
             const errData = await res.json().catch(() => ({}));
-            setError(errData.detail || 'Unable to load receipt details.');
+            setError(errData.detail || "Unable to load receipt details.");
           }
           return;
         }
         const data: PublicReceiptData = await res.json();
         setReceipt(data);
       } catch {
-        setError('Network error while loading receipt.');
+        setError("Network error while loading receipt.");
       } finally {
         setLoading(false);
       }
@@ -84,7 +92,10 @@ export default function PublicReceiptPage() {
 
   if (loading) {
     return (
-      <div role="status" className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-cream p-6 text-text-muted">
+      <div
+        role="status"
+        className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-cream p-6 text-text-muted"
+      >
         <Loader2 aria-hidden className="h-8 w-8 animate-spin" />
         <p className="text-body">Loading your receipt</p>
       </div>
@@ -97,8 +108,13 @@ export default function PublicReceiptPage() {
         <Card zone="calm" className="w-full max-w-md space-y-4 p-6 text-center">
           <AlertCircle aria-hidden className="mx-auto h-10 w-10" />
           <h1 className="text-title">receipt unavailable</h1>
-          <p className="text-body text-text-soft">{error || 'Receipt could not be found.'}</p>
-          <Link href="/" className={buttonStyles({ variant: 'outline', zone: 'calm' })}>
+          <p className="text-body text-text-soft">
+            {error || "Receipt could not be found."}
+          </p>
+          <Link
+            href="/"
+            className={buttonStyles({ variant: "outline", zone: "calm" })}
+          >
             Visit bagg
           </Link>
         </Card>
@@ -106,16 +122,16 @@ export default function PublicReceiptPage() {
     );
   }
 
-  const brandColor = receipt.business_brand_color || 'var(--bagg-mango)';
+  const brandColor = receipt.business_brand_color || "var(--bagg-mango)";
   const methodLabel = receipt.payment_method
-    .replace(/_/g, ' ')
+    .replace(/_/g, " ")
     .replace(/^\w/, (c) => c.toUpperCase());
-  const initials = (receipt.business_name || 'b')
+  const initials = (receipt.business_name || "b")
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0])
-    .join('')
+    .join("")
     .toLowerCase();
 
   return (
@@ -127,7 +143,7 @@ export default function PublicReceiptPage() {
             <div>
               <p className="text-body font-extrabold">Payment verified</p>
               <p className="text-body text-text-soft">
-                This is an official payment receipt issued on{' '}
+                This is an official payment receipt issued on{" "}
                 {formatDate(receipt.verified_at || receipt.payment_date)}.
               </p>
             </div>
@@ -139,12 +155,21 @@ export default function PublicReceiptPage() {
 
           <div className="space-y-6 p-5 sm:p-6">
             {/* Who issued it */}
-            <BagCharacter size={72} mood="celebrating" className="mx-auto sm:hidden" decorative />
+            <BagCharacter
+              size={72}
+              mood="celebrating"
+              className="mx-auto sm:hidden"
+              decorative
+            />
             <header className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-center gap-3">
                 {receipt.business_logo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={receipt.business_logo_url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+                  <img
+                    src={receipt.business_logo_url}
+                    alt=""
+                    className="h-10 w-10 shrink-0 rounded-full object-cover"
+                  />
                 ) : (
                   <span
                     aria-hidden
@@ -154,8 +179,12 @@ export default function PublicReceiptPage() {
                   </span>
                 )}
                 <div className="min-w-0">
-                  <h1 className="truncate text-heading">{receipt.business_name}</h1>
-                  <p className="text-body text-text-soft">Official payment receipt</p>
+                  <h1 className="truncate text-heading">
+                    {receipt.business_name}
+                  </h1>
+                  <p className="text-body text-text-soft">
+                    Official payment receipt
+                  </p>
                 </div>
               </div>
               <div className="text-right">
@@ -166,12 +195,15 @@ export default function PublicReceiptPage() {
 
             <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-body text-text-soft">
               <span className="inline-flex items-center gap-1.5">
-                <FileText aria-hidden className="h-3.5 w-3.5" /> Invoice {receipt.invoice_number}
+                <FileText aria-hidden className="h-3.5 w-3.5" /> Invoice{" "}
+                {receipt.invoice_number}
               </span>
               <span>{formatDate(receipt.payment_date)}</span>
               <span>
-                Paid by{' '}
-                <span className="font-medium text-text">{receipt.payer_name || receipt.client_name || 'Client'}</span>
+                Paid by{" "}
+                <span className="font-medium text-text">
+                  {receipt.payer_name || receipt.client_name || "Client"}
+                </span>
               </span>
             </p>
 
@@ -187,7 +219,8 @@ export default function PublicReceiptPage() {
               />
               <p className="text-caption text-text-muted">{receipt.currency}</p>
               <span className="inline-flex items-center gap-2 rounded-full bg-leaf px-4 py-1.5 text-body font-extrabold text-on-leaf">
-                <CheckCircle2 aria-hidden className="h-4 w-4" /> Paid and verified
+                <CheckCircle2 aria-hidden className="h-4 w-4" /> Paid and
+                verified
               </span>
             </div>
 
@@ -198,23 +231,36 @@ export default function PublicReceiptPage() {
                 <dd className="text-body font-medium">{methodLabel}</dd>
               </div>
               <div className="min-w-0">
-                <dt className="text-caption text-text-muted">Reference or session ID</dt>
-                <dd className="tabular break-all text-body font-medium">{receipt.reference || 'None given'}</dd>
+                <dt className="text-caption text-text-muted">
+                  Reference or session ID
+                </dt>
+                <dd className="tabular break-all text-body font-medium">
+                  {receipt.reference || "None given"}
+                </dd>
               </div>
               <div className="sm:col-span-2">
                 <dt className="text-caption text-text-muted">Confirmed by</dt>
                 <dd>
-                  <ConfirmationProvenance source={receipt.confirmation_source} provider={receipt.provider} />
+                  <ConfirmationProvenance
+                    source={receipt.confirmation_source}
+                    provider={receipt.provider}
+                  />
                 </dd>
               </div>
               <div>
-                <dt className="text-caption text-text-muted">Balance left on the invoice</dt>
+                <dt className="text-caption text-text-muted">
+                  Balance left on the invoice
+                </dt>
                 <dd className="text-body font-medium">
                   {receipt.balance_remaining_minor === 0 ? (
-                    'Fully settled'
+                    "Fully settled"
                   ) : (
                     <>
-                      <Money amountMinor={receipt.balance_remaining_minor} currency={receipt.currency} variant="inherit" />{' '}
+                      <Money
+                        amountMinor={receipt.balance_remaining_minor}
+                        currency={receipt.currency}
+                        variant="inherit"
+                      />{" "}
                       outstanding
                     </>
                   )}
@@ -231,21 +277,37 @@ export default function PublicReceiptPage() {
             {/* Verification code */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-line pt-4">
               <div>
-                <p className="text-caption text-text-muted">Verification code</p>
-                <p className="tabular text-body font-extrabold">{receipt.verification_code}</p>
+                <p className="text-caption text-text-muted">
+                  Verification code
+                </p>
+                <p className="tabular text-body font-extrabold">
+                  {receipt.verification_code}
+                </p>
               </div>
               <Button variant="outline" zone="calm" onClick={handleCopyCode}>
-                {copiedCode ? <Check aria-hidden className="h-4 w-4" /> : <Copy aria-hidden className="h-4 w-4" />}
-                {copiedCode ? 'Copied' : 'Copy code'}
+                {copiedCode ? (
+                  <Check aria-hidden className="h-4 w-4" />
+                ) : (
+                  <Copy aria-hidden className="h-4 w-4" />
+                )}
+                {copiedCode ? "Copied" : "Copy code"}
               </Button>
               <Button
-                  variant="outline"
-                  zone="calm"
-                  onClick={() => (navigator.share ? navigator.share({ title: `Receipt ${receipt.receipt_number}`, url: window.location.href }).catch(() => {}) : window.print())}
+                variant="outline"
+                zone="calm"
+                onClick={() =>
+                  navigator.share
+                    ? navigator
+                        .share({
+                          title: `Receipt ${receipt.receipt_number}`,
+                          url: window.location.href,
+                        })
+                        .catch(() => {})
+                    : window.print()
+                }
               >
                 Share receipt
               </Button>
-
             </div>
 
             {receipt.is_verified && (
@@ -254,7 +316,7 @@ export default function PublicReceiptPage() {
                   href={`${API_BASE}/receipts/share/${encodeURIComponent(token)}/pdf`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                  className="inline-flex min-h-10 items-center justify-center border border-line-subtle px-4 py-2 text-sm font-semibold text-text-primary hover:bg-surface-tint"
                 >
                   Download receipt PDF
                 </a>
@@ -262,8 +324,8 @@ export default function PublicReceiptPage() {
             )}
 
             <p className="border-t border-line-subtle pt-4 text-center text-caption text-text-muted">
-              This document constitutes valid legal proof of payment issued via Bagg. The verification code can be used
-              to confirm authenticity.
+              This document constitutes valid legal proof of payment issued via
+              Bagg. The verification code can be used to confirm authenticity.
             </p>
           </div>
         </article>
@@ -276,7 +338,9 @@ export default function PublicReceiptPage() {
               className="inline-flex min-h-11 items-center gap-2 text-caption text-text-muted hover:text-text"
             >
               <BagCharacter size={20} decorative />
-              <span>Sent with bagg. Instant receipts for African freelancers.</span>
+              <span>
+                Sent with bagg. Instant receipts for African freelancers.
+              </span>
             </Link>
           </div>
         )}
