@@ -345,7 +345,7 @@ async def test_get_pdf_rejects_corrupted_stored_bytes(
         file_size_bytes=len(PDF_BYTES),
     )
     db.execute.return_value = scalar_result(artifact)
-    storage.get.return_value = b"%PDF-1.7 tampered content"
+    storage.get.return_value = b"%PDF-1.7 altered pdf content"
 
     with pytest.raises(
         RuntimeError,

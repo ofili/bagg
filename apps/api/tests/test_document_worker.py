@@ -226,6 +226,18 @@ async def test_claim_batch_recovers_expired_or_unlocked_jobs(
         attempts=1,
     )
 
+    before = await read_worker_job(job_id)
+
+    print("PERSISTED BEFORE CLAIM:", {
+        "id": before.id,
+        "status": before.status,
+        "locked_at": before.locked_at,
+        "locked_by": before.locked_by,
+        "claim_token": before.claim_token,
+        "attempts": before.attempts,
+        "available_at": before.available_at,
+    })
+
     try:
         claims = await claim_batch()
 
