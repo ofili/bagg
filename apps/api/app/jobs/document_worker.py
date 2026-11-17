@@ -9,6 +9,7 @@ import uuid
 
 from datetime import datetime, timedelta, timezone
 
+from pydantic import ValidationError
 from sqlalchemy import and_, or_, select
 
 import app.models  # noqa: F401
@@ -30,7 +31,6 @@ from app.domains.documents.renderers.reportlab_pdf import (
 logger = logging.getLogger("bagg.document-worker")
 
 WORKER_ID = f"{socket.gethostname()}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
-
 RETRY_DELAYS = [30, 120, 600, 1800]
 
 
@@ -56,7 +56,10 @@ async def claim_batch() -> list[str]:
                         ),
                         and_(
                             DocumentGenerationJob.status == "processing",
-                            DocumentGenerationJob.locked_at < lease_expiry,
+                            or_(
+                                DocumentGenerationJob.locked_at.is_(None),
+                                DocumentGenerationJob.locked_at < lease_expiry,
+                            ),
                         ),
                     )
                 )
@@ -84,6 +87,8 @@ async def claim_batch() -> list[str]:
 
 
 def parse_document_snapshot(snapshot: dict):
+    """Validate and reconstruct a renderer-ready immutable document snapshot."""
+
     if not isinstance(snapshot, dict):
         raise ValueError("invalid_snapshot")
 
@@ -93,6 +98,9 @@ def parse_document_snapshot(snapshot: dict):
     document_type = snapshot.get("document_type")
     payload = snapshot.get("document")
 
+    if not isinstance(payload, dict) or payload.get("document_type") != document_type:
+        raise ValueError("snapshot_document_type_mismatch")
+
     schemas = {
         "invoice": InvoiceDocument,
         "quote": QuoteDocument,
@@ -100,7 +108,8 @@ def parse_document_snapshot(snapshot: dict):
     }
 
     schema = schemas.get(document_type)
-    if schema is None or not isinstance(payload, dict):
+
+    if schema is None:
         raise ValueError("invalid_snapshot_document")
 
     document = schema.model_validate(payload)
@@ -111,7 +120,35 @@ def parse_document_snapshot(snapshot: dict):
     if document.workspace_id != snapshot.get("workspace_id"):
         raise ValueError("snapshot_workspace_mismatch")
 
+    expected_source_version = (
+        document.version
+        if isinstance(document, (InvoiceDocument, QuoteDocument))
+        else 1
+    )
+
+    if snapshot.get("source_version") != expected_source_version:
+        raise ValueError("snapshot_version_mismatch")
+
     return document
+
+
+def validate_snapshot_job_identity(
+    snapshot: dict,
+    identity: ArtifactIdentity,
+) -> None:
+    """Ensure the persisted snapshot belongs to the job being processed."""
+
+    if snapshot.get("document_type") != identity.document_type:
+        raise ValueError("job_document_type_mismatch")
+
+    if snapshot.get("source_id") != identity.source_id:
+        raise ValueError("job_source_mismatch")
+
+    if snapshot.get("workspace_id") != identity.workspace_id:
+        raise ValueError("job_workspace_mismatch")
+
+    if snapshot.get("source_version") != identity.source_version:
+        raise ValueError("job_source_version_mismatch")
 
 
 async def record_failure(
@@ -133,7 +170,7 @@ async def record_failure(
             if job is None or job.status != "processing" or job.locked_by != WORKER_ID:
                 return
 
-            job.last_error_code = error_code
+            job.last_error_code = error_code[:100]
             job.locked_at = None
             job.locked_by = None
             job.updated_at = now
@@ -144,7 +181,7 @@ async def record_failure(
                 return
 
             delay_index = min(
-                job.attempts - 1,
+                max(job.attempts - 1, 0),
                 len(RETRY_DELAYS) - 1,
             )
             base_delay = RETRY_DELAYS[delay_index]
@@ -188,6 +225,7 @@ async def process_job(job_id: str) -> None:
             return
 
         snapshot = job.snapshot
+
         identity = ArtifactIdentity(
             workspace_id=job.workspace_id,
             document_type=job.document_type,
@@ -197,17 +235,28 @@ async def process_job(job_id: str) -> None:
             artifact_kind=job.artifact_kind,
         )
 
+    # Snapshot validation is the only stage classified as a permanent
+    # data failure. Do not classify renderer ValueErrors as permanent.
     try:
         document = parse_document_snapshot(snapshot)
+        validate_snapshot_job_identity(snapshot, identity)
 
+    except (ValueError, ValidationError):
+        await record_failure(
+            job_id,
+            error_code="invalid_document_snapshot",
+            permanent=True,
+        )
+        return
+
+    try:
         renderer = ReportLabDocumentRenderer()
+
         pdf_bytes = await asyncio.to_thread(
             renderer.render,
             document,
         )
 
-        # Artifact persistence owns its own commit. It is deliberately
-        # separate from the job claim transaction.
         async with AsyncSessionLocal() as artifact_db:
             artifact_service = DocumentArtifactService(artifact_db)
 
@@ -231,23 +280,18 @@ async def process_job(job_id: str) -> None:
             },
         )
 
-    except ValueError as exc:
-        # Snapshot/schema errors cannot be repaired by retrying the same job.
-        error_code = str(exc)[:100] or "invalid_snapshot"
-        await record_failure(
-            job_id,
-            error_code=error_code,
-            permanent=True,
-        )
-
     except Exception as exc:
-        # Do not log exception messages: storage/database errors may
-        # contain implementation details or sensitive information.
-        error_code = type(exc).__name__[:100]
+        # Do not log exception messages or stack traces here. They may
+        # contain document content, storage details, or other sensitive data.
+        error_code = type(exc).__name__[:100] or "document_generation_error"
 
-        logger.exception(
-            "Document generation failed",
-            extra={"job_id": job_id, "error_code": error_code},
+        logger.error(
+            "Document generation attempt failed",
+            extra={
+                "job_id": job_id,
+                "document_type": identity.document_type,
+                "error_code": error_code,
+            },
         )
 
         await record_failure(
@@ -277,7 +321,7 @@ async def main() -> None:
             raise
 
         except Exception:
-            logger.exception("Document worker loop failed")
+            logger.error("Document worker loop failed")
             await asyncio.sleep(5)
 
 
