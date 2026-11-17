@@ -265,6 +265,11 @@ class DocumentGenerationJob(Base):
         nullable=True,
     )
     locked_by: Mapped[str | None] = mapped_column(String, nullable=True)
+    
+    claim_token: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
 
     artifact_id: Mapped[str | None] = mapped_column(
         String,

@@ -1,7 +1,20 @@
-from datetime import datetime, timezone
+import asyncio
+
+import uuid
+
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.domains.documents.models import DocumentGenerationJob
+from app.jobs.document_worker import (
+    claim_batch,
+    record_failure,
+    record_success,
+    utcnow,
+)
 from app.domains.documents.artifacts.identity import ArtifactIdentity
 from app.domains.documents.schemas import InvoiceDocument
 from app.domains.documents.snapshots import serialize_document_snapshot
@@ -140,3 +153,253 @@ def test_validate_snapshot_job_identity_rejects_mismatches(
             snapshot,
             sample_identity(),
         )
+
+
+async def create_worker_job(
+    *,
+    status: str = "pending",
+    locked_at=None,
+    locked_by=None,
+    claim_token=None,
+    attempts: int = 0,
+) -> str:
+    """Create a uniquely identified job for worker integration tests."""
+
+    unique = uuid.uuid4().hex
+
+    job = DocumentGenerationJob(
+        workspace_id=f"ws_worker_{unique}",
+        document_type="invoice",
+        source_id=f"inv_worker_{unique}",
+        source_version=1,
+        issuance_generation=1,
+        artifact_kind="issued",
+        snapshot=sample_snapshot(),
+        status=status,
+        attempts=attempts,
+        available_at=utcnow() - timedelta(minutes=1),
+        locked_at=locked_at,
+        locked_by=locked_by,
+        claim_token=claim_token,
+    )
+
+    async with AsyncSessionLocal() as db:
+        db.add(job)
+        await db.commit()
+        return job.id
+
+
+async def read_worker_job(job_id: str) -> DocumentGenerationJob:
+    async with AsyncSessionLocal() as db:
+        job = await db.get(DocumentGenerationJob, job_id)
+        assert job is not None
+        return job
+
+
+async def delete_worker_job(job_id: str) -> None:
+    async with AsyncSessionLocal() as db:
+        job = await db.get(DocumentGenerationJob, job_id)
+        if job is not None:
+            await db.delete(job)
+            await db.commit()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "locked_at",
+    [
+        None,
+        utcnow() - timedelta(hours=1),
+    ],
+)
+async def test_claim_batch_recovers_expired_or_unlocked_jobs(
+    locked_at,
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "DOCUMENT_WORKER_BATCH_SIZE", 10)
+
+    job_id = await create_worker_job(
+        status="processing",
+        locked_at=locked_at,
+        locked_by="dead-worker",
+        claim_token="old-claim",
+        attempts=1,
+    )
+
+    try:
+        claims = await claim_batch()
+
+        matching = [claim for claim in claims if claim.job_id == job_id]
+        assert len(matching) == 1
+
+        stored = await read_worker_job(job_id)
+
+        assert stored.status == "processing"
+        assert stored.attempts == 2
+        assert stored.claim_token == matching[0].claim_token
+        assert stored.claim_token != "old-claim"
+        assert stored.locked_by is not None
+    finally:
+        await delete_worker_job(job_id)
+
+
+@pytest.mark.asyncio
+async def test_record_failure_schedules_retry(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "app.jobs.document_worker.random.uniform",
+        lambda lower, upper: 0,
+    )
+    monkeypatch.setattr(settings, "DOCUMENT_WORKER_MAX_ATTEMPTS", 5)
+
+    token = uuid.uuid4().hex
+    job_id = await create_worker_job(
+        status="processing",
+        locked_at=utcnow(),
+        locked_by="test-worker",
+        claim_token=token,
+        attempts=1,
+    )
+
+    try:
+        before = utcnow()
+
+        await record_failure(
+            job_id,
+            token,
+            error_code="renderer_failure",
+        )
+
+        stored = await read_worker_job(job_id)
+
+        assert stored.status == "pending"
+        assert stored.last_error_code == "renderer_failure"
+        assert stored.locked_at is None
+        assert stored.locked_by is None
+        assert stored.claim_token is None
+        assert before + timedelta(seconds=30) <= stored.available_at
+        assert stored.available_at <= before + timedelta(seconds=31)
+    finally:
+        await delete_worker_job(job_id)
+
+
+@pytest.mark.asyncio
+async def test_record_failure_marks_job_failed_at_attempt_limit(
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "DOCUMENT_WORKER_MAX_ATTEMPTS", 5)
+
+    token = uuid.uuid4().hex
+    job_id = await create_worker_job(
+        status="processing",
+        locked_at=utcnow(),
+        locked_by="test-worker",
+        claim_token=token,
+        attempts=5,
+    )
+
+    try:
+        await record_failure(
+            job_id,
+            token,
+            error_code="renderer_failure",
+        )
+
+        stored = await read_worker_job(job_id)
+
+        assert stored.status == "failed"
+        assert stored.completed_at is not None
+        assert stored.claim_token is None
+        assert stored.locked_by is None
+    finally:
+        await delete_worker_job(job_id)
+
+
+@pytest.mark.asyncio
+async def test_stale_claim_cannot_record_failure():
+    current_token = uuid.uuid4().hex
+    stale_token = uuid.uuid4().hex
+
+    job_id = await create_worker_job(
+        status="processing",
+        locked_at=utcnow(),
+        locked_by="test-worker",
+        claim_token=current_token,
+        attempts=2,
+    )
+
+    try:
+        await record_failure(
+            job_id,
+            stale_token,
+            error_code="stale_failure",
+        )
+
+        stored = await read_worker_job(job_id)
+
+        assert stored.status == "processing"
+        assert stored.claim_token == current_token
+        assert stored.last_error_code is None
+    finally:
+        await delete_worker_job(job_id)
+
+
+@pytest.mark.asyncio
+async def test_stale_claim_cannot_record_success():
+    current_token = uuid.uuid4().hex
+    stale_token = uuid.uuid4().hex
+
+    job_id = await create_worker_job(
+        status="processing",
+        locked_at=utcnow(),
+        locked_by="test-worker",
+        claim_token=current_token,
+        attempts=2,
+    )
+
+    try:
+        await record_success(
+            job_id,
+            stale_token,
+            "doc_artifact_stale",
+        )
+
+        stored = await read_worker_job(job_id)
+
+        assert stored.status == "processing"
+        assert stored.claim_token == current_token
+        assert stored.artifact_id is None
+    finally:
+        await delete_worker_job(job_id)
+
+
+@pytest.mark.asyncio
+async def test_concurrent_claims_do_not_claim_same_job(
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "DOCUMENT_WORKER_BATCH_SIZE", 10)
+
+    job_id = await create_worker_job()
+
+    try:
+        first, second = await asyncio.gather(
+            claim_batch(),
+            claim_batch(),
+        )
+
+        claims = [
+            claim
+            for batch in (first, second)
+            for claim in batch
+            if claim.job_id == job_id
+        ]
+
+        assert len(claims) == 1
+
+        stored = await read_worker_job(job_id)
+
+        assert stored.status == "processing"
+        assert stored.claim_token == claims[0].claim_token
+    finally:
+        await delete_worker_job(job_id)
