@@ -7,7 +7,7 @@ import { Field } from './Input';
 export interface MoneyFieldProps
   extends Omit<
     InputHTMLAttributes<HTMLInputElement>,
-    'type' | 'value' | 'onChange' | 'inputMode'
+    'type' | 'value' | 'defaultValue' | 'onChange' | 'inputMode'
   > {
   label: string;
   value?: string;

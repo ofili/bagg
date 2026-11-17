@@ -61,9 +61,9 @@ export default function HelpPage() {
                 </div>
 
                 <h1 className="mt-7 text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem] lg:text-[5.25rem]">
-                  Need a hand?
+                  Questions and answers.
                   <span className="block text-mango">
-                  Start right here.
+                  All in one place.
                 </span>
                 </h1>
 

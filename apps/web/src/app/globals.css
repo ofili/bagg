@@ -12,6 +12,8 @@
   --bagg-sun: #ffc933;
   --bagg-leaf: #1fa971;
   --bagg-danger: #b3261e;
+  --danger: #b3261e;
+  --on-danger: #ffffff;
 
   /* Ink: outlines, hard shadows, darkest text */
   --ink: #2b1405;
@@ -99,6 +101,8 @@
   --text-soft: #634b35;
   --text-muted: #7d6046;
   --link: #b84900;
+  --danger: #b3261e;
+  --on-danger: #ffffff;
 
   --shadow-menu:
     0 8px 24px rgb(26 17 10 / 14%),
@@ -143,6 +147,7 @@
   --text-muted: #bfa88f;
   --link: #ffb27a;
   --danger: #ff9c92;
+  --on-danger: #2b1405;
 
   --shadow-menu:
   0 8px 24px rgb(0 0 0 / 24% ),

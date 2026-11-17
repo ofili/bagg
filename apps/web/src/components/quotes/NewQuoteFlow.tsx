@@ -162,7 +162,7 @@ export function NewQuoteFlow() {
                       </span>
                                             <span className="min-w-0 flex-1">
                         <span className="block truncate font-extrabold">{c.name}</span>
-                        <span className={cn('block text-caption', on ? 'text-on-sun/75' : 'text-text-soft')}>{c.preferred_currency}</span>
+                        <span className={cn('block text-caption', on ? 'text-on-sun/85' : 'text-text-soft')}>{c.preferred_currency}</span>
                       </span>
                                             {on && (
                                                 <span

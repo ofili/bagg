@@ -6,7 +6,7 @@ import { Metadata } from 'next';
 export const metadata: Metadata = marketingMetadata({
     title: 'Invoicing Software for Creative Studios',
     description:
-        'Manage client quotations, professional invoices and payments follow-ups for your creative studio with Bagg.',
+        'Manage client quotations, professional invoices and payment follow-ups for your creative studio with Bagg.',
     path: '/studios',
 });
 

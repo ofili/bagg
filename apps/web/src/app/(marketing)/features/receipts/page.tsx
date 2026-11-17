@@ -26,29 +26,6 @@ export const metadata: Metadata = marketingMetadata({
     path: '/features/receipts',
 });
 
-const receiptFields = [
-    {
-        label: 'Receipt number',
-        value: 'Unique record',
-        description: 'A numbered receipt for each confirmed payment.',
-    },
-    {
-        label: 'Payment received',
-        value: 'Amount and currency',
-        description: 'The exact amount recorded against the invoice.',
-    },
-    {
-        label: 'Payment details',
-        value: 'Date and method',
-        description: 'When the payment was made and how it was received.',
-    },
-    {
-        label: 'Verification',
-        value: 'Code and status',
-        description: 'A verification code and confirmation details.',
-    },
-];
-
 const sharingOptions = [
     {
         icon: MessageCircle,
@@ -243,50 +220,6 @@ export default function ReceiptsFeaturePage() {
                     </Container>
                 </section>
 
-                <section className="border-y-2 border-ink bg-mango py-16 sm:py-20">
-                    <Container>
-                        <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr]">
-                            <div>
-                                <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-on-mango">
-                                    What goes on a receipt
-                                </p>
-                                <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-on-mango">
-                                    The details that make a payment record useful.
-                                </h2>
-                                <p className="mt-5 max-w-lg text-body leading-relaxed text-on-mango">
-                                    A receipt should do more than say thank you. It should show
-                                    what was received, what it relates to and how the payment was
-                                    confirmed.
-                                </p>
-                            </div>
-
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                {receiptFields.map((field, index) => (
-                                    <div
-                                        key={field.label}
-                                        className="border-brut border-ink bg-surface p-5 shadow-brut"
-                                    >
-                                        <div className="flex items-center justify-between gap-3">
-                    <span className="text-caption font-extrabold uppercase tracking-[0.1em] text-text-muted">
-                      {field.label}
-                    </span>
-                                            <span className="text-caption font-extrabold text-ink">
-                      0{index + 1}
-                    </span>
-                                        </div>
-                                        <h3 className="mt-5 text-heading font-extrabold text-ink">
-                                            {field.value}
-                                        </h3>
-                                        <p className="mt-2 text-body leading-relaxed text-text-soft">
-                                            {field.description}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </Container>
-                </section>
-
                 <section className="py-16 sm:py-20 lg:py-24">
                     <Container>
                         <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
@@ -448,123 +381,6 @@ export default function ReceiptsFeaturePage() {
                                     </div>
                                 );
                             })}
-                        </div>
-                    </Container>
-                </section>
-
-                <section className="py-16 sm:py-20">
-                    <Container>
-                        <div className="grid gap-10 lg:grid-cols-[1fr_1fr] lg:items-center">
-                            <div>
-                                <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                                    Client statements
-                                </p>
-                                <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-ink">
-                                    See the bigger picture, client by client.
-                                </h2>
-                                <p className="mt-5 text-body-l leading-relaxed text-text-soft">
-                                    When you need more than one receipt, Bagg can produce a client
-                                    statement showing invoices, payments and the running balance.
-                                </p>
-                                <ul className="mt-6 space-y-3">
-                                    {[
-                                        'Filter by currency',
-                                        'Choose a date range',
-                                        'See invoices and receipt entries',
-                                        'Review total invoiced, paid and outstanding',
-                                    ].map((item) => (
-                                        <li
-                                            key={item}
-                                            className="flex items-start gap-3 text-body font-bold text-ink"
-                                        >
-                                            <Check
-                                                aria-hidden
-                                                className="mt-0.5 h-5 w-5 shrink-0"
-                                                strokeWidth={3}
-                                            />
-                                            {item}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            <div className="relative">
-                                <div
-                                    aria-hidden
-                                    className="absolute -right-2 -top-2 h-full w-full rotate-2 border-brut border-ink bg-pink"
-                                />
-                                <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
-                                    <div className="flex items-start justify-between gap-4 border-b-2 border-ink pb-5">
-                                        <div>
-                                            <p className="text-caption font-extrabold uppercase tracking-[0.12em] text-text-muted">
-                                                Client account
-                                            </p>
-                                            <h3 className="mt-2 text-heading font-extrabold text-ink">
-                                                Statement overview
-                                            </h3>
-                                        </div>
-                                        <ClipboardList
-                                            aria-hidden
-                                            className="h-8 w-8 text-ink"
-                                        />
-                                    </div>
-
-                                    <div className="mt-5 grid grid-cols-2 gap-3">
-                                        <div className="border-brut border-ink bg-mango p-4">
-                                            <p className="text-caption font-extrabold uppercase text-on-mango">
-                                                Total invoiced
-                                            </p>
-                                            <p className="mt-3 text-body font-extrabold text-on-mango">
-                                                All invoices
-                                            </p>
-                                        </div>
-                                        <div className="border-brut border-ink bg-sun p-4">
-                                            <p className="text-caption font-extrabold uppercase text-on-sun">
-                                                Total paid
-                                            </p>
-                                            <p className="mt-3 text-body font-extrabold text-on-sun">
-                                                All receipts
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-5 space-y-3">
-                                        <div className="flex items-center justify-between border-b border-line py-3">
-                    <span className="text-body font-bold text-ink">
-                      Opening balance
-                    </span>
-                                            <span className="text-caption font-extrabold text-text-soft">
-                      Starting position
-                    </span>
-                                        </div>
-                                        <div className="flex items-center justify-between border-b border-line py-3">
-                    <span className="text-body font-bold text-ink">
-                      Invoice entries
-                    </span>
-                                            <span className="text-caption font-extrabold text-text-soft">
-                      Amount billed
-                    </span>
-                                        </div>
-                                        <div className="flex items-center justify-between border-b border-line py-3">
-                    <span className="text-body font-bold text-ink">
-                      Receipt entries
-                    </span>
-                                            <span className="text-caption font-extrabold text-text-soft">
-                      Amount received
-                    </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-5 border-brut border-ink bg-pink p-4">
-                                        <p className="text-caption font-extrabold uppercase text-on-pink">
-                                            Closing balance
-                                        </p>
-                                        <p className="mt-2 text-body font-extrabold text-on-pink">
-                                            Outstanding position
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </Container>
                 </section>

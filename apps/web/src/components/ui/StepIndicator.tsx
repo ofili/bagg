@@ -52,7 +52,7 @@ export function StepIndicator({
             <span
               className={cn(
                 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-brut-thin text-caption font-extrabold',
-                done && 'border-leaf bg-leaf text-white',
+                done && 'border-leaf bg-leaf text-on-leaf',
                 active && 'border-ink bg-mango text-on-mango',
                 !done && !active && 'border-ink bg-surface text-text-muted',
               )}

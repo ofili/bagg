@@ -7,7 +7,6 @@ import {
   CreditCard,
   Info,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
@@ -41,7 +40,7 @@ const freeFeatures = [
 
 const creatorProFeatures = [
   'Everything in Free',
-  'No monthly free-send limit',
+  'Unlimited monthly sends',
   'Recurring invoice schedules',
   'Automated generation of recurring invoices',
   'Manage recurring schedules from your workspace',
@@ -50,7 +49,6 @@ const creatorProFeatures = [
 
 const professionalFeatures = [
   'Everything in Creator Pro',
-  'Unlimited invoices and document sends',
   'Eligible invoice recall',
   'Full invoice version history',
   'Advanced reporting and business insights',
@@ -60,19 +58,6 @@ const professionalFeatures = [
   'Unlimited clients',
   'Up to 25 active engagements',
   'Up to 3 team members',
-];
-
-const studioFeatures = [
-  'Contracts and commercial agreements',
-  'Projects and milestone management',
-  'Milestone-linked invoicing and payment schedules',
-  'Deliverables and project version history',
-  'Client feedback, review and approvals',
-  'Revision and sign-off workflows',
-  'Conditional file release and final handover',
-  'Cloud storage and file integrations',
-  'Team collaboration and advanced permissions',
-  'Advanced engagement and project reporting',
 ];
 
 const pricingFaqs = [
@@ -94,7 +79,7 @@ const pricingFaqs = [
   {
     question: 'What is included in Professional?',
     answer:
-        'Professional includes everything in Creator Pro, plus eligible invoice recall, unlimited invoices and document sends, full invoice version history, advanced reporting, advanced reminder controls, opt-in automatic invoice issuance, retainers and payment schedules. It also supports unlimited clients, up to 25 active engagements and up to 3 team members.',
+        'Professional includes everything in Creator Pro, plus eligible invoice recall, full invoice version history, advanced reporting, advanced reminder controls, opt-in automatic invoice issuance, retainers and payment schedules. It also supports unlimited clients, up to 25 active engagements and up to 3 team members.',
   },
   {
     question: 'What is Studio?',
@@ -190,88 +175,6 @@ export default function PricingPage() {
                   href="/signup?plan=professional"
                   footnote="Choose monthly or annual billing at checkout."
               />
-            </div>
-
-            {/* STUDIO — FUTURE PLAN */}
-            <div className="mt-8 border-brut border-ink bg-cream shadow-brut-sm">
-              <div className="grid gap-7 p-6 sm:p-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-10">
-                <div className="flex flex-col">
-                  <div className="flex flex-wrap items-center gap-3">
-                  <span className="inline-flex h-11 w-11 items-center justify-center border-brut border-ink bg-peach text-ink shadow-brut-sm">
-                    <Sparkles className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                    <span className="border-brut border-ink bg-peach px-3 py-1.5 text-caption font-extrabold text-ink">
-                    Coming soon
-                  </span>
-                  </div>
-
-                  <p className="mt-5 text-caption font-extrabold uppercase tracking-wider text-text-muted">
-                    For creative studios and client-facing teams
-                  </p>
-                  <h2 className="mt-2 text-title-l font-extrabold text-ink">
-                    Studio
-                  </h2>
-                  <p className="mt-3 max-w-lg text-body-l text-text-soft">
-                    Go beyond invoices. Manage the full client engagement,
-                    from commercial agreements and project milestones to
-                    deliverables, feedback, approvals and final handover.
-                  </p>
-
-                  <div className="mt-6 border-y border-line py-4">
-                    <p className="text-caption font-bold uppercase tracking-wider text-text-muted">
-                      Planned pricing
-                    </p>
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-caption font-bold text-text-muted">
-                          MONTHLY
-                        </p>
-                        <p className="mt-1 text-title font-extrabold text-ink">
-                          ₦18,000
-                        </p>
-                        <p className="text-caption text-text-muted">per month</p>
-                      </div>
-                      <div className="border-l border-line pl-3">
-                        <p className="text-caption font-bold text-text-muted">
-                          ANNUAL
-                        </p>
-                        <p className="mt-1 text-title font-extrabold text-ink">
-                          ₦180,000
-                        </p>
-                        <p className="text-caption text-text-muted">per year</p>
-                      </div>
-                    </div>
-                    <p className="mt-3 text-caption font-extrabold text-status-paid-fg">
-                      Annual equivalent: ₦15,000/month · Save ₦36,000
-                    </p>
-                  </div>
-
-                  <p className="mt-auto pt-5 text-caption text-text-muted">
-                    Studio is a forthcoming product expansion and is not
-                    available for purchase yet.
-                  </p>
-                </div>
-
-                <div className="lg:border-l lg:border-line lg:pl-10">
-                  <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
-                    What Studio will bring
-                  </p>
-                  <ul className="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2">
-                    {studioFeatures.map((feature) => (
-                        <li
-                            key={feature}
-                            className="flex items-start gap-2.5 text-body text-text-soft"
-                        >
-                          <Sparkles
-                              className="mt-0.5 h-4 w-4 shrink-0 text-text-muted"
-                              aria-hidden="true"
-                          />
-                          <span>{feature}</span>
-                        </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
             </div>
           </Container>
         </section>
@@ -422,7 +325,7 @@ function PlanCard({
         <div>
           <p
               className={`text-caption font-extrabold uppercase tracking-wider ${
-                  featured ? 'text-on-mango/75' : 'text-text-muted'
+                  featured ? 'text-on-mango/85' : 'text-text-muted'
               }`}
           >
             {eyebrow}
@@ -452,7 +355,7 @@ function PlanCard({
             <div>
               <p
                   className={`text-caption font-bold uppercase tracking-wider ${
-                      featured ? 'text-on-mango/75' : 'text-text-muted'
+                      featured ? 'text-on-mango/85' : 'text-text-muted'
                   }`}
               >
                 Monthly
@@ -466,7 +369,7 @@ function PlanCard({
               </p>
               <p
                   className={`mt-1 text-caption ${
-                      featured ? 'text-on-mango/75' : 'text-text-muted'
+                      featured ? 'text-on-mango/85' : 'text-text-muted'
                   }`}
               >
                 {monthlyPrice === '₦0' ? 'forever' : 'per month'}
@@ -479,7 +382,7 @@ function PlanCard({
             >
               <p
                   className={`text-caption font-bold uppercase tracking-wider ${
-                      featured ? 'text-on-mango/75' : 'text-text-muted'
+                      featured ? 'text-on-mango/85' : 'text-text-muted'
                   }`}
               >
                 Annual
@@ -493,7 +396,7 @@ function PlanCard({
               </p>
               <p
                   className={`mt-1 text-caption ${
-                      featured ? 'text-on-mango/75' : 'text-text-muted'
+                      featured ? 'text-on-mango/85' : 'text-text-muted'
                   }`}
               >
                 {annualPrice === '—' ? 'No annual plan' : 'per year'}
@@ -528,7 +431,7 @@ function PlanCard({
         <div className="mt-6">
           <p
               className={`text-caption font-extrabold uppercase tracking-wider ${
-                  featured ? 'text-on-mango/75' : 'text-text-muted'
+                  featured ? 'text-on-mango/85' : 'text-text-muted'
               }`}
           >
             What is included
@@ -564,7 +467,7 @@ function PlanCard({
           </Link>
           <p
               className={`mt-3 text-caption ${
-                  featured ? 'text-on-mango/75' : 'text-text-muted'
+                  featured ? 'text-on-mango/85' : 'text-text-muted'
               }`}
           >
             {footnote}

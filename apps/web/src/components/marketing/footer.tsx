@@ -19,9 +19,7 @@ export function MarketingFooter() {
               </Link>
 
               <p className="mt-4 max-w-xs text-body leading-relaxed text-text-soft">
-                Invoice like a pro. Get paid without chasing.
-                <br />
-                A get-paid workspace for independent work.
+                Quotes, invoices, payment tracking and receipts for independent work.
               </p>
             </div>
 

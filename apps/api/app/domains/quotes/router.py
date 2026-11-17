@@ -1,10 +1,7 @@
 from datetime import date
 from typing import List, Optional
 
-from fastapi.responses import Response
-from starlette.concurrency import run_in_threadpool
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
-from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.auth.dependencies import require_auth
@@ -13,11 +10,13 @@ from app.core.database import get_db
 from app.core.proxy import get_client_ip
 from app.core.rate_limit import enforce_rate_limit
 from app.core.pagination import PaginatedResponse
-from app.domains.documents.service import render_quote_html
+from app.domains.documents.delivery import (
+    deliver_issued_document,
+    deliver_public_document,
+)
 from app.domains.invoices.presenter import map_invoice_to_response
 from app.domains.invoices.schemas import InvoiceResponse
 from app.domains.quotes import service
-from app.domains.documents.service import render_quote_pdf
 from app.domains.quotes.presenter import (
     map_public_quote_view,
     map_quote_send_response,
@@ -119,29 +118,12 @@ async def get_quote_pdf(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return the quote as a real PDF document."""
-    quote_obj = await service.get_quote(db, workspace, id)
-
-    client = quote_obj.client
-
-    pdf_content = await run_in_threadpool(
-        render_quote_pdf,
-        quote_obj,
-        business_name=workspace.business_name,
-        client_name=client.name if client else None,
-        business_address=workspace.address,
-        business_tax_id=workspace.tax_id,
-    )
-
-    filename = f"Quote-{quote_obj.quote_number or quote_obj.id}.pdf"
-
-    return Response(
-        content=pdf_content,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'inline; filename="{filename}"',
-            "X-Content-Type-Options": "nosniff",
-        },
+    """Deliver the immutable issued quote PDF."""
+    return await deliver_issued_document(
+        db,
+        workspace_id=workspace.id,
+        document_type="quote",
+        source_id=id,
     )
 
 
@@ -200,9 +182,7 @@ async def send_quote(
     if outcome.email_sent:
         message = f"Quote {quote_obj.quote_number} emailed successfully."
     elif outcome.email_queued:
-        message = (
-            f"Quote {quote_obj.quote_number} has been queued for email delivery."
-        )
+        message = f"Quote {quote_obj.quote_number} has been queued for email delivery."
     elif send_email and not outcome.recipient_email:
         message = (
             "Quote status updated, but no email was sent because the client "
@@ -395,3 +375,17 @@ async def post_public_quote_comment(
         )
 
     return QuoteCommentResponse.model_validate(comment)
+
+
+@router.get("/share/{token}/pdf")
+async def get_public_quote_pdf(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Deliver a quote PDF through its public share token."""
+
+    return await deliver_public_document(
+        db,
+        token=token,
+        document_type="quote",
+    )

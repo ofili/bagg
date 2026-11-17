@@ -6,15 +6,12 @@ import {
     Check,
     FileText,
     MessageSquare,
-    RefreshCw,
-    ShieldCheck,
     Wallet,
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
 import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { buttonStyles } from '@/components/ui/button';
-import { currencies } from '@/content/marketing';
 import { marketingMetadata } from '@/lib/metadata';
 import {Metadata} from "next";
 import {MarketingBreadcrumbStructuredData} from "@/components/marketing/marketing-structured-data";
@@ -22,19 +19,9 @@ import {MarketingBreadcrumbStructuredData} from "@/components/marketing/marketin
 export const metadata: Metadata = marketingMetadata({
     title: 'Quotation Software for Freelancers',
     description:
-        'Prepare professional quotes, agree commercial terms with clients, manage revisions and convert accepted quotes into invoices.',
+        'Prepare professional quotes, agree commercial terms with clients and convert accepted quotes into invoices.',
     path: '/features/quotes',
 });
-
-const quoteContents = [
-    'Client and business details',
-    'Scope and line items',
-    'Currency and commercial terms',
-    'Discounts and applicable taxes',
-    'Deposit requirements',
-    'Issue and expiry dates',
-    'Notes and additional context',
-];
 
 export default function QuotesPage() {
     return (
@@ -181,51 +168,6 @@ export default function QuotesPage() {
                     </Container>
                 </section>
 
-                {/* QUOTE STRUCTURE */}
-                <section className="bg-surface py-16 sm:py-20">
-                    <Container>
-                        <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
-                            <div>
-                                <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
-                                    Make the agreement visible
-                                </p>
-                                <h2 className="mt-3 text-title-l font-extrabold tracking-tight text-ink sm:text-4xl">
-                                    A clear quote prevents unclear expectations.
-                                </h2>
-                                <p className="mt-4 text-body-l text-text-soft">
-                                    Set out what you are offering, what it costs and the terms
-                                    attached to the work. Your client gets a document they can
-                                    review before you move to invoicing.
-                                </p>
-                            </div>
-
-                            <div className="border-brut border-ink bg-cream p-5 shadow-brut-lg sm:p-7">
-                                <div className="flex items-center justify-between border-b-2 border-ink pb-4">
-                <span className="font-extrabold text-ink">
-                  What&apos;s in your quote
-                </span>
-                                    <span className="border-brut border-ink bg-pink px-2 py-1 text-[10px] font-extrabold uppercase text-on-pink shadow-brut">
-                  Commercial terms
-                </span>
-                                </div>
-
-                                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                                    {quoteContents.map((item) => (
-                                        <div key={item} className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center border-brut border-ink bg-mango text-on-mango">
-                      <Check className="h-3 w-3" />
-                    </span>
-                                            <span className="text-body font-semibold text-text">
-                      {item}
-                    </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </Container>
-                </section>
-
                 {/* CLIENT RESPONSE */}
                 <section className="border-y-2 border-ink bg-pink py-16 text-on-pink sm:py-20">
                     <Container>
@@ -291,81 +233,6 @@ export default function QuotesPage() {
                     </Container>
                 </section>
 
-                {/* REVISIONS */}
-                <section className="bg-cream py-16 sm:py-20">
-                    <Container>
-                        <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
-                            <div>
-                                <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
-                                    When the scope changes
-                                </p>
-                                <h2 className="mt-3 text-title-l font-extrabold tracking-tight text-ink sm:text-4xl">
-                                    Revise the quote. Keep the history.
-                                </h2>
-                                <p className="mt-4 text-body-l text-text-soft">
-                                    Commercial terms can change as a project takes shape. Bagg
-                                    preserves the previous version when you revise an issued
-                                    quote, so the earlier agreement does not disappear.
-                                </p>
-                            </div>
-
-                            <div className="border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
-                                <div className="flex items-center justify-between gap-4">
-                <span className="font-extrabold text-ink">
-                  Quote revision history
-                </span>
-                                    <RefreshCw className="h-5 w-5" />
-                                </div>
-
-                                <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                                    <div className="border-brut border-ink bg-surface-tint p-4">
-                                        <p className="text-caption font-extrabold uppercase text-text-muted">
-                                            Previous version
-                                        </p>
-                                        <p className="mt-2 text-xl font-extrabold text-ink">
-                                            Version 1
-                                        </p>
-                                        <p className="mt-2 text-caption text-text-soft">
-                                            Original terms preserved
-                                        </p>
-                                        <span className="mt-4 inline-flex border border-ink px-2 py-1 text-[10px] font-extrabold uppercase">
-                    History
-                  </span>
-                                    </div>
-
-                                    <div className="flex justify-center">
-                                        <ArrowRight className="h-6 w-6 rotate-90 sm:rotate-0" />
-                                    </div>
-
-                                    <div className="border-brut border-ink bg-mango p-4 text-on-mango shadow-brut">
-                                        <p className="text-caption font-extrabold uppercase">
-                                            Revised version
-                                        </p>
-                                        <p className="mt-2 text-xl font-extrabold">
-                                            Version 2
-                                        </p>
-                                        <p className="mt-2 text-caption text-on-mango/80">
-                                            Updated terms for review
-                                        </p>
-                                        <span className="mt-4 inline-flex border border-ink px-2 py-1 text-[10px] font-extrabold uppercase">
-                    New draft
-                  </span>
-                                    </div>
-                                </div>
-
-                                <div className="mt-5 flex items-start gap-3 border-t-2 border-ink pt-4">
-                                    <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
-                                    <p className="text-caption text-text-soft">
-                                        The previous client link is invalidated when a revision is
-                                        created. The revised draft must be finalised and shared
-                                        again.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </Container>
-                </section>
-
                 {/* CONVERSION */}
                 <section className="border-y-2 border-ink bg-mango py-16 text-on-mango sm:py-20">
                     <Container>
@@ -415,49 +282,6 @@ export default function QuotesPage() {
                                         You decide when to convert the accepted quote into an
                                         invoice.
                                     </p>
-                                </div>
-                            </div>
-                        </div>
-                    </Container>
-                </section>
-
-                {/* CURRENCY */}
-                <section className="bg-surface py-16 sm:py-20">
-                    <Container>
-                        <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
-                            <div>
-                                <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
-                                    Work across borders
-                                </p>
-                                <h2 className="mt-3 text-title-l font-extrabold tracking-tight text-ink sm:text-4xl">
-                                    Quote in the currency you agreed.
-                                </h2>
-                                <p className="mt-4 text-body-l text-text-soft">
-                                    Use the currency that makes sense for the client and the work.
-                                    Your quote carries its own commercial totals and payment
-                                    expectations.
-                                </p>
-                            </div>
-
-                            <div className="border-brut border-ink bg-cream p-5 shadow-brut-lg sm:p-7">
-                                <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                                    Supported currencies
-                                </p>
-                                <div className="mt-5 flex flex-wrap gap-3">
-                                    {currencies.map((currency, index) => (
-                                        <span
-                                            key={currency}
-                                            className={`border-brut border-ink px-4 py-3 font-extrabold shadow-brut ${
-                                                index % 3 === 0
-                                                    ? 'bg-mango text-on-mango'
-                                                    : index % 3 === 1
-                                                        ? 'bg-pink text-on-pink'
-                                                        : 'bg-sun text-on-sun'
-                                            }`}
-                                        >
-                    {currency}
-                  </span>
-                                    ))}
                                 </div>
                             </div>
                         </div>

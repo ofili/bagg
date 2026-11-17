@@ -7,9 +7,7 @@ import {
   FileText,
   Globe2,
   Link2,
-  MessageCircle,
   ReceiptText,
-  ShieldCheck,
   Wallet,
 } from 'lucide-react';
 
@@ -106,12 +104,6 @@ export default function MarketingPage() {
               />
 
               <div className="relative">
-                <div className="absolute -right-2 -top-4 z-10">
-                  <MarketingSticker tone="mango" tilt="right">
-                    Less chasing
-                  </MarketingSticker>
-                </div>
-
                 <MarketingFrame
                     label="A client payment journey"
                     meta="Invoice 0041"
@@ -144,88 +136,12 @@ export default function MarketingPage() {
           </div>
         </section>
 
-        {/* PROBLEM */}
-        <section className="bg-surface">
-          <Container className="py-16 sm:py-20">
-            <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-              <div>
-                <MarketingSticker tone="pink" tilt="left" size="sm">
-                  The admin problem
-                </MarketingSticker>
-
-                <h2 className="mt-5 text-title-l text-ink sm:text-[2.5rem] sm:leading-[2.7rem]">
-                  Doing the work is one thing. Getting paid is another.
-                </h2>
-
-                <p className="mt-4 text-body-l text-text-soft">
-                  The project may be finished, but the invoice still needs
-                  sending. The client needs a reminder. The payment needs
-                  confirming. And someone needs to issue the receipt.
-                </p>
-
-                <p className="mt-4 text-body font-bold text-ink">
-                  Bagg brings those payment-administration tasks together.
-                </p>
-              </div>
-
-              <MarketingGrid columns={2} gap="md">
-                <ProblemCard
-                    icon={<FileText className="h-5 w-5" />}
-                    title="Invoices scattered everywhere"
-                    copy="Documents, messages and payment details spread across different places."
-                />
-                <ProblemCard
-                    icon={<MessageCircle className="h-5 w-5" />}
-                    title="The uncomfortable follow-up"
-                    copy="You have to remember who owes what and when to ask again."
-                />
-                <ProblemCard
-                    icon={<Wallet className="h-5 w-5" />}
-                    title="Unclear payment status"
-                    copy="A client says they paid. You still need to verify and record it."
-                />
-                <ProblemCard
-                    icon={<ReceiptText className="h-5 w-5" />}
-                    title="Missing payment records"
-                    copy="Receipts and payment history should not disappear into chat threads."
-                />
-              </MarketingGrid>
-            </div>
-          </Container>
-        </section>
-
-        {/* CORE PROMISE */}
-        <section className="border-y-2 border-ink bg-mango">
-          <Container className="grid gap-8 py-12 sm:py-16 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div className="max-w-3xl">
-              <p className="text-caption font-extrabold uppercase tracking-widest text-on-mango/70">
-                The Bagg approach
-              </p>
-              <h2 className="mt-3 text-title-l text-on-mango sm:text-[2.75rem] sm:leading-[2.9rem]">
-                One clear path from invoice to payment.
-              </h2>
-              <p className="mt-3 max-w-2xl text-body-l text-on-mango/85">
-                Create the document. Share the link. Know what is happening.
-                Follow up. Keep the record.
-              </p>
-            </div>
-
-            <Link
-                href="/signup"
-                className={buttonStyles({ variant: 'ink', size: 'lg' })}
-            >
-              Get started
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </Container>
-        </section>
-
         {/* HOW IT WORKS */}
         <section
             id="how-it-works"
             className="scroll-mt-24 bg-cream"
         >
-          <Container className="py-16 sm:py-20">
+          <Container className="py-20 sm:py-28 lg:py-32">
             <SectionHeading
                 title="Three steps. One less thing to chase."
                 copy="A straightforward process for you and an easy experience for your client."
@@ -273,11 +189,11 @@ export default function MarketingPage() {
 
         {/* PRODUCT CAPABILITIES */}
         <section className="border-y border-line bg-surface">
-          <Container className="py-16 sm:py-20">
+          <Container className="py-20 sm:py-28 lg:py-32">
             <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
               <SectionHeading
-                  title="The tools behind getting paid."
-                  copy="Not another complicated business suite. Just the capabilities you need to invoice and manage payment follow-through."
+                  title="Tools built for getting paid."
+                  copy="Invoicing, reminders, payment claims and receipts — without extra business suite clutter."
               />
               <div className="flex justify-start lg:justify-end">
                 <Link
@@ -293,42 +209,36 @@ export default function MarketingPage() {
             <MarketingGrid columns={2} gap="md" className="mt-10">
               <CapabilityCard
                   icon={<FileText className="h-5 w-5" />}
-                  number="01"
                   title="Professional invoices"
                   copy="Create clear, branded invoices with line items, due dates, client details and the right payment instructions."
                   tag="Create"
               />
               <CapabilityCard
                   icon={<Link2 className="h-5 w-5" />}
-                  number="02"
                   title="Shareable invoice links"
                   copy="Give clients one simple page to view the invoice, understand the amount due and see how to pay."
                   tag="Share"
               />
               <CapabilityCard
                   icon={<BellRing className="h-5 w-5" />}
-                  number="03"
                   title="Payment reminders"
                   copy="Use scheduled reminders to follow up before and after the due date, without writing every message yourself."
                   tag="Follow up"
               />
               <CapabilityCard
                   icon={<Wallet className="h-5 w-5" />}
-                  number="04"
                   title="Payment tracking"
                   copy="See invoice progress, review client payment claims and keep confirmed payment activity connected to the invoice."
                   tag="Track"
               />
               <CapabilityCard
                   icon={<ReceiptText className="h-5 w-5" />}
-                  number="05"
                   title="Receipts and records"
                   copy="Keep a payment record and share a receipt when payment has been confirmed."
                   tag="Record"
               />
               <CapabilityCard
                   icon={<Globe2 className="h-5 w-5" />}
-                  number="06"
                   title="Multiple currencies"
                   copy="Create invoices in the currencies you work with and maintain the corresponding payment details."
                   tag="Across borders"
@@ -339,13 +249,13 @@ export default function MarketingPage() {
 
         {/* CURRENCY */}
         <section className="bg-cream">
-          <Container className="grid gap-10 py-16 sm:py-20 lg:grid-cols-[1fr_1fr] lg:items-center">
+          <Container className="grid gap-10 py-20 sm:py-28 lg:grid-cols-[1fr_1fr] lg:items-center lg:py-32">
             <div>
-              <MarketingSticker tone="sun" tilt="left">
+              <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
                 Local work. Global clients.
-              </MarketingSticker>
+              </p>
 
-              <h2 className="mt-5 text-title-l text-ink sm:text-[2.5rem] sm:leading-[2.7rem]">
+              <h2 className="mt-3 text-title-l text-ink sm:text-[2.5rem] sm:leading-[2.7rem]">
                 Work across currencies without losing the details.
               </h2>
 
@@ -406,7 +316,7 @@ export default function MarketingPage() {
                     receipts in one workspace.
                   </p>
                   <div className="mt-5 border-brut border-ink bg-mango p-4 shadow-brut-sm">
-                    <p className="text-caption font-extrabold text-on-mango/70">
+                    <p className="text-caption font-extrabold text-on-mango/85">
                       Payment status
                     </p>
                     <p className="mt-1 text-heading text-on-mango">
@@ -419,78 +329,12 @@ export default function MarketingPage() {
           </Container>
         </section>
 
-        {/* TRUST */}
-        <section className="border-y border-line bg-peach">
-          <Container className="grid gap-10 py-16 sm:py-20 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-            <div>
-              <MarketingSticker tone="ink" tilt="left">
-                Your money. Your client.
-              </MarketingSticker>
-
-              <h2 className="mt-5 text-title-l text-ink sm:text-[2.5rem] sm:leading-[2.7rem]">
-                Clear records. No confusion about who holds the money.
-              </h2>
-
-              <p className="mt-4 text-body-l text-text-soft">
-                Bagg helps you create invoices, communicate payment
-                instructions, track payment activity and keep records.
-                Your client pays you directly using the payment method
-                provided.
-              </p>
-
-              <Link
-                  href="/security"
-                  className={`${buttonStyles({ variant: 'link' })} mt-6`}
-              >
-                Learn about security
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </div>
-
-            <MarketingCard tone="surface" featured>
-              <div className="flex items-start gap-4">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center border-brut border-ink bg-mango text-on-mango shadow-brut-sm">
-                <ShieldCheck className="h-6 w-6" aria-hidden="true" />
-              </span>
-                <div>
-                  <h3 className="text-heading text-ink">
-                    Payment transparency
-                  </h3>
-                  <p className="mt-1 text-body text-text-soft">
-                    Keep the difference between a client saying they have
-                    paid and a payment being confirmed.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-3 border-t border-line pt-5">
-                <TrustRow
-                    title="Payment claims"
-                    copy="A client can report a payment for your review."
-                />
-                <TrustRow
-                    title="Payment confirmation"
-                    copy="Confirmed payments update the invoice record."
-                />
-                <TrustRow
-                    title="Receipts"
-                    copy="Keep a receipt connected to the payment record."
-                />
-                <TrustRow
-                    title="Reminders"
-                    copy="Reminders stop when payment is recorded as paid."
-                />
-              </div>
-            </MarketingCard>
-          </Container>
-        </section>
-
         {/* AUDIENCES */}
         <section className="bg-surface">
-          <Container className="py-16 sm:py-20">
+          <Container className="py-20 sm:py-28 lg:py-32">
             <SectionHeading
-                title="Built around the way independent people work."
-                copy="Different kinds of work. The same need for clear invoices and dependable payment follow-through."
+                title="Built for the way you work."
+                copy="Whether you work alone, advise businesses, or run a creative studio."
             />
 
             <MarketingGrid columns={3} gap="md" className="mt-10">
@@ -516,78 +360,9 @@ export default function MarketingPage() {
           </Container>
         </section>
 
-        {/* WHAT'S NEXT */}
-        <section className="border-y border-line bg-cream">
-          <Container className="py-16 sm:py-20">
-            <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
-              <div>
-                <MarketingSticker tone="pink" tilt="left">
-                  The bigger picture
-                </MarketingSticker>
-                <h2 className="mt-5 text-title-l text-ink sm:text-[2.5rem] sm:leading-[2.7rem]">
-                  More of the client journey, over time.
-                </h2>
-                <p className="mt-4 text-body-l text-text-soft">
-                  Bagg is evolving beyond invoice creation. Our direction
-                  is to help independent businesses manage the commercial
-                  journey from agreeing work to getting paid.
-                </p>
-                <p className="mt-3 text-caption font-bold text-text-muted">
-                  These capabilities are planned, not currently available.
-                </p>
-              </div>
-
-              <MarketingGrid columns={2} gap="md">
-                <RoadmapCard
-                    number="01"
-                    title="Projects and milestones"
-                    copy="Organise client work and connect milestones to payment."
-                />
-                <RoadmapCard
-                    number="02"
-                    title="Contracts and agreements"
-                    copy="Keep agreed scope and commercial terms connected to the work."
-                />
-                <RoadmapCard
-                    number="03"
-                    title="Client delivery"
-                    copy="Manage previews, feedback, revisions and final handover."
-                />
-                <RoadmapCard
-                    number="04"
-                    title="A connected workspace"
-                    copy="Bring more of the client relationship into one coherent workflow."
-                />
-              </MarketingGrid>
-            </div>
-          </Container>
-        </section>
-
-        {/* PRICING ENTRY */}
-        <section className="bg-surface">
-          <Container className="grid gap-6 py-14 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div>
-              <h2 className="text-title-l text-ink">
-                Start free. Understand the cost before you commit.
-              </h2>
-              <p className="mt-2 max-w-2xl text-body-l text-text-soft">
-                Start with three free PDF or email sends. Paid plans and
-                fees will be shown clearly before you are charged.
-              </p>
-            </div>
-            <Link
-                href="/pricing"
-                className={buttonStyles({ variant: 'outline' })}
-            >
-              Explore pricing
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </Container>
-        </section>
-
         {/* FAQ */}
         <section className="border-t border-line bg-cream">
-          <Container className="py-16 sm:py-20">
+          <Container className="py-20 sm:py-28 lg:py-32">
             <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
               <div>
                 <SectionHeading
@@ -619,26 +394,6 @@ export default function MarketingPage() {
   );
 }
 
-function ProblemCard({
-                       icon,
-                       title,
-                       copy,
-                     }: {
-  icon: React.ReactNode;
-  title: string;
-  copy: string;
-}) {
-  return (
-      <MarketingCard tone="surface">
-      <span className="flex h-10 w-10 items-center justify-center border-brut border-ink bg-peach shadow-brut-sm">
-        {icon}
-      </span>
-        <h3 className="mt-5 text-heading text-ink">{title}</h3>
-        <p className="mt-2 text-body text-text-soft">{copy}</p>
-      </MarketingCard>
-  );
-}
-
 function WorkflowCard({
                         number,
                         label,
@@ -656,17 +411,10 @@ function WorkflowCard({
 }) {
   return (
       <MarketingCard tone={tone} featured={featured}>
-        <div className="flex items-center justify-between gap-3">
-        <span className="text-[2.5rem] font-extrabold leading-none tracking-tight opacity-50">
+        <span className="inline-flex h-9 w-9 items-center justify-center border-brut-thin border-ink bg-surface-tint text-caption font-extrabold text-text">
           {number}
         </span>
-          {featured && (
-              <MarketingSticker tone="ink" tilt="right" size="sm">
-                The simple bit
-              </MarketingSticker>
-          )}
-        </div>
-        <p className="mt-6 text-caption font-extrabold uppercase tracking-widest opacity-70">
+        <p className="mt-5 text-caption font-extrabold uppercase tracking-widest opacity-70">
           {label}
         </p>
         <h3 className="mt-2 text-title text-current">{title}</h3>
@@ -677,13 +425,11 @@ function WorkflowCard({
 
 function CapabilityCard({
                           icon,
-                          number,
                           title,
                           copy,
                           tag,
                         }: {
   icon: React.ReactNode;
-  number: string;
   title: string;
   copy: string;
   tag: string;
@@ -694,38 +440,13 @@ function CapabilityCard({
           {icon}
         </div>
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-          <span className="text-caption font-extrabold text-text-muted">
-            {number}
-          </span>
-            <span className="border-brut-thin border-ink bg-cream px-2 py-0.5 text-caption font-bold text-text-soft">
+          <span className="border-brut-thin border-ink bg-cream px-2 py-0.5 text-caption font-bold text-text-soft">
             {tag}
           </span>
-          </div>
           <h3 className="mt-2 text-heading text-ink">{title}</h3>
           <p className="mt-2 text-body text-text-soft">{copy}</p>
         </div>
       </MarketingCard>
-  );
-}
-
-function TrustRow({
-                    title,
-                    copy,
-                  }: {
-  title: string;
-  copy: string;
-}) {
-  return (
-      <div className="flex items-start gap-3">
-      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-brut-thin border-ink bg-cream text-ink">
-        <Check className="h-3.5 w-3.5" aria-hidden="true" />
-      </span>
-        <div>
-          <p className="text-label font-extrabold text-ink">{title}</p>
-          <p className="mt-0.5 text-body text-text-soft">{copy}</p>
-        </div>
-      </div>
   );
 }
 
@@ -742,10 +463,10 @@ function AudienceCard({
 }) {
   return (
       <MarketingCard tone="surface" className="flex h-full flex-col">
-        <MarketingSticker tone="sun" tilt="left" size="sm">
+        <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
           {label}
-        </MarketingSticker>
-        <h3 className="mt-5 text-title text-ink">{title}</h3>
+        </p>
+        <h3 className="mt-3 text-title text-ink">{title}</h3>
         <p className="mt-2 flex-1 text-body text-text-soft">{copy}</p>
         <Link
             href={href}
@@ -755,25 +476,5 @@ function AudienceCard({
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </MarketingCard>
-  );
-}
-
-function RoadmapCard({
-                       number,
-                       title,
-                       copy,
-                     }: {
-  number: string;
-  title: string;
-  copy: string;
-}) {
-  return (
-      <div className="border-brut border-ink bg-surface p-5 shadow-brut-sm">
-        <p className="text-caption font-extrabold text-text-muted">
-          PLANNED / {number}
-        </p>
-        <h3 className="mt-3 text-heading text-ink">{title}</h3>
-        <p className="mt-2 text-body text-text-soft">{copy}</p>
-      </div>
   );
 }

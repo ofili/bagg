@@ -307,15 +307,15 @@ export function InvoiceDocument({
           <h2 id="line-items" className="text-heading">
             Line items
           </h2>
-          {share_token && (
-            <Link
+          {variant === 'issuer' && share_token && (
+            <a
               href={`${'/api'}/invoices/${invoice.id}/pdf`}
               target="_blank"
               rel="noopener noreferrer"
               className={buttonStyles({ variant: 'link' })}
             >
               Download PDF
-            </Link>
+            </a>
           )}
         </div>
         <ul className="space-y-2">
@@ -464,7 +464,7 @@ export function InvoiceDocument({
                   size="lg"
                   fullWidth
                   onClick={onClaimPaid}
-                  className="bg-danger text-white hover:bg-danger/90"
+                  className="bg-danger text-on-danger hover:bg-danger/90"
                 >
                   Submit payment details again
                 </Button>

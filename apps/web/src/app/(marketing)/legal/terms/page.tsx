@@ -13,13 +13,13 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = marketingMetadata({
     title: 'Terms of service',
-    description: 'The plain-language summary of the terms for using bagg.',
+    description: 'The terms for using Bagg, written in plain language.',
     path: '/legal/terms',
     noIndex: true,
 });
 
 const sections = [
-    { id: 'using-bagg', number: '01', title: 'Using bagg' },
+    { id: 'using-bagg', number: '01', title: 'Using Bagg' },
     { id: 'your-account', number: '02', title: 'Your account' },
     { id: 'invoices-payments', number: '03', title: 'Invoices and payments' },
     { id: 'your-content', number: '04', title: 'Your content' },
@@ -34,7 +34,7 @@ export default function TermsPage() {
             <LegalDocumentHeader
                 eyebrow="Terms of service"
                 title={<>Clear expectations.<br /><span className="text-pink">Better work.</span></>}
-                description="The rules for using bagg, managing your workspace and working with your clients through the service."
+                description="The rules for using Bagg, managing your workspace and working with your clients through the service."
                 icon={<FileText className="h-6 w-6" />}
                 tone="sun"
             />
@@ -64,14 +64,14 @@ export default function TermsPage() {
             </div>
 
             <div className="mt-10 space-y-10">
-                <LegalSection id="using-bagg" number="01" title="Using bagg">
+                <LegalSection id="using-bagg" number="01" title="Using Bagg">
                     <p>
-                        bagg is a workspace for creating invoices, quotes, payment records
+                        Bagg is a workspace for creating invoices, quotes, payment records
                         and receipts. You can use it for your own business or a business
                         you are authorised to represent.
                     </p>
                     <p>
-                        bagg is not a bank, a payment processor or a tax adviser. We do not
+                        Bagg is not a bank, a payment processor or a tax adviser. We do not
                         hold your client’s money and we do not decide how much tax you owe.
                     </p>
                 </LegalSection>
@@ -84,7 +84,7 @@ export default function TermsPage() {
                         invoice or quote.
                     </p>
                     <p>
-                        Do not use bagg to impersonate someone else, send fraudulent
+                        Do not use Bagg to impersonate someone else, send fraudulent
                         documents or break the law. We may suspend an account if we
                         believe it is being used to harm someone.
                     </p>
@@ -117,7 +117,7 @@ export default function TermsPage() {
                 <LegalSection id="your-content" number="04" title="Your content">
                     <p>
                         You keep ownership of the business details, client information,
-                        line items and files you add to bagg. You give us permission to
+                        line items and files you add to Bagg. You give us permission to
                         store and process that content so we can provide the service.
                     </p>
                     <p>
@@ -132,7 +132,7 @@ export default function TermsPage() {
                     title="Availability and changes"
                 >
                     <p>
-                        We work to keep bagg available, but we cannot promise uninterrupted
+                        We work to keep Bagg available, but we cannot promise uninterrupted
                         access. We may change or remove features as the product develops.
                         If a change affects a paid feature or a payment you have already
                         made, we will explain it clearly.
@@ -141,7 +141,7 @@ export default function TermsPage() {
 
                 <LegalSection id="ending-use" number="06" title="Ending use">
                     <p>
-                        You can stop using bagg at any time. We may suspend or close an
+                        You can stop using Bagg at any time. We may suspend or close an
                         account for misuse, for security reasons or where the law requires
                         it. Before closing an account, we will try to give you a way to
                         retrieve the records you need.
@@ -157,7 +157,7 @@ export default function TermsPage() {
                         >
                             {contactEmail}
                         </a>
-                        . The final agreement will replace this summary when it is ready.
+                        . We will update these terms when the way Bagg works changes.
                     </p>
                 </LegalSection>
             </div>
@@ -165,7 +165,7 @@ export default function TermsPage() {
             <LegalDocumentFooter
                 current="terms"
                 eyebrow="Keep reading"
-                copy="Understand how bagg handles your information and browser storage."
+                copy="Understand how Bagg handles your information and browser storage."
                 tone="sun"
             />
         </article>

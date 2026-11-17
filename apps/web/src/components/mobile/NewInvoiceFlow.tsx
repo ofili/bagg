@@ -213,7 +213,7 @@ export function NewInvoiceFlow({draft}: { draft: InvoiceDraft }) {
                       </span>
                                             <span className="min-w-0 flex-1">
                         <span className="block truncate font-extrabold">{c.name}</span>
-                        <span className={cn('block text-caption', on ? 'text-on-sun/75' : 'text-text-soft')}>
+                        <span className={cn('block text-caption', on ? 'text-on-sun/85' : 'text-text-soft')}>
                           {c.preferred_currency} · {c.default_payment_terms_days || 14}-day terms
                         </span>
                       </span>

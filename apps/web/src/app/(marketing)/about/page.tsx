@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import {
   ArrowRight,
-  Check,
   CircleCheck,
   FileText,
   ShieldCheck,
@@ -85,13 +84,6 @@ const principles = [
   },
 ];
 
-const commitments = [
-  'Borrowed logos or invented customer stories.',
-  'A price hidden until after you have committed.',
-  'A security badge for something we have not built.',
-  'A reminder that bullies your client.',
-];
-
 export default function AboutPage() {
   return (
       <>
@@ -105,17 +97,16 @@ export default function AboutPage() {
                 </div>
 
                 <h1 className="mt-7 max-w-3xl text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem] lg:text-[5.25rem]">
-                  Do the work.
+                  Focus on client work.
                   <span className="block text-mango">
-                  We’ll help with
+                  We handle getting paid.
                 </span>
-                  <span className="block">the getting paid.</span>
                 </h1>
 
                 <p className="mt-6 max-w-xl text-body-l leading-relaxed text-text-soft sm:text-lg">
-                  Bagg is an invoicing and get-paid workspace for African
-                  freelancers and creators. We bring quotes, invoices,
-                  payment follow-up and receipts into one clearer process.
+                  Bagg is an invoicing and payment platform for African
+                  freelancers, consultants and studios. We bring quotes, invoices,
+                  payment tracking and receipts into one connected workflow.
                 </p>
 
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -209,7 +200,7 @@ export default function AboutPage() {
 
         {/* THE PROBLEM */}
         <section className="border-b-2 border-ink bg-surface">
-          <Container className="grid gap-8 py-16 sm:py-20 lg:grid-cols-[0.8fr_1.2fr]">
+          <Container className="grid gap-8 py-20 sm:py-28 lg:grid-cols-[0.8fr_1.2fr] lg:py-32">
             <div>
               <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
                 The problem we care about
@@ -245,7 +236,7 @@ export default function AboutPage() {
 
         {/* PRINCIPLES */}
         <section className="border-b-2 border-ink bg-cream">
-          <Container className="py-16 sm:py-20">
+          <Container className="py-20 sm:py-28 lg:py-32">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div className="max-w-2xl">
                 <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
@@ -298,43 +289,9 @@ export default function AboutPage() {
           </Container>
         </section>
 
-        {/* COMMITMENTS */}
-        <section className="border-b-2 border-ink bg-surface">
-          <Container className="grid gap-10 py-16 sm:py-20 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-            <div>
-              <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
-                What we won&apos;t do
-              </p>
-
-              <h2 className="mt-3 max-w-lg text-[2.3rem] font-extrabold leading-[1.02] tracking-[-0.055em] text-ink sm:text-4xl">
-                Trust is built in the details.
-              </h2>
-
-              <p className="mt-4 max-w-md text-body-l leading-relaxed text-text-soft">
-                How we communicate about money and product capabilities
-                matters just as much as the interface.
-              </p>
-            </div>
-
-            <ul className="space-y-4">
-              {commitments.map((item) => (
-                  <li
-                      key={item}
-                      className="flex items-start gap-4 border-b-2 border-ink/15 pb-4 text-body-l text-text-soft last:border-0"
-                  >
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center border-brut border-ink bg-mango text-on-mango shadow-brut">
-                  <Check className="h-4 w-4" aria-hidden="true" />
-                </span>
-                    <span>{item}</span>
-                  </li>
-              ))}
-            </ul>
-          </Container>
-        </section>
-
         {/* AFRICAN CONTEXT */}
         <section className="border-b-2 border-ink bg-sun">
-          <Container className="grid gap-8 py-14 sm:py-16 lg:grid-cols-2 lg:items-center">
+          <Container className="grid gap-8 py-20 sm:py-28 lg:grid-cols-2 lg:items-center lg:py-32">
             <div>
               <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-on-sun">
                 Built with context
@@ -363,7 +320,7 @@ export default function AboutPage() {
         </section>
 
         {/* CTA */}
-        <section className="bg-cream py-16 sm:py-20">
+        <section className="bg-cream py-20 sm:py-28 lg:py-32">
           <Container>
             <div className="relative border-brut border-ink bg-mango p-7 text-on-mango shadow-brut-lg sm:p-10 lg:p-12">
               <div className="absolute -right-2 -top-3 rotate-3 border-brut border-ink bg-pink px-3 py-2 text-caption font-extrabold uppercase text-on-pink shadow-brut">
@@ -376,12 +333,11 @@ export default function AboutPage() {
                 </p>
 
                 <h2 className="mt-3 text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] sm:text-5xl">
-                  Spend less time chasing. Keep more time for the work.
+                  Spend less time chasing. Spend more time building.
                 </h2>
 
                 <p className="mt-4 max-w-xl text-body-l text-on-mango/80">
-                  Start with the next invoice and build a clearer get-paid
-                  process from there.
+                  Start with your next invoice and keep every step connected through to the final receipt.
                 </p>
 
                 <Link

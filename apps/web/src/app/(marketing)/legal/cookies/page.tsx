@@ -14,7 +14,7 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = marketingMetadata({
     title: 'Cookies',
-    description: 'What bagg stores in your browser and why.',
+    description: 'What Bagg stores in your browser and why.',
     path: '/legal/cookies',
     noIndex: true,
 });
@@ -25,7 +25,7 @@ export default function CookiesPage() {
             <LegalDocumentHeader
                 eyebrow="Cookies and browser storage"
                 title={<>Small files.<br /><span className="text-link">Clear purpose.</span></>}
-                description="We keep browser storage to a minimum. Here is what bagg stores, why it is there and how to remove it."
+                description="We keep browser storage to a minimum. Here is what Bagg stores, why it is there and how to remove it."
                 icon={<Cookie className="h-5 w-5" aria-hidden="true" />}
                 tone="mango"
             />
@@ -54,7 +54,7 @@ export default function CookiesPage() {
                     tone="mango"
                 >
                     <p>
-                        When you sign in, bagg sets an essential session cookie so the
+                        When you sign in, Bagg sets an essential session cookie so the
                         server can recognise your workspace. Without it, you would have
                         to sign in again on every page.
                     </p>
@@ -134,7 +134,7 @@ export default function CookiesPage() {
                             href="/legal/privacy"
                             className="font-extrabold text-link underline underline-offset-4"
                         >
-                            privacy summary
+                            privacy notice
                         </Link>
                         .
                     </p>
@@ -163,7 +163,7 @@ export default function CookiesPage() {
                 current="cookies"
                 eyebrow="The bigger picture"
                 title="Browser storage is only one part of privacy."
-                copy="Your workspace information, client records and documents are covered by our privacy summary."
+                copy="Your workspace information, client records and documents are covered by our privacy notice."
                 tone="mango"
                 nextLabel="Privacy"
                 nextHref="/legal/privacy"

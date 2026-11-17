@@ -48,7 +48,7 @@ export function buttonStyles({
     accent: 'bg-pink text-on-pink',
     ink: 'bg-ink text-surface',
     outline: 'bg-surface text-text',
-    danger: 'bg-danger text-white',
+    danger: 'bg-danger text-on-danger',
     ghost: 'border-transparent bg-transparent text-text shadow-none hover:bg-surface-tint',
   };
 

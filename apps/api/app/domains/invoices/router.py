@@ -1,10 +1,6 @@
-from fastapi.responses import Response
-from starlette.concurrency import run_in_threadpool
-
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query, status
-from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -14,10 +10,13 @@ from app.core.pagination import PaginatedResponse
 from app.domains.invoices import service
 from app.domains.sharing.schemas import CommentCreate, CommentResponse
 from app.domains.auth.dependencies import get_current_user_and_workspace, require_auth
-from app.domains.documents.service import render_invoice_pdf
 from app.domains.invoices.presenter import (
     generate_whatsapp_share_url,
     map_invoice_to_response,
+)
+from app.domains.documents.delivery import (
+    deliver_issued_document,
+    deliver_public_document,
 )
 
 from app.domains.invoices.schemas import (
@@ -257,31 +256,12 @@ async def get_invoice_pdf(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return the invoice as a real PDF document."""
-    invoice = await service.get_invoice(db, workspace, invoice_id)
-
-    pdf_content = await run_in_threadpool(
-        render_invoice_pdf,
-        invoice,
-        business_name=workspace.business_name,
-        business_address=workspace.address,
-        business_tax_id=workspace.tax_id,
-        business_logo_url=workspace.logo_url,
-        client_name=invoice.client.name if invoice.client else None,
-        client_email=invoice.client.email if invoice.client else None,
-        client_address=invoice.client.address if invoice.client else None,
-        client_tax_id=invoice.client.tax_id if invoice.client else None,
-    )
-
-    filename = f"Invoice-{invoice.invoice_number or invoice.id}.pdf"
-
-    return Response(
-        content=pdf_content,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'inline; filename="{filename}"',
-            "X-Content-Type-Options": "nosniff",
-        },
+    """Deliver the immutable issued invoice PDF."""
+    return await deliver_issued_document(
+        db,
+        workspace_id=workspace.id,
+        document_type="invoice",
+        source_id=invoice_id,
     )
 
 
@@ -407,4 +387,18 @@ async def post_invoice_comment(
         message=comment.message,
         is_from_client=comment.is_from_client,
         created_at=comment.created_at,
+    )
+
+
+@router.get("/share/{token}/pdf")
+async def get_public_invoice_pdf(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Deliver an invoice PDF through its public share token."""
+
+    return await deliver_public_document(
+        db,
+        token=token,
+        document_type="invoice",
     )

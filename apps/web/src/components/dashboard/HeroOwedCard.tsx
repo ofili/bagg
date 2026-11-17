@@ -33,7 +33,7 @@ export function HeroOwedCard({
     <section
       aria-labelledby="owed-heading"
       className={cn(
-        'border-brut border-ink bg-[#EBF4FE] p-6 text-ink shadow-brut sm:p-7',
+        'border-brut border-ink bg-status-pending p-6 text-ink shadow-brut sm:p-7',
         className,
       )}
     >
@@ -128,7 +128,7 @@ export function HeroOwedCard({
                 amountMinor={dueSoonMinor}
                 currency={currency}
                 size="sm"
-                className="font-extrabold"
+                className="font-extrabold text-on-mango"
               />
               <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
             </Link>

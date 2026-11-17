@@ -4,11 +4,9 @@ import {
     ArrowDownRight,
     ArrowRight,
     ArrowUpRight,
-    BellRing,
     Check,
     FileText,
     Globe2,
-    Link2,
     ReceiptText,
     Wallet,
 } from 'lucide-react';
@@ -239,43 +237,6 @@ export default function FeaturesPage() {
                     </Container>
                 </section>
 
-                {/* COLLECTION STRIP */}
-                <section className="border-y-2 border-ink bg-mango py-14 text-on-mango sm:py-16">
-                    <Container>
-                        <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
-                            <div>
-                                <p className="text-caption font-extrabold uppercase tracking-[0.16em]">
-                                    The point of it all
-                                </p>
-                                <h2 className="mt-3 text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] sm:text-5xl">
-                                    Do the work.
-                                    <br />
-                                    Get the money.
-                                    <br />
-                                    Keep the record.
-                                </h2>
-                            </div>
-
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="border-brut border-ink bg-surface p-5 text-text shadow-brut-lg">
-                                    <Link2 className="h-6 w-6" />
-                                    <h3 className="mt-5 text-heading font-extrabold">One client link</h3>
-                                    <p className="mt-2 text-body text-text-soft">
-                                        Share by WhatsApp, email or wherever your client already is.
-                                    </p>
-                                </div>
-                                <div className="border-brut border-ink bg-sun p-5 text-on-sun shadow-brut-lg">
-                                    <BellRing className="h-6 w-6" />
-                                    <h3 className="mt-5 text-heading font-extrabold">Less chasing</h3>
-                                    <p className="mt-2 text-body text-on-sun/80">
-                                        Scheduled reminders help keep outstanding invoices visible.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </Container>
-                </section>
-
                 {/* CURRENCY */}
                 <section className="bg-cream py-16 sm:py-20">
                     <Container>
@@ -319,42 +280,6 @@ export default function FeaturesPage() {
                                 <p className="mt-5 text-caption text-text-muted">
                                     NGN · USD · GBP · EUR · GHS · KES · ZAR
                                 </p>
-                            </div>
-                        </div>
-                    </Container>
-                </section>
-
-                {/* HONEST ROADMAP */}
-                <section className="border-y-2 border-ink bg-surface-tint py-14 sm:py-16">
-                    <Container>
-                        <div className="grid gap-6 md:grid-cols-[0.8fr_1.2fr]">
-                            <div>
-              <span className="inline-flex border-brut border-ink bg-sun px-3 py-1 text-caption font-extrabold uppercase text-on-sun shadow-brut">
-                What comes next
-              </span>
-                                <h2 className="mt-4 text-title-l font-extrabold tracking-tight text-ink sm:text-4xl">
-                                    More of the client relationship, in time.
-                                </h2>
-                                <p className="mt-3 max-w-md text-body text-text-soft">
-                                    Bagg is growing beyond the get-paid essentials. These are
-                                    planned capabilities, not features to rely on today.
-                                </p>
-                            </div>
-
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                {['Contracts', 'Projects', 'Milestones', 'Client delivery'].map(
-                                    (name) => (
-                                        <div
-                                            key={name}
-                                            className="flex items-center justify-between gap-3 border-brut border-ink bg-surface p-4 shadow-brut"
-                                        >
-                                            <span className="font-extrabold text-ink">{name}</span>
-                                            <span className="border-brut-thin border-ink px-2 py-1 text-[10px] font-extrabold uppercase">
-                      Planned
-                    </span>
-                                        </div>
-                                    ),
-                                )}
                             </div>
                         </div>
                     </Container>

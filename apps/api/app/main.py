@@ -20,6 +20,7 @@ from app.domains.workspaces.router import router as workspaces_router
 from app.domains.onboarding.router import router as onboarding_router
 
 from app.domains.clients.router import router as clients_router
+from app.domains.documents.router import router as documents_router
 from app.domains.control_plane.router import router as control_plane_router
 from app.domains.entitlements.router import router as entitlements_router
 from app.domains.invoices.router import router as invoices_router
@@ -49,12 +50,10 @@ from app.domains.recurring_invoices.router import (
     router as recurring_invoices_router,
 )
 
-
 app = FastAPI(
     title="Bagg API",
     description=(
-        "Invoicing and get-paid workspace API "
-        "for African freelancers and creators"
+        "Invoicing and get-paid workspace API " "for African freelancers and creators"
     ),
     version="0.1.0",
     openapi_url="/openapi.json",
@@ -90,6 +89,7 @@ app.include_router(entitlements_router)
 app.include_router(clients_router)
 app.include_router(invoices_router)
 app.include_router(quotes_router)
+app.include_router(documents_router)
 app.include_router(payments_router)
 app.include_router(sharing_router)
 app.include_router(reminders_router)

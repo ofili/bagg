@@ -35,7 +35,7 @@ export function NeedsAttentionStrip({
   if (overdueCount > 0) {
     items.push({
       id: 'overdue',
-      dotColor: 'bg-[#E03137]',
+      dotColor: 'bg-status-late-fg',
       title: `${overdueCount.toLocaleString()} invoice${overdueCount === 1 ? '' : 's'} overdue`,
       count: overdueCount,
       href: `/invoices?status=overdue&currency=${encodeURIComponent(currency)}`,
@@ -45,7 +45,7 @@ export function NeedsAttentionStrip({
   if (claimsCount > 0) {
     items.push({
       id: 'claims',
-      dotColor: 'bg-[#F59E0B]',
+      dotColor: 'bg-status-due-fg',
       title: `${claimsCount.toLocaleString()} payment claim${claimsCount === 1 ? '' : 's'} to confirm`,
       count: claimsCount,
       href: `/invoices?status=payment_claimed&currency=${encodeURIComponent(currency)}`,
@@ -55,7 +55,7 @@ export function NeedsAttentionStrip({
   if (viewedCount > 0) {
     items.push({
       id: 'viewed',
-      dotColor: 'bg-[#2563EB]',
+      dotColor: 'bg-status-pending-fg',
       title: `${viewedCount.toLocaleString()} invoice${viewedCount === 1 ? '' : 's'} viewed but not paid`,
       count: viewedCount,
       href: `/invoices?status=viewed&currency=${encodeURIComponent(currency)}`,
@@ -65,7 +65,7 @@ export function NeedsAttentionStrip({
   if (quotesCount > 0) {
     items.push({
       id: 'quotes',
-      dotColor: 'bg-[#6366F1]',
+      dotColor: 'bg-status-draft-fg',
       title: `${quotesCount.toLocaleString()} quote${quotesCount === 1 ? '' : 's'} waiting for a reply`,
       count: quotesCount,
       href: '/quotes?status=sent',

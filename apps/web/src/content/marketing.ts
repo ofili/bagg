@@ -18,7 +18,7 @@ export const footerGroups = [
       { label: 'For creative studios', href: '/studios' },
       { label: 'Pricing', href: '/pricing' },
       { label: 'Security', href: '/security' },
-      { label: 'Client invoice demo', href: demoInvoiceHref },
+      { label: 'Sample client invoice', href: demoInvoiceHref },
     ],
   },
   {
@@ -43,9 +43,9 @@ export const currencies = ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'KES', 'ZAR'];
 
 export const homeFaqs = [
   {
-    question: 'What does bagg actually do?',
+    question: 'What does Bagg actually do?',
     answer:
-      'bagg helps you make an invoice, send it as one link, keep track of whether it has been opened or paid, and send polite reminders when it is late. Every payment gets a receipt you can share.',
+      'Bagg helps you make an invoice, send it as one link, keep track of whether it has been opened or paid, and send polite reminders when it is late. Every payment gets a receipt you can share.',
   },
   {
     question: 'Does my client need an account?',
@@ -55,54 +55,54 @@ export const homeFaqs = [
   {
     question: 'Can I invoice in more than one currency?',
     answer:
-      'Yes. You can keep payment details for each currency you use and attach the right ones to each invoice. bagg supports NGN, USD, GBP, EUR, GHS, KES and ZAR.',
+      'Yes. You can keep payment details for each currency you use and attach the right ones to each invoice. Bagg supports NGN, USD, GBP, EUR, GHS, KES and ZAR.',
   },
   {
-    question: 'When does bagg send reminders?',
+    question: 'When does Bagg send reminders?',
     answer:
-      'bagg sends a friendly heads-up before the due date, a nudge on the day and clear follow-ups after it. Reminders stop as soon as the invoice is paid.',
+      'Bagg sends a friendly heads-up before the due date, a nudge on the day and clear follow-ups after it. Reminders stop as soon as the invoice is paid.',
   },
   {
-    question: 'Does bagg hold my client’s money?',
+    question: 'Does Bagg hold my client’s money?',
     answer:
-      'No. bagg helps you ask, record and receipt a payment. Your client pays you directly using the bank, mobile money or payment link you provide.',
+      'No. Bagg helps you ask, record and receipt a payment. Your client pays you directly using the bank, mobile money or payment link you provide.',
   },
   {
     question: 'Is there a free way to start?',
     answer:
-        'Yes. Start with Free and use three PDF or email sends each month without a card. When you need more capacity, Creator Pro is ₦24,000 per year or $39 per year, and Professional is ₦60,000 per year or $99 per year. Studio is planned for a future release.',
+        'Yes. Start with Free and use three PDF or email sends each month without a card. When you need more capacity, Creator Pro is ₦3,500 per month or ₦35,000 per year, and Professional is ₦8,500 per month or ₦85,000 per year.',
   },
 ];
 
 export const helpCategories = [
   {
     id: 'getting-started',
-    title: 'getting started',
+    title: 'Getting started',
     copy: 'Set up your workspace, add your business details and send your first invoice.',
   },
   {
     id: 'invoices',
-    title: 'invoices',
+    title: 'Invoices',
     copy: 'Draft, send, share and follow an invoice. Understand every status.',
   },
   {
     id: 'quotes',
-    title: 'quotes',
+    title: 'Quotes',
     copy: 'Send an offer, let a client accept it and turn the accepted work into an invoice.',
   },
   {
     id: 'payments',
-    title: 'payments and receipts',
+    title: 'Payments and receipts',
     copy: 'Add payment details, record a payment claim and share a receipt.',
   },
   {
     id: 'reminders',
-    title: 'reminders',
+    title: 'Reminders',
     copy: 'See the reminder schedule, what triggers it and what makes it stop.',
   },
   {
     id: 'account',
-    title: 'account and security',
+    title: 'Account and security',
     copy: 'Sign in, manage your workspace, understand share links and report abuse.',
   },
 ];
@@ -124,7 +124,7 @@ export const helpFaqs = [
     category: 'invoices',
     question: 'How do I share an invoice?',
     answer:
-      'Copy the invoice link and send it by WhatsApp, email or any other channel. You can also download the PDF or send it through bagg when you have credits available.',
+      'Copy the invoice link and send it by WhatsApp, email or any other channel. You can also download the PDF or send it through Bagg when you have credits available.',
   },
   {
     category: 'invoices',
@@ -140,15 +140,15 @@ export const helpFaqs = [
   },
   {
     category: 'quotes',
-    question: 'How does a client accept a quotes?',
+    question: 'How does a client accept a quote?',
     answer:
-      'The client opens the quotes link and chooses Accept quotes. You can then turn the accepted quotes into an invoice without copying every line item again.',
+      'The client opens the quote link and chooses Accept quote. You can then turn the accepted quote into an invoice without copying every line item again.',
   },
   {
     category: 'payments',
     question: 'How does my client pay?',
     answer:
-      'Your invoice shows the bank, mobile money or payment link details you saved for that currency. bagg does not hold the money; your client pays you directly.',
+      'Your invoice shows the bank, mobile money or payment link details you saved for that currency. Bagg does not hold the money; your client pays you directly.',
   },
   {
     category: 'payments',
@@ -170,15 +170,15 @@ export const helpFaqs = [
   },
   {
     category: 'reminders',
-    question: 'When will bagg send reminders?',
+    question: 'When will Bagg send reminders?',
     answer:
-      'bagg schedules four reminders: three days before the due date, on the due date, three days after and seven days after. Reminders stop if the invoice is paid or a payment is claimed.',
+      'Bagg schedules four reminders: three days before the due date, on the due date, three days after and seven days after. Reminders stop if the invoice is paid or a payment is claimed.',
   },
   {
     category: 'account',
     question: 'How do I sign in without a password?',
     answer:
-      'Enter your email address and bagg sends a one-time code. Enter the code to open your workspace. There is no password to remember or reset.',
+      'Enter your email address and Bagg sends a one-time code. Enter the code to open your workspace. There is no password to remember or reset.',
   },
   {
     category: 'account',
@@ -217,7 +217,7 @@ export const creativeRoles = [
 
 export const freePlanFeatures = [
   'Unlimited drafts and clients',
-  'Shareable invoice and quotes links',
+  'Shareable invoice and quote links',
   'PDF invoices with your business details',
   'Three free PDF or email sends',
   'Payment status, claims and receipts',

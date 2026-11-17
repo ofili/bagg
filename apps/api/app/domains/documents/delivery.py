@@ -1,23 +1,29 @@
-"""Document email delivery status contract.
+"""Document delivery status and immutable PDF delivery.
 
-The value is stored on the invoice/quote row and reflects the latest
-dispatch attempt for that document issuance:
+DocumentDeliveryStatus is the email/link dispatch status contract stored on
+invoice and quote records.
 
-- ``None``       Never dispatched, or reset by recall/revision.
-- ``queued``     An outbox message is pending, processing, or awaiting retry.
-- ``delivered``  The provider accepted the latest outbox message. This is
-                 provider acceptance, not a read receipt.
-- ``failed``     The latest outbox message failed permanently (or exhausted
-                 its retries). Any metered deduction for that message is
-                 refunded with reason ``send_refund``.
-- ``no_email``   Email was requested but the client has no email address.
-- ``link_shared`` A link/WhatsApp hand-off was recorded; no email was sent.
-
-``bounced`` and ``opened`` are reserved for a future provider webhook and are
-not emitted by the current worker.
+PDF delivery retrieves immutable artifacts generated from persisted document
+snapshots. It never renders a PDF or reads mutable financial records.
 """
 
+import logging
 from enum import StrEnum
+from urllib.parse import quote
+
+from fastapi import HTTPException, status
+from fastapi.responses import Response
+from sqlalchemy import desc, select, or_
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.security import hash_token
+from app.domains.invoices.models import Invoice
+from app.domains.quotes.models import Quote
+from app.domains.receipts.models import Receipt
+from app.domains.documents.artifacts.service import DocumentArtifactService
+from app.domains.documents.models import DocumentGenerationJob
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentDeliveryStatus(StrEnum):
@@ -26,3 +32,218 @@ class DocumentDeliveryStatus(StrEnum):
     FAILED = "failed"
     NO_EMAIL = "no_email"
     LINK_SHARED = "link_shared"
+
+
+PUBLIC_DOCUMENT_MODELS = {
+    "invoice": Invoice,
+    "quote": Quote,
+    "receipt": Receipt,
+}
+
+
+async def deliver_public_document(
+    db: AsyncSession,
+    *,
+    token: str,
+    document_type: str,
+) -> Response:
+    """Validate a public share token and deliver its immutable PDF.
+
+    A share token is scoped to one document type. A token for an invoice
+    cannot be used to retrieve a quote or receipt.
+
+    Both hashed tokens and legacy raw tokens are supported.
+    """
+
+    model = PUBLIC_DOCUMENT_MODELS.get(document_type)
+
+    if model is None or not token:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found or invalid link",
+        )
+
+    token_hash = hash_token(token)
+
+    statement = select(model).where(
+        or_(
+            model.share_token_hash == token_hash,
+            model.share_token == token,
+        )
+    )
+
+    result = await db.execute(statement)
+    document = result.scalar_one_or_none()
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found or invalid link",
+        )
+
+    # A draft must never become publicly accessible merely because a token
+    # was accidentally retained or exposed.
+    if document_type in {"invoice", "quote"}:
+        if document.status == "draft":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found or invalid link",
+            )
+
+    # Receipts are public only after verified payment confirmation.
+    if document_type == "receipt" and not document.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found or invalid link",
+        )
+
+    if not document.workspace_id or not document.id:
+        logger.error(
+            "Public document has incomplete identity: type=%s",
+            document_type,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The generated document is temporarily unavailable.",
+        )
+
+    return await deliver_issued_document(
+        db,
+        workspace_id=document.workspace_id,
+        document_type=document_type,
+        source_id=document.id,
+    )
+
+
+async def deliver_issued_document(
+    db: AsyncSession,
+    *,
+    workspace_id: str,
+    document_type: str,
+    source_id: str,
+) -> Response:
+    """Deliver the latest immutable issued PDF for a workspace document."""
+
+    if document_type not in {"invoice", "quote", "receipt"}:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    statement = (
+        select(DocumentGenerationJob)
+        .where(
+            DocumentGenerationJob.workspace_id == workspace_id,
+            DocumentGenerationJob.document_type == document_type,
+            DocumentGenerationJob.source_id == source_id,
+            DocumentGenerationJob.artifact_kind == "issued",
+        )
+        .order_by(
+            desc(DocumentGenerationJob.source_version),
+            desc(DocumentGenerationJob.issuance_generation),
+            desc(DocumentGenerationJob.created_at),
+        )
+        .limit(1)
+    )
+
+    result = await db.execute(statement)
+    job = result.scalar_one_or_none()
+
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    if job.status != "succeeded":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "document_not_ready",
+                "status": job.status,
+                "message": "The PDF document is not ready yet.",
+            },
+        )
+
+    if not job.artifact_id:
+        logger.error(
+            "Document generation job succeeded without an artifact: %s",
+            job.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The generated document is temporarily unavailable.",
+        )
+
+    artifact_service = DocumentArtifactService(db)
+
+    try:
+        artifact_result = await artifact_service.get_pdf(
+            artifact_id=job.artifact_id,
+            workspace_id=workspace_id,
+        )
+    except Exception:
+        logger.exception(
+            "Unable to retrieve generated document artifact for job %s",
+            job.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The generated document is temporarily unavailable.",
+        ) from None
+
+    if artifact_result is None:
+        logger.error(
+            "Document artifact metadata or storage object is missing for job %s",
+            job.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The generated document is temporarily unavailable.",
+        )
+
+    artifact, pdf_content = artifact_result
+
+    expected_identity = (
+        artifact.workspace_id == workspace_id
+        and artifact.document_type == document_type
+        and artifact.source_id == source_id
+        and artifact.source_version == job.source_version
+        and artifact.issuance_generation == job.issuance_generation
+        and artifact.artifact_kind == job.artifact_kind
+        and artifact.id == job.artifact_id
+        and artifact.mime_type == "application/pdf"
+    )
+
+    if not expected_identity:
+        logger.error(
+            "Document artifact identity mismatch for generation job %s",
+            job.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The generated document is temporarily unavailable.",
+        )
+
+    if not pdf_content.startswith(b"%PDF-"):
+        logger.error(
+            "Document artifact is not a valid PDF for generation job %s",
+            job.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The generated document is temporarily unavailable.",
+        )
+
+    filename = f"{document_type.title()}-{source_id}.pdf"
+
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (f"inline; filename*=UTF-8''{quote(filename)}"),
+            "Content-Length": str(len(pdf_content)),
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, no-store",
+        },
+    )

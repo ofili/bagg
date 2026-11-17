@@ -20,15 +20,12 @@ type AudienceConfig = {
     title: string;
     emphasis: string;
     description: string;
-    problemTitle: string;
-    problemCopy: string;
     workflows: {
         title: string;
         copy: string;
         icon: ReactNode;
         href: string;
     }[];
-    benefits: string[];
     closingTitle: string;
     closingCopy: string;
 };
@@ -40,9 +37,6 @@ const audienceContent: Record<Audience, AudienceConfig> = {
         emphasis: 'Leave the chasing to Bagg.',
         description:
             'You run the business, deliver the work and manage the client relationship. Bagg helps you invoice professionally, share one clear payment link and keep track of what has been paid.',
-        problemTitle: 'Your work is already a full-time job.',
-        problemCopy:
-            'An invoice should not become another project. Keep the amount, payment details, client status and receipt connected without rebuilding the story across messages and spreadsheets.',
         workflows: [
             {
                 title: 'Create a professional invoice',
@@ -63,13 +57,6 @@ const audienceContent: Record<Audience, AudienceConfig> = {
                 href: '/features/receipts',
             },
         ],
-        benefits: [
-            'Present a consistent, professional invoice to every client.',
-            'Bill in the currencies you work with.',
-            'Share invoices through WhatsApp, email or a link.',
-            'See outstanding balances and payment progress.',
-            'Use reminders to reduce manual follow-up.',
-        ],
         closingTitle: 'Spend less time following up.',
         closingCopy:
             'Create your next invoice in Bagg and give your client one clear way to pay.',
@@ -81,9 +68,6 @@ const audienceContent: Record<Audience, AudienceConfig> = {
         emphasis: 'as clear as your advice.',
         description:
             'From a strategy engagement to a monthly advisory retainer, Bagg helps you present fees clearly, issue invoices and maintain a reliable record of client payments.',
-        problemTitle: 'Good advisory work deserves clear commercial records.',
-        problemCopy:
-            'Your client should understand the fee, currency, due date and payment instructions. You should be able to see what is outstanding, what has been received and what remains to be settled.',
         workflows: [
             {
                 title: 'Set out the engagement fee',
@@ -104,13 +88,6 @@ const audienceContent: Record<Audience, AudienceConfig> = {
                 href: '/features/payments',
             },
         ],
-        benefits: [
-            'Present proposals and fees in a structured quote.',
-            'Keep invoice amounts and payment terms clear.',
-            'Manage invoices across supported currencies.',
-            'Track partial payments and remaining balances.',
-            'Maintain receipts for confirmed payments.',
-        ],
         closingTitle: 'Keep the engagement clear from fee to payment.',
         closingCopy:
             'Use Bagg to manage the invoice and payment record around your advisory work.',
@@ -122,9 +99,6 @@ const audienceContent: Record<Audience, AudienceConfig> = {
         emphasis: 'Keep the money organised.',
         description:
             'A studio has clients to serve, work to deliver and payments to track. Bagg gives your business a consistent way to quote, invoice, follow up and record what comes in.',
-        problemTitle: 'More clients should not mean more payment confusion.',
-        problemCopy:
-            'When several engagements are moving at once, it is easy to lose track of what was quoted, which invoice is outstanding or whether a payment has been confirmed. Bagg keeps the get-paid records together.',
         workflows: [
             {
                 title: 'Agree the commercial scope',
@@ -144,13 +118,6 @@ const audienceContent: Record<Audience, AudienceConfig> = {
                 icon: <ReceiptText className="h-6 w-6" />,
                 href: '/features/receipts',
             },
-        ],
-        benefits: [
-            'Give clients a consistent billing experience.',
-            'Keep quotes and invoices connected to the commercial conversation.',
-            'See payment status and outstanding balances.',
-            'Record partial and full payments.',
-            'Share receipts after payment confirmation.',
         ],
         closingTitle: 'Give every client a clearer payment experience.',
         closingCopy:
@@ -244,18 +211,6 @@ export function AudiencePage({ audience }: { audience: Audience }) {
                 </Container>
             </section>
 
-            <section className="border-y-2 border-ink bg-surface">
-                <Container className="grid gap-5 py-14 sm:py-16 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-                    <div>
-                        <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-                            The problem
-                        </p>
-                        <h2 className="mt-3 text-title-l text-ink">{content.problemTitle}</h2>
-                    </div>
-                    <p className="max-w-3xl text-body-l text-text-soft">{content.problemCopy}</p>
-                </Container>
-            </section>
-
             <section className="bg-cream">
                 <Container className="py-16 sm:py-20">
                     <div className="max-w-2xl">
@@ -289,32 +244,6 @@ export function AudiencePage({ audience }: { audience: Audience }) {
                 </span>
                             </Link>
                         ))}
-                    </div>
-                </Container>
-            </section>
-
-            <section className="border-y-2 border-ink bg-pink">
-                <Container className="py-16 sm:py-20">
-                    <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
-                        <div>
-                            <p className="text-caption font-extrabold uppercase tracking-wide text-on-pink">
-                                Why Bagg
-                            </p>
-                            <h2 className="mt-3 text-title-l text-on-pink">
-                                A more dependable way to handle the get-paid work.
-                            </h2>
-                        </div>
-                        <ul className="grid gap-3 sm:grid-cols-2">
-                            {content.benefits.map((benefit) => (
-                                <li
-                                    key={benefit}
-                                    className="flex gap-3 border-brut border-ink bg-surface p-4 text-body font-semibold text-ink"
-                                >
-                                    <span className="mt-0.5 font-extrabold" aria-hidden="true">+</span>
-                                    {benefit}
-                                </li>
-                            ))}
-                        </ul>
                     </div>
                 </Container>
             </section>

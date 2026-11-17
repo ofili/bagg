@@ -332,7 +332,7 @@ function PlanPageContent() {
     window.location.assign(checkout.authorization_url);
   }
 
-  function renderPrice(plan: Plan, isFree: boolean) {
+  function renderPrice(plan: Plan, isFree: boolean, featured: boolean) {
     if (isFree) {
       return (
         <div className="mt-5 border-y border-line py-4">
@@ -352,12 +352,20 @@ function PlanPageContent() {
     if (!plan.available || !intervalAvailable || amount === undefined) {
       return (
         <div className="mt-5 border-y border-line py-4">
-          <p className="font-extrabold text-text-muted">
+          <p
+            className={`font-extrabold ${
+              featured ? 'text-on-mango' : 'text-text-muted'
+            }`}
+          >
             {plan.availability_status === 'billing_not_configured'
               ? 'Billing not configured'
               : 'Not available'}
           </p>
-          <p className="mt-1 text-caption text-text-muted">
+          <p
+            className={`mt-1 text-caption ${
+              featured ? 'text-on-mango/85' : 'text-text-muted'
+            }`}
+          >
             This billing option is not currently available.
           </p>
         </div>
@@ -374,27 +382,47 @@ function PlanPageContent() {
 
     return (
       <div className="mt-5 border-y border-line py-4">
-        <p className="text-caption font-bold uppercase text-text-muted">
+        <p
+          className={`text-caption font-bold uppercase ${
+            featured ? 'text-on-mango/85' : 'text-text-muted'
+          }`}
+        >
           {interval === 'monthly' ? 'Billed monthly' : 'Billed annually'}
         </p>
 
-        <p className="mt-1 text-title-l font-extrabold text-ink">
+        <p
+          className={`mt-1 text-title-l font-extrabold ${
+            featured ? 'text-on-mango' : 'text-ink'
+          }`}
+        >
           {formatMoney(amount, currency)}
         </p>
 
-        <p className="text-caption text-text-muted">
+        <p
+          className={`text-caption ${
+            featured ? 'text-on-mango/85' : 'text-text-muted'
+          }`}
+        >
           {interval === 'monthly' ? 'per month' : 'per year'}
         </p>
 
         {interval === 'annual' && annualSavings > 0 && (
-          <p className="mt-2 text-caption font-bold text-status-paid-fg">
+          <p
+            className={`mt-2 text-caption font-bold ${
+              featured ? 'text-on-mango' : 'text-status-paid-fg'
+            }`}
+          >
             Save {formatMoney(annualSavings, currency)} compared with monthly
             billing.
           </p>
         )}
 
         {interval === 'annual' && monthlyAmount !== undefined && (
-          <p className="mt-1 text-caption text-text-muted">
+          <p
+            className={`mt-1 text-caption ${
+              featured ? 'text-on-mango/85' : 'text-text-muted'
+            }`}
+          >
             Equivalent to{' '}
             {formatMoney(Math.round(amount / 12), currency)} per month.
           </p>
@@ -436,7 +464,7 @@ function PlanPageContent() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p
               className={`text-caption font-extrabold uppercase tracking-wider ${
-                featured ? 'text-on-mango/75' : 'text-text-muted'
+                featured ? 'text-on-mango/85' : 'text-text-muted'
               }`}
             >
               {isFree ? 'For getting started' : 'For growing businesses'}
@@ -465,7 +493,7 @@ function PlanPageContent() {
             {description}
           </p>
 
-          {renderPrice(plan, isFree)}
+          {renderPrice(plan, isFree, featured)}
 
           <ul className="mt-5 space-y-3">
             {(FEATURES[plan.code] ?? []).map((feature) => (
@@ -517,7 +545,11 @@ function PlanPageContent() {
           )}
 
           {!isFree && !selectable && (
-            <p className="mt-2 text-caption text-text-muted">
+            <p
+              className={`mt-2 text-caption ${
+                featured ? 'text-on-mango/85' : 'text-text-muted'
+              }`}
+            >
               {!plan.available
                 ? 'This plan is not currently available.'
                 : 'This billing interval is not currently configured.'}
@@ -525,7 +557,11 @@ function PlanPageContent() {
           )}
 
           {isFree && !hasSubscription && (
-            <p className="mt-2 text-caption text-text-muted">
+            <p
+              className={`mt-2 text-caption ${
+                featured ? 'text-on-mango/85' : 'text-text-muted'
+              }`}
+            >
               We could not confirm your current subscription. Refresh to try
               again before continuing.
             </p>

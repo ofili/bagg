@@ -5,19 +5,15 @@ import {
     ArrowUpRight,
     BellRing,
     Check,
-    CircleAlert,
     Clock3,
     CreditCard,
-    Landmark,
     ReceiptText,
     ShieldCheck,
-    Smartphone,
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
 import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { buttonStyles } from '@/components/ui/button';
-import { currencies } from '@/content/marketing';
 import { marketingMetadata } from '@/lib/metadata';
 import {Metadata} from "next";
 import {MarketingBreadcrumbStructuredData} from "@/components/marketing/marketing-structured-data";
@@ -28,27 +24,6 @@ export const metadata: Metadata = marketingMetadata({
         'Track payments, confirm transfers, manage partial payments and follow up on outstanding invoices with Bagg.',
     path: '/features/payments',
 });
-
-const paymentMethods = [
-    {
-        icon: Landmark,
-        title: 'Bank transfer',
-        copy: 'Show the bank and account details saved for the invoice currency.',
-        tone: 'bg-mango text-on-mango',
-    },
-    {
-        icon: Smartphone,
-        title: 'Mobile money',
-        copy: 'Include supported mobile money details and instructions.',
-        tone: 'bg-pink text-on-pink',
-    },
-    {
-        icon: CreditCard,
-        title: 'Payment links',
-        copy: 'Share an external payment link when you use a supported provider.',
-        tone: 'bg-sun text-on-sun',
-    },
-];
 
 const reminderSteps = [
     {
@@ -251,61 +226,6 @@ export default function PaymentsFeaturePage() {
                     </Container>
                 </section>
 
-                <section className="border-y-brut border-ink bg-mango py-16 sm:py-20">
-                    <Container>
-                        <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-                            <div>
-                                <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-on-mango">
-                                    Payment visibility
-                                </p>
-                                <h2 className="mt-4 max-w-xl text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-on-mango">
-                                    A payment is more than a message saying “I have paid”.
-                                </h2>
-                                <p className="mt-5 max-w-lg text-body leading-relaxed text-on-mango">
-                                    Keep the claim, your review, the confirmed amount and the
-                                    resulting receipt connected to the invoice.
-                                </p>
-                            </div>
-
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                {[
-                                    {
-                                        title: 'A claim is not confirmation',
-                                        copy: 'A client can report a transfer, but you remain in control of confirming it.',
-                                    },
-                                    {
-                                        title: 'Partial payments count',
-                                        copy: 'Confirm the amount received without pretending the full invoice is settled.',
-                                    },
-                                    {
-                                        title: 'The balance stays visible',
-                                        copy: 'The invoice reflects what has been received and what remains outstanding.',
-                                    },
-                                    {
-                                        title: 'A receipt follows confirmation',
-                                        copy: 'A verified receipt gives both sides a record of the confirmed payment.',
-                                    },
-                                ].map((item) => (
-                                    <div
-                                        key={item.title}
-                                        className="border-brut border-ink bg-surface p-5 shadow-brut"
-                                    >
-                                        <Check
-                                            aria-hidden
-                                            className="h-5 w-5 text-ink"
-                                            strokeWidth={3}
-                                        />
-                                        <h3 className="mt-4 text-heading font-extrabold text-ink">
-                                            {item.title}
-                                        </h3>
-                                        <p className="mt-2 text-body text-text-soft">{item.copy}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </Container>
-                </section>
-
                 <section className="py-16 sm:py-20 lg:py-24">
                     <Container>
                         <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr]">
@@ -360,71 +280,6 @@ export default function PaymentsFeaturePage() {
                                     </div>
                                 ))}
                             </div>
-                        </div>
-                    </Container>
-                </section>
-
-                <section className="border-y-brut border-ink bg-surface-sunken py-16 sm:py-20">
-                    <Container>
-                        <div className="max-w-3xl">
-                            <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                                Payment options
-                            </p>
-                            <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-ink">
-                                Give clients clear ways to pay you.
-                            </h2>
-                            <p className="mt-5 text-body-l leading-relaxed text-text-soft">
-                                Add payment instructions that match the currency and payment
-                                method you use. Your client sees the relevant details on the
-                                invoice.
-                            </p>
-                        </div>
-
-                        <div className="mt-10 grid gap-4 md:grid-cols-3">
-                            {paymentMethods.map((method, index) => {
-                                const Icon = method.icon;
-
-                                return (
-                                    <div
-                                        key={method.title}
-                                        className="border-brut border-ink bg-surface shadow-brut"
-                                    >
-                                        <div
-                                            className={`flex min-h-28 items-center justify-between border-b-brut border-ink p-5 ${method.tone}`}
-                                        >
-                                            <Icon
-                                                aria-hidden
-                                                className="h-9 w-9"
-                                                strokeWidth={2.2}
-                                            />
-                                            <span className="text-title-l font-extrabold">
-                      0{index + 1}
-                    </span>
-                                        </div>
-                                        <div className="p-5">
-                                            <h3 className="text-heading font-extrabold text-ink">
-                                                {method.title}
-                                            </h3>
-                                            <p className="mt-2 text-body leading-relaxed text-text-soft">
-                                                {method.copy}
-                                            </p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        <div className="mt-7 flex items-start gap-3 border-brut border-ink bg-cream p-5">
-                            <CircleAlert
-                                aria-hidden
-                                className="mt-0.5 h-5 w-5 shrink-0 text-ink"
-                            />
-                            <p className="text-body text-text-soft">
-                                Where direct Paystack checkout is enabled, clients can pay
-                                through that flow. Other payment methods are completed with the
-                                provider or account details you supply. Bagg does not act as a
-                                wallet or hold client funds.
-                            </p>
                         </div>
                     </Container>
                 </section>
@@ -514,50 +369,6 @@ export default function PaymentsFeaturePage() {
                                         </p>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </Container>
-                </section>
-
-                <section className="border-y-brut border-ink bg-pink py-16 sm:py-20">
-                    <Container>
-                        <div className="grid gap-10 lg:grid-cols-[1fr_1fr] lg:items-center">
-                            <div>
-                                <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-on-pink">
-                                    Work across currencies
-                                </p>
-                                <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-on-pink">
-                                    The right payment details for the right invoice.
-                                </h2>
-                                <p className="mt-5 max-w-xl text-body leading-relaxed text-on-pink">
-                                    Keep payment profiles for the currencies you work in. Select
-                                    the matching details when you create an invoice.
-                                </p>
-                            </div>
-
-                            <div className="border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
-                                <p className="text-caption font-extrabold uppercase tracking-[0.12em] text-text-muted">
-                                    Supported invoice currencies
-                                </p>
-                                <div className="mt-5 flex flex-wrap gap-2">
-                                    {currencies.map((currency, index) => (
-                                        <span
-                                            key={currency}
-                                            className={`border-brut border-ink px-4 py-3 text-body font-extrabold text-ink ${
-                                                index % 3 === 0
-                                                    ? 'bg-mango'
-                                                    : index % 3 === 1
-                                                        ? 'bg-sun'
-                                                        : 'bg-pink'
-                                            }`}
-                                        >
-                    {currency}
-                  </span>
-                                    ))}
-                                </div>
-                                <p className="mt-5 text-caption leading-relaxed text-text-muted">
-                                    NGN · USD · GBP · EUR · GHS · KES · ZAR
-                                </p>
                             </div>
                         </div>
                     </Container>

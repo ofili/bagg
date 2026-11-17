@@ -21,7 +21,6 @@ const routes: Array<{
   { path: '/security', priority: 0.6, changeFrequency: 'monthly' },
   { path: '/help', priority: 0.6, changeFrequency: 'monthly' },
   { path: '/contact', priority: 0.5, changeFrequency: 'monthly' },
-  { path: '/early-access', priority: 0.5, changeFrequency: 'monthly' },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

@@ -9,7 +9,6 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 
-import { ContactForm } from '@/components/marketing/contact-form';
 import { Container } from '@/components/marketing/container';
 import { buttonStyles } from '@/components/ui/button';
 import { marketingMetadata } from '@/lib/metadata';
@@ -89,120 +88,97 @@ export default function ContactPage() {
           </Container>
         </section>
 
-        {/* CONTACT FORM AND CONTACT ROUTES */}
+        {/* CONTACT ROUTES */}
         <section className="border-b-2 border-ink bg-cream">
-          <Container className="grid min-w-0 gap-10 py-14 sm:py-16 lg:grid-cols-[1.2fr_0.8fr] lg:py-20">
-            {/* FORM */}
-            <div className="min-w-0">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-                    Get in touch
-                  </p>
-                  <h2 className="mt-2 text-title-l text-ink">
-                    Send us a message.
-                  </h2>
-                </div>
-                <span className="hidden h-12 w-12 shrink-0 items-center justify-center border-brut border-ink bg-mango text-on-mango shadow-brut sm:flex">
-                <Mail className="h-6 w-6" aria-hidden="true" />
-              </span>
-              </div>
-
-              <p className="mt-4 max-w-xl text-body text-text-soft">
-                Complete the form below. We’ll prepare an email with your
-                details so you can review and send it from your email app.
+          <Container className="min-w-0 py-14 sm:py-16 lg:py-20">
+            <div className="max-w-2xl">
+              <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
+                Get in touch
               </p>
-
-              <div className="mt-8 border-brut border-ink bg-surface p-5 shadow-brut sm:p-8">
-                <ContactForm />
-              </div>
+              <h2 className="mt-2 text-title-l text-ink">
+                Email the right inbox.
+              </h2>
+              <p className="mt-4 text-body text-text-soft">
+                There is no form to fill in. Write to the address that matches
+                your question and include enough context for us to help.
+              </p>
             </div>
 
-            {/* CONTACT ROUTES */}
-            <aside className="min-w-0">
-              <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-                Choose the right route
-              </p>
-              <h2 className="mt-2 text-title text-ink">
-                Get to the right inbox.
-              </h2>
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
+              {contactRoutes.map((route) => {
+                const Icon = route.icon;
 
-              <div className="mt-6 space-y-4">
-                {contactRoutes.map((route) => {
-                  const Icon = route.icon;
-
-                  return (
+                return (
+                    <div
+                        key={route.number}
+                        className="border-brut border-ink bg-surface shadow-brut"
+                    >
                       <div
-                          key={route.number}
-                          className="border-brut border-ink bg-surface shadow-brut"
+                          className={`flex items-center justify-between gap-4 border-b-2 border-ink ${route.tone} px-5 py-4`}
                       >
-                        <div
-                            className={`flex items-center justify-between gap-4 border-b-2 border-ink ${route.tone} px-5 py-4`}
-                        >
-                          <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center border-brut border-ink bg-surface">
                           <Icon
                               className="h-5 w-5 text-ink"
                               aria-hidden="true"
                           />
                         </span>
-                            <h3 className="text-heading">
-                              {route.title}
-                            </h3>
-                          </div>
-                          <span className="text-caption font-extrabold">
+                          <h3 className="text-heading">
+                            {route.title}
+                          </h3>
+                        </div>
+                        <span className="text-caption font-extrabold">
                         {route.number}
                       </span>
-                        </div>
-
-                        <div className="p-5">
-                          <p className="text-body text-text-soft">
-                            {route.description}
-                          </p>
-                          <a
-                              href={`mailto:${route.email}`}
-                              className="mt-5 inline-flex min-h-11 max-w-full items-center gap-2 break-all text-body font-extrabold text-link hover:underline"
-                          >
-                            {route.email}
-                            <ArrowUpRight
-                                className="h-4 w-4 shrink-0"
-                                aria-hidden="true"
-                            />
-                          </a>
-                        </div>
                       </div>
-                  );
-                })}
-              </div>
 
-              {/* HELP CENTRE */}
-              <div className="mt-6 border-brut border-ink bg-pink p-5 text-on-pink shadow-brut">
-                <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center border-brut border-ink bg-surface">
-                  <HelpCircle
-                      className="h-5 w-5 text-ink"
-                      aria-hidden="true"
-                  />
-                </span>
+                      <div className="p-5">
+                        <p className="text-body text-text-soft">
+                          {route.description}
+                        </p>
+                        <a
+                            href={`mailto:${route.email}`}
+                            className="mt-5 inline-flex min-h-11 max-w-full items-center gap-2 break-all text-body font-extrabold text-link hover:underline"
+                        >
+                          {route.email}
+                          <ArrowUpRight
+                              className="h-4 w-4 shrink-0"
+                              aria-hidden="true"
+                          />
+                        </a>
+                      </div>
+                    </div>
+                );
+              })}
+            </div>
+
+            {/* HELP CENTRE */}
+            <div className="mt-6 border-brut border-ink bg-pink p-5 text-on-pink shadow-brut sm:flex sm:items-center sm:justify-between sm:gap-6">
+              <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center border-brut border-ink bg-surface">
+                <HelpCircle
+                    className="h-5 w-5 text-ink"
+                    aria-hidden="true"
+                />
+              </span>
+                <div>
                   <h3 className="text-heading">
                     Looking for a quick answer?
                   </h3>
+                  <p className="mt-1 text-body">
+                    The Help Centre may answer it without a message.
+                  </p>
                 </div>
-
-                <p className="mt-4 text-body">
-                  You may find what you need in the Help Centre without having
-                  to send a message.
-                </p>
-
-                <Link
-                    href="/help"
-                    className={`${buttonStyles({ variant: 'outline' })} mt-5`}
-                >
-                  Visit the Help Centre
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
               </div>
-            </aside>
+
+              <Link
+                  href="/help"
+                  className={`${buttonStyles({ variant: 'outline' })} mt-5 shrink-0 sm:mt-0`}
+              >
+                Visit the Help Centre
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
           </Container>
         </section>
 

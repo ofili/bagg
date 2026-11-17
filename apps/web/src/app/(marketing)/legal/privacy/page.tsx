@@ -15,7 +15,7 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = marketingMetadata({
     title: 'Privacy',
-    description: 'The plain-language summary of how bagg handles personal information.',
+    description: 'How Bagg handles personal information, written in plain language.',
     path: '/legal/privacy',
     noIndex: true,
 });
@@ -35,7 +35,7 @@ export default function PrivacyPage() {
             <LegalDocumentHeader
                 eyebrow="Privacy"
                 title={<>Your business.<br /><span className="text-pink">Your information.</span></>}
-                description="A straightforward explanation of the information bagg handles, why we use it and the choices available to you."
+                description="A straightforward explanation of the information Bagg handles, why we use it and the choices available to you."
                 icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}
                 tone="pink"
             />
@@ -169,7 +169,7 @@ export default function PrivacyPage() {
             <LegalDocumentFooter
                 current="privacy"
                 eyebrow="Your browser, too"
-                copy="We explain the cookies and local browser storage used by bagg separately, so you can understand what stays on your device."
+                copy="We explain the cookies and local browser storage used by Bagg separately, so you can understand what stays on your device."
                 tone="sun"
             />
         </article>

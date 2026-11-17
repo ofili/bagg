@@ -25,6 +25,16 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  async redirects() {
+    return [
+      {
+        source: '/early-access',
+        destination: '/signup',
+        permanent: true,
+      },
+    ];
+  },
+
   /**
    * Strict security headers via Next.js (complements the edge middleware).
    * These fire for every response including API proxy responses.

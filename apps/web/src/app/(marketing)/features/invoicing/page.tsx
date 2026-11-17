@@ -3,7 +3,6 @@ import Link from 'next/link';
 import {
     ArrowRight,
     ArrowUpRight,
-    Check,
     Download,
     FileText,
     Globe2,
@@ -16,7 +15,6 @@ import { Container } from '@/components/marketing/container';
 import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { MarketingBreadcrumbStructuredData } from "@/components/marketing/marketing-structured-data";
 import { buttonStyles } from '@/components/ui/button';
-import { currencies } from '@/content/marketing';
 import { marketingMetadata } from '@/lib/metadata';
 import { demoInvoiceHref } from '@/lib/site';
 import {Metadata} from "next";
@@ -27,15 +25,6 @@ export const metadata: Metadata = marketingMetadata({
         'Create professional invoices, add line items and payment details, share invoice links and track outstanding balances with Bagg.',
     path: '/features/invoicing',
 });
-
-const invoiceFields = [
-    'Your business name and details',
-    'Client information',
-    'Line items and quantities',
-    'Currency, tax and discounts',
-    'Issue date and payment due date',
-    'Payment instructions',
-];
 
 export default function InvoicingPage() {
     return (
@@ -184,47 +173,6 @@ export default function InvoicingPage() {
                     </Container>
                 </section>
 
-                {/* ANATOMY */}
-                <section className="bg-surface py-16 sm:py-20">
-                    <Container>
-                        <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
-                            <div>
-                                <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
-                                    Built around the details
-                                </p>
-                                <h2 className="mt-3 text-title-l font-extrabold tracking-tight text-ink sm:text-4xl">
-                                    Everything the client needs to understand the ask.
-                                </h2>
-                                <p className="mt-4 text-body-l text-text-soft">
-                                    An invoice should make the agreement visible. Bagg gives you
-                                    space for the work, the amount, the deadline and how to pay.
-                                </p>
-                            </div>
-
-                            <div className="border-brut border-ink bg-cream p-5 shadow-brut-lg sm:p-7">
-                                <div className="flex items-center justify-between border-b-2 border-ink pb-4">
-                                    <span className="font-extrabold text-ink">Invoice checklist</span>
-                                    <span className="border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase text-on-sun shadow-brut">
-                      Your details
-                    </span>
-                                </div>
-                                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                                    {invoiceFields.map((field) => (
-                                        <div key={field} className="flex items-start gap-3">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center border-brut border-ink bg-mango text-on-mango">
-                          <Check className="h-3 w-3" />
-                        </span>
-                                            <span className="text-body font-semibold text-text">
-                          {field}
-                        </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </Container>
-                </section>
-
                 {/* SHARE */}
                 <section className="border-y-2 border-ink bg-pink py-16 text-on-pink sm:py-20">
                     <Container>
@@ -333,45 +281,6 @@ export default function InvoicingPage() {
                             <span className="mt-4 inline-flex border-brut border-ink bg-status-late px-3 py-2 text-caption font-extrabold uppercase text-status-late-fg shadow-brut sm:mt-0">
                   Late
                 </span>
-                        </div>
-                    </Container>
-                </section>
-
-                {/* CURRENCY */}
-                <section className="border-y-2 border-ink bg-sun py-14 sm:py-16">
-                    <Container>
-                        <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
-                            <div>
-                                <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-on-sun">
-                                    Local and international
-                                </p>
-                                <h2 className="mt-3 text-title-l font-extrabold tracking-tight text-on-sun sm:text-4xl">
-                                    Invoice in the currency you agreed.
-                                </h2>
-                                <p className="mt-4 text-body-l text-on-sun/80">
-                                    Keep payment details for each currency you work with and use
-                                    the right details on the invoice.
-                                </p>
-                            </div>
-
-                            <div className="border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
-                                <div className="flex flex-wrap gap-3">
-                                    {currencies.map((currency, index) => (
-                                        <span
-                                            key={currency}
-                                            className={`border-brut border-ink px-4 py-3 font-extrabold shadow-brut ${
-                                                index % 3 === 0
-                                                    ? 'bg-mango text-on-mango'
-                                                    : index % 3 === 1
-                                                        ? 'bg-pink text-on-pink'
-                                                        : 'bg-sun text-on-sun'
-                                            }`}
-                                        >
-                        {currency}
-                      </span>
-                                    ))}
-                                </div>
-                            </div>
                         </div>
                     </Container>
                 </section>

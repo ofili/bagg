@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import {
     ArrowRight,
-    CircleAlert,
     CircleCheck,
     CreditCard,
     ExternalLink,
@@ -79,25 +78,6 @@ const safeguards = [
     },
 ];
 
-const plannedSafeguards = [
-    {
-        title: 'Encryption at rest',
-        copy: 'Additional protection for stored business and payment details.',
-    },
-    {
-        title: 'Account-name checks',
-        copy: 'Checks to help verify payment destinations before money is sent.',
-    },
-    {
-        title: 'Sensitive-change alerts',
-        copy: 'Notifications when important account details are changed.',
-    },
-    {
-        title: 'Independent security reviews',
-        copy: 'External audits and certifications as the product and its operating requirements mature.',
-    },
-];
-
 const safePractices = [
     'Share invoice links only with the intended client.',
     'Verify unusual payment instructions with the business directly.',
@@ -125,10 +105,9 @@ export default function SecurityPage() {
                             </h1>
 
                             <p className="mt-6 max-w-xl text-body-l leading-relaxed text-text-soft sm:text-lg">
-                                Security pages are easy to fill with big claims. We would
-                                rather tell you what Bagg does today, what you should do
-                                to stay safe, and what we will only claim when it is built
-                                and tested.
+                                Bagg is designed to protect your invoices, client information,
+                                and payment records. Here is how our safeguards work and what you
+                                can do to keep your account safe.
                             </p>
 
                             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -220,8 +199,8 @@ export default function SecurityPage() {
                                 </div>
                             </div>
 
-                            <div className="absolute -bottom-1 -left-2 -rotate-3 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
-                                Trust through clarity.
+                            <div className="absolute -bottom-1 -left-2 border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase text-on-sun shadow-brut-sm">
+                                Verified safeguards
                             </div>
                         </div>
                     </div>
@@ -341,74 +320,6 @@ export default function SecurityPage() {
                 </Container>
             </section>
 
-            {/* TRANSPARENCY / ROADMAP */}
-            <section className="border-b-2 border-ink bg-cream">
-                <Container className="py-16 sm:py-20">
-                    <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-                        <div>
-                            <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
-                                Product transparency
-                            </p>
-
-                            <h2 className="mt-3 text-[2.3rem] font-extrabold leading-[1.02] tracking-[-0.055em] text-ink sm:text-4xl">
-                                What we are not claiming yet.
-                            </h2>
-
-                            <p className="mt-4 max-w-lg text-body-l leading-relaxed text-text-soft">
-                                Security is ongoing work. These are areas we intend to
-                                strengthen, but they should not be interpreted as
-                                capabilities already available in Bagg.
-                            </p>
-
-                            <div className="mt-6 flex items-start gap-3 border-brut border-ink bg-sun p-4 shadow-brut">
-                                <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-on-sun" aria-hidden="true" />
-                                <p className="text-body text-on-sun">
-                                    We will update this page when a safeguard has been
-                                    implemented and tested.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="border-brut border-ink bg-surface shadow-brut-lg">
-                            <div className="flex items-center justify-between gap-4 border-b-2 border-ink bg-pink p-5 text-on-pink">
-                                <div>
-                                    <p className="text-caption font-extrabold uppercase tracking-[0.14em]">
-                                        Areas of further work
-                                    </p>
-                                    <h3 className="mt-1 text-title font-extrabold">
-                                        On the roadmap
-                                    </h3>
-                                </div>
-
-                                <Lock className="h-6 w-6" aria-hidden="true" />
-                            </div>
-
-                            <div className="divide-y-2 divide-ink/15 px-5">
-                                {plannedSafeguards.map((item, index) => (
-                                    <div
-                                        key={item.title}
-                                        className="flex gap-4 py-5"
-                                    >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center border-brut border-ink bg-surface-tint text-caption font-extrabold text-text">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-
-                                        <div>
-                                            <h4 className="font-extrabold text-ink">
-                                                {item.title}
-                                            </h4>
-                                            <p className="mt-1 text-body text-text-soft">
-                                                {item.copy}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </Container>
-            </section>
-
             {/* REPORT SECURITY CONCERNS */}
             <section className="border-b-2 border-ink bg-surface">
                 <Container className="py-16 sm:py-20">
@@ -450,7 +361,7 @@ export default function SecurityPage() {
                             </a>
                         </div>
 
-                        <p className="mt-7 border-t-2 border-on-mango/20 pt-4 text-caption font-bold text-on-mango/75">
+                        <p className="mt-7 border-t-2 border-on-mango/20 pt-4 text-caption font-bold text-on-mango/85">
                             {securityEmail}
                         </p>
                     </div>

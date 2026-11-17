@@ -150,7 +150,7 @@ export function SetupChecklistCard({
       <section
         aria-labelledby="first-steps-heading"
         className={cn(
-          'border-brut border-ink bg-[#EBF4FE] p-6 shadow-brut sm:p-7',
+          'border-brut border-ink bg-status-pending p-6 shadow-brut sm:p-7',
           className,
         )}
       >
@@ -173,7 +173,7 @@ export function SetupChecklistCard({
         {/* Progress Bar */}
         <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full border border-ink bg-surface">
           <div
-            className="h-full rounded-full bg-[#1FA971] transition-all duration-300"
+            className="h-full rounded-full bg-leaf transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -259,7 +259,7 @@ export function SetupChecklistCard({
       {/* Slim Progress Bar */}
       <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full border border-ink bg-surface-sunken">
         <div
-          className="h-full rounded-full bg-[#1FA971] transition-all duration-300"
+          className="h-full rounded-full bg-leaf transition-all duration-300"
           style={{ width: `${progressPercent}%` }}
         />
       </div>

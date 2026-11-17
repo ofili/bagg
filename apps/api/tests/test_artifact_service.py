@@ -44,6 +44,7 @@ def storage():
         storage_key="workspaces/ws_123/documents/invoice/inv_123/v1/g1.pdf",
         content_type="application/pdf",
         content_length=len(PDF_BYTES),
+        mime_type="application/pdf",
     )
     store.get.return_value = PDF_BYTES
     return store
@@ -137,7 +138,7 @@ async def test_create_issued_artifact_persists_metadata(
     assert artifact.file_size_bytes == len(PDF_BYTES)
     assert artifact.sha256 == sha256_hex(PDF_BYTES)
     assert artifact.snapshot == snapshot
-    assert artifact.renderer == "weasyprint"
+    assert artifact.renderer == "reportlab"
     assert artifact.renderer_version == "65.0"
     assert artifact.template_version == "1"
 
@@ -298,6 +299,7 @@ async def test_get_pdf_returns_artifact_and_verified_bytes(
         workspace_id="ws_123",
         storage_key="workspaces/ws_123/documents/invoice/inv_123/v1/g1.pdf",
         sha256=sha256_hex(PDF_BYTES),
+        mime_type="application/pdf",
     )
     db.execute.return_value = scalar_result(artifact)
 
@@ -338,6 +340,7 @@ async def test_get_pdf_rejects_corrupted_stored_bytes(
         workspace_id="ws_123",
         storage_key="documents/invoice.pdf",
         sha256=sha256_hex(PDF_BYTES),
+        mime_type="application/pdf",
     )
     db.execute.return_value = scalar_result(artifact)
     storage.get.return_value = b"%PDF-1.7 tampered content"
@@ -396,6 +399,7 @@ async def test_get_pdf_offloads_storage_download_to_thread(
         workspace_id="ws_123",
         storage_key="documents/invoice.pdf",
         sha256=sha256_hex(PDF_BYTES),
+        mime_type="application/pdf",
     )
     db.execute.return_value = scalar_result(artifact)
 

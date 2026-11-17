@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   ArrowUpRight,
   Check,
@@ -10,11 +11,14 @@ import {
   Eye,
   FileText,
   Link2,
+  Pause,
+  Play,
 } from 'lucide-react';
 
 import { Money } from '@/components/money/Money';
 import { PaidStamp } from '@/components/brand';
 import { StatusPill } from '@/components/ui/status-pill';
+import { demoInvoiceHref } from '@/lib/site';
 
 const TOTAL = 45000000;
 const AUTO_MS = 3200;
@@ -61,6 +65,7 @@ const STEPS: Step[] = [
 export function ProductPreview() {
   const [index, setIndex] = useState(0);
   const [auto, setAuto] = useState(true);
+  const [paused, setPaused] = useState(false);
 
   const step = STEPS[index];
   const balance = TOTAL - step.received;
@@ -85,7 +90,7 @@ export function ProductPreview() {
   }, []);
 
   useEffect(() => {
-    if (!auto || index >= STEPS.length - 1) {
+    if (!auto || paused || index >= STEPS.length - 1) {
       return;
     }
 
@@ -94,15 +99,34 @@ export function ProductPreview() {
     }, AUTO_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [auto, index]);
+  }, [auto, paused, index]);
 
   function selectStep(nextIndex: number) {
     setAuto(false);
     setIndex(nextIndex);
   }
 
+  function toggleAuto() {
+    if (auto) {
+      setAuto(false);
+      return;
+    }
+
+    if (index >= STEPS.length - 1) {
+      setIndex(0);
+    }
+
+    setAuto(true);
+  }
+
   return (
-      <div className="w-full">
+      <div
+          className="w-full"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onFocusCapture={() => setPaused(true)}
+          onBlurCapture={() => setPaused(false)}
+      >
         {/* Invoice identity */}
         <div className="flex items-start justify-between gap-4 border-b border-line p-4 sm:p-5">
           <div className="flex min-w-0 items-center gap-3">
@@ -251,9 +275,23 @@ export function ProductPreview() {
             <p className="text-caption font-extrabold text-text-muted">
               Explore the journey
             </p>
-            <span className="text-caption text-text-muted">
-            {index + 1} of {STEPS.length}
-          </span>
+            <div className="flex items-center gap-3">
+              <span className="text-caption text-text-muted">
+                {index + 1} of {STEPS.length}
+              </span>
+              <button
+                type="button"
+                onClick={toggleAuto}
+                className="inline-flex min-h-8 items-center gap-1 border-brut-thin border-ink bg-surface px-2 text-caption font-extrabold text-text-soft transition-colors hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
+              >
+                {auto ? (
+                  <Pause className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : (
+                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                {auto ? 'Pause' : 'Play'}
+              </button>
+            </div>
           </div>
 
           <div
@@ -290,10 +328,13 @@ export function ProductPreview() {
         <span className="text-caption font-bold text-text-muted">
           Bagg · Get-paid workspace
         </span>
-          <span className="inline-flex items-center gap-1 text-caption font-extrabold text-ink">
+          <Link
+              href={demoInvoiceHref}
+              className="inline-flex items-center gap-1 text-caption font-extrabold text-ink hover:underline"
+          >
           See the experience
           <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </span>
+        </Link>
         </div>
       </div>
   );

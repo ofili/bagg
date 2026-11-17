@@ -19,7 +19,7 @@ export default function LegalLayout({
             className="inline-flex min-h-11 items-center gap-2 text-body font-bold text-text-soft transition hover:text-ink"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Back to bagg
+            Back to Bagg
           </Link>
 
           <div className="flex items-center gap-2 text-caption font-extrabold uppercase tracking-wider text-text-muted">

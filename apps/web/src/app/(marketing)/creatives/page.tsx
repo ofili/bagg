@@ -440,48 +440,6 @@ export default function CreativesPage() {
             </Container>
           </section>
 
-          {/* ROADMAP / FUTURE */}
-          <section className="border-b-2 border-ink bg-cream">
-            <Container className="py-16 sm:py-20">
-              <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-                <div>
-                  <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-                    Where we&apos;re going
-                  </p>
-                  <h2 className="mt-3 text-title-l text-ink">
-                    More of the client journey, over time.
-                  </h2>
-                </div>
-                <div>
-                  <p className="text-body-l text-text-soft">
-                    Invoicing and getting paid are the foundation. We are working
-                    towards helping creative businesses manage more of the client
-                    engagement around that work.
-                  </p>
-                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                    {[
-                      'Contracts and agreements',
-                      'Projects and milestones',
-                      'Client delivery and approvals',
-                      'Connected file handover',
-                    ].map((item) => (
-                        <div
-                            key={item}
-                            className="flex items-center gap-3 border-brut-thin border-dashed border-ink bg-surface p-4"
-                        >
-                          <Sparkles className="h-5 w-5 shrink-0 text-ink"/>
-                          <span className="text-body font-bold text-ink">{item}</span>
-                          <span className="ml-auto text-caption font-extrabold uppercase text-text-muted">
-                                              Planned
-                                          </span>
-                        </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </Container>
-          </section>
-
           {/* FINAL CTA */}
           <section className="bg-mango">
             <Container className="py-16 sm:py-20">

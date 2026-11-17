@@ -22,7 +22,7 @@ const config: Config = {
         'pink-ink': 'var(--bagg-pink-ink)',
         sun: 'var(--bagg-sun)',
         leaf: 'var(--bagg-leaf)',
-        danger: 'var(--bagg-danger)',
+        danger: 'var(--danger)',
 
         // Text on brand surfaces
         ink: 'var(--ink)',
@@ -30,6 +30,7 @@ const config: Config = {
         'on-pink': 'var(--on-pink)',
         'on-sun': 'var(--on-sun)',
         'on-leaf': 'var(--on-leaf)',
+        'on-danger': 'var(--on-danger)',
 
         // Neutrals
         cream: 'var(--bg)',

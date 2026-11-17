@@ -97,6 +97,7 @@ export default function StyleguidePage() {
   const [rangeStart, setRangeStart] = useState('2026-11-01');
   const [rangeEnd, setRangeEnd] = useState('2026-11-30');
   const [amount, setAmount] = useState('450000');
+  const [discount, setDiscount] = useState('0.00');
   const [otp, setOtp] = useState('');
   const [accent, setAccent] = useState('#FF7A1A');
   const [notes, setNotes] = useState('');
@@ -581,7 +582,8 @@ export default function StyleguidePage() {
               label="Discount"
               currency="USD"
               currencySymbol="$"
-              defaultValue="0.00"
+              value={discount}
+              onChange={setDiscount}
               optional
             />
           </FormGrid>

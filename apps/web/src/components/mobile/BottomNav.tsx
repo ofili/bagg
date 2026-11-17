@@ -79,7 +79,7 @@ function TabLink({ tab, active, badge }: { tab: Tab; active: boolean; badge?: nu
         >
           <Icon aria-hidden className="h-[22px] w-[22px]" />
             {badge ? (
-                <span className="absolute -right-0.5 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-surface bg-danger px-1 text-[11px] font-extrabold leading-none text-white">
+                <span className="absolute -right-0.5 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-surface bg-danger px-1 text-[11px] font-extrabold leading-none text-on-danger">
               <span className="sr-only">{badge} overdue </span>
               <span aria-hidden>{badge > 9 ? '9+' : badge}</span>
             </span>

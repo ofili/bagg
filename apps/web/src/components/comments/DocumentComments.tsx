@@ -49,7 +49,7 @@ export function DocumentComments({
     if (isPublicView && shareToken) {
       return documentType === 'quote'
         ? `${API_BASE}/quotes/share/${shareToken}/comments`
-        : `${API_BASE}/sharing/${shareToken}/comments`;
+        : `${API_BASE}/share/${shareToken}/comments`;
     }
     return documentType === 'quote'
       ? `${API_BASE}/quotes/${documentId}/comments`

@@ -29,7 +29,7 @@ def build_invoice_document(
     query the database, mutate the invoice, or recalculate totals.
     """
     currency = invoice.currency
-    client = invoice.client
+    client = getattr(invoice, "client", None)
 
     items = [
         InvoiceDocumentLineItem(

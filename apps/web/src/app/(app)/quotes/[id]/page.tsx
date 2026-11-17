@@ -930,9 +930,9 @@ export default function QuoteDetailPage() {
           </StickyFormActions>
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,1fr)]">
-          <div className="space-y-6">
-            <Card zone="calm" className="space-y-4 p-4 sm:p-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,1fr)]">
+          <div className="min-w-0 space-y-6">
+            <Card zone="calm" className="min-w-0 space-y-4 p-4 sm:p-6">
               <div className="flex items-center gap-2">
                 <FileText aria-hidden className="h-5 w-5" />
                 <h2 className="text-heading">Commercial terms</h2>
@@ -948,7 +948,7 @@ export default function QuoteDetailPage() {
                   <p className="mt-1 text-body">{formatDate(quote.issue_date)} – {formatDate(quote.expires_at)}</p>
                 </div>
               </div>
-              <div className="overflow-x-auto">
+              <div className="min-w-0 overflow-x-auto">
                 <table className="w-full min-w-[480px] text-left text-body">
                   <thead>
                     <tr className="border-b border-border text-text-soft">
@@ -1059,7 +1059,7 @@ export default function QuoteDetailPage() {
             />
           </div>
 
-          <aside className="space-y-6">
+          <aside className="min-w-0 space-y-6">
             <Card zone="calm" className="space-y-4 p-4 sm:p-6">
               <h2 className="text-heading">Client delivery</h2>
               <p className="text-body text-text-soft">

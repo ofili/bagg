@@ -3,12 +3,8 @@ from datetime import date
 from typing import Optional
 from urllib.parse import quote
 from fastapi import APIRouter, Depends, Query, status
-from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi.responses import Response
-from starlette.concurrency import run_in_threadpool
 
-from app.domains.documents.service import render_receipt_pdf
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.pagination import PaginatedResponse
@@ -17,6 +13,10 @@ from app.core.money import format_money
 from app.domains.workspaces.models import Workspace
 from app.domains.workspaces.dependencies import resolve_active_workspace
 from app.domains.auth.dependencies import get_current_user_and_workspace
+from app.domains.documents.delivery import (
+    deliver_issued_document,
+    deliver_public_document,
+)
 from app.domains.receipts.models import Receipt
 from app.domains.receipts.repository import ReceiptRepository
 from app.domains.receipts.service import record_manual_payment
@@ -253,25 +253,24 @@ async def get_receipt_pdf(
     workspace: Workspace = Depends(resolve_active_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return the receipt as a real PDF document."""
-    row = await get_receipt(db, workspace.id, receipt_id)
-    receipt, client_name, _client_phone, invoice_number = row
-
-    pdf_content = await run_in_threadpool(
-        render_receipt_pdf,
-        receipt,
-        business_name=workspace.business_name,
-        client_name=client_name,
-        invoice_number=invoice_number,
+    """Deliver the immutable issued receipt PDF."""
+    return await deliver_issued_document(
+        db,
+        workspace_id=workspace.id,
+        document_type="receipt",
+        source_id=receipt_id,
     )
 
-    filename = f"Receipt-{receipt.receipt_number or receipt.id}.pdf"
 
-    return Response(
-        content=pdf_content,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'inline; filename="{filename}"',
-            "X-Content-Type-Options": "nosniff",
-        },
+@router.get("/share/{token}/pdf")
+async def get_public_receipt_pdf(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Deliver a verified receipt PDF through its public share token."""
+
+    return await deliver_public_document(
+        db,
+        token=token,
+        document_type="receipt",
     )
