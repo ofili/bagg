@@ -96,7 +96,7 @@ interface Invoice {
 }
 
 const FILTER_CHIPS = [
-  { value: '', label: 'All' },
+  { value: '', label: '₦ NGN' },
   { value: 'draft', label: 'Drafts' },
   { value: 'issued', label: 'Issued' },
   { value: 'sent', label: 'Sent' },
@@ -109,7 +109,7 @@ const FILTER_CHIPS = [
 ] as const;
 
 const CURRENCY_OPTIONS = [
-  { value: '', label: 'All currencies' },
+  { value: '', label: '₦ NGN' },
   { value: 'NGN', label: 'NGN (₦)' },
   { value: 'USD', label: 'USD ($)' },
   { value: 'GBP', label: 'GBP (£)' },
@@ -685,7 +685,7 @@ export default function InvoicesPage() {
       />
 
       {/* Document navigation */}
-      <DocTabs className="mt-3" />
+      <DocTabs className="mt-5" />
 
       {/* Overdue notice */}
       {overdueCount > 0 && (
@@ -741,6 +741,7 @@ export default function InvoicesPage() {
             options: CURRENCY_OPTIONS,
           },
         ]}
+        className="mt-5"
       />
 
       {/* Invoice loading error */}

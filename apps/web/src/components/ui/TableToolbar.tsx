@@ -44,7 +44,7 @@ export function TableToolbar({
   className,
 }: TableToolbarProps) {
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("space-y-4", className)}>
       {/* Row 1: Chip strip (status filters) */}
       {chips && chips.length > 0 && onChipChange && (
         <ChipStrip
@@ -56,7 +56,7 @@ export function TableToolbar({
       )}
 
       {/* Row 2: Search + dropdowns + CTA */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-2 sm:flex-wrap sm:gap-3">
         <SearchInput
           value={search}
           onChange={onSearchChange}
@@ -65,15 +65,17 @@ export function TableToolbar({
         />
 
         {filters?.map((f) => (
-          <BaggSelect
-            key={f.key}
-            label={f.label}
-            hideLabel={f.hideLabel ?? true}
-            value={f.value}
-            onChange={f.onChange}
-            options={f.options}
-            className="w-auto"
-          />
+          <div key={f.key} className="shrink-0 sm:shrink sm:w-auto">
+            <BaggSelect
+              label={f.label}
+              hideLabel={f.hideLabel ?? true}
+              value={f.value}
+              onChange={f.onChange}
+              options={f.options}
+              width="auto"
+              className="w-auto"
+            />
+          </div>
         ))}
 
         {actions && <div className="ml-auto shrink-0">{actions}</div>}

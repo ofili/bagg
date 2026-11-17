@@ -662,7 +662,7 @@ export default function ClientsPage() {
             ) : (
               <Link
                 href="/clients/contacts/new"
-                className={buttonStyles({ variant: 'accent' })}
+                className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Add contact

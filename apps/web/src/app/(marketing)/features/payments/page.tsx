@@ -226,7 +226,7 @@ export default function PaymentsFeaturePage() {
                     </Container>
                 </section>
 
-                <section className="py-16 sm:py-20 lg:py-24">
+                <section className="py-20 sm:py-28 lg:py-32">
                     <Container>
                         <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr]">
                             <div>
@@ -284,7 +284,7 @@ export default function PaymentsFeaturePage() {
                     </Container>
                 </section>
 
-                <section className="py-16 sm:py-20 lg:py-24">
+                <section className="py-20 sm:py-28 lg:py-32">
                     <Container>
                         <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
                             <div>
@@ -374,7 +374,7 @@ export default function PaymentsFeaturePage() {
                     </Container>
                 </section>
 
-                <section className="py-16 sm:py-20">
+                <section className="py-20 sm:py-28">
                     <Container>
                         <div className="border-brut border-ink bg-mango p-7 shadow-brut-lg sm:p-10 lg:p-12">
                             <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">

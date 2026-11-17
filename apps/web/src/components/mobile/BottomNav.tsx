@@ -94,7 +94,7 @@ function TabLink({ tab, active, badge }: { tab: Tab; active: boolean; badge?: nu
 const CREATE_ITEMS = [
     { label: 'New invoice', href: '/invoices/new', icon: Receipt },
     { label: 'New recurring schedule', href: '/recurring-invoices/new', icon: ArrowsClockwise },
-    { label: 'New quotes', href: '/quotes/new', icon: Scroll },
+    { label: 'New quote', href: '/quotes/new', icon: Scroll },
     { label: 'Add client', href: '/clients/new', icon: UserPlus },
     { label: 'Add contact', href: '/clients/contacts/new', icon: AddressBook },
 ] as const;
@@ -167,7 +167,7 @@ export function BottomNav({ className = '' }: { className?: string }) {
             <Sheet open={createOpen} onOpenChange={setCreateOpen}>
                 <SheetContent title="Create">
                     <div className="space-y-1 p-4 pb-8">
-                        <h2 className="px-2 pb-2 text-title">create</h2>
+                        <h2 className="px-2 pb-2 text-title">Create</h2>
                         {CREATE_ITEMS.map((item) => {
                             const Icon = item.icon;
                             return (

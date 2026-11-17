@@ -329,7 +329,7 @@ export default function QuotesPage() {
         }
       />
 
-      <DocTabs className="mt-3" />
+      <DocTabs className="mt-5" />
 
       {notice && (
         <Alert variant={notice.kind}>
@@ -346,6 +346,7 @@ export default function QuotesPage() {
         search={table.search}
         onSearchChange={table.setSearch}
         searchPlaceholder="Search quote number, customer or status"
+        className="mt-5"
       />
 
       {table.error && (

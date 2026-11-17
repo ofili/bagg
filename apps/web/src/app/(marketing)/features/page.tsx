@@ -84,19 +84,18 @@ export default function FeaturesPage() {
                     <Container className="py-12 sm:py-16 lg:py-20">
                         <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
                             <div>
-                                <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut">
-                                    The get-paid workspace
+                                <div className="inline-flex items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut-sm">
+                                    Financial workflow
                                 </div>
 
                                 <h1 className="mt-7 max-w-3xl text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem] lg:text-[5.25rem]">
-                                    From agreed work
-                                    <span className="block text-mango">to money received.</span>
+                                    From proposal
+                                    <span className="block text-mango">to settled payment.</span>
                                 </h1>
 
                                 <p className="mt-6 max-w-xl text-body-l leading-relaxed text-text-soft sm:text-lg">
-                                    Quotes, invoices, payment follow-up and receipts. Bagg keeps the
-                                    get-paid work together, so you can spend more time doing the work
-                                    you were hired to do.
+                                    Quotes, invoices, automated payment reminders and instant receipts.
+                                    Keep your client finances connected in one focused workspace.
                                 </p>
 
                                 <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -161,14 +160,14 @@ export default function FeaturesPage() {
 
                                     <div className="mt-5 flex items-center justify-between border-t-2 border-ink pt-4">
                                   <span className="text-caption font-bold text-text-soft">
-                                    One connected get-paid workflow
+                                    Connected from quote to receipt
                                   </span>
                                         <ArrowDownRight className="h-5 w-5" />
                                     </div>
                                 </div>
 
-                                <div className="absolute -bottom-1 -left-2 -rotate-6 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
-                                    Less chasing.
+                                <div className="absolute -bottom-1 -left-2 border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase text-on-sun shadow-brut-sm">
+                                    Automated follow-up
                                 </div>
                             </div>
                         </div>
@@ -176,15 +175,15 @@ export default function FeaturesPage() {
                 </section>
 
                 {/* CAPABILITY MAP */}
-                <section className="bg-surface py-16 sm:py-20">
+                <section className="bg-surface py-20 sm:py-28 lg:py-32">
                     <Container>
-                        <div className="mb-9 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                             <div className="max-w-2xl">
                                 <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
-                                    What Bagg brings together
+                                    Core capabilities
                                 </p>
                                 <h2 className="mt-3 text-title-l font-extrabold tracking-tight text-ink sm:text-4xl">
-                                    The work behind getting paid.
+                                    Everything you need to bill and collect.
                                 </h2>
                             </div>
                             <p className="max-w-sm text-body text-text-soft">
@@ -238,7 +237,7 @@ export default function FeaturesPage() {
                 </section>
 
                 {/* CURRENCY */}
-                <section className="bg-cream py-16 sm:py-20">
+                <section className="bg-cream py-20 sm:py-28 lg:py-32">
                     <Container>
                         <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
                             <div>
@@ -286,7 +285,7 @@ export default function FeaturesPage() {
                 </section>
 
                 {/* CTA */}
-                <section className="bg-cream py-16 sm:py-20">
+                <section className="bg-cream py-20 sm:py-28 lg:py-32">
                     <Container>
                         <div className="relative border-brut border-ink bg-sun p-7 shadow-brut-lg sm:p-10">
                             <div className="absolute -right-2 -top-3 rotate-3 border-brut border-ink bg-pink px-3 py-2 text-caption font-extrabold uppercase text-on-pink shadow-brut">

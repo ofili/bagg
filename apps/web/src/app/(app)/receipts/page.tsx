@@ -51,7 +51,7 @@ function paymentMethodLabel(value: string): string {
 }
 
 const CURRENCY_OPTIONS = [
-  { value: '', label: 'All currencies' },
+  { value: '', label: '₦ NGN' },
   { value: 'NGN', label: 'NGN (₦)' },
   { value: 'USD', label: 'USD ($)' },
   { value: 'GBP', label: 'GBP (£)' },
@@ -175,7 +175,7 @@ export default function ReceiptsPage() {
           description="Find payment receipts and trace them back to their invoices."
       />
 
-      <DocTabs className="mt-3" />
+      <DocTabs className="mt-5" />
 
       <div className="hidden gap-3 sm:grid sm:grid-cols-2">
         <StatCard
@@ -187,7 +187,7 @@ export default function ReceiptsPage() {
         <StatCard
             zone="calm"
             label="Currency filter"
-            value={table.filters['currency'] || 'All currencies'}
+            value={table.filters['currency'] || '₦ NGN'}
             description="Use the toolbar to filter receipts"
         />
       </div>

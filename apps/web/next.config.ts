@@ -32,6 +32,21 @@ const nextConfig: NextConfig = {
         destination: '/signup',
         permanent: true,
       },
+      {
+        source: '/freelancers',
+        destination: '/creatives',
+        permanent: true,
+      },
+      {
+        source: '/consultants',
+        destination: '/creatives',
+        permanent: true,
+      },
+      {
+        source: '/studios',
+        destination: '/creatives',
+        permanent: true,
+      },
     ];
   },
 

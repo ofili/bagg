@@ -169,7 +169,7 @@ export default function QuotesPage() {
                 </section>
 
                 {/* CLIENT RESPONSE */}
-                <section className="border-y-2 border-ink bg-pink py-16 text-on-pink sm:py-20">
+                <section className="border-y-2 border-ink bg-pink py-20 text-on-pink sm:py-28">
                     <Container>
                         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
                             <div>
@@ -234,7 +234,7 @@ export default function QuotesPage() {
                 </section>
 
                 {/* CONVERSION */}
-                <section className="border-y-2 border-ink bg-mango py-16 text-on-mango sm:py-20">
+                <section className="border-y-2 border-ink bg-mango py-20 text-on-mango sm:py-28">
                     <Container>
                         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
                             <div>
@@ -289,7 +289,7 @@ export default function QuotesPage() {
                 </section>
 
                 {/* CTA */}
-                <section className="bg-cream py-16 sm:py-20">
+                <section className="bg-cream py-20 sm:py-28">
                     <Container>
                         <div className="relative border-brut border-ink bg-sun p-7 shadow-brut-lg sm:p-10">
             <span className="absolute -right-2 -top-3 rotate-3 border-brut border-ink bg-pink px-3 py-2 text-caption font-extrabold uppercase text-on-pink shadow-brut">

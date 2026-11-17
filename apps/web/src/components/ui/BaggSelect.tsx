@@ -450,7 +450,8 @@ export function BaggSelect({
         type="button"
         role="combobox"
         className={cn(
-          'flex min-h-11 w-full items-center justify-between gap-3',
+          'flex min-h-11 items-center justify-between gap-3',
+          width === 'full' ? 'w-full' : 'w-auto',
           'rounded-input border-brut-thin border-ink bg-surface px-3',
           'text-left text-body-l text-text',
           'transition-colors hover:bg-surface-tint',

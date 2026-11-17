@@ -19,7 +19,7 @@ const STORAGE_KEY = 'bagg-theme';
 export function isLightOnlyPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
   if (pathname === '/') return true;
-  return /^\/(about|pricing|contact|freelancers|creatives|consultants|studios|help|security|legal|features|login|signup|onboarding)(\/|$)/.test(
+  return /^\/(about|pricing|contact|creatives|help|security|legal|features|login|signup|onboarding)(\/|$)/.test(
     pathname,
   );
 }

@@ -174,7 +174,7 @@ export default function InvoicingPage() {
                 </section>
 
                 {/* SHARE */}
-                <section className="border-y-2 border-ink bg-pink py-16 text-on-pink sm:py-20">
+                <section className="border-y-2 border-ink bg-pink py-20 text-on-pink sm:py-28 lg:py-32">
                     <Container>
                         <div className="grid gap-10 lg:grid-cols-[1fr_1fr] lg:items-center">
                             <div>
@@ -225,7 +225,7 @@ export default function InvoicingPage() {
                 </section>
 
                 {/* STATUS */}
-                <section className="bg-cream py-16 sm:py-20">
+                <section className="bg-cream py-20 sm:py-28 lg:py-32">
                     <Container>
                         <div className="mb-9 max-w-2xl">
                             <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
@@ -286,7 +286,7 @@ export default function InvoicingPage() {
                 </section>
 
                 {/* CTA */}
-                <section className="bg-cream py-16 sm:py-20">
+                <section className="bg-cream py-20 sm:py-28 lg:py-32">
                     <Container>
                         <div className="grid gap-8 border-brut border-ink bg-mango p-7 text-on-mango shadow-brut-lg sm:p-10 md:grid-cols-[1fr_auto] md:items-end">
                             <div className="max-w-2xl">

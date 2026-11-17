@@ -300,6 +300,7 @@ async def test_get_pdf_returns_artifact_and_verified_bytes(
         storage_key="workspaces/ws_123/documents/invoice/inv_123/v1/g1.pdf",
         sha256=sha256_hex(PDF_BYTES),
         mime_type="application/pdf",
+        file_size_bytes=len(PDF_BYTES),
     )
     db.execute.return_value = scalar_result(artifact)
 
@@ -341,6 +342,7 @@ async def test_get_pdf_rejects_corrupted_stored_bytes(
         storage_key="documents/invoice.pdf",
         sha256=sha256_hex(PDF_BYTES),
         mime_type="application/pdf",
+        file_size_bytes=len(PDF_BYTES),
     )
     db.execute.return_value = scalar_result(artifact)
     storage.get.return_value = b"%PDF-1.7 tampered content"
@@ -400,6 +402,7 @@ async def test_get_pdf_offloads_storage_download_to_thread(
         storage_key="documents/invoice.pdf",
         sha256=sha256_hex(PDF_BYTES),
         mime_type="application/pdf",
+        file_size_bytes=len(PDF_BYTES),
     )
     db.execute.return_value = scalar_result(artifact)
 

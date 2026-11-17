@@ -192,10 +192,10 @@ export default function RecurringInvoicesPage() {
       />
 
       {/* Mobile document navigation */}
-      <DocTabs className="mt-3" />
+      <DocTabs className="mt-5" />
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-line pb-4">
+      <div className="mt-5 flex flex-wrap items-center gap-2 border-b border-line pb-4">
         {STATUS_FILTERS.map((f) => {
           const active = selectedStatus === f.value;
           return (

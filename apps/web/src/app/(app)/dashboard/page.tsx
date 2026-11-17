@@ -19,6 +19,7 @@ import {
   PageHeader,
   buttonStyles,
 } from '@/components/ui';
+import { cn } from '@/lib/cn';
 
 const API_BASE = '/api';
 
@@ -148,7 +149,7 @@ export default function DashboardPage() {
         actions={
           <Link
             href="/invoices/new"
-            className={buttonStyles({ variant: 'accent' })}
+            className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
           >
             <Plus aria-hidden weight="bold" className="h-4 w-4" />
             Create invoice

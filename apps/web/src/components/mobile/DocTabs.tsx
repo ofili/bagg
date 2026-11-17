@@ -20,7 +20,7 @@ const TABS = [
 export function DocTabs({ className = '' }: { className?: string }) {
     const pathname = usePathname();
     return (
-        <nav aria-label="Documents" className={cn('flex gap-2 sm:hidden', className)}>
+        <nav aria-label="Documents" className={cn('flex gap-1.5 sm:hidden', className)}>
             {TABS.map((t) => {
                 const active = pathname === t.href || pathname.startsWith(t.href + '/');
                 return (

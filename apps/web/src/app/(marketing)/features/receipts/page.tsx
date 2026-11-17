@@ -220,7 +220,7 @@ export default function ReceiptsFeaturePage() {
                     </Container>
                 </section>
 
-                <section className="py-16 sm:py-20 lg:py-24">
+                <section className="py-20 sm:py-28 lg:py-32">
                     <Container>
                         <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
                             <div>
@@ -333,7 +333,7 @@ export default function ReceiptsFeaturePage() {
                     </Container>
                 </section>
 
-                <section className="border-y-2 border-ink bg-surface-sunken py-16 sm:py-20">
+                <section className="border-y-2 border-ink bg-surface-sunken py-20 sm:py-28">
                     <Container>
                         <div className="max-w-3xl">
                             <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
@@ -385,7 +385,7 @@ export default function ReceiptsFeaturePage() {
                     </Container>
                 </section>
 
-                <section className="pb-16 sm:pb-20">
+                <section className="py-20 sm:py-28">
                     <Container>
                         <div className="border-brut border-ink bg-mango p-7 shadow-brut-lg sm:p-10 lg:p-12">
                             <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">

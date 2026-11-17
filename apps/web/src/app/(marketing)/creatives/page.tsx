@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
-import { AudienceSubnav } from '@/components/marketing/audience-subnav';
 import { buttonStyles } from '@/components/ui/button';
 import { marketingMetadata } from '@/lib/metadata';
 import { creativeRoles } from '@/content/marketing';
@@ -77,41 +76,6 @@ const outcomes = [
   },
 ];
 
-const workflow = [
-  {
-    number: '01',
-    label: 'Create',
-    title: 'Make the invoice.',
-    copy: 'Add your client, work, amount, currency and due date.',
-  },
-  {
-    number: '02',
-    label: 'Share',
-    title: 'Send one link.',
-    copy: 'Share through WhatsApp, email or wherever you already talk to clients.',
-  },
-  {
-    number: '03',
-    label: 'Collect',
-    title: 'Know what happens.',
-    copy: 'Track views, payment claims, balances and confirmed payments.',
-  },
-  {
-    number: '04',
-    label: 'Record',
-    title: 'Keep the receipt.',
-    copy: 'Give your client a clear record when payment is confirmed.',
-  },
-];
-
-const principles = [
-  'Your client sees a clear invoice, not a confusing payment request.',
-  'Your payment instructions stay connected to the invoice.',
-  'You can see what is outstanding without searching through chats.',
-  'Payment claims remain subject to your confirmation.',
-  'Receipts follow confirmed payments.',
-];
-
 export default function CreativesPage() {
   return (
       <>
@@ -120,7 +84,6 @@ export default function CreativesPage() {
         {name: 'Creatives', path: '/creatives'},
       ]}/>
         <div className="overflow-hidden bg-cream">
-          <AudienceSubnav currentPath="/creatives"/>
           {/* HERO */}
           <section className="relative border-b-2 border-ink bg-cream">
             <Container className="grid gap-12 py-14 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-24">
@@ -270,7 +233,7 @@ export default function CreativesPage() {
 
           {/* AUDIENCE TYPES */}
           <section className="border-b-2 border-ink bg-mango">
-            <Container className="py-14 sm:py-16">
+            <Container className="py-20 sm:py-28 lg:py-32">
               <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
                 <div>
                   <p className="text-caption font-extrabold uppercase tracking-wide text-on-mango">
@@ -316,7 +279,7 @@ export default function CreativesPage() {
 
           {/* CORE VALUE */}
           <section className="border-b-2 border-ink bg-cream">
-            <Container className="py-16 sm:py-20">
+            <Container className="py-20 sm:py-28 lg:py-32">
               <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
                 <div>
                   <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
@@ -364,97 +327,20 @@ export default function CreativesPage() {
             </Container>
           </section>
 
-          {/* WORKFLOW */}
-          <section className="border-b-2 border-ink bg-surface">
-            <Container className="py-16 sm:py-20">
-              <div className="max-w-2xl">
-                <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-                  How it works
-                </p>
-                <h2 className="mt-3 text-title-l text-ink">
-                  Four steps. A much clearer payment trail.
-                </h2>
-                <p className="mt-4 text-body-l text-text-soft">
-                  From the moment you prepare an invoice to the moment payment is
-                  confirmed, keep the important details connected.
-                </p>
-              </div>
-
-              <div className="mt-10 grid gap-0 overflow-hidden border-brut border-ink md:grid-cols-4">
-                {workflow.map((step, index) => (
-                    <div
-                        key={step.number}
-                        className={[
-                          'p-5 sm:p-6',
-                          index > 0 ? 'border-t-2 border-ink md:border-l-2 md:border-t-0' : '',
-                          index % 2 === 0 ? 'bg-cream' : 'bg-surface-tint',
-                        ].join(' ')}
-                    >
-                      <p className="text-caption font-extrabold text-text-muted">
-                        STEP {step.number}
-                      </p>
-                      <p className="mt-5 text-caption font-extrabold uppercase tracking-wide text-text-soft">
-                        {step.label}
-                      </p>
-                      <h3 className="mt-2 text-heading text-ink">{step.title}</h3>
-                      <p className="mt-2 text-body text-text-soft">{step.copy}</p>
-                    </div>
-                ))}
-              </div>
-            </Container>
-          </section>
-
-          {/* TRUST / PRODUCT PRINCIPLES */}
-          <section className="border-b-2 border-ink bg-pink">
-            <Container className="grid gap-10 py-16 sm:py-20 lg:grid-cols-[0.9fr_1.1fr]">
-              <div>
-                <p className="text-caption font-extrabold uppercase tracking-wide text-on-pink">
-                  Clear by design
-                </p>
-                <h2 className="mt-3 text-title-l text-on-pink">
-                  Your money. Your client. Your record.
-                </h2>
-                <p className="mt-5 text-body-l text-on-pink">
-                  Bagg helps you request, track and record payments. Your client
-                  pays you directly using the payment instructions or payment
-                  provider you choose. Bagg does not hold your client’s money.
-                </p>
-              </div>
-
-              <ul className="space-y-3">
-                {principles.map((principle) => (
-                    <li
-                        key={principle}
-                        className="flex gap-3 border-brut border-ink bg-surface p-4"
-                    >
-                                  <span
-                                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-brut border-ink bg-mango text-on-mango">
-                                      <Check className="h-4 w-4"/>
-                                  </span>
-                      <span className="text-body font-semibold text-ink">
-                                      {principle}
-                                  </span>
-                    </li>
-                ))}
-              </ul>
-            </Container>
-          </section>
-
           {/* FINAL CTA */}
           <section className="bg-mango">
-            <Container className="py-16 sm:py-20">
+            <Container className="py-20 sm:py-28 lg:py-32">
               <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
                 <div>
                   <p className="text-caption font-extrabold uppercase tracking-wide text-on-mango">
-                    Make room for the work
+                    Professional billing
                   </p>
                   <h2 className="mt-3 max-w-3xl text-title-l text-on-mango">
-                    Do the work. Send the invoice. Get paid.
+                    Spend less time chasing. Spend more time creating.
                   </h2>
                   <p className="mt-4 max-w-2xl text-body-l text-on-mango">
-                    Start with a professional invoice and one clear link for your
-                    client. Bagg helps you keep the follow-up and payment record
-                    together.
+                    Create invoices clients respect, provide simple payment instructions,
+                    and keep your complete financial trail organised.
                   </p>
                 </div>
 

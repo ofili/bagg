@@ -1020,7 +1020,7 @@ export default function QuoteDetailPage() {
               <h2 className="text-heading">Version history</h2>
               {revisions.length === 0 ? (
                 <p className="text-body text-text-soft">
-                  No revision history is available yet. The backend revision-history endpoint is required to display previous versions here.
+                  No previous versions recorded yet.
                 </p>
               ) : (
                 <ol className="space-y-4">

@@ -229,6 +229,34 @@ async def test_claim_batch_recovers_expired_or_unlocked_jobs(
     try:
         claims = await claim_batch()
 
+        stored_before = await read_worker_job(job_id)
+
+        print(
+            "BEFORE CLAIM:",
+            {
+                "id": stored_before.id,
+                "status": stored_before.status,
+                "locked_at": stored_before.locked_at,
+                "locked_by": stored_before.locked_by,
+                "claim_token": stored_before.claim_token,
+                "attempts": stored_before.attempts,
+                "available_at": stored_before.available_at,
+            },
+        )
+
+        async with AsyncSessionLocal() as db:
+            from sqlalchemy import func, select
+
+            counts = await db.execute(
+                select(
+                    DocumentGenerationJob.status,
+                    func.count(DocumentGenerationJob.id),
+                )
+                .group_by(DocumentGenerationJob.status)
+            )
+
+            print("JOB COUNTS:", counts.all())
+
         matching = [claim for claim in claims if claim.job_id == job_id]
         assert len(matching) == 1
 
@@ -403,3 +431,43 @@ async def test_concurrent_claims_do_not_claim_same_job(
         assert stored.claim_token == claims[0].claim_token
     finally:
         await delete_worker_job(job_id)
+
+
+@pytest.mark.asyncio
+async def test_claim_batch_prioritises_recoverable_jobs_over_pending_backlog(
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "DOCUMENT_WORKER_BATCH_SIZE", 1)
+
+    recovery_job_id = await create_worker_job(
+        status="processing",
+        locked_at=None,
+        locked_by="dead-worker",
+        claim_token="old-claim",
+        attempts=1,
+    )
+
+    pending_job_id = await create_worker_job(
+        status="pending",
+        attempts=0,
+    )
+
+    try:
+        claims = await claim_batch()
+
+        assert len(claims) == 1
+        assert claims[0].job_id == recovery_job_id
+
+        recovered = await read_worker_job(recovery_job_id)
+        pending = await read_worker_job(pending_job_id)
+
+        assert recovered.status == "processing"
+        assert recovered.attempts == 2
+        assert recovered.claim_token == claims[0].claim_token
+        assert recovered.claim_token != "old-claim"
+
+        assert pending.status == "pending"
+        assert pending.attempts == 0
+    finally:
+        await delete_worker_job(recovery_job_id)
+        await delete_worker_job(pending_job_id)

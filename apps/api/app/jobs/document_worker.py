@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from pydantic import ValidationError
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, case, or_, select
 
 import app.models  # noqa: F401
 
@@ -71,6 +71,10 @@ async def claim_batch() -> list[ClaimedDocumentJob]:
                     )
                 )
                 .order_by(
+                    case(
+                        (DocumentGenerationJob.status == "processing", 0),
+                        else_=1,
+                    ),
                     DocumentGenerationJob.available_at.asc(),
                     DocumentGenerationJob.created_at.asc(),
                 )

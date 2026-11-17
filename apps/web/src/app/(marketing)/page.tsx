@@ -332,30 +332,28 @@ export default function MarketingPage() {
         {/* AUDIENCES */}
         <section className="bg-surface">
           <Container className="py-20 sm:py-28 lg:py-32">
-            <SectionHeading
-                title="Built for the way you work."
-                copy="Whether you work alone, advise businesses, or run a creative studio."
-            />
+            <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
+              <SectionHeading
+                  title="Built for independent professionals."
+                  copy="Freelancers, consultants and creative studios — all in one place."
+              />
+              <div className="flex justify-start lg:justify-end">
+                <Link
+                    href="/creatives"
+                    className={buttonStyles({ variant: 'link' })}
+                >
+                  See how Bagg fits your work
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </div>
+            </div>
 
             <MarketingGrid columns={3} gap="md" className="mt-10">
-              <AudienceCard
-                  title="Freelancers"
-                  copy="For independent professionals managing clients, projects and payments on their own."
-                  label="Independent work"
-                  href="/freelancers"
-              />
-              <AudienceCard
-                  title="Consultants"
-                  copy="For advisory, strategy and professional services where clear commercial records matter."
-                  label="Professional services"
-                  href="/consultants"
-              />
-              <AudienceCard
-                  title="Creative studios"
-                  copy="For small teams coordinating client work, invoices and payment administration."
-                  label="Creative businesses"
-                  href="/studios"
-              />
+              {['Freelancers', 'Consultants', 'Creative studios'].map((role) => (
+                <MarketingCard key={role} tone="surface">
+                  <p className="text-title text-ink">{role}</p>
+                </MarketingCard>
+              ))}
             </MarketingGrid>
           </Container>
         </section>
@@ -450,31 +448,3 @@ function CapabilityCard({
   );
 }
 
-function AudienceCard({
-                        title,
-                        copy,
-                        label,
-                        href,
-                      }: {
-  title: string;
-  copy: string;
-  label: string;
-  href: string;
-}) {
-  return (
-      <MarketingCard tone="surface" className="flex h-full flex-col">
-        <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-          {label}
-        </p>
-        <h3 className="mt-3 text-title text-ink">{title}</h3>
-        <p className="mt-2 flex-1 text-body text-text-soft">{copy}</p>
-        <Link
-            href={href}
-            className={`${buttonStyles({ variant: 'link' })} mt-5`}
-        >
-          Explore
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
-      </MarketingCard>
-  );
-}
