@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -23,8 +24,20 @@ import { cn } from '@/lib/cn';
 
 const API_BASE = '/api';
 
-function useFirstName() {
-  const [name, setName] = useState('');
+type SetupVisibility = 'expanded' | 'minimized' | 'dismissed';
+
+interface DashboardProfile {
+  name: string;
+  workspaceId: string | null;
+  loaded: boolean;
+}
+
+function useDashboardProfile(): DashboardProfile {
+  const [profile, setProfile] = useState<DashboardProfile>({
+    name: '',
+    workspaceId: null,
+    loaded: false,
+  });
 
   useEffect(() => {
     let live = true;
@@ -35,25 +48,39 @@ function useFirstName() {
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
-        if (!live || !data) return;
+        if (!live) return;
 
-        const fullName = data.user?.full_name?.trim();
-        const businessName = data.workspace?.business_name?.trim();
+        const fullName = data?.user?.full_name?.trim();
+        const businessName = data?.workspace?.business_name?.trim();
+        const workspaceId = data?.workspace?.id;
 
-        setName(
-          fullName
+        setProfile({
+          name: fullName
             ? fullName.split(/\s+/)[0]
             : businessName || '',
-        );
+          workspaceId:
+            typeof workspaceId === 'string' && workspaceId.length > 0
+              ? workspaceId
+              : null,
+          loaded: true,
+        });
       })
-      .catch(() => {});
+      .catch(() => {
+        if (live) {
+          setProfile({
+            name: '',
+            workspaceId: null,
+            loaded: true,
+          });
+        }
+      });
 
     return () => {
       live = false;
     };
   }, []);
 
-  return name;
+  return profile;
 }
 
 function DashboardSkeleton() {
@@ -82,7 +109,55 @@ export default function DashboardPage() {
   const [selected, setSelected] = useState('');
   const [hasDispatchedDocument, setHasDispatchedDocument] = useState<boolean | null>(null);
 
-  const name = useFirstName();
+  const profile = useDashboardProfile();
+
+  const [setupVisibility, setSetupVisibility] =
+    useState<SetupVisibility>('expanded');
+  const [setupPreferenceReady, setSetupPreferenceReady] = useState(false);
+
+  const setupPreferenceKey = profile.workspaceId
+    ? `bagg:dashboard:setup-visibility:${profile.workspaceId}`
+    : null;
+
+  useEffect(() => {
+    if (!profile.loaded) return;
+
+    let visibility: SetupVisibility = 'expanded';
+
+    if (setupPreferenceKey) {
+      try {
+        const saved = window.localStorage.getItem(setupPreferenceKey);
+
+        if (
+          saved === 'expanded' ||
+          saved === 'minimized' ||
+          saved === 'dismissed'
+        ) {
+          visibility = saved;
+        }
+      } catch {
+        // The dashboard remains usable when browser storage is unavailable.
+      }
+    }
+
+    setSetupVisibility(visibility);
+    setSetupPreferenceReady(true);
+  }, [profile.loaded, setupPreferenceKey]);
+
+  const changeSetupVisibility = useCallback(
+    (visibility: SetupVisibility) => {
+      setSetupVisibility(visibility);
+
+      if (!setupPreferenceKey) return;
+
+      try {
+        window.localStorage.setItem(setupPreferenceKey, visibility);
+      } catch {
+        // Persistence is best-effort; the current page state still updates.
+      }
+    },
+    [setupPreferenceKey],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,7 +200,6 @@ export default function DashboardPage() {
 
   const metric = metrics.find((item) => item.currency === selected) ?? metrics[0];
 
-  // Check metrics evidence of sent invoices or payments
   const hasMetricActivity = metrics.some(
     (m) =>
       (m.sent_count ?? 0) > 0 ||
@@ -133,7 +207,6 @@ export default function DashboardPage() {
       (m.paid_this_month_minor ?? 0) > 0,
   );
 
-  // Teaching mode is active until the first document is dispatched
   const isTeachingMode =
     hasDispatchedDocument === false ||
     (hasDispatchedDocument === null && !loading && !hasMetricActivity);
@@ -145,15 +218,27 @@ export default function DashboardPage() {
   return (
     <PageContainer width="list">
       <PageHeader
-        title={name ? `Hi, ${name}` : 'Hi there'}
+        title={profile.name ? `Hi, ${profile.name}` : 'Hi there'}
         actions={
-          <Link
-            href="/invoices/new"
-            className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
-          >
-            <Plus aria-hidden weight="bold" className="h-4 w-4" />
-            Create invoice
-          </Link>
+          <>
+            {setupPreferenceReady && setupVisibility === 'dismissed' && (
+              <button
+                type="button"
+                onClick={() => changeSetupVisibility('expanded')}
+                className="inline-flex items-center rounded-btn border-brut-thin border-ink bg-surface px-3 py-2 text-caption font-extrabold text-ink shadow-brut-sm transition-colors hover:bg-surface-tint"
+              >
+                Setup guide
+              </button>
+            )}
+
+            <Link
+              href="/invoices/new"
+              className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
+            >
+              <Plus aria-hidden weight="bold" className="h-4 w-4" />
+              Create invoice
+            </Link>
+          </>
         }
       />
 
@@ -170,24 +255,22 @@ export default function DashboardPage() {
 
       {!loading && !failed && (
         <>
-          {/* =========================================================================
-              1. TEACHING MODE: New users before first invoice is sent (Guidance First)
-              ========================================================================= */}
           {isTeachingMode ? (
             <div className="mx-auto max-w-2xl space-y-6">
-              {/* Hero: Setup checklist sits above hero card, full size */}
-              <SetupChecklistCard
-                mode="hero"
-                onMilestonesLoaded={handleMilestonesLoaded}
-              />
+              {setupPreferenceReady && (
+                <SetupChecklistCard
+                  mode="hero"
+                  visibility={setupVisibility}
+                  onVisibilityChange={changeSetupVisibility}
+                  onMilestonesLoaded={handleMilestonesLoaded}
+                />
+              )}
 
-              {/* Empty Owed to you card: 0.00 */}
               <HeroOwedCard
                 isTeachingMode
                 selectedCurrency={selected || 'NGN'}
               />
 
-              {/* Friendly empty state mascot */}
               <div className="flex items-center gap-4 border-brut border-ink bg-surface p-6 shadow-brut-sm">
                 <BagCharacter mood="happy" size={54} className="shrink-0" />
                 <div>
@@ -200,19 +283,13 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Reassurance note */}
               <p className="text-center text-caption font-extrabold text-text-muted">
                 More sections appear after the first send
               </p>
             </div>
           ) : (
-            /* =========================================================================
-               2. MONEY MODE: Active users once first invoice is sent (Money & Actions First)
-               ========================================================================= */
             <>
-              {/* DESKTOP LAYOUT (Left 2/3 and Right 1/3) */}
               <div className="hidden lg:grid lg:grid-cols-12 lg:gap-6">
-                {/* Left two-thirds: Hero card -> Attention strip -> This month */}
                 <div className="space-y-6 lg:col-span-8">
                   <HeroOwedCard
                     metric={metric}
@@ -237,20 +314,21 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                {/* Right third: Setup checklist (slim) -> Recent activity */}
                 <div className="space-y-6 lg:col-span-4">
-                  <SetupChecklistCard
-                    mode="slim"
-                    onMilestonesLoaded={handleMilestonesLoaded}
-                  />
+                  {setupPreferenceReady && (
+                    <SetupChecklistCard
+                      mode="slim"
+                      visibility={setupVisibility}
+                      onVisibilityChange={changeSetupVisibility}
+                      onMilestonesLoaded={handleMilestonesLoaded}
+                    />
+                  )}
 
                   <RecentActivityFeed />
                 </div>
               </div>
 
-              {/* MOBILE LAYOUT (Single Column Top-to-Bottom) */}
               <div className="space-y-5 lg:hidden">
-                {/* 1. Hero card: money owed to you */}
                 <HeroOwedCard
                   metric={metric}
                   metrics={metrics}
@@ -258,7 +336,6 @@ export default function DashboardPage() {
                   onCurrencyChange={setSelected}
                 />
 
-                {/* 2. Needs your attention (max 3 rows or mascot) */}
                 <NeedsAttentionStrip
                   overdueCount={metric?.overdue_count ?? 0}
                   claimsCount={metric?.claimed_count ?? 0}
@@ -266,13 +343,15 @@ export default function DashboardPage() {
                   currency={metric?.currency ?? selected ?? 'NGN'}
                 />
 
-                {/* 3. Setup checklist (slim bar below attention strip) */}
-                <SetupChecklistCard
-                  mode="slim"
-                  onMilestonesLoaded={handleMilestonesLoaded}
-                />
+                {setupPreferenceReady && (
+                  <SetupChecklistCard
+                    mode="slim"
+                    visibility={setupVisibility}
+                    onVisibilityChange={changeSetupVisibility}
+                    onMilestonesLoaded={handleMilestonesLoaded}
+                  />
+                )}
 
-                {/* 4. This month (compact row: Paid, Sent, Drafts) */}
                 <ThisMonthCard
                   paidMinor={metric?.paid_this_month_minor ?? 0}
                   paidCount={metric?.paid_count ?? 0}
@@ -281,7 +360,6 @@ export default function DashboardPage() {
                   currency={metric?.currency ?? selected ?? 'NGN'}
                 />
 
-                {/* 5. Recent activity feed */}
                 <RecentActivityFeed />
               </div>
             </>

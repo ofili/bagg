@@ -455,12 +455,12 @@ function PlanCard({
 
         <div className="mt-auto pt-8">
           <Link
-              href={href}
-              className={
-                featured
-                    ? `${buttonStyles({ variant: 'ink', size: 'lg' })} w-full`
-                    : `${buttonStyles({ size: 'lg' })} w-full`
-              }
+            href={href}
+            className={buttonStyles({
+              variant: featured ? 'ink' : 'primary',
+              size: 'lg',
+              fullWidth: true,
+            })}
           >
             {cta}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />

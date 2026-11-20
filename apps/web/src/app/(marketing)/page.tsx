@@ -57,21 +57,25 @@ export default function MarketingPage() {
                 side moving while you focus on the work.
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                 <Link
-                    href="/signup"
-                    className={buttonStyles({ size: 'lg' })}
+                  href="/signup"
+                  className={buttonStyles({
+                    size: 'lg',
+                    mobileFullWidth: true,
+                  })}
                 >
                   Start free
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
 
                 <Link
-                    href={demoInvoiceHref}
-                    className={buttonStyles({
-                      variant: 'outline',
-                      size: 'lg',
-                    })}
+                  href={demoInvoiceHref}
+                  className={buttonStyles({
+                    variant: 'outline',
+                    size: 'lg',
+                    mobileFullWidth: true,
+                  })}
                 >
                   See a client invoice
                 </Link>

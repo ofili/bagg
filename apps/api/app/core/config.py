@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     DOCUMENT_WORKER_LEASE_SECONDS: int = 180
     DOCUMENT_WORKER_MAX_ATTEMPTS: int = 5
 
+    # Central scheduler
+    SCHEDULER_REMINDERS_INTERVAL_SECONDS: int = 60
+    SCHEDULER_SUBSCRIPTION_EXPIRY_INTERVAL_SECONDS: int = 300
+    SCHEDULER_LEADER_RETRY_SECONDS: int = 10
+    SCHEDULER_HEARTBEAT_SECONDS: int = 15
+
     # Email
     SENDLY_API_KEY: Optional[str] = None
     SENDLY_FROM_EMAIL: Optional[str] = None
@@ -129,9 +135,7 @@ class Settings(BaseSettings):
                 "OTP_HASH_SECRET must contain at least 32 characters in production"
             )
         if not self.EMAIL_ENCRYPTION_KEY:
-            raise ValueError(
-                "EMAIL_ENCRYPTION_KEY must be configured in production"
-            )
+            raise ValueError("EMAIL_ENCRYPTION_KEY must be configured in production")
         return self
 
     @field_validator("EMAIL_ENCRYPTION_KEY")

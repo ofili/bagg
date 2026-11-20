@@ -109,19 +109,28 @@ export default function CreativesPage() {
                   easier and keep track of what comes in.
                 </p>
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row">
                   <Link
-                      href="/signup"
-                      className={buttonStyles({ size: 'lg' })}
+                    href="/signup"
+                    className={buttonStyles({
+                      size: 'lg',
+                      mobileFullWidth: true,
+                    })}
                   >
-                    Start free <ArrowRight className="h-4 w-4"/>
+                    Start free
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
 
                   <Link
-                      href={demoInvoiceHref}
-                      className={buttonStyles({ variant: 'outline', size: 'lg' })}
+                    href={demoInvoiceHref}
+                    className={buttonStyles({
+                      variant: 'outline',
+                      size: 'lg',
+                      mobileFullWidth: true,
+                    })}
                   >
-                    See a client invoice <ArrowUpRight className="h-4 w-4"/>
+                    See a client invoice
+                    <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
                 </div>
 

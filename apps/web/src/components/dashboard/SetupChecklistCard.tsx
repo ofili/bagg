@@ -1,8 +1,17 @@
+
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CaretDown, Check, Circle, Plus, Sparkle } from '@phosphor-icons/react';
+import {
+  CaretDown,
+  Check,
+  Circle,
+  Plus,
+  Sparkle,
+  X,
+} from '@phosphor-icons/react';
+
 import { BagCharacter } from '@/components/brand';
 import { buttonStyles } from '@/components/ui';
 import { cn } from '@/lib/cn';
@@ -21,47 +30,69 @@ interface StepItem {
   href: string;
 }
 
+export type SetupVisibility = 'expanded' | 'minimized' | 'dismissed';
+
 interface SetupChecklistCardProps {
   mode: 'hero' | 'slim';
+  visibility: SetupVisibility;
+  onVisibilityChange: (visibility: SetupVisibility) => void;
   onMilestonesLoaded?: (dispatched: boolean, paid: boolean) => void;
   className?: string;
 }
 
 function hasMilestone(milestones: Milestone[], key: string): boolean {
-  return milestones.some((m) => m.key === key && m.completed);
+  return milestones.some((milestone) => milestone.key === key && milestone.completed);
 }
 
 export function SetupChecklistCard({
   mode,
+  visibility,
+  onVisibilityChange,
   onMilestonesLoaded,
   className,
 }: SetupChecklistCardProps) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [onboardingDone, setOnboardingDone] = useState(true);
-  const [collapsed, setCollapsed] = useState(mode === 'slim');
   const [dismissedCelebration, setDismissedCelebration] = useState(false);
 
   useEffect(() => {
     let live = true;
+
     Promise.all([
-      fetch(`${API_BASE}/activation`, { credentials: 'include', cache: 'no-store' }),
-      fetch(`${API_BASE}/auth/me`, { credentials: 'include', cache: 'no-store' }),
+      fetch(`${API_BASE}/activation`, {
+        credentials: 'include',
+        cache: 'no-store',
+      }),
+      fetch(`${API_BASE}/auth/me`, {
+        credentials: 'include',
+        cache: 'no-store',
+      }),
     ])
       .then(async ([actRes, authRes]) => {
         const actData = actRes.ok ? await actRes.json() : null;
         const authData = authRes.ok ? await authRes.json() : null;
+
         if (!live) return;
 
-        const ms: Milestone[] = actData?.milestones || [];
-        setMilestones(ms);
-        setOnboardingDone(authData?.workspace?.onboarding_completed === true);
+        const nextMilestones: Milestone[] = Array.isArray(actData?.milestones)
+          ? actData.milestones
+          : [];
 
-        const dispatched = hasMilestone(ms, 'first_document_dispatched');
-        const paid = hasMilestone(ms, 'first_payment_confirmed');
+        setMilestones(nextMilestones);
+        setOnboardingDone(
+          authData?.workspace?.onboarding_completed === true,
+        );
 
-        if (onMilestonesLoaded) {
-          onMilestonesLoaded(dispatched, paid);
-        }
+        const dispatched = hasMilestone(
+          nextMilestones,
+          'first_document_dispatched',
+        );
+        const paid = hasMilestone(
+          nextMilestones,
+          'first_payment_confirmed',
+        );
+
+        onMilestonesLoaded?.(dispatched, paid);
       })
       .catch(() => {});
 
@@ -73,8 +104,14 @@ export function SetupChecklistCard({
   const invoiceCreated = hasMilestone(milestones, 'first_invoice_created');
   const quoteCreated = hasMilestone(milestones, 'first_quote_created');
   const documentCreated = invoiceCreated || quoteCreated;
-  const documentDispatched = hasMilestone(milestones, 'first_document_dispatched');
-  const paymentConfirmed = hasMilestone(milestones, 'first_payment_confirmed');
+  const documentDispatched = hasMilestone(
+    milestones,
+    'first_document_dispatched',
+  );
+  const paymentConfirmed = hasMilestone(
+    milestones,
+    'first_payment_confirmed',
+  );
 
   const steps: StepItem[] = useMemo(
     () => [
@@ -103,25 +140,34 @@ export function SetupChecklistCard({
         href: '/invoices',
       },
     ],
-    [onboardingDone, documentCreated, documentDispatched, paymentConfirmed],
+    [
+      onboardingDone,
+      documentCreated,
+      documentDispatched,
+      paymentConfirmed,
+    ],
   );
 
-  const completedCount = steps.filter((s) => s.done).length;
+  const completedCount = steps.filter((step) => step.done).length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
 
-  // If first payment is confirmed, show the Celebration Card instead of checklist
+  // Keep the first-payment celebration independent of checklist visibility.
   if (paymentConfirmed) {
     if (dismissedCelebration) return null;
 
     return (
       <div
         className={cn(
-          'flex items-center justify-between border-brut border-ink bg-peach p-5 shadow-brut-sm',
+          'flex items-center justify-between gap-3 border-brut border-ink bg-peach p-5 shadow-brut-sm',
           className,
         )}
       >
-        <div className="flex items-center gap-4">
-          <BagCharacter mood="celebrating" size={56} className="shrink-0" />
+        <div className="flex min-w-0 items-center gap-4">
+          <BagCharacter
+            mood="celebrating"
+            size={56}
+            className="shrink-0"
+          />
           <div>
             <div className="flex items-center gap-1.5 font-extrabold text-ink">
               <Sparkle weight="fill" className="h-4 w-4 text-mango" />
@@ -136,7 +182,7 @@ export function SetupChecklistCard({
         <button
           type="button"
           onClick={() => setDismissedCelebration(true)}
-          className="rounded-btn border-brut-thin border-ink bg-surface px-2.5 py-1 text-caption font-extrabold text-ink shadow-brut-sm hover:bg-surface-tint"
+          className="shrink-0 rounded-btn border-brut-thin border-ink bg-surface px-2.5 py-1 text-caption font-extrabold text-ink shadow-brut-sm hover:bg-surface-tint"
         >
           Got it
         </button>
@@ -144,7 +190,90 @@ export function SetupChecklistCard({
     );
   }
 
-  // 1. HERO TEACHING MODE (Full size before first invoice is dispatched)
+  if (visibility === 'dismissed') {
+    return null;
+  }
+
+  const visibilityControls = (
+    <div className="flex shrink-0 items-center gap-1">
+      <button
+        type="button"
+        onClick={() => onVisibilityChange('minimized')}
+        aria-label="Minimize setup guide"
+        title="Minimize setup guide"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-btn border-brut-thin border-ink bg-surface text-ink hover:bg-surface-tint"
+      >
+        <CaretDown aria-hidden className="h-4 w-4" />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onVisibilityChange('dismissed')}
+        aria-label="Close setup guide"
+        title="Close setup guide"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-btn border-brut-thin border-ink bg-surface text-ink hover:bg-surface-tint"
+      >
+        <X aria-hidden className="h-4 w-4" />
+      </button>
+    </div>
+  );
+
+  if (visibility === 'minimized') {
+    return (
+      <div
+        className={cn(
+          'flex items-center justify-between gap-3 border-brut border-ink bg-surface p-3 shadow-brut-sm',
+          className,
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
+              Setup
+            </span>
+            <span className="text-body font-extrabold text-ink">
+              {completedCount} of {steps.length} done
+            </span>
+          </div>
+
+          <div
+            className="mt-2 h-2 w-full overflow-hidden rounded-full border border-ink bg-surface-sunken"
+            role="progressbar"
+            aria-label="Setup progress"
+            aria-valuemin={0}
+            aria-valuemax={steps.length}
+            aria-valuenow={completedCount}
+          >
+            <div
+              className="h-full rounded-full bg-leaf transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onVisibilityChange('expanded')}
+            className="rounded-btn border-brut-thin border-ink bg-surface px-3 py-2 text-caption font-extrabold text-ink shadow-brut-sm hover:bg-surface-tint"
+          >
+            Expand
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onVisibilityChange('dismissed')}
+            aria-label="Close setup guide"
+            title="Close setup guide"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-btn text-text-muted hover:bg-surface-tint hover:text-ink"
+          >
+            <X aria-hidden className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (mode === 'hero') {
     return (
       <section
@@ -154,13 +283,17 @@ export function SetupChecklistCard({
           className,
         )}
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-3">
           <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
             Your first steps
           </p>
-          <span className="rounded-full border-brut-thin border-ink bg-surface px-2.5 py-0.5 text-caption font-black text-ink">
-            {completedCount} of {steps.length} done
-          </span>
+
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border-brut-thin border-ink bg-surface px-2.5 py-0.5 text-caption font-black text-ink">
+              {completedCount} of {steps.length} done
+            </span>
+            {visibilityControls}
+          </div>
         </div>
 
         <h2
@@ -170,17 +303,22 @@ export function SetupChecklistCard({
           Let us get your first invoice moving
         </h2>
 
-        {/* Progress Bar */}
-        <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full border border-ink bg-surface">
+        <div
+          className="mt-4 h-2.5 w-full overflow-hidden rounded-full border border-ink bg-surface"
+          role="progressbar"
+          aria-label="Setup progress"
+          aria-valuemin={0}
+          aria-valuemax={steps.length}
+          aria-valuenow={completedCount}
+        >
           <div
             className="h-full rounded-full bg-leaf transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
 
-        {/* 4 Steps */}
         <ol className="mt-5 space-y-3">
-          {steps.map((step, idx) => (
+          {steps.map((step, index) => (
             <li key={step.id}>
               <Link
                 href={step.href}
@@ -193,7 +331,7 @@ export function SetupChecklistCard({
               >
                 <div className="flex items-center gap-3">
                   <span className="text-caption font-black text-text-muted">
-                    {idx + 1}.
+                    {index + 1}.
                   </span>
                   <span>{step.label}</span>
                 </div>
@@ -210,11 +348,14 @@ export function SetupChecklistCard({
           ))}
         </ol>
 
-        {/* Primary CTA */}
         <div className="mt-6">
           <Link
             href="/invoices/new"
-            className={buttonStyles({ variant: 'accent', size: 'lg', fullWidth: true })}
+            className={buttonStyles({
+              variant: 'accent',
+              size: 'lg',
+              fullWidth: true,
+            })}
           >
             <Plus aria-hidden className="h-4 w-4" />
             Create invoice
@@ -224,7 +365,6 @@ export function SetupChecklistCard({
     );
   }
 
-  // 2. SLIM PROGRESS BAR (Money mode, sits below attention strip on mobile or in right column on desktop)
   return (
     <div
       className={cn(
@@ -233,63 +373,61 @@ export function SetupChecklistCard({
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="font-extrabold text-caption uppercase tracking-wider text-text-muted">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
             Setup
           </span>
-          <span className="font-extrabold text-body text-ink">
+          <span className="text-body font-extrabold text-ink">
             {completedCount} of {steps.length} done
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setCollapsed((prev) => !prev)}
-          aria-expanded={!collapsed}
-          className="flex items-center gap-1 text-caption font-extrabold text-link hover:underline"
-        >
-          <span>{collapsed ? 'View steps' : 'Hide'}</span>
-          <CaretDown
-            aria-hidden
-            className={cn('h-3.5 w-3.5 transition-transform duration-200', !collapsed && 'rotate-180')}
-          />
-        </button>
+        {visibilityControls}
       </div>
 
-      {/* Slim Progress Bar */}
-      <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full border border-ink bg-surface-sunken">
+      <div
+        className="mt-2.5 h-2 w-full overflow-hidden rounded-full border border-ink bg-surface-sunken"
+        role="progressbar"
+        aria-label="Setup progress"
+        aria-valuemin={0}
+        aria-valuemax={steps.length}
+        aria-valuenow={completedCount}
+      >
         <div
           className="h-full rounded-full bg-leaf transition-all duration-300"
           style={{ width: `${progressPercent}%` }}
         />
       </div>
 
-      {/* Expanded Step Checklist */}
-      {!collapsed && (
-        <ol className="mt-4 space-y-2 border-t border-line-subtle pt-3 text-caption">
-          {steps.map((step, idx) => (
-            <li key={step.id}>
-              <Link
-                href={step.href}
-                className={cn(
-                  'flex items-center justify-between py-1.5 font-bold transition-colors hover:text-link',
-                  step.done ? 'text-text-muted line-through' : 'text-ink',
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-text-muted">{idx + 1}.</span>
-                  <span>{step.label}</span>
-                </div>
-                {step.done ? (
-                  <Check weight="bold" className="h-3.5 w-3.5 text-leaf shrink-0" />
-                ) : (
-                  <Circle className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                )}
-              </Link>
-            </li>
-          ))}
-        </ol>
-      )}
+      <ol className="mt-4 space-y-2 border-t border-line-subtle pt-3 text-caption">
+        {steps.map((step, index) => (
+          <li key={step.id}>
+            <Link
+              href={step.href}
+              className={cn(
+                'flex items-center justify-between py-1.5 font-bold transition-colors hover:text-link',
+                step.done ? 'text-text-muted line-through' : 'text-ink',
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-text-muted">
+                  {index + 1}.
+                </span>
+                <span>{step.label}</span>
+              </div>
+
+              {step.done ? (
+                <Check
+                  weight="bold"
+                  className="h-3.5 w-3.5 shrink-0 text-leaf"
+                />
+              ) : (
+                <Circle className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+              )}
+            </Link>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

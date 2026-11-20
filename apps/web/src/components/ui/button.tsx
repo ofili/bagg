@@ -24,7 +24,10 @@ interface ButtonStyleOptions {
   variant?: ButtonVariant;
   size?: ButtonSize;
   zone?: Zone;
+  /** Full width at every breakpoint. */
   fullWidth?: boolean;
+  /** Full width below sm; intrinsic width from sm upwards. */
+  mobileFullWidth?: boolean;
 }
 
 export function buttonStyles({
@@ -32,14 +35,20 @@ export function buttonStyles({
   size = 'md',
   zone = 'expressive',
   fullWidth = false,
+  mobileFullWidth = false,
 }: ButtonStyleOptions = {}) {
+  const widthClasses = [
+    fullWidth && 'w-full',
+    mobileFullWidth && 'w-full sm:w-auto',
+  ];
+
   if (variant === 'link') {
     return cn(
       'inline-flex min-h-11 items-center justify-center gap-1 px-1 text-body font-extrabold',
       'text-link underline underline-offset-4 hover:no-underline',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2',
       'disabled:pointer-events-none disabled:opacity-40',
-      fullWidth && 'w-full',
+      widthClasses,
     );
   }
 
@@ -66,7 +75,7 @@ export function buttonStyles({
         : 'border-brut-thin border-ink'),
     isGhost && 'transition-colors duration-100',
     'disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none',
-    fullWidth && 'w-full',
+    widthClasses,
   );
 }
 
@@ -85,6 +94,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       size,
       zone,
       fullWidth,
+      mobileFullWidth,
       loading = false,
       disabled,
       className,
@@ -101,7 +111,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         aria-busy={loading || undefined}
         className={cn(
-          buttonStyles({ variant, size, zone, fullWidth }),
+          buttonStyles({
+            variant,
+            size,
+            zone,
+            fullWidth,
+            mobileFullWidth,
+          }),
           className,
         )}
         {...props}

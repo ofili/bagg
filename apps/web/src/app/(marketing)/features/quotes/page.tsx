@@ -54,16 +54,29 @@ export default function QuotesPage() {
                                     turn the accepted work into an invoice.
                                 </p>
 
-                                <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
-                                    <Link href="/signup" className={buttonStyles({ size: 'lg' })}>
-                                        Create a quote <ArrowRight className="h-4 w-4" />
-                                    </Link>
+                                <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row">
                                     <Link
-                                        href="/features/invoicing"
-                                        className="inline-flex min-h-11 items-center gap-2 font-extrabold text-link underline decoration-2 underline-offset-4 hover:no-underline"
+                                        href="/signup"
+                                        className={buttonStyles({
+                                        size: 'lg',
+                                        variant: 'primary',
+                                        mobileFullWidth: true,
+                                        })}
                                     >
-                                        Explore invoicing
-                                        <ArrowUpRight className="h-4 w-4" />
+                                        Start free
+                                        <ArrowRight aria-hidden className="h-4 w-4" />
+                                    </Link>
+
+                                    <Link
+                                        href="/features/receipts"
+                                        className={buttonStyles({
+                                        size: 'lg',
+                                        variant: 'outline',
+                                        mobileFullWidth: true,
+                                        })}
+                                    >
+                                        Explore receipts
+                                        <ArrowUpRight aria-hidden className="h-4 w-4" />
                                     </Link>
                                 </div>
                             </div>

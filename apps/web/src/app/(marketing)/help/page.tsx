@@ -93,7 +93,11 @@ export default function HelpPage() {
 
                 <Link
                     href="/contact"
-                    className={`${buttonStyles({ variant: 'ink', size: 'lg' })} mt-5 w-full`}
+                    className={`${buttonStyles({
+                      variant: 'ink',
+                      size: 'lg',
+                      fullWidth: true,
+                    })} mt-5`}
                 >
                   Contact support
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />

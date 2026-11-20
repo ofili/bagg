@@ -59,7 +59,10 @@ export default function InvoicingPage() {
                                 </p>
 
                                 <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
-                                    <Link href="/signup" className={buttonStyles({ size: 'lg' })}>
+                                    <Link href="/signup" className={buttonStyles({
+                                        size: 'lg',
+                                        mobileFullWidth: true,
+                                        })}>
                                         Create your first invoice <ArrowRight className="h-4 w-4" />
                                     </Link>
                                     <Link

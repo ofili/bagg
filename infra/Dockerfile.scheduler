@@ -1,0 +1,19 @@
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+COPY apps/api/pyproject.toml ./
+COPY apps/api/uv.lock ./
+RUN uv sync --frozen --no-dev
+
+COPY apps/api/app ./app
+COPY fixtures /fixtures
+
+CMD ["uv", "run", "--no-sync", "python", "-m", "app.jobs.scheduler"]

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
+import { PageHero } from '@/components/marketing/page-hero';
 import { buttonStyles } from '@/components/ui/button';
 import { marketingMetadata } from '@/lib/metadata';
 import {Metadata} from "next";
@@ -88,115 +89,45 @@ export default function AboutPage() {
   return (
       <>
         {/* HERO */}
-        <section className="overflow-hidden border-b-2 border-ink bg-cream">
-          <Container className="py-12 sm:py-16 lg:py-20">
-            <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-              <div className="min-w-0">
-                <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut">
-                  Why Bagg exists
-                </div>
-
-                <h1 className="mt-7 max-w-3xl text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem] lg:text-[5.25rem]">
-                  Focus on client work.
-                  <span className="block text-mango">
-                  We handle getting paid.
-                </span>
-                </h1>
-
-                <p className="mt-6 max-w-xl text-body-l leading-relaxed text-text-soft sm:text-lg">
-                  Bagg is an invoicing and payment platform for African
-                  freelancers, consultants and studios. We bring quotes, invoices,
-                  payment tracking and receipts into one connected workflow.
-                </p>
-
-                <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <Link href="/signup" className={buttonStyles({ size: 'lg' })}>
-                    Start free
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
-
-                  <Link
-                      href="/features"
-                      className={buttonStyles({ variant: 'link' })}
-                  >
-                    Explore the product
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
-                </div>
-
-                <p className="mt-7 text-caption font-bold uppercase tracking-[0.12em] text-text-muted">
-                  Built for independent work · Designed around getting paid
-                </p>
-              </div>
-
-              {/* WORKFLOW COMPOSITION */}
-              <div className="relative mx-auto w-full max-w-[34rem] pb-5 pr-5">
-                <div className="absolute right-0 top-0 h-full w-full rotate-3 border-brut border-ink bg-pink" />
-
-                <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
-                  <div className="flex items-center justify-between gap-3 border-b-2 border-ink pb-4">
-                  <span className="text-caption font-extrabold uppercase tracking-[0.14em]">
-                    The Bagg workflow
-                  </span>
-                    <span className="border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase text-on-sun">
-                    04 steps
-                  </span>
-                  </div>
-
-                  <div className="pt-3">
-                    {workflow.map((step, index) => {
-                      const Icon = step.icon;
-
-                      return (
-                          <div
-                              key={step.number}
-                              className="relative flex gap-4 py-4"
-                          >
-                            {index !== workflow.length - 1 && (
-                                <span
-                                    aria-hidden="true"
-                                    className="absolute bottom-[-0.5rem] left-5 top-14 w-0.5 bg-ink/25"
-                                />
-                            )}
-
-                            <span
-                                className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center border-brut border-ink shadow-brut ${step.tone}`}
-                            >
-                          <Icon className="h-4 w-4" aria-hidden="true" />
-                        </span>
-
-                            <div className="min-w-0 flex-1">
-                              <p className="font-extrabold text-ink">
-                                {step.title}
-                              </p>
-                              <p className="mt-1 text-caption leading-relaxed text-text-muted">
-                                {step.copy}
-                              </p>
-                            </div>
-
-                            <span className="pt-1 text-caption font-extrabold text-text-muted">
-                          {step.number}
-                        </span>
-                          </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-between gap-3 border-t-2 border-ink pt-4">
-                  <span className="text-caption font-bold text-text-soft">
-                    From agreement to payment record
-                  </span>
-                    <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" />
-                  </div>
-                </div>
-
-                <div className="absolute -bottom-1 -left-2 -rotate-3 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
-                  Less chasing.
-                </div>
-              </div>
+        <PageHero
+          layout="split"
+          kicker={
+            <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut">
+              Why Bagg exists
             </div>
-          </Container>
-        </section>
+          }
+          title={
+            <>
+              Focus on client work.
+              <span className="block text-mango">
+                We handle getting paid.
+              </span>
+            </>
+          }
+          copy={
+            <>
+              Bagg is an invoicing and payment platform for African
+              freelancers, consultants and studios. We bring quotes, invoices,
+              payment tracking and receipts into one connected workflow.
+            </>
+          }
+          containerClassName="lg:grid-cols-[1.05fr_0.95fr]"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <Link href="/signup" className={buttonStyles({ size: 'lg' })}>
+              Start free
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+
+            <Link
+              href="/features"
+              className={buttonStyles({ variant: 'link' })}
+            >
+              Explore the product
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </PageHero>
 
         {/* THE PROBLEM */}
         <section className="border-b-2 border-ink bg-surface">

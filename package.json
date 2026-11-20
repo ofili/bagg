@@ -11,6 +11,7 @@
     "dev:worker": "cd apps/api && uv run python -m app.jobs.worker",
     "seed:demo": "cd apps/api && uv run python scripts/seed_demo.py",
     "dev:document-worker": "cd apps/api && uv run python -m app.jobs.document_worker",
+    "dev:scheduler": "cd apps/api && uv run python -m app.jobs.scheduler",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",

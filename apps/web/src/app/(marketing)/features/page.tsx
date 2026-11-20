@@ -98,10 +98,18 @@ export default function FeaturesPage() {
                                     Keep your client finances connected in one focused workspace.
                                 </p>
 
-                                <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
-                                    <Link href="/signup" className={buttonStyles({ size: 'lg' })}>
-                                        Start free <ArrowRight className="h-4 w-4" />
+                                <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                                    <Link
+                                        href="/signup"
+                                        className={buttonStyles({
+                                        size: 'lg',
+                                        mobileFullWidth: true,
+                                        })}
+                                    >
+                                        Start free
+                                        <ArrowRight className="h-4 w-4" />
                                     </Link>
+
                                     <Link
                                         href={demoInvoiceHref}
                                         className="inline-flex min-h-11 items-center gap-2 font-extrabold text-link underline decoration-2 underline-offset-4 hover:no-underline"
@@ -109,7 +117,7 @@ export default function FeaturesPage() {
                                         See the client experience
                                         <ArrowUpRight className="h-4 w-4" />
                                     </Link>
-                                </div>
+                                    </div>
 
                                 <p className="mt-7 text-caption font-bold uppercase tracking-[0.12em] text-text-muted">
                                     Built for freelancers · consultants · creators · studios
