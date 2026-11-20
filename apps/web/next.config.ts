@@ -1,11 +1,10 @@
-import type { NextConfig } from 'next';
+import type { NextConfig } from "next";
 
-const API_UPSTREAM =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+const API_UPSTREAM = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@bagg/api-client'],
+  transpilePackages: ["@bagg/api-client"],
 
   /**
    * Proxy /api/* to the FastAPI backend.
@@ -19,7 +18,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
+        source: "/api/:path*",
         destination: `${API_UPSTREAM}/:path*`,
       },
     ];
@@ -28,23 +27,28 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
-        source: '/early-access',
-        destination: '/signup',
+        source: "/early-access",
+        destination: "/signup",
         permanent: true,
       },
       {
-        source: '/freelancers',
-        destination: '/creatives',
+        source: "/creatives",
+        destination: "/audiences",
         permanent: true,
       },
       {
-        source: '/consultants',
-        destination: '/creatives',
+        source: "/freelancers",
+        destination: "/audiences",
         permanent: true,
       },
       {
-        source: '/studios',
-        destination: '/creatives',
+        source: "/consultants",
+        destination: "/audiences",
+        permanent: true,
+      },
+      {
+        source: "/studios",
+        destination: "/audiences",
         permanent: true,
       },
     ];
@@ -57,27 +61,27 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: '/:path*',
+        source: "/:path*",
         headers: [
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
           {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
           },
           {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
           },
         ],
       },
       // Cache static assets aggressively
       {
-        source: '/_next/static/:path*',
+        source: "/_next/static/:path*",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
           },
         ],
       },
