@@ -185,32 +185,34 @@ export const helpFaqs = [
   },
 ];
 
+
 export const creativeRoles = [
   {
-    title: 'designers',
-    copy: 'Brand systems, packaging, social kits and the endless round of small revisions.',
+    title: 'Designers',
+    copy: 'Brand identity, packaging, digital design, social content and creative services.',
   },
   {
-    title: 'developers',
-    copy: 'Builds, retainers, retainers that should have been builds, and the occasional emergency fix.',
+    title: 'Developers',
+    copy: 'Websites, applications, integrations, maintenance and technical support.',
   },
   {
-    title: 'writers',
-    copy: 'Launch copy, long-form work, scripts and retainer articles with very different deadlines.',
+    title: 'Writers',
+    copy: 'Brand copy, articles, scripts, editorial projects and ongoing content services.',
   },
   {
-    title: 'photographers',
-    copy: 'Shoots, edits, licensing and the deposit that needs to arrive before the date is held.',
+    title: 'Photographers',
+    copy: 'Photography, event coverage, editing, licensing and creative commissions.',
   },
   {
-    title: 'consultants',
-    copy: 'Strategy, audits, workshops and follow-up work that deserves a clean paper trail.',
+    title: 'Consultants',
+    copy: 'Strategy, business assessments, workshops, advisory and specialist services.',
   },
   {
-    title: 'creators',
-    copy: 'Brand deals, sponsored work, usage rights and invoices that need to look as good as the work.',
+    title: 'Creators',
+    copy: 'Brand partnerships, sponsored content, campaigns and usage rights.',
   },
 ];
+
 
 export const freePlanFeatures = [
   'Unlimited drafts and clients',
