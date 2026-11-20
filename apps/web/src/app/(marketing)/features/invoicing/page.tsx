@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
+import { MarketingSection } from '@/components/marketing/marketing-section';
+import { SectionHeading } from '@/components/marketing/section-heading';
 import { PageHero } from '@/components/marketing/page-hero';
 import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { MarketingBreadcrumbStructuredData } from "@/components/marketing/marketing-structured-data";
@@ -208,67 +210,60 @@ export default function InvoicingPage() {
                         </div>
                     </Container>
                 </section>
-
+                
                 {/* STATUS */}
-                <section className="bg-cream py-20 sm:py-28 lg:py-32">
-                    <Container>
-                        <div className="mb-9 max-w-2xl">
-                            <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
-                                Know where things stand
-                            </p>
-                            <h2 className="mt-3 text-title-l font-extrabold tracking-tight text-ink sm:text-4xl">
-                                From sent to settled. No guesswork.
-                            </h2>
-                            <p className="mt-4 text-body-l text-text-soft">
-                                Bagg keeps the invoice status and outstanding balance visible as
-                                the client views the invoice and payments are recorded.
-                            </p>
-                        </div>
+                <MarketingSection spacing="large" className="bg-cream">
+                <div className="mb-9">
+                    <SectionHeading
+                    eyebrow="Know where things stand"
+                    title="From sent to settled. No guesswork."
+                    copy="Bagg keeps the invoice status and outstanding balance visible as the client views the invoice and payments are recorded."
+                    titleClassName="text-title-l tracking-tight sm:text-4xl"
+                    />
+                </div>
 
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                            <StatusStep
-                                label="Draft"
-                                copy="Still being prepared"
-                                tone="bg-surface-tint text-text"
-                            />
-                            <StatusStep
-                                label="Sent"
-                                copy="The invoice link is live"
-                                tone="bg-sun text-on-sun"
-                            />
-                            <StatusStep
-                                label="Viewed"
-                                copy="The client opened it"
-                                tone="bg-pink text-on-pink"
-                            />
-                            <StatusStep
-                                label="Part paid"
-                                copy="Some money received"
-                                tone="bg-mango text-on-mango"
-                            />
-                            <StatusStep
-                                label="Paid"
-                                copy="The balance is settled"
-                                tone="bg-status-paid text-status-paid-fg"
-                            />
-                        </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    <StatusStep
+                    label="Draft"
+                    copy="Still being prepared"
+                    tone="bg-surface-tint text-text"
+                    />
+                    <StatusStep
+                    label="Sent"
+                    copy="The invoice link is live"
+                    tone="bg-sun text-on-sun"
+                    />
+                    <StatusStep
+                    label="Viewed"
+                    copy="The client opened it"
+                    tone="bg-pink text-on-pink"
+                    />
+                    <StatusStep
+                    label="Part paid"
+                    copy="Some money received"
+                    tone="bg-mango text-on-mango"
+                    />
+                    <StatusStep
+                    label="Paid"
+                    copy="The balance is settled"
+                    tone="bg-status-paid text-status-paid-fg"
+                    />
+                </div>
 
-                        <div className="mt-5 border-brut border-ink bg-surface p-5 shadow-brut sm:flex sm:items-center sm:justify-between sm:gap-6">
-                            <div>
-                                <p className="font-extrabold text-ink">
-                                    An overdue invoice stays visible.
-                                </p>
-                                <p className="mt-1 text-body text-text-soft">
-                                    When the due date passes with a balance remaining, the invoice
-                                    is marked late.
-                                </p>
-                            </div>
-                            <span className="mt-4 inline-flex border-brut border-ink bg-status-late px-3 py-2 text-caption font-extrabold uppercase text-status-late-fg shadow-brut sm:mt-0">
-                  Late
-                </span>
-                        </div>
-                    </Container>
-                </section>
+                <div className="mt-5 border-brut border-ink bg-surface p-5 shadow-brut sm:flex sm:items-center sm:justify-between sm:gap-6">
+                    <div>
+                    <p className="font-extrabold text-ink">
+                        An overdue invoice stays visible.
+                    </p>
+                    <p className="mt-1 text-body text-text-soft">
+                        When the due date passes with a balance remaining, the invoice is marked late.
+                    </p>
+                    </div>
+                    <span className="mt-4 inline-flex border-brut border-ink bg-status-late px-3 py-2 text-caption font-extrabold uppercase text-status-late-fg shadow-brut sm:mt-0">
+                    Late
+                    </span>
+                </div>
+                </MarketingSection>
 
                 {/* CTA */}
                 <section className="bg-cream py-20 sm:py-28 lg:py-32">

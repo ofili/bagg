@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
+import { MarketingSection } from '@/components/marketing/marketing-section';
+import { SectionHeading } from '@/components/marketing/section-heading';
 import { PageHero } from '@/components/marketing/page-hero';
 import { buttonStyles } from '@/components/ui/button';
 import { marketingMetadata } from '@/lib/metadata';
@@ -283,56 +285,52 @@ export default function CreativesPage() {
               </div>
             </Container>
           </section>
-
+          
           {/* CORE VALUE */}
-          <section className="border-b-2 border-ink bg-cream">
-            <Container className="py-20 sm:py-28 lg:py-32">
-              <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
-                <div>
-                  <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-                    What Bagg helps you do
-                  </p>
-                  <h2 className="mt-3 text-title-l text-ink">
-                    The business side, handled with more clarity.
-                  </h2>
-                  <p className="mt-5 text-body-l text-text-soft">
-                    Bagg is not here to change how you create. It helps make the
-                    money side of client work easier to manage.
-                  </p>
-                </div>
+          <MarketingSection
+            spacing="large"
+            border="bottom"
+            className="bg-cream"
+          >
+            <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+              <SectionHeading
+                eyebrow="What Bagg helps you do"
+                title="The business side, handled with more clarity."
+                copy="Bagg is not here to change how you create. It helps make the money side of client work easier to manage."
+                titleClassName="text-title-l"
+                copyClassName="mt-5"
+              />
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {outcomes.map((item) => {
-                    const Icon = item.icon;
+              <div className="grid gap-4 sm:grid-cols-2">
+                {outcomes.map((item) => {
+                  const Icon = item.icon;
 
-                    return (
-                        <Link
-                            key={item.number}
-                            href={item.href}
-                            className="group border-brut border-ink bg-surface p-5 shadow-brut transition-transform hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-4"
-                        >
-                          <div className="flex items-center justify-between">
-                                              <span
-                                                  className="flex h-11 w-11 items-center justify-center border-brut border-ink bg-mango text-on-mango">
-                                                  <Icon className="h-5 w-5"/>
-                                              </span>
-                            <span className="text-caption font-extrabold text-text-muted">
-                                                  {item.number}
-                                              </span>
-                          </div>
-                          <h3 className="mt-5 text-heading text-ink">{item.title}</h3>
-                          <p className="mt-2 text-body text-text-soft">{item.copy}</p>
-                          <span className="mt-5 inline-flex items-center gap-2 text-label font-extrabold text-ink">
-                                              {item.link}
-                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1"/>
-                                          </span>
-                        </Link>
-                    );
-                  })}
-                </div>
+                  return (
+                    <Link
+                      key={item.number}
+                      href={item.href}
+                      className="group border-brut border-ink bg-surface p-5 shadow-brut transition-transform hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="flex h-11 w-11 items-center justify-center border-brut border-ink bg-mango text-on-mango">
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <span className="text-caption font-extrabold text-text-muted">
+                          {item.number}
+                        </span>
+                      </div>
+                      <h3 className="mt-5 text-heading text-ink">{item.title}</h3>
+                      <p className="mt-2 text-body text-text-soft">{item.copy}</p>
+                      <span className="mt-5 inline-flex items-center gap-2 text-label font-extrabold text-ink">
+                        {item.link}
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
-            </Container>
-          </section>
+            </div>
+          </MarketingSection>
 
           {/* FINAL CTA */}
           <section className="bg-mango">
