@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
+import { PageHero } from '@/components/marketing/page-hero';
 import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { MarketingBreadcrumbStructuredData } from "@/components/marketing/marketing-structured-data";
 import { buttonStyles } from '@/components/ui/button';
@@ -39,142 +40,123 @@ export default function InvoicingPage() {
 
             <div>
                 {/* HERO */}
-                <section className="overflow-hidden border-b-2 border-ink bg-cream">
-                    <Container className="py-12 sm:py-16 lg:py-20">
-                        <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-                            <div>
-                              <span className="inline-flex -rotate-2 border-brut border-ink bg-pink px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-pink shadow-brut">
-                                Invoicing
-                              </span>
-
-                                <h1 className="mt-7 text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem]">
-                                    Send an invoice.
-                                    <span className="block text-mango">Not a spreadsheet.</span>
-                                </h1>
-
-                                <p className="mt-6 max-w-xl text-body-l leading-relaxed text-text-soft sm:text-lg">
-                                    Create a professional invoice with the details your client
-                                    needs to pay you. Share one link, send a PDF and keep the
-                                    payment status in view.
-                                </p>
-
-                                <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
-                                    <Link href="/signup" className={buttonStyles({
-                                        size: 'lg',
-                                        mobileFullWidth: true,
-                                        })}>
-                                        Create your first invoice <ArrowRight className="h-4 w-4" />
-                                    </Link>
-                                    <Link
-                                        href={demoInvoiceHref}
-                                        className="inline-flex min-h-11 items-center gap-2 font-extrabold text-link underline decoration-2 underline-offset-4 hover:no-underline"
-                                    >
-                                        View client invoice
-                                        <ArrowUpRight className="h-4 w-4" />
-                                    </Link>
-                                </div>
-                            </div>
-
-                            {/* Invoice artefact */}
-                            <div className="relative mx-auto w-full max-w-[36rem] pb-5 pr-5">
-                                <div className="absolute inset-0 rotate-3 border-brut border-ink bg-mango" />
-
-                                <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
-                                    <div className="flex items-start justify-between gap-4 border-b-2 border-ink pb-5">
-                                        <div>
-                                            <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-text-muted">
-                                                Invoice preview
-                                            </p>
-                                            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-ink">
-                                                INVOICE
-                                            </h2>
-                                            <p className="mt-1 font-mono text-caption text-text-muted">
-                                                INV-0001
-                                            </p>
-                                        </div>
-                                        <span className="border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
-                                            Sent
-                                          </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-5 py-5">
-                                        <div>
-                                            <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                                                From
-                                            </p>
-                                            <p className="mt-1 font-extrabold text-ink">
-                                                Your business
-                                            </p>
-                                            <p className="text-caption text-text-muted">
-                                                Your business details
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                                                Bill to
-                                            </p>
-                                            <p className="mt-1 font-extrabold text-ink">
-                                                Your client
-                                            </p>
-                                            <p className="text-caption text-text-muted">
-                                                Client details
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="border-y border-ink/20 py-3">
-                                        <div className="flex justify-between text-[10px] font-extrabold uppercase tracking-[0.12em] text-text-muted">
-                                            <span>Description</span>
-                                            <span>Amount</span>
-                                        </div>
-                                        <div className="mt-4 flex items-center justify-between gap-4">
-                                            <div>
-                                                <p className="font-extrabold text-ink">Project work</p>
-                                                <p className="text-caption text-text-muted">
-                                                    Professional services
-                                                </p>
-                                            </div>
-                                            <span className="font-mono font-extrabold text-ink">
-                                              000,000
-                                            </span>
-                                        </div>
-                                        <div className="mt-3 flex items-center justify-between gap-4">
-                                            <div>
-                                                <p className="font-extrabold text-ink">Additional work</p>
-                                                <p className="text-caption text-text-muted">
-                                                    As agreed
-                                                </p>
-                                            </div>
-                                            <span className="font-mono font-extrabold text-ink">
-                          000,000
+                <PageHero
+                    layout="split"
+                    containerClassName="gap-12 lg:grid-cols-[0.9fr_1.1fr]"
+                    kicker={
+                        <span className="inline-flex -rotate-2 border-brut border-ink bg-pink px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-pink shadow-brut">
+                        Invoicing
                         </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="ml-auto mt-5 max-w-[13rem]">
-                                        <p className="text-caption font-bold text-text-muted">
-                                            Total due
-                                        </p>
-                                        <p className="mt-1 text-3xl font-extrabold tracking-tight text-ink">
-                                            NGN 000,000
-                                        </p>
-                                    </div>
-
-                                    <div className="mt-5 flex items-center justify-between border-t-2 border-ink pt-4">
-                      <span className="text-caption font-bold text-text-muted">
-                        Payment details included
-                      </span>
-                                        <FileText className="h-5 w-5" />
-                                    </div>
+                    }
+                    title={
+                        <>
+                        Send an invoice.
+                        <span className="block text-mango">Not a spreadsheet.</span>
+                        </>
+                    }
+                    titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem]"
+                    copy={
+                        <>
+                        Create a professional invoice with the details your client needs to pay
+                        you. Share one link, send a PDF and keep the payment status in view.
+                        </>
+                    }
+                    visual={
+                        /* Move the existing Invoice artefact div here unchanged. */
+                        <div className="relative mx-auto w-full max-w-[36rem] pb-5 pr-5">
+                        <div className="absolute inset-0 rotate-3 border-brut border-ink bg-mango" />
+                        <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
+                            <div className="flex items-start justify-between gap-4 border-b-2 border-ink pb-5">
+                            <div>
+                                <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-text-muted">
+                                Invoice preview
+                                </p>
+                                <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-ink">
+                                INVOICE
+                                </h2>
+                                <p className="mt-1 font-mono text-caption text-text-muted">
+                                INV-0001
+                                </p>
+                            </div>
+                            <span className="border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
+                                Sent
+                            </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-5 py-5">
+                            <div>
+                                <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-text-muted">
+                                From
+                                </p>
+                                <p className="mt-1 font-extrabold text-ink">Your business</p>
+                                <p className="text-caption text-text-muted">Your business details</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-text-muted">
+                                Bill to
+                                </p>
+                                <p className="mt-1 font-extrabold text-ink">Your client</p>
+                                <p className="text-caption text-text-muted">Client details</p>
+                            </div>
+                            </div>
+                            <div className="border-y border-ink/20 py-3">
+                            <div className="flex justify-between text-[10px] font-extrabold uppercase tracking-[0.12em] text-text-muted">
+                                <span>Description</span>
+                                <span>Amount</span>
+                            </div>
+                            <div className="mt-4 flex items-center justify-between gap-4">
+                                <div>
+                                <p className="font-extrabold text-ink">Project work</p>
+                                <p className="text-caption text-text-muted">Professional services</p>
                                 </div>
-
-                                <div className="absolute -bottom-1 -left-2 -rotate-6 border-brut border-ink bg-pink px-3 py-2 text-caption font-extrabold uppercase text-on-pink shadow-brut">
-                                    Clear. Professional. Yours.
+                                <span className="font-mono font-extrabold text-ink">000,000</span>
+                            </div>
+                            <div className="mt-3 flex items-center justify-between gap-4">
+                                <div>
+                                <p className="font-extrabold text-ink">Additional work</p>
+                                <p className="text-caption text-text-muted">As agreed</p>
                                 </div>
+                                <span className="font-mono font-extrabold text-ink">000,000</span>
+                            </div>
+                            </div>
+                            <div className="ml-auto mt-5 max-w-[13rem]">
+                            <p className="text-caption font-bold text-text-muted">Total due</p>
+                            <p className="mt-1 text-3xl font-extrabold tracking-tight text-ink">
+                                NGN 000,000
+                            </p>
+                            </div>
+                            <div className="mt-5 flex items-center justify-between border-t-2 border-ink pt-4">
+                            <span className="text-caption font-bold text-text-muted">
+                                Payment details included
+                            </span>
+                            <FileText className="h-5 w-5" />
                             </div>
                         </div>
-                    </Container>
-                </section>
+                        <div className="absolute -bottom-1 -left-2 -rotate-6 border-brut border-ink bg-pink px-3 py-2 text-caption font-extrabold uppercase text-on-pink shadow-brut">
+                            Clear. Professional. Yours.
+                        </div>
+                        </div>
+                    }
+                    >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                        <Link
+                        href="/signup"
+                        className={buttonStyles({
+                            size: 'lg',
+                            mobileFullWidth: true,
+                        })}
+                        >
+                        Create your first invoice
+                        <ArrowRight className="h-4 w-4" />
+                        </Link>
+                        <Link
+                        href={demoInvoiceHref}
+                        className="inline-flex min-h-11 items-center gap-2 font-extrabold text-link underline decoration-2 underline-offset-4 hover:no-underline"
+                        >
+                        View client invoice
+                        <ArrowUpRight className="h-4 w-4" />
+                        </Link>
+                    </div>
+                    </PageHero>
 
                 {/* SHARE */}
                 <section className="border-y-2 border-ink bg-pink py-20 text-on-pink sm:py-28 lg:py-32">

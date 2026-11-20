@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
+import { PageHero } from '@/components/marketing/page-hero';
 import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { buttonStyles } from '@/components/ui/button';
 import { marketingMetadata } from '@/lib/metadata';
@@ -89,142 +90,133 @@ export default function PaymentsFeaturePage() {
             ]} />
             <FeatureSubnav currentPath="/features/payments" />
             <div className="overflow-hidden bg-cream">
-                <section className="relative pb-16 pt-12 sm:pb-20 sm:pt-16 lg:pb-24 lg:pt-20">
-                    <Container>
-                        <div className="grid items-center gap-12 lg:grid-cols-[1.02fr_0.98fr] lg:gap-16">
-                            <div className="relative z-10">
-                                <div className="inline-flex items-center gap-2 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase tracking-[0.12em] text-on-sun shadow-brut">
-                                    <CreditCard aria-hidden className="h-4 w-4" />
-                                    Payments and reminders
-                                </div>
-
-                                <h1 className="mt-7 max-w-3xl text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem]">
-                                    Know what came in.
-                                    <span className="mt-2 block text-pink">
-                  Know what is still owed.
-                </span>
-                                </h1>
-
-                                <p className="mt-7 max-w-xl text-body-l leading-relaxed text-text-soft">
-                                    Bagg helps you track money against the invoice, review payment
-                                    claims, keep the remaining balance visible and follow up when
-                                    payment is late.
+                <PageHero
+                    layout="split"
+                    containerClassName="gap-12 lg:grid-cols-[1.02fr_0.98fr] lg:gap-16"
+                    kicker={
+                        <div className="inline-flex items-center gap-2 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase tracking-[0.12em] text-on-sun shadow-brut">
+                        <CreditCard aria-hidden className="h-4 w-4" />
+                        Payments and reminders
+                        </div>
+                    }
+                    title={
+                        <>
+                        Know what came in.
+                        <span className="mt-2 block text-pink">
+                            Know what is still owed.
+                        </span>
+                        </>
+                    }
+                    titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem]"
+                    copy={
+                        <>
+                        Bagg helps you track money against the invoice, review payment claims,
+                        keep the remaining balance visible and follow up when payment is late.
+                        </>
+                    }
+                    visual={
+                        /* Move the existing payment overview artefact here unchanged. */
+                        <div className="relative mx-auto w-full max-w-xl">
+                        <div
+                            aria-hidden
+                            className="absolute -right-3 -top-3 h-full w-full rotate-2 border-brut border-ink bg-pink"
+                        />
+                        <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
+                            <div className="flex items-start justify-between gap-4 border-b-2 border-ink pb-5">
+                            <div>
+                                <p className="text-caption font-extrabold uppercase tracking-[0.12em] text-text-muted">
+                                Invoice balance
                                 </p>
-
-                                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                                    <Link
-                                        href="/signup"
-                                        className={buttonStyles({ size: 'lg', variant: 'primary' })}
-                                    >
-                                        Start free
-                                        <ArrowRight aria-hidden className="h-4 w-4" />
-                                    </Link>
-                                    <Link
-                                        href="/features/receipts"
-                                        className={buttonStyles({ size: 'lg', variant: 'outline' })}
-                                    >
-                                        Explore receipts
-                                        <ArrowUpRight aria-hidden className="h-4 w-4" />
-                                    </Link>
-                                </div>
-
-                                <p className="mt-5 max-w-lg text-caption leading-relaxed text-text-muted">
-                                    Bagg records and tracks payments. Your client pays you directly;
-                                    Bagg does not hold your money.
+                                <p className="mt-2 text-heading font-extrabold text-ink">
+                                Payment overview
                                 </p>
                             </div>
-
-                            <div className="relative mx-auto w-full max-w-xl">
-                                <div
-                                    aria-hidden
-                                    className="absolute -right-3 -top-3 h-full w-full rotate-2 border-brut border-ink bg-pink"
-                                />
-
-                                <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
-                                    <div className="flex items-start justify-between gap-4 border-b-2 border-ink pb-5">
-                                        <div>
-                                            <p className="text-caption font-extrabold uppercase tracking-[0.12em] text-text-muted">
-                                                Invoice balance
-                                            </p>
-                                            <p className="mt-2 text-heading font-extrabold text-ink">
-                                                Payment overview
-                                            </p>
-                                        </div>
-                                        <span className="border-brut border-ink bg-mango px-3 py-1.5 text-caption font-extrabold text-on-mango">
-                    LIVE STATUS
-                  </span>
-                                    </div>
-
-                                    <div className="py-7">
-                                        <p className="text-caption font-bold uppercase tracking-[0.1em] text-text-muted">
-                                            Outstanding balance
-                                        </p>
-                                        <p className="mt-2 text-title-l font-extrabold tracking-[-0.05em] text-ink">
-                                            Balance open
-                                        </p>
-                                        <div className="mt-5 h-4 overflow-hidden border-brut border-ink bg-surface-sunken">
-                                            <div className="h-full w-[62%] border-r-2 border-ink bg-mango" />
-                                        </div>
-                                        <div className="mt-2 flex justify-between text-caption font-bold text-text-soft">
-                                            <span>Payment received</span>
-                                            <span>Balance remaining</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="border-brut border-ink bg-mango p-4">
-                                            <p className="text-caption font-extrabold uppercase text-on-mango">
-                                                Confirmed
-                                            </p>
-                                            <div className="mt-3 flex items-center gap-2 text-on-mango">
-                                                <Check aria-hidden className="h-5 w-5" />
-                                                <span className="text-body font-extrabold">Recorded</span>
-                                            </div>
-                                        </div>
-                                        <div className="border-brut border-ink bg-surface-tint p-4">
-                                            <p className="text-caption font-extrabold uppercase text-text-soft">
-                                                Still owed
-                                            </p>
-                                            <div className="mt-3 flex items-center gap-2 text-ink">
-                                                <Clock3 aria-hidden className="h-5 w-5" />
-                                                <span className="text-body font-extrabold">Open</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-4 flex items-start gap-3 border-brut border-ink bg-cream p-4">
-                                        <ReceiptText
-                                            aria-hidden
-                                            className="mt-0.5 h-5 w-5 shrink-0 text-ink"
-                                        />
-                                        <div>
-                                            <p className="text-body font-extrabold text-ink">
-                                                Payment records stay connected
-                                            </p>
-                                            <p className="mt-1 text-caption leading-relaxed text-text-soft">
-                                                Confirmed payments, balances and receipts belong to the
-                                                same invoice record.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-5 flex items-center justify-between border-t-2 border-ink pt-4">
-                  <span className="text-caption font-bold text-text-muted">
-                    Your money. Your account.
-                  </span>
-                                        <span className="text-caption font-extrabold text-ink">
-                    BAGG
-                  </span>
-                                    </div>
+                            <span className="border-brut border-ink bg-mango px-3 py-1.5 text-caption font-extrabold text-on-mango">
+                                LIVE STATUS
+                            </span>
+                            </div>
+                            <div className="py-7">
+                            <p className="text-caption font-bold uppercase tracking-[0.1em] text-text-muted">
+                                Outstanding balance
+                            </p>
+                            <p className="mt-2 text-title-l font-extrabold tracking-[-0.05em] text-ink">
+                                Balance open
+                            </p>
+                            <div className="mt-5 h-4 overflow-hidden border-brut border-ink bg-surface-sunken">
+                                <div className="h-full w-[62%] border-r-2 border-ink bg-mango" />
+                            </div>
+                            <div className="mt-2 flex justify-between text-caption font-bold text-text-soft">
+                                <span>Payment received</span>
+                                <span>Balance remaining</span>
+                            </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                            <div className="border-brut border-ink bg-mango p-4">
+                                <p className="text-caption font-extrabold uppercase text-on-mango">
+                                Confirmed
+                                </p>
+                                <div className="mt-3 flex items-center gap-2 text-on-mango">
+                                <Check aria-hidden className="h-5 w-5" />
+                                <span className="text-body font-extrabold">Recorded</span>
                                 </div>
-
-                                <div className="absolute -bottom-6 -left-5 hidden rotate-[-5deg] border-brut border-ink bg-sun px-4 py-3 text-caption font-extrabold uppercase text-on-sun shadow-brut sm:block">
-                                    No more guesswork
+                            </div>
+                            <div className="border-brut border-ink bg-surface-tint p-4">
+                                <p className="text-caption font-extrabold uppercase text-text-soft">
+                                Still owed
+                                </p>
+                                <div className="mt-3 flex items-center gap-2 text-ink">
+                                <Clock3 aria-hidden className="h-5 w-5" />
+                                <span className="text-body font-extrabold">Open</span>
                                 </div>
+                            </div>
+                            </div>
+                            <div className="mt-4 flex items-start gap-3 border-brut border-ink bg-cream p-4">
+                            <ReceiptText className="mt-0.5 h-5 w-5 shrink-0 text-ink" />
+                            <div>
+                                <p className="text-body font-extrabold text-ink">
+                                Payment records stay connected
+                                </p>
+                                <p className="mt-1 text-caption leading-relaxed text-text-soft">
+                                Confirmed payments, balances and receipts belong to the same
+                                invoice record.
+                                </p>
+                            </div>
+                            </div>
+                            <div className="mt-5 flex items-center justify-between border-t-2 border-ink pt-4">
+                            <span className="text-caption font-bold text-text-muted">
+                                Your money. Your account.
+                            </span>
+                            <span className="text-caption font-extrabold text-ink">BAGG</span>
                             </div>
                         </div>
-                    </Container>
-                </section>
+                        <div className="absolute -bottom-6 -left-5 hidden rotate-[-5deg] border-brut border-ink bg-sun px-4 py-3 text-caption font-extrabold uppercase text-on-sun shadow-brut sm:block">
+                            No more guesswork
+                        </div>
+                        </div>
+                    }
+                    >
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        <Link
+                        href="/signup"
+                        className={buttonStyles({ size: 'lg', variant: 'primary' })}
+                        >
+                        Start free
+                        <ArrowRight aria-hidden className="h-4 w-4" />
+                        </Link>
+                        <Link
+                        href="/features/receipts"
+                        className={buttonStyles({ size: 'lg', variant: 'outline' })}
+                        >
+                        Explore receipts
+                        <ArrowUpRight aria-hidden className="h-4 w-4" />
+                        </Link>
+                    </div>
+
+                    <p className="mt-5 max-w-lg text-caption leading-relaxed text-text-muted">
+                        Bagg records and tracks payments. Your client pays you directly; Bagg
+                        does not hold your money.
+                    </p>
+                    </PageHero>
 
                 <section className="py-20 sm:py-28 lg:py-32">
                     <Container>

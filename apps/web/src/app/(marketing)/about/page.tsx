@@ -106,10 +106,59 @@ export default function AboutPage() {
           }
           copy={
             <>
-              Bagg is an invoicing and payment platform for African
-              freelancers, consultants and studios. We bring quotes, invoices,
-              payment tracking and receipts into one connected workflow.
+              Bagg is an invoicing and payment platform for African freelancers,
+              consultants and studios. We bring quotes, invoices, payment tracking
+              and receipts into one connected workflow.
             </>
+          }
+          visual={
+            <div className="relative mx-auto w-full max-w-xl pb-4 pr-4">
+              <div className="absolute inset-0 translate-x-3 translate-y-3 border-brut border-ink bg-pink" />
+              <div className="relative border-brut border-ink bg-surface shadow-brut-lg">
+                <div className="border-b-2 border-ink bg-mango p-5 text-on-mango">
+                  <p className="text-caption font-extrabold uppercase tracking-[0.14em]">
+                    The Bagg approach
+                  </p>
+                  <h2 className="mt-2 text-heading font-extrabold">
+                    From agreement to payment
+                  </h2>
+                </div>
+                <div className="space-y-3 p-5">
+                  {workflow.map((step) => {
+                    const Icon = step.icon;
+
+                    return (
+                      <div
+                        key={step.number}
+                        className="flex items-start gap-4 border-brut border-ink bg-cream p-4"
+                      >
+                        <span
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center border-brut border-ink ${step.tone}`}
+                        >
+                          <Icon className="h-5 w-5" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-caption font-extrabold text-text-muted">
+                            STEP {step.number}
+                          </p>
+                          <h3 className="mt-1 text-body font-extrabold text-ink">
+                            {step.title}
+                          </h3>
+                          <p className="mt-1 text-caption leading-relaxed text-text-soft">
+                            {step.copy}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="border-t-2 border-ink bg-surface-tint px-5 py-3">
+                  <p className="text-caption font-bold text-text-soft">
+                    One connected get-paid workflow.
+                  </p>
+                </div>
+              </div>
+            </div>
           }
           containerClassName="lg:grid-cols-[1.05fr_0.95fr]"
         >
@@ -119,10 +168,7 @@ export default function AboutPage() {
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
 
-            <Link
-              href="/features"
-              className={buttonStyles({ variant: 'link' })}
-            >
+            <Link href="/features" className={buttonStyles({ variant: 'link' })}>
               Explore the product
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>

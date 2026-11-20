@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
+import { PageHero } from '@/components/marketing/page-hero';
 import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { buttonStyles } from '@/components/ui/button';
 import { currencies } from '@/content/marketing';
@@ -80,107 +81,90 @@ export default function FeaturesPage() {
         <FeatureSubnav currentPath="/features" />
             <div>
                 {/* HERO */}
-                <section className="overflow-hidden border-b-2 border-ink bg-cream">
-                    <Container className="py-12 sm:py-16 lg:py-20">
-                        <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-                            <div>
-                                <div className="inline-flex items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut-sm">
-                                    Financial workflow
-                                </div>
-
-                                <h1 className="mt-7 max-w-3xl text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem] lg:text-[5.25rem]">
-                                    From proposal
-                                    <span className="block text-mango">to settled payment.</span>
-                                </h1>
-
-                                <p className="mt-6 max-w-xl text-body-l leading-relaxed text-text-soft sm:text-lg">
-                                    Quotes, invoices, automated payment reminders and instant receipts.
-                                    Keep your client finances connected in one focused workspace.
-                                </p>
-
-                                <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-                                    <Link
-                                        href="/signup"
-                                        className={buttonStyles({
-                                        size: 'lg',
-                                        mobileFullWidth: true,
-                                        })}
-                                    >
-                                        Start free
-                                        <ArrowRight className="h-4 w-4" />
-                                    </Link>
-
-                                    <Link
-                                        href={demoInvoiceHref}
-                                        className="inline-flex min-h-11 items-center gap-2 font-extrabold text-link underline decoration-2 underline-offset-4 hover:no-underline"
-                                    >
-                                        See the client experience
-                                        <ArrowUpRight className="h-4 w-4" />
-                                    </Link>
-                                    </div>
-
-                                <p className="mt-7 text-caption font-bold uppercase tracking-[0.12em] text-text-muted">
-                                    Built for freelancers · consultants · creators · studios
-                                </p>
+                <PageHero
+                    layout="split"
+                    containerClassName="gap-12 lg:grid-cols-[1.05fr_0.95fr]"
+                    kicker={
+                        <div className="inline-flex items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut-sm">
+                        Financial workflow
+                        </div>
+                    }
+                    title={
+                        <>
+                        From proposal
+                        <span className="block text-mango">to settled payment.</span>
+                        </>
+                    }
+                    titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem] lg:text-[5.25rem]"
+                    copy={
+                        <>
+                        Quotes, invoices, automated payment reminders and instant receipts.
+                        Keep your client finances connected in one focused workspace.
+                        </>
+                    }
+                    visual={
+                        /* Move the existing Editorial product composition div here unchanged. */
+                        <div className="relative mx-auto w-full max-w-[34rem] pb-5 pr-5">
+                        <div className="absolute right-0 top-0 h-full w-full rotate-3 border-brut border-ink bg-pink" />
+                        <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
+                            <div className="flex items-center justify-between border-b-2 border-ink pb-4">
+                            <span className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
+                                Your client workflow
+                            </span>
+                            <FileText className="h-6 w-6 text-ink" />
                             </div>
-
-                            {/* Editorial product composition */}
-                            <div className="relative mx-auto w-full max-w-[34rem] pb-5 pr-5">
-                                <div className="absolute right-0 top-0 h-full w-full rotate-3 border-brut border-ink bg-pink" />
-
-                                <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
-                                    <div className="flex items-center justify-between border-b-2 border-ink pb-4">
-                                  <span className="text-caption font-extrabold uppercase tracking-[0.14em]">
-                                    The Bagg workflow
-                                  </span>
-                                        <span className="border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase text-on-sun">
-                                    04 steps
-                                  </span>
-                                    </div>
-
-                                    <div className="space-y-0 pt-3">
-                                        <WorkflowLine
-                                            number="01"
-                                            title="Agree"
-                                            description="Set out the work and terms"
-                                            tone="bg-pink text-on-pink"
-                                        />
-                                        <WorkflowLine
-                                            number="02"
-                                            title="Invoice"
-                                            description="Make the amount and due date clear"
-                                            tone="bg-mango text-on-mango"
-                                        />
-                                        <WorkflowLine
-                                            number="03"
-                                            title="Collect"
-                                            description="Share, track and follow up"
-                                            tone="bg-sun text-on-sun"
-                                        />
-                                        <WorkflowLine
-                                            number="04"
-                                            title="Record"
-                                            description="Confirm payment and issue a receipt"
-                                            tone="bg-surface-tint"
-                                            last
-                                        />
-                                    </div>
-
-                                    <div className="mt-5 flex items-center justify-between border-t-2 border-ink pt-4">
-                                  <span className="text-caption font-bold text-text-soft">
-                                    Connected from quote to receipt
-                                  </span>
-                                        <ArrowDownRight className="h-5 w-5" />
+                            <div className="mt-5 space-y-3">
+                            {capabilities.map((item) => {
+                                const Icon = item.icon;
+                                return (
+                                <div
+                                    key={item.number}
+                                    className="flex items-center gap-3 border-brut border-ink bg-cream p-4"
+                                >
+                                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center border-brut border-ink ${item.tone}`}>
+                                    <Icon className="h-5 w-5" />
+                                    </span>
+                                    <div className="min-w-0">
+                                    <p className="text-caption font-extrabold text-text-muted">
+                                        {item.label}
+                                    </p>
+                                    <p className="text-body font-extrabold text-ink">
+                                        {item.title}
+                                    </p>
                                     </div>
                                 </div>
-
-                                <div className="absolute -bottom-1 -left-2 border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase text-on-sun shadow-brut-sm">
-                                    Automated follow-up
-                                </div>
+                                );
+                            })}
                             </div>
                         </div>
-                    </Container>
-                </section>
+                        </div>
+                    }
+                    >
+                    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                        <Link
+                        href="/signup"
+                        className={buttonStyles({
+                            size: 'lg',
+                            mobileFullWidth: true,
+                        })}
+                        >
+                        Start free
+                        <ArrowRight className="h-4 w-4" />
+                        </Link>
+
+                        <Link
+                        href={demoInvoiceHref}
+                        className="inline-flex min-h-11 items-center gap-2 font-extrabold text-link underline decoration-2 underline-offset-4 hover:no-underline"
+                        >
+                        See the client experience
+                        <ArrowUpRight className="h-4 w-4" />
+                        </Link>
+                    </div>
+
+                    <p className="mt-7 text-caption font-bold uppercase tracking-[0.12em] text-text-muted">
+                        Built for freelancers · consultants · creators · studios
+                    </p>
+                    </PageHero>
 
                 {/* CAPABILITY MAP */}
                 <section className="bg-surface py-20 sm:py-28 lg:py-32">

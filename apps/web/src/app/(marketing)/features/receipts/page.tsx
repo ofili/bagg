@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
+import { PageHero } from '@/components/marketing/page-hero';
 import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { buttonStyles } from '@/components/ui/button';
 import { marketingMetadata } from '@/lib/metadata';
@@ -58,167 +59,150 @@ export default function ReceiptsFeaturePage() {
 
             <FeatureSubnav currentPath="/features/receipts" />
             <div className="overflow-hidden bg-cream">
-                <section className="relative pb-16 pt-12 sm:pb-20 sm:pt-16 lg:pb-24 lg:pt-20">
-                    <Container>
-                        <div className="grid items-center gap-12 lg:grid-cols-[1fr_0.95fr] lg:gap-16">
-                            <div className="relative z-10">
-                                <div className="inline-flex items-center gap-2 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase tracking-[0.12em] text-on-sun shadow-brut">
-                                    <ReceiptText aria-hidden className="h-4 w-4" />
-                                    Receipts and records
-                                </div>
-
-                                <h1 className="mt-7 max-w-3xl text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem]">
-                                    Payment received.
-                                    <span className="mt-2 block text-pink-ink">
-                  Proof provided.
-                </span>
-                                </h1>
-
-                                <p className="mt-7 max-w-xl text-body-l leading-relaxed text-text-soft">
-                                    Every confirmed payment gets a numbered, verified receipt.
-                                    Share it with your client and keep it connected to the invoice
-                                    it belongs to.
+                <PageHero
+                    layout="split"
+                    containerClassName="gap-12 lg:grid-cols-[1fr_0.95fr] lg:gap-16"
+                    kicker={
+                        <div className="inline-flex items-center gap-2 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase tracking-[0.12em] text-on-sun shadow-brut">
+                        <ReceiptText aria-hidden className="h-4 w-4" />
+                        Receipts and records
+                        </div>
+                    }
+                    title={
+                        <>
+                        Payment received.
+                        <span className="mt-2 block text-pink-ink">Proof provided.</span>
+                        </>
+                    }
+                    titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem]"
+                    copy={
+                        <>
+                        Every confirmed payment gets a numbered, verified receipt. Share it with
+                        your client and keep it connected to the invoice it belongs to.
+                        </>
+                    }
+                    visual={
+                        /* Move the existing complete receipt mockup div here unchanged. */
+                        <div className="relative mx-auto w-full max-w-xl">
+                        <div
+                            aria-hidden
+                            className="absolute -right-3 -top-3 h-full w-full -rotate-2 border-brut border-ink bg-mango"
+                        />
+                        <div className="relative border-brut border-ink bg-surface shadow-brut-lg">
+                            <div className="flex items-center justify-between gap-4 border-b-brut border-ink bg-pink p-5">
+                            <div>
+                                <p className="text-caption font-extrabold uppercase tracking-[0.12em] text-on-pink">
+                                Payment record
                                 </p>
-
-                                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                                    <Link
-                                        href="/signup"
-                                        className={buttonStyles({ size: 'lg', variant: 'primary' })}
-                                    >
-                                        Start free
-                                        <ArrowRight aria-hidden className="h-4 w-4" />
-                                    </Link>
-                                    <Link
-                                        href="/features/payments"
-                                        className={buttonStyles({ size: 'lg', variant: 'outline' })}
-                                    >
-                                        How payments work
-                                        <ArrowUpRight aria-hidden className="h-4 w-4" />
-                                    </Link>
+                                <h2 className="mt-1 text-heading font-extrabold text-on-pink">
+                                Official receipt
+                                </h2>
+                            </div>
+                            <div className="flex h-12 w-12 items-center justify-center border-brut border-ink bg-surface text-ink">
+                                <ReceiptText aria-hidden className="h-6 w-6" />
+                            </div>
+                            </div>
+                            <div className="p-5 sm:p-7">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                <p className="text-caption font-extrabold uppercase tracking-[0.12em] text-text-muted">
+                                    Receipt number
+                                </p>
+                                <p className="mt-1 text-heading font-extrabold text-ink">
+                                    Numbered record
+                                </p>
+                                </div>
+                                <div className="flex items-center gap-1.5 border-brut border-ink bg-mango px-3 py-2 text-caption font-extrabold text-on-mango">
+                                <BadgeCheck aria-hidden className="h-4 w-4" />
+                                VERIFIED
                                 </div>
                             </div>
-
-                            <div className="relative mx-auto w-full max-w-xl">
-                                <div
-                                    aria-hidden
-                                    className="absolute -right-3 -top-3 h-full w-full -rotate-2 border-brut border-ink bg-mango"
-                                />
-
-                                <div className="relative border-brut border-ink bg-surface shadow-brut-lg">
-                                    <div className="flex items-center justify-between gap-4 border-b-brut border-ink bg-pink p-5">
-                                        <div>
-                                            <p className="text-caption font-extrabold uppercase tracking-[0.12em] text-on-pink">
-                                                Payment record
-                                            </p>
-                                            <h2 className="mt-1 text-heading font-extrabold text-on-pink">
-                                                Official receipt
-                                            </h2>
-                                        </div>
-                                        <div className="flex h-12 w-12 items-center justify-center border-brut border-ink bg-surface text-ink">
-                                            <ReceiptText aria-hidden className="h-6 w-6" />
-                                        </div>
-                                    </div>
-
-                                    <div className="p-5 sm:p-7">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div>
-                                                <p className="text-caption font-extrabold uppercase tracking-[0.12em] text-text-muted">
-                                                    Receipt number
-                                                </p>
-                                                <p className="mt-1 text-heading font-extrabold text-ink">
-                                                    Numbered record
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 border-brut border-ink bg-mango px-3 py-2 text-caption font-extrabold text-on-mango">
-                                                <BadgeCheck aria-hidden className="h-4 w-4" />
-                                                VERIFIED
-                                            </div>
-                                        </div>
-
-                                        <div className="my-6 border-y-2 border-dashed border-line py-6">
-                                            <p className="text-caption font-bold uppercase tracking-[0.1em] text-text-muted">
-                                                Amount received
-                                            </p>
-                                            <p className="mt-2 text-title-l font-extrabold tracking-[-0.05em] text-ink">
-                                                Payment recorded
-                                            </p>
-                                            <p className="mt-2 text-caption text-text-muted">
-                                                Currency and amount shown on the issued receipt
-                                            </p>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-x-5 gap-y-5">
-                                            <div>
-                                                <p className="text-caption font-bold text-text-muted">
-                                                    Paid by
-                                                </p>
-                                                <p className="mt-1 text-body font-extrabold text-ink">
-                                                    Client
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-caption font-bold text-text-muted">
-                                                    Payment date
-                                                </p>
-                                                <p className="mt-1 text-body font-extrabold text-ink">
-                                                    Recorded date
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-caption font-bold text-text-muted">
-                                                    Payment method
-                                                </p>
-                                                <p className="mt-1 text-body font-extrabold text-ink">
-                                                    Recorded method
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-caption font-bold text-text-muted">
-                                                    Invoice
-                                                </p>
-                                                <p className="mt-1 text-body font-extrabold text-ink">
-                                                    Linked invoice
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-6 border-brut border-ink bg-surface-tint p-4">
-                                            <p className="text-caption font-extrabold uppercase tracking-[0.1em] text-text-muted">
-                                                Remaining balance
-                                            </p>
-                                            <p className="mt-2 text-body font-extrabold text-ink">
-                                                Balance recorded on receipt
-                                            </p>
-                                        </div>
-
-                                        <div className="mt-5 flex items-center justify-between gap-3 border-t-2 border-ink pt-4">
-                                            <div>
-                                                <p className="text-caption font-bold text-text-muted">
-                                                    Verification code
-                                                </p>
-                                                <p className="mt-1 text-body font-extrabold tracking-[0.08em] text-ink">
-                                                    BAGG-XXXXXXXX
-                                                </p>
-                                            </div>
-                                            <ShieldCheck
-                                                aria-hidden
-                                                className="h-8 w-8 text-ink"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="border-t-brut border-ink bg-sun px-5 py-3 text-center text-caption font-extrabold uppercase tracking-[0.12em] text-on-sun">
-                                        A clear record of money received
-                                    </div>
+                            <div className="my-6 border-y-2 border-dashed border-line py-6">
+                                <p className="text-caption font-bold uppercase tracking-[0.1em] text-text-muted">
+                                Amount received
+                                </p>
+                                <p className="mt-2 text-title-l font-extrabold tracking-[-0.05em] text-ink">
+                                Payment recorded
+                                </p>
+                                <p className="mt-2 text-caption text-text-muted">
+                                Currency and amount shown on the issued receipt
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-5 gap-y-5">
+                                <div>
+                                <p className="text-caption font-bold text-text-muted">Paid by</p>
+                                <p className="mt-1 text-body font-extrabold text-ink">Client</p>
                                 </div>
-
-                                <div className="absolute -bottom-6 -left-4 hidden -rotate-3 border-brut border-ink bg-pink px-4 py-3 text-caption font-extrabold uppercase text-on-pink shadow-brut sm:block">
-                                    Every payment has a paper trail
+                                <div>
+                                <p className="text-caption font-bold text-text-muted">
+                                    Payment date
+                                </p>
+                                <p className="mt-1 text-body font-extrabold text-ink">
+                                    Recorded date
+                                </p>
                                 </div>
+                                <div>
+                                <p className="text-caption font-bold text-text-muted">
+                                    Payment method
+                                </p>
+                                <p className="mt-1 text-body font-extrabold text-ink">
+                                    Recorded method
+                                </p>
+                                </div>
+                                <div>
+                                <p className="text-caption font-bold text-text-muted">Invoice</p>
+                                <p className="mt-1 text-body font-extrabold text-ink">
+                                    Linked invoice
+                                </p>
+                                </div>
+                            </div>
+                            <div className="mt-6 border-brut border-ink bg-surface-tint p-4">
+                                <p className="text-caption font-extrabold uppercase tracking-[0.1em] text-text-muted">
+                                Remaining balance
+                                </p>
+                                <p className="mt-2 text-body font-extrabold text-ink">
+                                Balance recorded on receipt
+                                </p>
+                            </div>
+                            <div className="mt-5 flex items-center justify-between gap-3 border-t-2 border-ink pt-4">
+                                <div>
+                                <p className="text-caption font-bold text-text-muted">
+                                    Verification code
+                                </p>
+                                <p className="mt-1 text-body font-extrabold tracking-[0.08em] text-ink">
+                                    BAGG-XXXXXXXX
+                                </p>
+                                </div>
+                                <ShieldCheck aria-hidden className="h-8 w-8 text-ink" />
+                            </div>
+                            </div>
+                            <div className="border-t-brut border-ink bg-sun px-5 py-3 text-center text-caption font-extrabold uppercase tracking-[0.12em] text-on-sun">
+                            A clear record of money received
                             </div>
                         </div>
-                    </Container>
-                </section>
+                        <div className="absolute -bottom-6 -left-4 hidden -rotate-3 border-brut border-ink bg-pink px-4 py-3 text-caption font-extrabold uppercase text-on-pink shadow-brut sm:block">
+                            Every payment has a paper trail
+                        </div>
+                        </div>
+                    }
+                    >
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        <Link
+                        href="/signup"
+                        className={buttonStyles({ size: 'lg', variant: 'primary' })}
+                        >
+                        Start free
+                        <ArrowRight aria-hidden className="h-4 w-4" />
+                        </Link>
+                        <Link
+                        href="/features/payments"
+                        className={buttonStyles({ size: 'lg', variant: 'outline' })}
+                        >
+                        How payments work
+                        <ArrowUpRight aria-hidden className="h-4 w-4" />
+                        </Link>
+                    </div>
+                    </PageHero>
 
                 <section className="py-20 sm:py-28 lg:py-32">
                     <Container>

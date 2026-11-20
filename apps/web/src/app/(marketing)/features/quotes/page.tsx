@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import { Container } from '@/components/marketing/container';
+import { PageHero } from '@/components/marketing/page-hero';
 import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
 import { buttonStyles } from '@/components/ui/button';
 import { marketingMetadata } from '@/lib/metadata';
@@ -35,151 +36,139 @@ export default function QuotesPage() {
             <FeatureSubnav currentPath="/features/quotes" />
             <div>
                 {/* HERO */}
-                <section className="overflow-hidden border-b-2 border-ink bg-cream">
-                    <Container className="py-12 sm:py-16 lg:py-20">
-                        <div className="grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+                <PageHero
+                    layout="split"
+                    containerClassName="gap-12 lg:grid-cols-[0.95fr_1.05fr]"
+                    kicker={
+                        <span className="inline-flex -rotate-2 border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut">
+                        Quotes and proposals
+                        </span>
+                    }
+                    title={
+                        <>
+                        Agree on the work.
+                        <span className="block text-mango">Then get started.</span>
+                        </>
+                    }
+                    titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem]"
+                    copy={
+                        <>
+                        Put the scope, price and payment expectations in writing. Share a quote
+                        your client can review and respond to, then turn the accepted work into
+                        an invoice.
+                        </>
+                    }
+                    visual={
+                        /* Move the existing Quote document composition div here unchanged. */
+                        <div className="relative mx-auto w-full max-w-[36rem] pb-5 pr-5">
+                        <div className="absolute inset-0 -rotate-3 border-brut border-ink bg-pink" />
+                        <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
+                            <div className="flex items-start justify-between gap-4 border-b-2 border-ink pb-5">
                             <div>
-              <span className="inline-flex -rotate-2 border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut">
-                Quotes and proposals
-              </span>
-
-                                <h1 className="mt-7 text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem]">
-                                    Agree on the work.
-                                    <span className="block text-mango">Then get started.</span>
-                                </h1>
-
-                                <p className="mt-6 max-w-xl text-body-l leading-relaxed text-text-soft sm:text-lg">
-                                    Put the scope, price and payment expectations in writing.
-                                    Share a quote your client can review and respond to, then
-                                    turn the accepted work into an invoice.
+                                <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-text-muted">
+                                Commercial document
                                 </p>
-
-                                <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row">
-                                    <Link
-                                        href="/signup"
-                                        className={buttonStyles({
-                                        size: 'lg',
-                                        variant: 'primary',
-                                        mobileFullWidth: true,
-                                        })}
-                                    >
-                                        Start free
-                                        <ArrowRight aria-hidden className="h-4 w-4" />
-                                    </Link>
-
-                                    <Link
-                                        href="/features/receipts"
-                                        className={buttonStyles({
-                                        size: 'lg',
-                                        variant: 'outline',
-                                        mobileFullWidth: true,
-                                        })}
-                                    >
-                                        Explore receipts
-                                        <ArrowUpRight aria-hidden className="h-4 w-4" />
-                                    </Link>
+                                <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-ink">
+                                QUOTATION
+                                </h2>
+                                <p className="mt-1 font-mono text-caption text-text-muted">
+                                QT-0001
+                                </p>
+                            </div>
+                            <span className="border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
+                                For review
+                            </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-5 py-5">
+                            <div>
+                                <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-text-muted">
+                                Prepared by
+                                </p>
+                                <p className="mt-1 font-extrabold text-ink">Your business</p>
+                                <p className="text-caption text-text-muted">Your business details</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-text-muted">
+                                Prepared for
+                                </p>
+                                <p className="mt-1 font-extrabold text-ink">Your client</p>
+                                <p className="text-caption text-text-muted">Client details</p>
+                            </div>
+                            </div>
+                            <div className="border-y border-ink/20 py-3">
+                            <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-text-muted">
+                                Proposed work
+                            </p>
+                            <div className="mt-4 space-y-4">
+                                <QuoteLine
+                                title="Project scope"
+                                description="Deliverables and agreed work"
+                                />
+                                <QuoteLine
+                                title="Additional services"
+                                description="Optional or supporting work"
+                                />
+                            </div>
+                            </div>
+                            <div className="mt-5 flex items-end justify-between gap-4">
+                            <div>
+                                <p className="text-caption font-bold text-text-muted">
+                                Proposed total
+                                </p>
+                                <p className="mt-1 text-3xl font-extrabold tracking-tight text-ink">
+                                NGN 000,000
+                                </p>
+                            </div>
+                            <div className="border-brut border-ink bg-pink px-3 py-2 text-caption font-extrabold uppercase text-on-pink shadow-brut">
+                                14 days validity
+                            </div>
+                            </div>
+                            <div className="mt-5 border-t-2 border-ink pt-4">
+                            <p className="text-caption font-bold text-text-muted">
+                                Client response
+                            </p>
+                            <div className="mt-3 grid grid-cols-2 gap-3">
+                                <div className="border-brut border-ink bg-mango px-3 py-3 text-center text-caption font-extrabold uppercase text-on-mango shadow-brut">
+                                Accept quote
+                                </div>
+                                <div className="border-brut border-ink bg-surface px-3 py-3 text-center text-caption font-extrabold uppercase text-ink shadow-brut">
+                                Request review
                                 </div>
                             </div>
-
-                            {/* Quote document composition */}
-                            <div className="relative mx-auto w-full max-w-[36rem] pb-5 pr-5">
-                                <div className="absolute inset-0 -rotate-3 border-brut border-ink bg-pink" />
-
-                                <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
-                                    <div className="flex items-start justify-between gap-4 border-b-2 border-ink pb-5">
-                                        <div>
-                                            <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-text-muted">
-                                                Commercial document
-                                            </p>
-                                            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-ink">
-                                                QUOTATION
-                                            </h2>
-                                            <p className="mt-1 font-mono text-caption text-text-muted">
-                                                QT-0001
-                                            </p>
-                                        </div>
-                                        <span className="border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
-                    For review
-                  </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-5 py-5">
-                                        <div>
-                                            <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                                                Prepared by
-                                            </p>
-                                            <p className="mt-1 font-extrabold text-ink">
-                                                Your business
-                                            </p>
-                                            <p className="text-caption text-text-muted">
-                                                Your business details
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                                                Prepared for
-                                            </p>
-                                            <p className="mt-1 font-extrabold text-ink">
-                                                Your client
-                                            </p>
-                                            <p className="text-caption text-text-muted">
-                                                Client details
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="border-y border-ink/20 py-3">
-                                        <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-text-muted">
-                                            Proposed work
-                                        </p>
-                                        <div className="mt-4 space-y-4">
-                                            <QuoteLine
-                                                title="Project scope"
-                                                description="Deliverables and agreed work"
-                                            />
-                                            <QuoteLine
-                                                title="Additional services"
-                                                description="Optional or supporting work"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-5 flex items-end justify-between gap-4">
-                                        <div>
-                                            <p className="text-caption font-bold text-text-muted">
-                                                Proposed total
-                                            </p>
-                                            <p className="mt-1 text-3xl font-extrabold tracking-tight text-ink">
-                                                NGN 000,000
-                                            </p>
-                                        </div>
-                                        <div className="border-brut border-ink bg-pink px-3 py-2 text-caption font-extrabold uppercase text-on-pink shadow-brut">
-                                            14 days validity
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-5 border-t-2 border-ink pt-4">
-                                        <p className="text-caption font-bold text-text-muted">
-                                            Client response
-                                        </p>
-                                        <div className="mt-3 grid grid-cols-2 gap-3">
-                                            <div className="border-brut border-ink bg-mango px-3 py-3 text-center text-caption font-extrabold uppercase text-on-mango shadow-brut">
-                                                Accept quote
-                                            </div>
-                                            <div className="border-brut border-ink bg-surface px-3 py-3 text-center text-caption font-extrabold uppercase text-ink shadow-brut">
-                                                Request review
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="absolute -bottom-1 -left-2 -rotate-6 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
-                                    Agree before delivery.
-                                </div>
                             </div>
                         </div>
-                    </Container>
-                </section>
+                        <div className="absolute -bottom-1 -left-2 -rotate-6 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
+                            Agree before delivery.
+                        </div>
+                        </div>
+                    }
+                    >
+                    <div className="flex flex-col items-start gap-3 sm:flex-row">
+                        <Link
+                        href="/signup"
+                        className={buttonStyles({
+                            size: 'lg',
+                            variant: 'primary',
+                            mobileFullWidth: true,
+                        })}
+                        >
+                        Start free
+                        <ArrowRight aria-hidden className="h-4 w-4" />
+                        </Link>
+
+                        <Link
+                        href="/features/receipts"
+                        className={buttonStyles({
+                            size: 'lg',
+                            variant: 'outline',
+                            mobileFullWidth: true,
+                        })}
+                        >
+                        Explore receipts
+                        <ArrowUpRight aria-hidden className="h-4 w-4" />
+                        </Link>
+                    </div>
+                    </PageHero>
 
                 {/* CLIENT RESPONSE */}
                 <section className="border-y-2 border-ink bg-pink py-20 text-on-pink sm:py-28">
