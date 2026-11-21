@@ -53,8 +53,10 @@ async function responseError(
 const QUOTE_STATUS_CHIPS = [
   { value: '', label: 'All' },
   { value: 'draft', label: 'Draft' },
+  { value: 'issued', label: 'Issued' },
   { value: 'sent', label: 'Sent' },
   { value: 'viewed', label: 'Viewed' },
+  { value: 'review_requested', label: 'Changes requested' },
   { value: 'accepted', label: 'Accepted' },
   { value: 'declined', label: 'Declined' },
   { value: 'converted', label: 'Converted' },
@@ -113,8 +115,7 @@ export default function QuotesPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          recipient_email: email || undefined,
-          delivery_channel: method,
+          send_email: method === 'email',
         }),
       });
 
@@ -253,10 +254,8 @@ export default function QuotesPage() {
     },
     {
       key: 'total_minor',
-      header: 'Total',
+      header: 'Net payable',
       align: 'right',
-      sortable: true,
-      cellClassName: 'whitespace-nowrap',
       render: (quote) => (
         <Money
           amountMinor={quote.net_payable_minor}
@@ -345,7 +344,7 @@ export default function QuotesPage() {
         chipLabel="Filter quotes by status"
         search={table.search}
         onSearchChange={table.setSearch}
-        searchPlaceholder="Search quote number, customer or status"
+        searchPlaceholder="Search quote number or customer"
         className="mt-5"
       />
 

@@ -704,7 +704,6 @@ export default function QuoteDetailPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill status={displayStatus} />
-          {quote.is_expired && <StatusPill status="expired" />}
         </div>
       </section>
 

@@ -78,7 +78,7 @@ class QuoteRepository:
                 conditions.append(
                     and_(
                         Quote.expires_at < (today or date.today()),
-                        Quote.status.notin_(["accepted", "converted"]),
+                        Quote.status.notin_(["accepted", "converted", "declined"]),
                     )
                 )
             else:

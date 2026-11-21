@@ -36,15 +36,32 @@ const row = 'flex min-h-14 w-full items-center gap-3  px-3 text-left text-body-l
 
 export function QuoteActionBar(p: QuoteActionBarProps) {
     const [more, setMore] = useState(false);
-    const shareable = ['issued', 'sent', 'viewed', 'review_requested'].includes(p.status);
+    const shareable = ['issued', 'sent', 'viewed'].includes(p.status);
 
     let primary: { label: string; run: () => void } | null = null;
-    if (p.status === 'draft') primary = { label: 'Approve & issue', run: p.onIssue };
-    else if (shareable) primary = { label: 'Share quote', run: p.onShare };
-    else if (p.status === 'accepted') primary = { label: 'Convert to invoice', run: p.onConvert };
-    else if (p.status === 'declined' && p.canRevise) primary = { label: 'Create revision', run: p.onRevise };
+
+    if (p.status === 'draft') {
+    primary = { label: 'Approve & issue', run: p.onIssue };
+    } else if (p.status === 'review_requested' && p.canRevise) {
+    primary = { label: 'Create revision', run: p.onRevise };
+    } else if (shareable) {
+    primary = { label: 'Share quote', run: p.onShare };
+    } else if (p.status === 'accepted') {
+    primary = { label: 'Convert to invoice', run: p.onConvert };
+    } else if (p.status === 'declined' && p.canRevise) {
+    primary = { label: 'Create revision', run: p.onRevise };
+    }
 
     const hasMore = p.canEditDraft || (p.canRevise && p.status !== 'declined') || !!p.publicUrl;
+
+    const showConvertedAction =
+        p.status === 'converted' && !!p.invoiceHref;
+
+        const showActionBar =
+        primary !== null || hasMore || showConvertedAction;
+
+        // Existing component return
+        if (!showActionBar) return null;
 
     return (
         <>

@@ -106,7 +106,7 @@ def map_quote_to_response(
         sequence_number=quote_obj.sequence_number,
         version=quote_obj.version,
         currency=quote_obj.currency,
-        status=display_status,
+        status=quote_obj.status,
         is_expired=is_expired,
         issue_date=quote_obj.issue_date,
         expires_at=quote_obj.expires_at,
