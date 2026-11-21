@@ -102,7 +102,11 @@ export default function PricingPage() {
   return (
       <>
         <PageHero
-            kicker="pricing that grows with your work"
+            kicker={
+              <div className="inline-flex w-fit items-center border-brut border-ink bg-mango px-3 py-1.5 text-caption font-extrabold uppercase tracking-wider text-on-mango shadow-brut-sm"> 
+              Pricing that grows with your work
+              </div>
+            }
             title="Start free. Pay for more room to grow."
             copy="Get your invoices, quotes and payment records organised first. Move to Creator Pro for recurring work, or Professional when your business needs more control over how you get paid."
         >

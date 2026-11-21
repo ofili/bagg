@@ -172,7 +172,6 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePhrase, setDeletePhrase] = useState('');
-  const [deleteReason, setDeleteReason] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -488,57 +487,91 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
     }
   };
 
-  const handleVerifyDeletion = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  
+const handleVerifyDeletion = async (
+  event: React.FormEvent<HTMLFormElement>,
+) => {
+  event.preventDefault();
 
-    if (!pendingDeletion || stepUpCode.trim().length !== 6) return;
+  if (
+    !pendingDeletion ||
+    stepUpCode.trim().length !== 6 ||
+    verifyingStepUp
+  ) {
+    return;
+  }
 
-    try {
-      setVerifyingStepUp(true);
-      setStepUpError(null);
+  try {
+    setVerifyingStepUp(true);
+    setStepUpError(null);
 
-      const verifyResponse = await fetch(`${API_BASE}/security/step-up/verify`, {
+    const challenge = pendingDeletion;
+
+    const verifyResponse = await fetch(
+      `${API_BASE}/security/step-up/verify`,
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          challenge_id: pendingDeletion.challengeId,
+          challenge_id: challenge.challengeId,
           code: stepUpCode.trim(),
         }),
-      });
+      },
+    );
 
-      if (!verifyResponse.ok) {
-        throw new Error(
-          await responseError(
-            verifyResponse,
-            'Invalid or expired verification code. Try again.',
-          ),
-        );
-      }
+    if (!verifyResponse.ok) {
+      throw new Error(
+        await responseError(
+          verifyResponse,
+          'Invalid or expired verification code. Try again.',
+        ),
+      );
+    }
 
-      const deleteResponse = await fetch(`${API_BASE}/compliance/delete-account`, {
+    // Verification has succeeded. Do not reuse this challenge ID
+    // if the subsequent deactivation request fails.
+    setPendingDeletion(null);
+    setStepUpCode('');
+
+    const deleteResponse = await fetch(
+      `${API_BASE}/compliance/delete-account`,
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          challenge_id: pendingDeletion.challengeId,
-          confirmation_phrase: pendingDeletion.confirmationPhrase,
+          challenge_id: challenge.challengeId,
+          confirmation_phrase: challenge.confirmationPhrase,
         }),
-      });
+      },
+    );
 
-      if (!deleteResponse.ok) {
-        throw new Error(
-          await responseError(deleteResponse, 'We could not delete your account.'),
-        );
-      }
+    if (!deleteResponse.ok) {
+      const message = await responseError(
+        deleteResponse,
+        'Your account could not be deactivated.',
+      );
 
-      router.replace('/login');
-    } catch (err) {
-      setStepUpError(errorText(err, 'Verification failed. Try again.'));
-    } finally {
-      setVerifyingStepUp(false);
+      setShowStepUpModal(false);
+      setShowDeleteModal(true);
+      setDeleteError(
+        `${message} Please submit again to initiate a new security verification.`,
+      );
+
+      return;
     }
-  };
+
+    setShowStepUpModal(false);
+    router.replace('/login');
+  } catch (err) {
+    setStepUpError(
+      errorText(err, 'Verification failed. Try again.'),
+    );
+  } finally {
+    setVerifyingStepUp(false);
+  }
+};
 
   const isPaid = Boolean(
     subscription &&
@@ -645,7 +678,7 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
           >
             {loadingWorkspace ? (
               <div
-                className="h-36 animate-pulse bg-surface-tint"
+                className="h-36 animate-pulse bg-surface-tint motion-reduce:animate-none"
                 aria-label="Loading workspace"
               />
             ) : (
@@ -749,8 +782,8 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
           >
             {loadingBilling ? (
               <div className="grid gap-3 sm:grid-cols-2" aria-label="Loading billing">
-                <div className="h-40 animate-pulse bg-surface-tint" />
-                <div className="h-40 animate-pulse bg-surface-tint" />
+                <div className="h-40 animate-pulse bg-surface-tint motion-reduce:animate-none" />
+                <div className="h-40 animate-pulse bg-surface-tint motion-reduce:animate-none" />
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
@@ -809,6 +842,7 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
                       type="button"
                       variant={isPaid ? 'outline' : 'primary'}
                       onClick={handleUpgrade}
+                      disabled={billingActionLoading}
                     >
                       <Sparkles className="h-4 w-4" aria-hidden="true" />
                       {isPaid ? 'Change or switch plan' : 'Upgrade plan'}
@@ -1171,7 +1205,7 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
             <div className="border-t border-line-subtle pt-3">
               <p className="text-caption text-text-muted">
                 Exports contain records belonging to your active workspace.
-                Financial amounts are represented in their currency's minor
+                Financial amounts are represented in their currency&apos;s minor
                 units. Export access requires an authenticated session.
               </p>
             </div>
@@ -1188,7 +1222,7 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
               </span>
 
               <div className="min-w-0 flex-1">
-                <h2 className="text-heading text-text">Delete your account</h2>
+                <h2 className="text-heading text-text">Deactivate your account</h2>
                 <p className="mt-1 max-w-xl text-body text-text-soft">
                   Deactivating your account revokes active sessions and sign-in
                   credentials and anonymises your account profile. Financial documents,
@@ -1201,12 +1235,11 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
                   onClick={() => {
                     setDeleteError(null);
                     setDeletePhrase('');
-                    setDeleteReason('');
                     setShowDeleteModal(true);
                   }}
                   className="mt-4"
                 >
-                  Delete account and data
+                  Deactivate account
                 </Button>
               </div>
             </div>
@@ -1214,12 +1247,18 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
         </div>
       </div>
 
-      <Sheet open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+      <Sheet
+        open={showDeleteModal}
+        onOpenChange={(open) => {
+          if (deletingAccount) return;
+          setShowDeleteModal(open);
+        }}
+      >
         <SheetContent className="max-h-[92dvh] overflow-y-auto rounded-t-sheet border-brut border-ink bg-surface p-5 pb-0 sm:inset-0 sm:m-auto sm:h-fit sm:w-[calc(100vw-2rem)] sm:max-w-md sm:rounded-sheet">
           <div className="mb-4 flex items-start gap-3">
             <AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-status-late-fg" />
             <div>
-              <h2 className="text-title text-text">Delete your account?</h2>
+              <h2 className="text-title text-text">Deactivate your account?</h2>
               <p className="mt-1 text-body text-text-soft">
                 Your account will be deactivated and your profile anonymised.
                 Financial documents and payment records will be retained.
@@ -1229,14 +1268,6 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
           </div>
 
           <form onSubmit={handleDeleteAccount} className="space-y-4">
-            <TextField
-              label="Reason"
-              optional
-              placeholder="e.g. I am moving to another platform"
-              value={deleteReason}
-              onChange={(event) => setDeleteReason(event.target.value)}
-            />
-
             <TextField
               label="Confirmation phrase"
               hint="Type DELETE MY ACCOUNT exactly to continue."
@@ -1261,13 +1292,9 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
               <Button
                 type="submit"
                 variant="danger"
-                disabled={
-                  deletingAccount || deletePhrase !== 'DELETE MY ACCOUNT'
-                }
+                loading={deletingAccount}
+                disabled={deletePhrase !== 'DELETE MY ACCOUNT'}
               >
-                {deletingAccount && (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                )}
                 Continue
               </Button>
             </SheetFooter>
@@ -1285,16 +1312,13 @@ const [remindersError, setRemindersError] = useState<string | null>(null);
           setStepUpError(null);
         }}
         title="Security verification"
+        description="To protect your account, Bagg requires you to verify this request before deactivation. Enter the six-digit code sent to your account email. The code expires after five minutes."
       >
         <form onSubmit={handleVerifyDeletion} className="space-y-4">
           <div className="flex items-center gap-2 text-text">
             <ShieldCheck className="h-5 w-5 text-mango" />
             <p className="text-body font-bold">Confirm account deletion</p>
           </div>
-
-          <p className="text-caption text-text-soft">
-            Enter the six-digit security code sent to your account email.
-          </p>
 
           <OtpField
             id="accountDeletionCode"
