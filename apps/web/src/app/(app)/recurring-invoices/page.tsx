@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  CircleNotch,
-  Clock,
-  Plus,
-} from '@phosphor-icons/react';
+import { Clock3, LoaderCircle, Plus } from 'lucide-react';
 
 import { BagCharacter } from '@/components/brand';
 import { DocTabs } from '@/components/mobile/DocTabs';
@@ -95,6 +91,28 @@ function statusColor(status: string) {
     default:
       return 'bg-surface-tint text-text-soft border-line';
   }
+}
+
+function getScheduleNetPayable(schedule: RecurringSchedule): number {
+  const subtotal = schedule.items.reduce(
+    (sum, item) => sum + item.quantity * item.unit_price_minor,
+    0,
+  );
+
+  const discountedSubtotal = Math.max(
+    0,
+    subtotal - schedule.discount_minor,
+  );
+
+  const tax = Math.round(
+    discountedSubtotal * schedule.tax_rate_percent / 100,
+  );
+
+  const withholdingTax = Math.round(
+    discountedSubtotal * schedule.wht_rate_percent / 100,
+  );
+
+  return Math.max(0, discountedSubtotal + tax - withholdingTax);
 }
 
 export default function RecurringInvoicesPage() {
@@ -202,12 +220,13 @@ export default function RecurringInvoicesPage() {
             <button
               key={f.value}
               type="button"
+              aria-pressed={active}
               onClick={() => setSelectedStatus(f.value)}
               className={cn(
-                'rounded-full px-3.5 py-1.5 text-caption font-bold transition-colors',
+                'min-h-10 rounded-full border-brut-thin border-ink px-3.5 py-1.5 text-caption font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mango',
                 active
-                  ? 'border-brut-thin border-ink bg-sun text-on-sun shadow-brut-sm'
-                  : 'border-brut-thin border-ink bg-surface text-text-soft hover:bg-surface-tint',
+                  ? 'bg-sun text-on-sun shadow-brut-sm'
+                  : 'bg-surface text-text-soft hover:bg-surface-tint',
               )}
             >
               {f.label}
@@ -218,15 +237,30 @@ export default function RecurringInvoicesPage() {
 
       {/* Error state */}
       {error && (
-          <Alert variant="error">
-            {error}
-          </Alert>
+        <Alert
+          variant="error"
+          action={
+            <button
+              type="button"
+              onClick={() => setSelectedStatus((current) => current)}
+              className="font-bold underline underline-offset-4"
+            >
+              Retry
+            </button>
+          }
+        >
+          {error}
+        </Alert>
       )}
 
       {/* Content */}
       {loading ? (
-        <div className="flex min-h-[300px] items-center justify-center">
-          <CircleNotch className="h-8 w-8 animate-spin text-text-muted" />
+        <div
+          role="status"
+          className="flex min-h-[300px] items-center justify-center gap-3 text-text-muted"
+        >
+          <LoaderCircle className="h-6 w-6 animate-spin motion-reduce:animate-none" />
+          <span>Loading recurring schedules...</span>
         </div>
       ) : schedules.length === 0 ? (
         <div className="border border-dashed border-line bg-surface p-12 text-center">
@@ -248,10 +282,7 @@ export default function RecurringInvoicesPage() {
         <div className="space-y-3">
           {schedules.map((schedule) => {
             const clientName = clients[schedule.client_id] || 'Client';
-            const totalMinor = schedule.items.reduce(
-              (sum, item) => sum + item.quantity * item.unit_price_minor,
-              0,
-            );
+            const netPayableMinor = getScheduleNetPayable(schedule);
 
             return (
               <Link
@@ -283,13 +314,15 @@ export default function RecurringInvoicesPage() {
 
                   <div className="flex flex-wrap items-center gap-4 text-caption text-text-muted">
                     <span className="inline-flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
+                      <Clock3 className="h-3.5 w-3.5" />
                       Next run: {formatDate(schedule.next_run_date)}
                     </span>
                     <span>•</span>
                     <span>Generated: {schedule.generated_count} invoices</span>
                     <span>•</span>
-                    <span>Mode: {schedule.issue_mode === 'auto_issue' ? 'Auto issue' : 'Draft lead'}</span>
+                    <span>
+                      Mode: {schedule.issue_mode === 'auto_issue' ? 'Auto-issue' : 'Draft for review'}
+                    </span>
                   </div>
                 </div>
 
@@ -297,11 +330,11 @@ export default function RecurringInvoicesPage() {
                   <span className="text-caption text-text-soft sm:hidden">Schedule value</span>
                   <div>
                     <Money
-                      amountMinor={totalMinor}
+                      amountMinor={netPayableMinor}
                       currency={schedule.currency}
                       className="text-title font-black text-ink"
                     />
-                    <p className="text-[12px] text-text-muted">per billing cycle</p>
+                    <p className="text-[12px] text-text-muted">net payable per cycle</p>
                   </div>
                 </div>
               </Link>

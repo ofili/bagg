@@ -2,7 +2,15 @@
 
 import {use, useCallback, useEffect, useState} from 'react';
 import Link from 'next/link';
-import {ArrowLeft, ArrowSquareOut, CircleNotch, FileText, Pause, Play, StopCircle,} from '@phosphor-icons/react';
+import {
+  ArrowLeft,
+  ExternalLink,
+  LoaderCircle,
+  FileText,
+  Pause,
+  Play,
+  CircleStop,
+} from 'lucide-react';
 
 import {Alert, Button, buttonStyles, Card, Dialog, ErrorState, PageHeader, StatCard,} from '@/components/ui';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
@@ -188,7 +196,7 @@ export default function RecurringScheduleDetailPage({
     if (loading) {
         return (
             <div className="flex min-h-[400px] items-center justify-center">
-                <CircleNotch className="h-8 w-8 animate-spin text-text-muted"/>
+                <LoaderCircle className="h-8 w-8 animate-spin text-text-muted"/>
             </div>
         );
     }
@@ -216,12 +224,27 @@ export default function RecurringScheduleDetailPage({
     }
 
     const subtotalMinor = schedule.items.reduce(
-        (sum, item) => sum + item.quantity * item.unit_price_minor,
-        0,
+    (sum, item) => sum + item.quantity * item.unit_price_minor,
+    0,
     );
-    const taxMinor = Math.round(subtotalMinor * (schedule.tax_rate_percent / 100));
-    const whtMinor = Math.round(subtotalMinor * (schedule.wht_rate_percent / 100));
-    const totalMinor = subtotalMinor + taxMinor - whtMinor;
+
+    const discountedSubtotalMinor = Math.max(
+    0,
+    subtotalMinor - schedule.discount_minor,
+    );
+
+    const taxMinor = Math.round(
+    discountedSubtotalMinor * schedule.tax_rate_percent / 100,
+    );
+
+    const whtMinor = Math.round(
+    discountedSubtotalMinor * schedule.wht_rate_percent / 100,
+    );
+
+    const netPayableMinor = Math.max(
+    0,
+    discountedSubtotalMinor + taxMinor - whtMinor,
+    );
 
     return (
         <div className="mx-auto max-w-5xl space-y-6 p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
@@ -306,7 +329,7 @@ export default function RecurringScheduleDetailPage({
                                             zone="calm"
                                             onClick={() => setShowCancelDialog(true)}
                                         >
-                                            <StopCircle aria-hidden className="h-4 w-4 text-danger"/>
+                                            <CircleStop aria-hidden className="h-4 w-4 text-danger"/>
                                             Cancel
                                         </Button>
                                     )}
@@ -334,55 +357,23 @@ export default function RecurringScheduleDetailPage({
                             className="font-bold text-ink">{schedule.issue_mode === 'auto_issue' ? 'Auto issue' : 'Draft review'}</strong></span>
                     </p>
                 </div>
-
-                {/* Action buttons */}
-                <div className="flex flex-wrap items-center gap-2">
-                    {schedule.status === 'active' && (
-                        <button
-                            type="button"
-                            onClick={() => setShowPauseDialog(true)}
-                            className={buttonStyles({variant: 'outline'})}
-                        >
-                            <Pause className="h-4 w-4"/> Pause
-                        </button>
-                    )}
-
-                    {schedule.status === 'paused' && (
-                        <button
-                            type="button"
-                            onClick={() => setShowResumeDialog(true)}
-                            className={buttonStyles({zone: 'calm'})}
-                        >
-                            <Play className="h-4 w-4"/> Resume
-                        </button>
-                    )}
-
-                    {(schedule.status === 'active' || schedule.status === 'paused') && (
-                        <button
-                            type="button"
-                            onClick={() => setShowCancelDialog(true)}
-                            className={buttonStyles({variant: 'outline'})}
-                        >
-                            <StopCircle className="h-4 w-4 text-danger"/> Cancel
-                        </button>
-                    )}
-                </div>
+                
             </div>
 
             {/* Metric Cards */}
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                     zone="expressive"
-                    label="Cycle value"
+                    label="Net payable per cycle"
                     value={
                         <Money
-                            amountMinor={totalMinor}
-                            currency={schedule.currency}
-                            className="text-amount-m"
+                        amountMinor={netPayableMinor}
+                        currency={schedule.currency}
+                        className="text-amount-m"
                         />
                     }
-                    description={`Per ${schedule.frequency}`}
-                />
+                    description="After discount, tax and withholding tax"
+                    />
 
                 <StatCard
                     zone="calm"
@@ -449,6 +440,15 @@ export default function RecurringScheduleDetailPage({
                         <span>Subtotal:</span>
                         <Money amountMinor={subtotalMinor} currency={schedule.currency}/>
                     </div>
+                    {schedule.discount_minor > 0 && (
+                        <div className="flex w-64 justify-between">
+                            <span>Discount:</span>
+                            <Money
+                            amountMinor={schedule.discount_minor}
+                            currency={schedule.currency}
+                            />
+                        </div>
+                    )}
                     {taxMinor > 0 && (
                         <div className="flex w-64 justify-between">
                             <span>Tax ({schedule.tax_rate_percent}%):</span>
@@ -462,9 +462,12 @@ export default function RecurringScheduleDetailPage({
                         </div>
                     )}
                     <div className="flex w-64 justify-between border-t border-line pt-1 text-body font-black text-ink">
-                        <span>Total:</span>
-                        <Money amountMinor={totalMinor} currency={schedule.currency}/>
-                    </div>
+                        <span>Net payable:</span>
+                        <Money
+                            amountMinor={netPayableMinor}
+                            currency={schedule.currency}
+                        />
+                        </div>
                 </div>
             </Card>
 
@@ -483,7 +486,7 @@ export default function RecurringScheduleDetailPage({
                         <p className="mt-2 font-bold text-ink">No invoices generated yet</p>
                         <p className="mt-1 text-caption text-text-soft">
                             {schedule.issue_mode === 'auto_issue'
-                                ? `Bagg will automatically generate, finalize, and email the first invoice on ${formatDate(schedule.next_run_date)}.`
+                                ? `Bagg will automatically generate and issue the first invoice on ${formatDate(schedule.next_run_date)}. Delivery remains a separate action.`
                                 : `The first draft invoice will be automatically created on ${formatDate(schedule.next_run_date)} for your review.`}
                         </p>
                     </div>
@@ -493,7 +496,7 @@ export default function RecurringScheduleDetailPage({
                             <Link
                                 key={occ.invoice_id}
                                 href={`/invoices/${occ.invoice_id}`}
-                                className="flex items-center justify-between border-brut border-ink bg-surface p-4 transition-colors hover:bg-surface-tint"
+                                className="flex flex-col gap-3 border-brut border-ink bg-surface p-3 transition-colors hover:bg-surface-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mango sm:flex-row sm:items-center sm:justify-between sm:p-4"
                             >
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2">
@@ -508,15 +511,18 @@ export default function RecurringScheduleDetailPage({
                                         Period: {formatDate(occ.period_start)} – {formatDate(occ.period_end)}
                                     </p>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
                                     <Money
                                         amountMinor={occ.total_minor}
                                         currency={occ.currency}
                                         className="text-amount-s font-bold"
                                     />
-                                    <StatusPill status={occ.invoice_status}/>
-                                    <ArrowSquareOut className="h-4 w-4 text-text-muted"/>
-                                </div>
+                                    <StatusPill status={occ.invoice_status} />
+                                    <ExternalLink
+                                        aria-hidden="true"
+                                        className="h-4 w-4 text-text-muted"
+                                    />
+                                    </div>
                             </Link>
                         ))}
                     </div>
