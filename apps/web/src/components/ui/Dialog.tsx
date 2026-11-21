@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -17,6 +18,11 @@ export interface DialogProps {
   children: ReactNode;
   className?: string;
   showCloseButton?: boolean;
+}
+
+export interface DialogFooterProps {
+  children: ReactNode;
+  className?: string;
 }
 
 /**
@@ -64,7 +70,7 @@ export function Dialog({
       ref={ref}
       onClose={onClose}
       onClick={(event) => {
-        // The native dialog receives backdrop clicks on its own surface.
+        // A click on the native dialog surface is a backdrop click.
         if (event.target === ref.current) {
           closeDialog();
         }
@@ -73,9 +79,11 @@ export function Dialog({
       aria-describedby={description ? descriptionId : undefined}
       className={cn(
         'w-[calc(100%-2rem)] max-w-[480px]',
+        'max-h-[min(85dvh,720px)] overflow-y-auto',
         'rounded-sheet border-brut border-ink',
         'bg-surface p-0 text-text shadow-sheet outline-none',
         'backdrop:bg-black/60 backdrop:backdrop-blur-sm',
+        'focus-visible:outline-none',
         className,
       )}
     >
@@ -104,7 +112,8 @@ export function Dialog({
               className={cn(
                 'inline-flex h-11 w-11 shrink-0 items-center justify-center',
                 'rounded-btn border-brut-thin border-ink bg-surface',
-                'text-text-muted hover:border-ink hover:text-ink',
+                'text-text-muted transition-colors',
+                'hover:border-ink hover:text-ink',
                 'focus-visible:outline-2 focus-visible:outline-offset-2',
                 'focus-visible:outline-ink',
               )}
@@ -117,5 +126,28 @@ export function Dialog({
         {children}
       </div>
     </dialog>
+  );
+}
+
+/**
+ * Consistent action area for Dialog content.
+ *
+ * Keep the primary action last in the DOM so it appears last
+ * in the mobile stacked layout and first in the desktop action row.
+ */
+export function DialogFooter({
+  children,
+  className,
+}: DialogFooterProps) {
+  return (
+    <div
+      className={cn(
+        'flex flex-col-reverse gap-3 border-t border-line-subtle pt-4',
+        'sm:flex-row sm:justify-end',
+        className,
+      )}
+    >
+      {children}
+    </div>
   );
 }

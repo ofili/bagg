@@ -26,9 +26,6 @@ export { Card } from './Card';
 export type { CardProps, CardTone } from './Card';
 export { Toggle } from './Toggle';
 export type { ToggleProps } from './Toggle';
-export { Dialog } from './Dialog';
-export type { DialogProps } from './Dialog';
-export { Sheet, SheetTrigger, SheetContent, SheetClose, SheetFooter } from './sheet';
 export { BaggSelect } from './BaggSelect';
 export type { BaggSelectOption } from './BaggSelect';
 export { SearchInput } from './SearchInput';
@@ -146,3 +143,25 @@ export type { AlertProps, AlertVariant } from './Alert';
 
 export { ErrorState } from './ErrorState';
 export type { ErrorStateProps } from './ErrorState';
+
+export { Dialog, DialogFooter } from './Dialog';
+export type { DialogProps, DialogFooterProps } from './Dialog';
+
+export {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetClose,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+} from './sheet';
+
+export type {
+  SheetProps,
+  SheetContentProps,
+  SheetCloseProps,
+  SheetHeaderProps,
+  SheetBodyProps,
+  SheetFooterProps,
+} from './sheet';
