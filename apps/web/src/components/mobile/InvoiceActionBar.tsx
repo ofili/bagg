@@ -19,7 +19,6 @@ import {
   SheetClose,
   SheetContent,
 } from '@/components/ui/sheet';
-import { cn } from '@/lib/cn';
 
 export interface InvoiceActionBarProps {
   status: string;
@@ -126,6 +125,7 @@ export function InvoiceActionBar(p: InvoiceActionBarProps) {
               variant="outline"
               zone="calm"
               size="lg"
+              disabled={p.busy}
               onClick={p.onRecord}
             >
               <ReceiptText aria-hidden className="h-4 w-4" />

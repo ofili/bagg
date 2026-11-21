@@ -1180,44 +1180,46 @@ export default function InvoiceDetailPage() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2 self-start">
-          {hasPendingClaims ? (
-            <Button zone="expressive" onClick={scrollToClaims}>
-              <WarningCircleIcon aria-hidden className="h-4 w-4" />
-              Review payment{pendingClaims.length === 1 ? '' : 's'}
-            </Button>
-          ) : invoice.status === 'draft' ? (
-            <Button
-              zone="calm"
-              loading={sendingInvoice}
-              onClick={handleFinalizeInvoice}
-            >
-              Approve & issue
-            </Button>
-          ) : ['issued', 'sent', 'viewed'].includes(invoice.status) ? (
-            <Button
-              zone="calm"
-              loading={sendingInvoice}
-              onClick={openInvoiceDelivery}
-            >
-              {invoice.status === 'issued' ? 'Send invoice' : 'Send again'}
-            </Button>
-          ) : canRecordPayment ? (
-            <Button zone="expressive" onClick={openReceiptModal}>
-              <ReceiptIcon aria-hidden className="h-4 w-4" />
-              Record payment
-            </Button>
-          ) : primaryReceipt ? (
-            <Link
-              href={`/receipts/${encodeURIComponent(primaryReceipt.id)}`}
-              className={buttonStyles({
-              variant: 'primary',
-              zone: 'expressive',
-            })}
-            >
-              <ReceiptIcon aria-hidden className="h-4 w-4" />
-              View receipt
-            </Link>
-          ) : null}
+          <div className="hidden shrink-0 items-center gap-2 sm:flex">
+            {hasPendingClaims ? (
+              <Button zone="expressive" onClick={scrollToClaims}>
+                <WarningCircleIcon aria-hidden className="h-4 w-4" />
+                Review payment{pendingClaims.length === 1 ? '' : 's'}
+              </Button>
+            ) : invoice.status === 'draft' ? (
+              <Button
+                zone="calm"
+                loading={sendingInvoice}
+                onClick={handleFinalizeInvoice}
+              >
+                Approve & issue
+              </Button>
+            ) : ['issued', 'sent', 'viewed'].includes(invoice.status) ? (
+              <Button
+                zone="calm"
+                loading={sendingInvoice}
+                onClick={openInvoiceDelivery}
+              >
+                {invoice.status === 'issued' ? 'Send invoice' : 'Send again'}
+              </Button>
+            ) : canRecordPayment ? (
+              <Button zone="expressive" onClick={openReceiptModal}>
+                <ReceiptIcon aria-hidden className="h-4 w-4" />
+                Record payment
+              </Button>
+            ) : primaryReceipt ? (
+              <Link
+                href={`/receipts/${encodeURIComponent(primaryReceipt.id)}`}
+                className={buttonStyles({
+                  variant: 'primary',
+                  zone: 'expressive',
+                })}
+              >
+                <ReceiptIcon aria-hidden className="h-4 w-4" />
+                View receipt
+              </Link>
+            ) : null}
+          </div>
 
           <details className="relative">
             <summary
@@ -1941,7 +1943,12 @@ export default function InvoiceDetailPage() {
         status={invoice.status}
         pendingClaims={pendingClaims.length}
         canRecordPayment={canRecordPayment}
-        busy={sendingInvoice}
+        busy={
+          sendingInvoice ||
+          saving ||
+          confirmingClaimId !== null ||
+          savingClaimReject
+        }
         onIssue={handleFinalizeInvoice}
         onSend={openInvoiceDelivery}
         onRecord={openReceiptModal}
@@ -2095,7 +2102,11 @@ export default function InvoiceDetailPage() {
             onChange={setConfirmed}
           />
 
-          {formError && <Alert variant="error">{formError}</Alert>}
+          {formError && (
+            <div role="alert" aria-live="assertive">
+              <Alert variant="error">{formError}</Alert>
+            </div>
+          )}
 
           <div className="flex justify-between gap-3">
             <Button
@@ -2109,8 +2120,9 @@ export default function InvoiceDetailPage() {
 
             <Button
               type="submit"
-              zone="calm"
+              zone="expressive"
               loading={saving}
+              disabled={!confirmed || saving}
             >
               Confirm payment received
             </Button>
