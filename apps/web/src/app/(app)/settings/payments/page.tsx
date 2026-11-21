@@ -139,6 +139,13 @@ const EMPTY_FORM: ProfileForm = {
   is_default: true,
 };
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  bank_transfer: 'Bank transfer',
+  payment_link: 'Payment link',
+  mobile_money: 'Mobile money',
+  instructions: 'Payment instructions',
+};
+
 function errorText(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
 }
@@ -168,14 +175,28 @@ function methodFromProfile(profile: PaymentProfile): PaymentMethod {
   return 'instructions';
 }
 
-function profileMethods(profile: PaymentProfile) {
+function profileMethods(profile: PaymentProfile): string[] {
+  if (Array.isArray(profile.methods)) {
+    return profile.methods.map(
+      (method) => PAYMENT_METHOD_LABELS[method] ?? method,
+    );
+  }
+
+  // Compatibility fallback for API responses that do not yet expose methods.
   const methods: string[] = [];
 
   if (profile.bank_name || profile.account_number) {
     methods.push('Bank transfer');
   }
-  if (profile.payment_link) methods.push('Payment link');
-  if (profile.mobile_money_number) methods.push('Mobile money');
+
+  if (profile.payment_link) {
+    methods.push('Payment link');
+  }
+
+  if (profile.mobile_money_number) {
+    methods.push('Mobile money');
+  }
+
   if (profile.instructions && methods.length === 0) {
     methods.push('Payment instructions');
   }
@@ -183,24 +204,39 @@ function profileMethods(profile: PaymentProfile) {
   return methods;
 }
 
-function profileIsUsable(profile: PaymentProfile) {
+function profileIsUsable(profile: PaymentProfile): boolean {
+  if (typeof profile.is_usable === 'boolean') {
+    return profile.is_usable;
+  }
+
+  // Compatibility fallback for older API responses.
   const bankValues = [
     profile.bank_name,
     profile.account_name,
     profile.account_number,
   ];
 
-  const hasAnyBankValue = bankValues.some((value) => Boolean(value?.trim()));
-  const hasCompleteBank = bankValues.every((value) => Boolean(value?.trim()));
+  const hasAnyBankValue = bankValues.some((value) =>
+    Boolean(value?.trim()),
+  );
 
-  if (hasAnyBankValue && !hasCompleteBank) return false;
+  const hasCompleteBank = bankValues.every((value) =>
+    Boolean(value?.trim()),
+  );
+
+  if (hasAnyBankValue && !hasCompleteBank) {
+    return false;
+  }
 
   const hasLink = Boolean(profile.payment_link?.trim());
 
   if (hasLink) {
     try {
       const url = new URL(profile.payment_link!);
-      if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
+
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        return false;
+      }
     } catch {
       return false;
     }
@@ -208,7 +244,9 @@ function profileIsUsable(profile: PaymentProfile) {
 
   const hasMobile = Boolean(profile.mobile_money_number?.trim());
 
-  if (hasMobile && !profile.account_name?.trim()) return false;
+  if (hasMobile && !profile.account_name?.trim()) {
+    return false;
+  }
 
   return (
     hasCompleteBank ||
@@ -254,7 +292,10 @@ function formToPayload(form: ProfileForm, method: PaymentMethod) {
   };
 }
 
-function validateForm(form: ProfileForm, method: PaymentMethod): string | null {
+function validateForm(
+  form: ProfileForm,
+  method: PaymentMethod,
+): string | null {
   if (method === 'bank') {
     if (
       !form.bank_name.trim() ||
@@ -272,6 +313,7 @@ function validateForm(form: ProfileForm, method: PaymentMethod): string | null {
 
     try {
       const url = new URL(form.payment_link.trim());
+
       if (url.protocol !== 'https:' && url.protocol !== 'http:') {
         return 'The payment link must use HTTP or HTTPS.';
       }
@@ -281,7 +323,10 @@ function validateForm(form: ProfileForm, method: PaymentMethod): string | null {
   }
 
   if (method === 'mobile_money') {
-    if (!form.mobile_money_number.trim() || !form.account_name.trim()) {
+    if (
+      !form.mobile_money_number.trim() ||
+      !form.account_name.trim()
+    ) {
       return 'Enter the mobile money number and the account name.';
     }
   }
@@ -311,6 +356,7 @@ export default function PaymentSettingsPage() {
   const [showStepUp, setShowStepUp] = useState(false);
   const [stepUpCode, setStepUpCode] = useState('');
   const [stepUpError, setStepUpError] = useState<string | null>(null);
+  const [requestingStepUp, setRequestingStepUp] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [pendingStepUp, setPendingStepUp] =
     useState<PendingStepUp | null>(null);
@@ -318,6 +364,8 @@ export default function PaymentSettingsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [profileToDelete, setProfileToDelete] =
     useState<PaymentProfile | null>(null);
+
+  const busy = requestingStepUp || verifying;
 
   const showNotice = (message: string) => {
     setNotice(message);
@@ -374,6 +422,7 @@ export default function PaymentSettingsPage() {
         const defaultProfile = currencyProfiles.find(
           (profile) => profile.is_default,
         );
+
         const usableDefault = defaultProfile
           ? profileIsUsable(defaultProfile)
           : false;
@@ -405,6 +454,8 @@ export default function PaymentSettingsPage() {
   };
 
   const openCreateEditor = (currency = 'NGN') => {
+    if (busy || saving) return;
+
     setEditingProfile(null);
     setForm({ ...EMPTY_FORM, currency });
     setMethod('bank');
@@ -414,6 +465,8 @@ export default function PaymentSettingsPage() {
   };
 
   const openEditEditor = (profile: PaymentProfile) => {
+    if (busy || saving) return;
+
     setEditingProfile(profile);
     setForm(formFromProfile(profile));
     setMethod(methodFromProfile(profile));
@@ -423,7 +476,8 @@ export default function PaymentSettingsPage() {
   };
 
   const closeEditor = () => {
-    if (saving) return;
+    if (saving || busy) return;
+
     setEditorOpen(false);
     setEditingProfile(null);
     setForm(EMPTY_FORM);
@@ -437,46 +491,58 @@ export default function PaymentSettingsPage() {
     payload: Record<string, unknown>,
     profileId?: string,
   ) => {
-    const response = await fetch(`${API_BASE}/security/step-up/request`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
+    if (requestingStepUp || verifying) {
+      return;
+    }
+
+    setRequestingStepUp(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/security/step-up/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          purpose,
+          resource_type: 'payment_profile',
+          resource_id: profileId || null,
+          payload,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await responseError(
+            response,
+            'Could not initiate security verification.',
+          ),
+        );
+      }
+
+      const data = await response.json();
+
+      if (!data.challenge_id) {
+        throw new Error(
+          'The security service did not return a challenge ID.',
+        );
+      }
+
+      setPendingStepUp({
+        challengeId: data.challenge_id,
         purpose,
-        resource_type: 'payment_profile',
-        resource_id: profileId || null,
+        action,
+        profileId,
         payload,
-      }),
-    });
+        resumeEditor: action !== 'delete',
+      });
 
-    if (!response.ok) {
-      throw new Error(
-        await responseError(
-          response,
-          'Could not initiate security verification.',
-        ),
-      );
+      setStepUpCode(data.code || '');
+      setStepUpError(null);
+      setEditorOpen(false);
+      setShowStepUp(true);
+    } finally {
+      setRequestingStepUp(false);
     }
-
-    const data = await response.json();
-
-    if (!data.challenge_id) {
-      throw new Error('The security service did not return a challenge ID.');
-    }
-
-    setPendingStepUp({
-      challengeId: data.challenge_id,
-      purpose,
-      action,
-      profileId,
-      payload,
-      resumeEditor: action !== 'delete',
-    });
-
-    setStepUpCode(data.code || '');
-    setStepUpError(null);
-    setEditorOpen(false);
-    setShowStepUp(true);
   };
 
   const handleSaveProfile = async (
@@ -525,7 +591,7 @@ export default function PaymentSettingsPage() {
   };
 
   const handleMakeDefault = async (profile: PaymentProfile) => {
-    if (profile.is_default) return;
+    if (profile.is_default || busy) return;
 
     try {
       setActionError(null);
@@ -547,12 +613,14 @@ export default function PaymentSettingsPage() {
   };
 
   const handleRequestDelete = (profile: PaymentProfile) => {
+    if (busy) return;
+
     setProfileToDelete(profile);
     setShowDeleteConfirm(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (!profileToDelete) return;
+    if (!profileToDelete || busy) return;
 
     const profile = profileToDelete;
 
@@ -580,7 +648,9 @@ export default function PaymentSettingsPage() {
   ) => {
     event.preventDefault();
 
-    if (!pendingStepUp || stepUpCode.trim().length !== 6) return;
+    if (!pendingStepUp || stepUpCode.trim().length !== 6 || verifying) {
+      return;
+    }
 
     try {
       setVerifying(true);
@@ -695,6 +765,7 @@ export default function PaymentSettingsPage() {
       setShowStepUp(false);
       setPendingStepUp(null);
       setStepUpCode('');
+
       setActionError(
         errorText(err, 'The payment profile update failed.'),
       );
@@ -732,7 +803,9 @@ export default function PaymentSettingsPage() {
   const getProfileSubtitle = (profile: PaymentProfile) => {
     const details: string[] = [];
 
-    if (profile.account_name) details.push(profile.account_name);
+    if (profile.account_name) {
+      details.push(profile.account_name);
+    }
 
     if (profile.account_number) {
       details.push(`•••• ${profile.account_number.slice(-4)}`);
@@ -746,7 +819,7 @@ export default function PaymentSettingsPage() {
   };
 
   return (
-    <PageContainer width="form">
+    <PageContainer width="wide">
       <div className="space-y-5">
         <Link
           href="/settings"
@@ -765,6 +838,7 @@ export default function PaymentSettingsPage() {
               type="button"
               zone="expressive"
               onClick={() => openCreateEditor()}
+              disabled={busy || saving}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
               Add payment profile
@@ -800,12 +874,14 @@ export default function PaymentSettingsPage() {
             icon={<Globe />}
             zone="expressive"
           />
+
           <StatCard
             label="Payment profiles"
             value={profiles.length}
             description="Across all currencies"
             icon={<Landmark />}
           />
+
           <StatCard
             label="Needs attention"
             value={incompleteProfileCount}
@@ -817,16 +893,6 @@ export default function PaymentSettingsPage() {
         <FormSection
           title="Payment methods by currency"
           description="Each currency can have multiple payment profiles, with one selected as its default."
-          action={
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => openCreateEditor()}
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Add profile
-            </Button>
-          }
         >
           {loading ? (
             <div
@@ -844,6 +910,7 @@ export default function PaymentSettingsPage() {
           ) : loadError ? (
             <div className="space-y-3">
               <Alert variant="error">{loadError}</Alert>
+
               <Button
                 type="button"
                 variant="outline"
@@ -872,12 +939,18 @@ export default function PaymentSettingsPage() {
 
                         {currency.configured ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-status-paid px-2.5 py-1 text-caption font-bold text-status-paid-fg">
-                            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            <Check
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
                             Ready
                           </span>
                         ) : currency.needsAttention ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-status-late px-2.5 py-1 text-caption font-bold text-status-late-fg">
-                            <CircleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                            <CircleAlert
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
                             Needs attention
                           </span>
                         ) : (
@@ -886,6 +959,7 @@ export default function PaymentSettingsPage() {
                           </span>
                         )}
                       </div>
+
                       <p className="mt-1 text-caption text-text-muted">
                         {currency.label}
                       </p>
@@ -895,6 +969,7 @@ export default function PaymentSettingsPage() {
                       type="button"
                       variant="outline"
                       onClick={() => openCreateEditor(currency.value)}
+                      disabled={busy || saving}
                     >
                       <Plus className="h-4 w-4" aria-hidden="true" />
                       Add {currency.value} profile
@@ -904,7 +979,8 @@ export default function PaymentSettingsPage() {
                   {currency.profiles.length === 0 ? (
                     <div className="mt-4 border border-dashed border-line-subtle bg-surface-sunken p-4">
                       <p className="text-body text-text-soft">
-                        No payment instructions have been added for this currency.
+                        No payment instructions have been added for this
+                        currency.
                       </p>
                     </div>
                   ) : (
@@ -912,6 +988,7 @@ export default function PaymentSettingsPage() {
                       {currency.profiles.map((profile) => {
                         const usable = profileIsUsable(profile);
                         const methods = profileMethods(profile);
+                        const profileTitle = getProfileTitle(profile);
 
                         return (
                           <Card
@@ -924,7 +1001,7 @@ export default function PaymentSettingsPage() {
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <h4 className="font-extrabold text-text">
-                                      {getProfileTitle(profile)}
+                                      {profileTitle}
                                     </h4>
 
                                     {profile.is_default && (
@@ -972,7 +1049,10 @@ export default function PaymentSettingsPage() {
                                       type="button"
                                       variant="outline"
                                       size="md"
-                                      onClick={() => void handleMakeDefault(profile)}
+                                      onClick={() =>
+                                        void handleMakeDefault(profile)
+                                      }
+                                      disabled={busy || saving}
                                     >
                                       <Check
                                         className="h-4 w-4"
@@ -987,6 +1067,8 @@ export default function PaymentSettingsPage() {
                                     variant="outline"
                                     size="md"
                                     onClick={() => openEditEditor(profile)}
+                                    disabled={busy || saving}
+                                    aria-label={`Edit ${currency.value} payment profile: ${profileTitle}`}
                                   >
                                     Edit
                                   </Button>
@@ -996,7 +1078,8 @@ export default function PaymentSettingsPage() {
                                     variant="danger"
                                     size="md"
                                     onClick={() => handleRequestDelete(profile)}
-                                    aria-label={`Delete ${currency.value} payment profile`}
+                                    disabled={busy || saving}
+                                    aria-label={`Delete ${currency.value} payment profile: ${profileTitle}`}
                                   >
                                     <Trash2
                                       className="h-4 w-4"
@@ -1016,11 +1099,15 @@ export default function PaymentSettingsPage() {
                                       className="inline-flex max-w-full items-center gap-1 break-all text-caption font-bold text-link hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                                     >
                                       {profile.payment_link}
+
                                       <ExternalLink
                                         className="h-3.5 w-3.5 shrink-0"
                                         aria-hidden="true"
                                       />
-                                      <span className="sr-only">(opens in a new tab)</span>
+
+                                      <span className="sr-only">
+                                        (opens in a new tab)
+                                      </span>
                                     </a>
                                   )}
 
@@ -1053,6 +1140,7 @@ export default function PaymentSettingsPage() {
               className="mt-0.5 h-5 w-5 shrink-0 text-text-muted"
               aria-hidden="true"
             />
+
             <p className="text-body text-text-soft">
               Bagg uses a six-digit email verification code when you create,
               edit or delete payment profiles. Your payment profiles are
@@ -1222,11 +1310,16 @@ export default function PaymentSettingsPage() {
               type="button"
               variant="outline"
               onClick={closeEditor}
-              disabled={saving}
+              disabled={saving || busy}
             >
               Cancel
             </Button>
-            <Button type="submit" loading={saving}>
+
+            <Button
+              type="submit"
+              loading={saving}
+              disabled={saving || busy}
+            >
               Continue to verification
             </Button>
           </DialogFooter>
@@ -1236,7 +1329,11 @@ export default function PaymentSettingsPage() {
       {/* Delete confirmation */}
       <Dialog
         open={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
+        onClose={() => {
+          if (!busy) {
+            setShowDeleteConfirm(false);
+          }
+        }}
         title="Delete payment profile?"
         description="This action cannot be undone."
       >
@@ -1255,6 +1352,7 @@ export default function PaymentSettingsPage() {
                 setShowDeleteConfirm(false);
                 setProfileToDelete(null);
               }}
+              disabled={busy}
             >
               Cancel
             </Button>
@@ -1263,7 +1361,8 @@ export default function PaymentSettingsPage() {
               type="button"
               variant="danger"
               onClick={() => void handleConfirmDelete()}
-              disabled={!profileToDelete}
+              disabled={!profileToDelete || busy}
+              loading={requestingStepUp}
             >
               Continue
             </Button>
@@ -1276,7 +1375,7 @@ export default function PaymentSettingsPage() {
         open={showStepUp}
         onClose={closeStepUp}
         title="Security verification"
-        description="Confirm this sensitive payment profile change."
+        description="A six-digit verification code has been sent to your account email. The code expires after five minutes."
       >
         <form onSubmit={handleVerifyStepUp} className="space-y-4">
           <div className="flex items-center gap-3 border-brut-thin border-ink bg-surface-sunken p-3">
@@ -1284,10 +1383,12 @@ export default function PaymentSettingsPage() {
               className="h-6 w-6 shrink-0 text-mango"
               aria-hidden="true"
             />
+
             <div>
               <p className="font-bold text-text">
                 Verify your identity
               </p>
+
               <p className="text-caption text-text-muted">
                 Enter the six-digit code sent to your account email.
               </p>
@@ -1303,7 +1404,9 @@ export default function PaymentSettingsPage() {
             onChange={setStepUpCode}
           />
 
-          {stepUpError && <Alert variant="error">{stepUpError}</Alert>}
+          {stepUpError && (
+            <Alert variant="error">{stepUpError}</Alert>
+          )}
 
           <DialogFooter>
             <Button
@@ -1318,7 +1421,11 @@ export default function PaymentSettingsPage() {
             <Button
               type="submit"
               loading={verifying}
-              disabled={stepUpCode.trim().length !== 6 || !pendingStepUp}
+              disabled={
+                stepUpCode.trim().length !== 6 ||
+                !pendingStepUp ||
+                verifying
+              }
             >
               Verify and continue
             </Button>

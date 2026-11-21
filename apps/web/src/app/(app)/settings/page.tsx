@@ -76,15 +76,28 @@ interface SubscriptionData {
   status: string;
   current_period_end?: string | null;
   cancel_at_period_end: boolean;
-  is_active: boolean;
-  suppresses_watermark: boolean;
+  in_grace_period?: boolean;
+  currency?: string;
+  amount_minor?: number;
+  billing_interval?: string;
+  free_sends_used_this_month?: number;
+  free_sends_limit?: number;
+  credit_balance?: number;
 }
 
 interface CreditsData {
   balance: number;
+  tier: string;
   free_sends_used_this_month: number;
   free_sends_limit: number;
-  can_send_invoice: boolean;
+  history?: Array<{
+    id: string;
+    amount: number;
+    balance_after: number;
+    reason: string;
+    description?: string | null;
+    created_at: string;
+  }>;
 }
 
 interface ReminderScheduleItem {
@@ -94,10 +107,15 @@ interface ReminderScheduleItem {
   enabled: boolean;
 }
 
+interface ReminderSettingsResponse {
+  workspace_id: string;
+  auto_remind: boolean;
+  schedules: ReminderScheduleItem[];
+}
+
 interface PendingAccountDeletion {
   challengeId: string;
   confirmationPhrase: string;
-  reason: string | null;
 }
 
 function errorText(err: unknown, fallback: string) {
@@ -137,6 +155,9 @@ export default function SettingsPage() {
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [credits, setCredits] = useState<CreditsData | null>(null);
   const [reminders, setReminders] = useState<ReminderScheduleItem[]>([]);
+const [remindersEnabled, setRemindersEnabled] = useState<boolean | null>(null);
+const [loadingReminders, setLoadingReminders] = useState(true);
+const [remindersError, setRemindersError] = useState<string | null>(null);
 
   const [loadingWorkspace, setLoadingWorkspace] = useState(true);
   const [loadingBilling, setLoadingBilling] = useState(true);
@@ -225,19 +246,32 @@ export default function SettingsPage() {
 
   const loadReminders = useCallback(async () => {
     try {
+      setLoadingReminders(true);
+      setRemindersError(null);
+
       const response = await fetch(`${API_BASE}/reminders/settings`, {
         credentials: 'include',
       });
 
-      if (!response.ok) return;
-
-      const data = await response.json();
-
-      if (Array.isArray(data.schedules)) {
-        setReminders(data.schedules);
+      if (!response.ok) {
+        throw new Error(
+          await responseError(
+            response,
+            'We could not load your reminder schedule.',
+          ),
+        );
       }
-    } catch {
-      // Reminder overview is non-critical to the Settings page.
+
+      const data: ReminderSettingsResponse = await response.json();
+
+      setReminders(Array.isArray(data.schedules) ? data.schedules : []);
+      setRemindersEnabled(data.auto_remind === true);
+    } catch (err) {
+      setRemindersError(
+        errorText(err, 'We could not load your reminder schedule.'),
+      );
+    } finally {
+      setLoadingReminders(false);
     }
   }, []);
 
@@ -414,8 +448,8 @@ export default function SettingsPage() {
       setDeleteError(null);
 
       const payload = {
-        confirmation_phrase: deletePhrase,
-        reason: deleteReason.trim() || null,
+        action: 'delete_account',
+        confirmation_phrase: 'DELETE MY ACCOUNT',
       };
 
       const response = await fetch(`${API_BASE}/security/step-up/request`, {
@@ -441,7 +475,6 @@ export default function SettingsPage() {
       setPendingDeletion({
         challengeId: data.challenge_id,
         confirmationPhrase: payload.confirmation_phrase,
-        reason: payload.reason,
       });
 
       setStepUpCode(data.code || '');
@@ -490,7 +523,6 @@ export default function SettingsPage() {
         body: JSON.stringify({
           challenge_id: pendingDeletion.challengeId,
           confirmation_phrase: pendingDeletion.confirmationPhrase,
-          reason: pendingDeletion.reason || undefined,
         }),
       });
 
@@ -508,7 +540,14 @@ export default function SettingsPage() {
     }
   };
 
-  const isPaid = Boolean(subscription?.is_active && subscription.tier !== 'free');
+  const isPaid = Boolean(
+    subscription &&
+      subscription.tier !== 'free' &&
+      (
+        subscription.status === 'active' ||
+        subscription.in_grace_period === true
+      ),
+  );
 
   const planName =
     subscription?.tier === 'creator_pro'
@@ -567,7 +606,8 @@ export default function SettingsPage() {
                       activeSection === section.id ? 'location' : undefined
                     }
                     className={cn(
-                      'flex min-h-9 items-center whitespace-nowrap px-3 text-body font-bold transition-colors lg:min-h-11 lg:whitespace-normal',
+                      'flex min-h-11 items-center whitespace-nowrap px-3 text-body font-bold transition-colors',
+                      'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink',
                       activeSection === section.id
                         ? 'bg-peach-chip text-text'
                         : 'text-text-soft hover:bg-surface-tint hover:text-text',
@@ -870,72 +910,273 @@ export default function SettingsPage() {
           <FormSection
             id="reminders"
             icon={<Bell className="h-4 w-4" aria-hidden="true" />}
-            title="Reminder schedule"
-            description="A preview of the automatic invoice reminder schedule."
+            title="Automatic invoice reminders"
+            description="See when Bagg automatically follows up with clients about unpaid invoices."
             className="scroll-mt-24"
           >
-            {reminders.length > 0 ? (
-              <ul className="divide-y divide-line-subtle border-brut-thin border-ink bg-surface">
-                {reminders.map((item, index) => {
-                  const timing =
-                    item.days_relative_to_due < 0
-                      ? `${Math.abs(item.days_relative_to_due)} days before due`
-                      : item.days_relative_to_due === 0
-                        ? 'On the due date'
-                        : `${item.days_relative_to_due} days after due`;
+            {loadingReminders ? (
+              <div
+                className="space-y-3"
+                aria-label="Loading reminder schedule"
+                aria-busy="true"
+              >
+                <div className="h-20 animate-pulse border-brut-thin border-ink bg-surface-tint motion-reduce:animate-none" />
+                <div className="h-40 animate-pulse border-brut-thin border-ink bg-surface-tint motion-reduce:animate-none" />
+              </div>
+            ) : remindersError ? (
+              <div className="space-y-3">
+                <Alert variant="error">{remindersError}</Alert>
 
-                  return (
-                    <li
-                      key={`${item.reminder_type}-${item.channel}-${index}`}
-                      className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-body"
-                    >
-                      <span className="font-bold capitalize text-text">
-                        {item.channel}
-                      </span>
-                      <span className="text-text-soft">{timing}</span>
-                      {!item.enabled && (
-                        <span className="text-caption font-bold text-text-muted">
-                          Disabled
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void loadReminders()}
+                >
+                  Try again
+                </Button>
+              </div>
             ) : (
-              <p className="text-body text-text-soft">
-                Your reminder schedule will appear here when it is available.
-              </p>
+              <div className="space-y-4">
+                <div className="border-brut-thin border-ink bg-surface-sunken p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center border-brut-thin border-ink bg-mango text-ink">
+                        <Bell className="h-5 w-5" aria-hidden="true" />
+                      </span>
+
+                      <div className="min-w-0">
+                        <h3 className="font-extrabold text-text">
+                          Automatic email reminders
+                        </h3>
+
+                        <p className="mt-1 text-caption text-text-soft">
+                          Bagg follows up with clients at scheduled points around an
+                          invoice due date.
+                        </p>
+                      </div>
+                    </div>
+
+                    <span
+                      className={cn(
+                        'inline-flex w-fit items-center rounded-full px-3 py-1 text-caption font-bold',
+                        remindersEnabled
+                          ? 'bg-status-paid text-status-paid-fg'
+                          : 'bg-surface-tint text-text-muted',
+                      )}
+                    >
+                      {remindersEnabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
+                </div>
+
+                {remindersEnabled ? (
+                  reminders.length > 0 ? (
+                    <div className="overflow-hidden border-brut-thin border-ink bg-surface">
+                      <div className="border-b border-line-subtle bg-surface-sunken px-4 py-3">
+                        <h3 className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
+                          Reminder timeline
+                        </h3>
+                      </div>
+
+                      <ol className="divide-y divide-line-subtle">
+                        {reminders.map((item, index) => {
+                          const timing =
+                            item.days_relative_to_due < 0
+                              ? `${Math.abs(item.days_relative_to_due)} ${
+                                  Math.abs(item.days_relative_to_due) === 1
+                                    ? 'day'
+                                    : 'days'
+                                } before due`
+                              : item.days_relative_to_due === 0
+                                ? 'On the due date'
+                                : `${item.days_relative_to_due} ${
+                                    item.days_relative_to_due === 1 ? 'day' : 'days'
+                                  } after due`;
+
+                          const labels: Record<string, string> = {
+                            upcoming_3d: 'Upcoming payment reminder',
+                            due_today: 'Payment due today',
+                            overdue_3d: 'Overdue follow-up',
+                            overdue_7d: 'Overdue reminder',
+                          };
+
+                          return (
+                            <li
+                              key={`${item.reminder_type}-${item.channel}-${index}`}
+                              className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div className="flex min-w-0 items-start gap-3">
+                                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-tint text-text-muted">
+                                  <span className="text-caption font-extrabold">
+                                    {index + 1}
+                                  </span>
+                                </span>
+
+                                <div className="min-w-0">
+                                  <p className="font-bold text-text">
+                                    {labels[item.reminder_type] ?? 'Invoice reminder'}
+                                  </p>
+
+                                  <p className="mt-0.5 text-caption text-text-muted">
+                                    {timing}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 pl-10 sm:pl-0">
+                                <span className="rounded-full bg-surface-tint px-2.5 py-1 text-caption font-semibold capitalize text-text-soft">
+                                  {item.channel}
+                                </span>
+
+                                <span
+                                  className={cn(
+                                    'rounded-full px-2.5 py-1 text-caption font-bold',
+                                    item.enabled
+                                      ? 'bg-status-paid text-status-paid-fg'
+                                      : 'bg-surface-tint text-text-muted',
+                                  )}
+                                >
+                                  {item.enabled ? 'Active' : 'Disabled'}
+                                </span>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </div>
+                  ) : (
+                    <div className="border-brut-thin border-ink bg-surface p-4">
+                      <p className="font-bold text-text">
+                        No reminder schedule is currently available.
+                      </p>
+                      <p className="mt-1 text-body text-text-soft">
+                        Bagg has not returned any scheduled reminder events for this
+                        workspace.
+                      </p>
+                    </div>
+                  )
+                ) : (
+                  <div className="border-brut-thin border-ink bg-surface p-4">
+                    <p className="font-bold text-text">
+                      Automatic reminders are disabled.
+                    </p>
+                    <p className="mt-1 text-body text-text-soft">
+                      Automatic email reminders are not currently active for this
+                      workspace.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-2 border-t border-line-subtle pt-4">
+                  <div className="flex items-start gap-2">
+                    <ShieldCheck
+                      className="mt-0.5 h-4 w-4 shrink-0 text-text-muted"
+                      aria-hidden="true"
+                    />
+
+                    <p className="text-caption text-text-soft">
+                      Bagg manages this reminder schedule automatically. The timing
+                      and delivery channel are currently fixed and cannot be customised
+                      from workspace settings.
+                    </p>
+                  </div>
+
+                  <p className="text-caption text-text-muted">
+                    Reminders are scheduled for 09:00 UTC. They are only processed for
+                    eligible invoices with an outstanding balance and a client email
+                    address. WhatsApp reminders remain a manual action.
+                  </p>
+                </div>
+              </div>
             )}
           </FormSection>
 
           <ThemePreferenceSection />
 
+          
           <FormSection
             id="data"
             icon={<Download className="h-4 w-4" aria-hidden="true" />}
             title="Your data"
-            description="Download a copy of your workspace data."
+            description="Download a portable copy of your workspace records."
             className="scroll-mt-24"
           >
-            <div className="flex flex-wrap gap-2">
-              <a
-                href={`${API_BASE}/compliance/export/csv`}
-                className={buttonStyles({ variant: 'outline', zone: 'calm' })}
-              >
-                <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
-                Export CSV
-              </a>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col justify-between gap-4 border-brut-thin border-ink bg-surface p-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <FileSpreadsheet
+                      className="h-5 w-5 text-text"
+                      aria-hidden="true"
+                    />
+                    <h3 className="font-extrabold text-text">CSV export</h3>
+                  </div>
 
-              <a
-                href={`${API_BASE}/compliance/export/zip`}
-                className={buttonStyles({ variant: 'outline', zone: 'calm' })}
-              >
-                <FileArchive className="h-4 w-4" aria-hidden="true" />
-                Export archive
-              </a>
+                  <p className="mt-2 text-body text-text-soft">
+                    A consolidated spreadsheet containing your clients, invoices
+                    and payment claims. Useful for analysis and importing into
+                    spreadsheet tools.
+                  </p>
+
+                  <p className="mt-3 text-caption text-text-muted">
+                    One CSV file · UTF-8
+                  </p>
+                </div>
+
+                <a
+                  href={`${API_BASE}/compliance/export/csv`}
+                  className={buttonStyles({
+                    variant: 'outline',
+                    zone: 'calm',
+                  })}
+                >
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                  Download CSV
+                </a>
+              </div>
+
+              <div className="flex flex-col justify-between gap-4 border-brut-thin border-ink bg-surface p-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <FileArchive
+                      className="h-5 w-5 text-text"
+                      aria-hidden="true"
+                    />
+                    <h3 className="font-extrabold text-text">ZIP archive</h3>
+                  </div>
+
+                  <p className="mt-2 text-body text-text-soft">
+                    Separate CSV files for clients, invoices and payment claims.
+                    Better suited to structured migration or further processing.
+                  </p>
+
+                  <p className="mt-3 text-caption text-text-muted">
+                    Three CSV files · ZIP archive
+                  </p>
+                </div>
+
+                <a
+                  href={`${API_BASE}/compliance/export/zip`}
+                  className={buttonStyles({
+                    variant: 'outline',
+                    zone: 'calm',
+                  })}
+                >
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                  Download ZIP
+                </a>
+              </div>
+            </div>
+
+            <div className="border-t border-line-subtle pt-3">
+              <p className="text-caption text-text-muted">
+                Exports contain records belonging to your active workspace.
+                Financial amounts are represented in their currency's minor
+                units. Export access requires an authenticated session.
+              </p>
             </div>
           </FormSection>
+
 
           <section
             id="danger"
@@ -949,8 +1190,9 @@ export default function SettingsPage() {
               <div className="min-w-0 flex-1">
                 <h2 className="text-heading text-text">Delete your account</h2>
                 <p className="mt-1 max-w-xl text-body text-text-soft">
-                  This permanently removes your workspace, clients, invoices and
-                  public links. This action cannot be undone.
+                  Deactivating your account revokes active sessions and sign-in
+                  credentials and anonymises your account profile. Financial documents,
+                  payment records and relevant audit history are retained.
                 </p>
 
                 <Button
@@ -979,7 +1221,9 @@ export default function SettingsPage() {
             <div>
               <h2 className="text-title text-text">Delete your account?</h2>
               <p className="mt-1 text-body text-text-soft">
-                Your workspace, clients, invoices and public links will stop working.
+                Your account will be deactivated and your profile anonymised.
+                Financial documents and payment records will be retained.
+                You will no longer be able to sign in to this account.
               </p>
             </div>
           </div>
