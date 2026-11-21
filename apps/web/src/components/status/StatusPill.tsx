@@ -1,8 +1,10 @@
+
 import {
   AlertTriangle,
   ArrowRightCircle,
   CheckCircle2,
   CircleDashed,
+  CircleHelp,
   Clock3,
   Eye,
   FileEdit,
@@ -36,10 +38,13 @@ export type DocumentStatus =
   | 'upcoming'
   | 'void';
 
-const STATUS_META: Record<
-  DocumentStatus,
-  { label: string; className: string; icon: typeof FileEdit }
-> = {
+type StatusMeta = {
+  label: string;
+  className: string;
+  icon: typeof FileEdit;
+};
+
+const STATUS_META: Record<DocumentStatus, StatusMeta> = {
   draft: {
     label: 'Draft',
     className: 'bg-status-draft text-status-draft-fg',
@@ -165,6 +170,21 @@ const SUB_LABELS: Record<DocumentStatus, string | null> = {
   void: null,
 };
 
+const UNKNOWN_STATUS_META: StatusMeta = {
+  label: 'Unknown status',
+  className: 'bg-surface-tint text-text-soft',
+  icon: CircleHelp,
+};
+
+function isDocumentStatus(
+  status: string,
+): status is DocumentStatus {
+  return Object.prototype.hasOwnProperty.call(
+    STATUS_META,
+    status,
+  );
+}
+
 export function StatusPill({
   status,
   className = '',
@@ -178,20 +198,42 @@ export function StatusPill({
   labelOverride?: string;
   subLabel?: string;
 }) {
-  const key = (status || 'draft') as DocumentStatus;
-  const meta = STATUS_META[key] || STATUS_META.draft;
+  const normalisedStatus = status?.trim() ?? '';
+  const isKnownStatus = isDocumentStatus(normalisedStatus);
+
+  const meta = isKnownStatus
+    ? STATUS_META[normalisedStatus]
+    : UNKNOWN_STATUS_META;
+
   const Icon = meta.icon;
   const label = labelOverride ?? meta.label;
-  const sub = subLabel ?? SUB_LABELS[key];
+
+  const sub = subLabel ??
+    (isKnownStatus ? SUB_LABELS[normalisedStatus] : null);
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-caption font-extrabold whitespace-nowrap ${meta.className} ${className}`}
+      className={[
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5',
+        'text-caption font-extrabold whitespace-nowrap',
+        meta.className,
+        className,
+      ].filter(Boolean).join(' ')}
     >
-      <Icon aria-hidden className={`h-3 w-3 ${pulse ? 'animate-pulse' : ''}`} />
+      <Icon
+        aria-hidden="true"
+        className={[
+          'h-3 w-3 shrink-0',
+          pulse ? 'animate-pulse motion-reduce:animate-none' : '',
+        ].filter(Boolean).join(' ')}
+      />
+
       <span className="leading-none">{label}</span>
+
       {sub && (
-        <span className="ml-1 text-caption font-normal whitespace-nowrap">{sub}</span>
+        <span className="ml-1 text-caption font-normal whitespace-nowrap">
+          {sub}
+        </span>
       )}
     </span>
   );
