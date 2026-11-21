@@ -28,6 +28,7 @@ import {
     UserPlus,
     Users,
 } from '@phosphor-icons/react';
+import { shouldShowBottomNav } from './bottom-nav-routes';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { MenuBody, useMe } from '@/components/navigation/UserMenu';
 import { cn } from '@/lib/cn';
@@ -114,7 +115,9 @@ export function BottomNav({ className = '' }: { className?: string }) {
 
     // Create flows and detail pages (/invoices/new, /invoices/123, ...) are full screen and own the bottom
     // of the screen, so the tab bar hides there. The list pages keep it.
-    if (/^\/(invoices|quotes|receipts|clients|recurring-invoices)\/[^/]+/.test(pathname)) return null;
+    if (!shouldShowBottomNav(pathname)) {
+        return null;
+    }
 
     return (
         <>

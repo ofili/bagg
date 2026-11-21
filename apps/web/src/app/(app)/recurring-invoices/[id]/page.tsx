@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {ArrowLeft, ArrowSquareOut, CircleNotch, FileText, Pause, Play, StopCircle,} from '@phosphor-icons/react';
 
 import {Alert, Button, buttonStyles, Card, Dialog, ErrorState, PageHeader, StatCard,} from '@/components/ui';
+import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import {Money} from '@/components/money/Money';
 import {StatusPill} from '@/components/status';
 import {formatDate} from '@/lib/date';
@@ -95,6 +96,16 @@ export default function RecurringScheduleDetailPage({
             setLoading(false);
         }
     }, [scheduleId]);
+
+    const { setCurrentLabel } = useCurrentBreadcrumb();
+
+    useEffect(() => {
+        setCurrentLabel(schedule?.name ?? null);
+
+        return () => {
+            setCurrentLabel(null);
+        };
+    }, [schedule?.name, setCurrentLabel]);
 
     useEffect(() => {
         void loadData();

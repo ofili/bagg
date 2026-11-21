@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,16 +5,21 @@ import { usePathname, useRouter } from 'next/navigation';
 
 import { BottomNav } from '@/components/mobile/BottomNav';
 import { ClientOnly } from '@/components/mobile/ClientOnly';
+import { shouldShowBottomNav } from '@/components/mobile/bottom-nav-routes';
+
 import { SessionGuard } from '@/components/navigation/SessionGuard';
-import { AppBreadcrumbs } from '@/components/navigation/AppBreadcrumbs';
-import { BreadcrumbProvider } from '@/components/navigation/BreadcrumbContext';
+import {
+  AppBreadcrumbs,
+} from '@/components/navigation/AppBreadcrumbs';
+import {
+  BreadcrumbProvider,
+} from '@/components/navigation/BreadcrumbContext';
 
 import { Sidebar } from './Sidebar';
 import { HeaderBar, MobileHeader } from './HeaderBar';
 
 const API_BASE = '/api';
 const SIDEBAR_STORAGE_KEY = 'bagg-sidebar-collapsed';
-
 
 export function AppShell({
   children,
@@ -27,6 +31,8 @@ export function AppShell({
 
   const [businessName, setBusinessName] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const showBottomNav = shouldShowBottomNav(pathname);
 
   useEffect(() => {
     try {
@@ -55,6 +61,13 @@ export function AppShell({
     });
   }
 
+  /*
+   * Keep the explicit session check.
+   *
+   * SessionGuard handles expired sessions returned by application
+   * API requests. This check handles an already-expired session
+   * when entering or navigating within the authenticated app.
+   */
   useEffect(() => {
     let cancelled = false;
 
@@ -93,7 +106,9 @@ export function AppShell({
       try {
         const response = await fetch(
           `${API_BASE}/workspaces/current`,
-          { credentials: 'include' },
+          {
+            credentials: 'include',
+          },
         );
 
         if (!response.ok) {
@@ -120,32 +135,47 @@ export function AppShell({
   }, []);
 
   return (
-    // <IconContext.Provider value={{ weight: 'bold' }}>
-      <div className="flex min-h-dvh bg-cream">
-        <SessionGuard />
+    <div className="flex min-h-dvh bg-cream">
+      <SessionGuard />
 
-        <Sidebar
-          pathname={pathname}
-          collapsed={sidebarCollapsed}
-          onToggle={toggleSidebar}
-        />
+      <a
+        href="#main-content"
+        className="sr-only z-[100] rounded-btn border-brut border-ink bg-surface px-4 py-3 font-bold text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Skip to main content
+      </a>
 
-        <main className="relative flex min-w-0 flex-1 flex-col">
-          <HeaderBar businessName={businessName} />
-          <MobileHeader />
+      <Sidebar
+        pathname={pathname}
+        collapsed={sidebarCollapsed}
+        onToggle={toggleSidebar}
+      />
 
-          <BreadcrumbProvider>
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        <HeaderBar businessName={businessName} />
+        <MobileHeader />
+
+        <BreadcrumbProvider>
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className={[
+              'relative min-h-0 w-full flex-1',
+              showBottomNav ? 'pb-24 sm:pb-0' : '',
+            ].join(' ')}
+          >
             <AppBreadcrumbs />
 
-            <div className="min-h-0 w-full flex-1 pb-24 sm:pb-0">
+            <div className="w-full">
               {children}
             </div>
-          </BreadcrumbProvider>
+          </main>
+        </BreadcrumbProvider>
 
-          <ClientOnly>
-            <BottomNav className="sm:hidden" />
-          </ClientOnly>
-        </main>
+        <ClientOnly>
+          <BottomNav className="sm:hidden" />
+        </ClientOnly>
       </div>
+    </div>
   );
 }
