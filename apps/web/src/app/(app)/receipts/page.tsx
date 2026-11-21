@@ -1,7 +1,9 @@
+
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpRight } from '@phosphor-icons/react';
+import { ArrowUpRight, Receipt } from 'lucide-react';
+
 import {
   Card,
   DataTable,
@@ -17,9 +19,8 @@ import { Money } from '@/components/money/Money';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 import { useDataTable } from '@/hooks/useDataTable';
-import {DocTabs} from "@/components/mobile/DocTabs";
+import { DocTabs } from '@/components/mobile/DocTabs';
 import { ReceiptRow } from '@/components/mobile/ReceiptRow';
-import {BagCharacter} from "@/components/brand";
 
 interface ReceiptRecord {
   id: string;
@@ -51,7 +52,7 @@ function paymentMethodLabel(value: string): string {
 }
 
 const CURRENCY_OPTIONS = [
-  { value: '', label: '₦ NGN' },
+  { value: '', label: 'All currencies' },
   { value: 'NGN', label: 'NGN (₦)' },
   { value: 'USD', label: 'USD ($)' },
   { value: 'GBP', label: 'GBP (£)' },
@@ -71,6 +72,7 @@ export default function ReceiptsPage() {
 
   const receipts = table.data?.items ?? [];
   const totalReceipts = table.data?.total ?? 0;
+  const selectedCurrency = table.filters.currency || '';
 
   const columns: ColumnDef<ReceiptRecord>[] = [
     {
@@ -91,7 +93,8 @@ export default function ReceiptsPage() {
       key: 'client_name',
       header: 'Customer',
       align: 'left',
-      render: (receipt) => receipt.client_name || receipt.payer_name || 'Customer',
+      render: (receipt) =>
+        receipt.client_name || receipt.payer_name || 'Customer',
     },
     {
       key: 'invoice_number',
@@ -111,13 +114,13 @@ export default function ReceiptsPage() {
       key: 'payment_date',
       header: 'Payment date',
       align: 'right',
-      sortable: true,
       cellClassName: 'whitespace-nowrap',
       render: (receipt) => formatDate(receipt.payment_date),
     },
     {
-      key: 'amount_paid_minor',
-      header: 'Amount',
+      // Maps to ReceiptRepository.SORT_COLUMNS["amount_minor"].
+      key: 'amount_minor',
+      header: 'Amount received',
       align: 'right',
       sortable: true,
       cellClassName: 'whitespace-nowrap font-semibold',
@@ -155,75 +158,89 @@ export default function ReceiptsPage() {
   ];
 
   const emptyState = (
-      <Card tone="peach" className="space-y-4 p-8 text-center">
-      <BagCharacter size={48} mood="happy" className="mx-auto" decorative />
-      <h2 className="text-title font-extrabold text-ink">No receipts found</h2>
-      <p className="mx-auto max-w-md text-body text-text-soft">
-        {totalReceipts === 0 && !table.search.trim() && !table.filters['currency']
-          ? 'Issued receipts will appear here when payments are recorded.'
+    <Card zone="calm" tone="peach" className="p-8 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-surface text-ink">
+        <Receipt aria-hidden className="h-7 w-7" />
+      </div>
+
+      <h2 className="mt-4 text-title font-extrabold text-ink">
+        No receipts found
+      </h2>
+
+      <p className="mx-auto mt-2 max-w-md text-body text-text-soft">
+        {totalReceipts === 0 &&
+        !table.search.trim() &&
+        !selectedCurrency
+          ? 'Receipts will appear here when payments are recorded.'
           : 'Try a different search or currency filter.'}
       </p>
     </Card>
   );
 
-  const renderMobileCard = (receipt: ReceiptRecord) => <ReceiptRow receipt={receipt} />;
+  const renderMobileCard = (receipt: ReceiptRecord) => (
+    <ReceiptRow receipt={receipt} />
+  );
 
   return (
     <PageContainer width="list">
       <PageHeader
-          title="Receipts"
-          description="Find payment receipts and trace them back to their invoices."
+        title="Receipts"
+        description="Find payment receipts and trace them back to their invoices."
       />
 
       <DocTabs className="mt-5" />
 
       <div className="hidden gap-3 sm:grid sm:grid-cols-2">
         <StatCard
-            zone="calm"
-            label={table.filters['currency'] ? `${table.filters['currency']} receipts` : 'Total receipts'}
-            value={totalReceipts.toLocaleString()}
-            description="Matching your current filters"
+          zone="calm"
+          label={
+            selectedCurrency
+              ? `${selectedCurrency} receipts`
+              : 'Total receipts'
+          }
+          value={totalReceipts.toLocaleString()}
+          description="Matching your current filters"
         />
+
         <StatCard
-            zone="calm"
-            label="Currency filter"
-            value={table.filters['currency'] || '₦ NGN'}
-            description="Use the toolbar to filter receipts"
+          zone="calm"
+          label="Currency filter"
+          value={selectedCurrency || 'All currencies'}
+          description="Use the toolbar to narrow your results"
         />
       </div>
 
-      {/* Unified Toolbar: Search + Currency dropdown */}
       <TableToolbar
         search={table.search}
         onSearchChange={table.setSearch}
-        searchPlaceholder="Search receipt, invoice, customer or reference"
+        searchPlaceholder="Search receipt, invoice or customer"
         filters={[
           {
             key: 'currency',
             label: 'Currency',
-            value: table.filters['currency'] || '',
-            onChange: (v) => table.setFilter('currency', v),
+            value: selectedCurrency,
+            onChange: (value) => table.setFilter('currency', value),
             options: CURRENCY_OPTIONS,
           },
         ]}
       />
 
-      {table.error && (
-          <ErrorState
-              title="We couldn't load your receipts"
-              description={`${table.error}. Your receipt records have not been changed.`}
-              retryLabel="Try again"
-              onRetry={() => table.reload()}
-              compact
-          />
-      )}
-
-      {/* DataTable */}
       <DataTable
         columns={columns}
         rows={receipts}
         getRowKey={(receipt) => receipt.id}
         loading={table.loading}
+        errorState={
+          table.error ? (
+            <ErrorState
+              title="We couldn't load your receipts"
+              description={`${table.error}. Your receipt records have not been changed.`}
+              retryLabel="Try again"
+              onRetry={() => void table.reload()}
+              compact
+            />
+          ) : undefined
+        }
         emptyState={emptyState}
         sortBy={table.sortBy}
         sortOrder={table.sortOrder}
@@ -231,11 +248,12 @@ export default function ReceiptsPage() {
         renderMobileCard={renderMobileCard}
         tableClassName="min-w-[850px]"
         caption="Receipts table"
-        getRowHref={(receipt) => `/receipts/${encodeURIComponent(receipt.id)}`}
+        getRowHref={(receipt) =>
+          `/receipts/${encodeURIComponent(receipt.id)}`
+        }
       />
 
-      {/* Pagination */}
-      {table.data && (
+      {table.data && !table.error && (
         <Pagination
           page={table.page}
           totalPages={table.data.total_pages}

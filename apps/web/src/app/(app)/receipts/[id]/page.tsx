@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -5,16 +6,15 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   ArrowLeft,
-  ArrowSquareOut,
+  ArrowUpRight,
   Check,
-  CircleNotch,
+  CircleAlert,
   Copy,
-  DownloadSimple,
   FileText,
+  LoaderCircle,
   Printer,
-  ShareNetwork,
-  WarningCircle,
-} from '@phosphor-icons/react';
+  Share2,
+} from 'lucide-react';
 
 import {
   Alert,
@@ -31,11 +31,10 @@ import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext'
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 
-const API_BASE =
-  '/api';
+const API_BASE = '/api';
 
 interface ReceiptDetail {
-   id: string;
+  id: string;
   bagg_reference: string;
   receipt_number: string;
   workspace_id: string;
@@ -126,15 +125,15 @@ export default function ReceiptDetailPage() {
   }, [receiptId]);
 
   useEffect(() => {
-    if (receiptId) void loadReceipt();
+    if (receiptId) {
+      void loadReceipt();
+    }
   }, [receiptId, loadReceipt]);
 
   const copyReceiptLink = async () => {
     if (!receipt) return;
 
-    const url = receipt.share_url;
-
-    if (!url) {
+    if (!receipt.share_url) {
       setShareError(
         'There is no public receipt link available for this receipt.',
       );
@@ -142,12 +141,14 @@ export default function ReceiptDetailPage() {
     }
 
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(receipt.share_url);
       setCopied(true);
       setShareError(null);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      setShareError('Could not copy the receipt link. Please copy it manually.');
+      setShareError(
+        'Could not copy the receipt link. Please copy it manually.',
+      );
     }
   };
 
@@ -174,9 +175,13 @@ export default function ReceiptDetailPage() {
 
       setShareError(null);
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'AbortError') return;
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
 
-      setShareError('Could not share the receipt. Try copying its link instead.');
+      setShareError(
+        'Could not share the receipt. Try copying its link instead.',
+      );
     }
   };
 
@@ -186,7 +191,10 @@ export default function ReceiptDetailPage() {
         role="status"
         className="flex min-h-[50vh] items-center justify-center text-text-muted"
       >
-        <CircleNotch aria-hidden className="h-6 w-6 animate-spin" />
+        <LoaderCircle
+          aria-hidden
+          className="h-6 w-6 animate-spin motion-reduce:animate-none"
+        />
         <span className="sr-only">Loading receipt</span>
       </div>
     );
@@ -194,93 +202,99 @@ export default function ReceiptDetailPage() {
 
   if (error || !receipt) {
     return (
-        <div className="p-4 sm:p-6 lg:p-8">
-          <ErrorState
-              title="Receipt unavailable"
-              description={error || 'Receipt not found.'}
-              retryLabel="Try again"
-              onRetry={() => void loadReceipt()}
-              action={
-                <Link
-                    href="/receipts"
-                    className={buttonStyles({ variant: 'outline', zone: 'calm' })}
-                >
-                  <ArrowLeft aria-hidden className="h-4 w-4" />
-                  Back to receipts
-                </Link>
-              }
-          />
-        </div>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <ErrorState
+          title="Receipt unavailable"
+          description={error || 'Receipt not found.'}
+          retryLabel="Try again"
+          onRetry={() => void loadReceipt()}
+          action={
+            <Link
+              href="/receipts"
+              className={buttonStyles({
+                variant: 'outline',
+                zone: 'calm',
+              })}
+            >
+              <ArrowLeft aria-hidden className="h-4 w-4" />
+              Back to receipts
+            </Link>
+          }
+        />
+      </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 pb-32 sm:p-6 sm:pb-6 lg:p-8">
       <PageHeader
-          eyebrow="Payment receipt"
-          title={receipt.receipt_number}
-          description={`Issued payment receipt · ${formatDate(receipt.payment_date)}`}
-          actions={
-            <>
-              <Link
-                  href="/receipts"
-                  className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+        eyebrow="Payment receipt"
+        title={receipt.receipt_number}
+        description={`Issued payment receipt · ${formatDate(receipt.payment_date)}`}
+        actions={
+          <>
+            <Link
+              href="/receipts"
+              className={buttonStyles({
+                variant: 'outline',
+                zone: 'calm',
+              })}
+            >
+              <ArrowLeft aria-hidden className="h-4 w-4" />
+              All receipts
+            </Link>
+
+            <DocumentPdfAction
+              documentType="receipt"
+              sourceId={receipt.id}
+              issued={receipt.is_verified}
+            />
+
+            <div className="hidden flex-wrap gap-2 sm:flex print:hidden">
+              <Button
+                zone="calm"
+                variant="outline"
+                onClick={() => window.print()}
               >
-                <ArrowLeft aria-hidden className="h-4 w-4" />
-                All receipts
-              </Link>
+                <Printer aria-hidden className="h-4 w-4" />
+                Print
+              </Button>
 
-              <div className="hidden flex-wrap gap-2 sm:flex print:hidden">
-                <Button
-                    zone="calm"
-                    variant="outline"
-                    onClick={() => window.print()}
-                >
-                  <Printer aria-hidden className="h-4 w-4" />
-                  Print
-                </Button>
+              <Button
+                zone="calm"
+                variant="outline"
+                onClick={() => void copyReceiptLink()}
+                disabled={!receipt.share_url}
+              >
+                {copied ? (
+                  <Check aria-hidden className="h-4 w-4" />
+                ) : (
+                  <Copy aria-hidden className="h-4 w-4" />
+                )}
+                {copied ? 'Copied' : 'Copy link'}
+              </Button>
 
-                <DocumentPdfAction
-                  documentType="receipt"
-                  sourceId={receipt.id}
-                  issued={receipt.is_verified}
-                />
-
-                <Button
-                    zone="calm"
-                    variant="outline"
-                    onClick={() => void copyReceiptLink()}
-                    disabled={!receipt.share_url}
-                >
-                  {copied ? (
-                      <Check aria-hidden className="h-4 w-4" />
-                  ) : (
-                      <Copy aria-hidden className="h-4 w-4" />
-                  )}
-                  {copied ? 'Copied' : 'Copy link'}
-                </Button>
-
-                <Button
-                    zone="calm"
-                    onClick={() => void shareReceipt()}
-                    disabled={!receipt.share_url}
-                >
-                  <ShareNetwork aria-hidden className="h-4 w-4" />
-                  Share
-                </Button>
-              </div>
-            </>
-          }
+              <Button
+                zone="expressive"
+                onClick={() => void shareReceipt()}
+                disabled={!receipt.share_url}
+              >
+                <Share2 aria-hidden className="h-4 w-4" />
+                Share
+              </Button>
+            </div>
+          </>
+        }
       />
 
       {shareError && (
-          <Alert
-              variant="error"
-              dismissible
-              onDismiss={() => setShareError(null)}
-          >
-            {shareError}
-          </Alert>
+        <Alert
+          variant="error"
+          dismissible
+          onDismiss={() => setShareError(null)}
+        >
+          {shareError}
+        </Alert>
       )}
 
       <Card zone="calm" className="space-y-6 p-5 sm:p-8">
@@ -289,7 +303,11 @@ export default function ReceiptDetailPage() {
             <p className="text-caption font-bold uppercase tracking-wide text-text-soft">
               Payment receipt
             </p>
-            <h2 className="mt-2 hidden text-title-l sm:block">{receipt.receipt_number}</h2>
+
+            <h2 className="mt-2 hidden text-title-l sm:block">
+              {receipt.receipt_number}
+            </h2>
+
             <p className="mt-1 text-body text-text-soft">
               Receipt sequence #{receipt.sequence_number}
             </p>
@@ -306,14 +324,15 @@ export default function ReceiptDetailPage() {
             {receipt.is_verified ? (
               <Check aria-hidden className="h-4 w-4" />
             ) : (
-              <WarningCircle aria-hidden className="h-4 w-4" />
+              <CircleAlert aria-hidden className="h-4 w-4" />
             )}
             {receipt.is_verified ? 'Verified' : 'Unverified'}
           </span>
         </div>
 
-        <div className="bg-surface-tint p-5">
+        <div className="border-brut border-ink bg-surface-tint p-5">
           <p className="text-body text-text-soft">Amount received</p>
+
           <p className="mt-2 text-amount-l">
             <Money
               amountMinor={receipt.amount_paid_minor}
@@ -321,6 +340,7 @@ export default function ReceiptDetailPage() {
               variant="inherit"
             />
           </p>
+
           <p className="mt-2 text-caption text-text-soft">
             {receipt.currency} · {formatDate(receipt.payment_date)}
           </p>
@@ -331,9 +351,11 @@ export default function ReceiptDetailPage() {
             <h3 className="text-caption font-bold uppercase tracking-wide text-text-muted">
               Received from
             </h3>
+
             <p className="mt-2 text-heading">
               {receipt.payer_name || receipt.client_name || 'Customer'}
             </p>
+
             {receipt.client_name &&
               receipt.payer_name &&
               receipt.client_name !== receipt.payer_name && (
@@ -347,12 +369,13 @@ export default function ReceiptDetailPage() {
             <h3 className="text-caption font-bold uppercase tracking-wide text-text-muted">
               Related invoice
             </h3>
+
             <Link
               href={`/invoices/${encodeURIComponent(receipt.invoice_id)}`}
               className="mt-2 inline-flex items-center gap-2 text-heading underline-offset-4 hover:underline print:no-underline"
             >
               {receipt.invoice_number}
-              <ArrowSquareOut
+              <ArrowUpRight
                 aria-hidden
                 className="h-4 w-4 print:hidden"
               />
@@ -361,8 +384,22 @@ export default function ReceiptDetailPage() {
 
           <div>
             <h3 className="text-caption font-bold uppercase tracking-wide text-text-muted">
+              Invoice balance after this payment
+            </h3>
+
+            <p className="mt-2 text-body font-semibold tabular-nums">
+              <Money
+                amountMinor={receipt.balance_remaining_minor}
+                currency={receipt.currency}
+              />
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-caption font-bold uppercase tracking-wide text-text-muted">
               Payment method
             </h3>
+
             <p className="mt-2 text-body">
               {paymentMethodLabel(receipt.payment_method)}
             </p>
@@ -372,8 +409,11 @@ export default function ReceiptDetailPage() {
             <h3 className="text-caption font-bold uppercase tracking-wide text-text-muted">
               Payment reference
             </h3>
+
             <p className="mt-2 break-words text-body">
-              {receipt.reference || receipt.provider_reference || 'Not provided'}
+              {receipt.reference ||
+                receipt.provider_reference ||
+                'Not provided'}
             </p>
           </div>
 
@@ -381,6 +421,7 @@ export default function ReceiptDetailPage() {
             <h3 className="text-caption font-bold uppercase tracking-wide text-text-muted">
               Confirmation source
             </h3>
+
             <p className="mt-2 text-body">
               {paymentMethodLabel(receipt.confirmation_source)}
             </p>
@@ -391,6 +432,7 @@ export default function ReceiptDetailPage() {
               <h3 className="text-caption font-bold uppercase tracking-wide text-text-muted">
                 Payment provider
               </h3>
+
               <p className="mt-2 text-body">
                 {paymentMethodLabel(receipt.provider)}
               </p>
@@ -403,6 +445,7 @@ export default function ReceiptDetailPage() {
             <h3 className="text-caption font-bold uppercase tracking-wide text-text-muted">
               Notes
             </h3>
+
             <p className="mt-2 whitespace-pre-wrap text-body">
               {receipt.notes}
             </p>
@@ -413,17 +456,33 @@ export default function ReceiptDetailPage() {
           <h3 className="text-caption font-bold uppercase tracking-wide text-text-muted">
             Verification details
           </h3>
+
           <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <dt className="text-caption text-text-muted">
+                Bagg reference
+              </dt>
+
+              <dd className="mt-1 break-all font-mono text-body">
+                {receipt.bagg_reference}
+              </dd>
+            </div>
+
             <div>
               <dt className="text-caption text-text-muted">
                 Verification code
               </dt>
+
               <dd className="mt-1 break-all font-mono text-body">
                 {receipt.verification_code}
               </dd>
             </div>
+
             <div>
-              <dt className="text-caption text-text-muted">Verified at</dt>
+              <dt className="text-caption text-text-muted">
+                Verified at
+              </dt>
+
               <dd className="mt-1 text-body">
                 {receipt.verified_at
                   ? formatDate(receipt.verified_at)
@@ -440,20 +499,23 @@ export default function ReceiptDetailPage() {
 
           <Link
             href={`/invoices/${encodeURIComponent(receipt.invoice_id)}`}
-            className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+            className={buttonStyles({
+              variant: 'outline',
+              zone: 'calm',
+            })}
           >
             <FileText aria-hidden className="h-4 w-4" />
             View invoice
           </Link>
         </div>
       </Card>
-      <ReceiptActionBar
-          canShare={!!receipt.share_url}
-          copied={copied}
-          onShare={() => void shareReceipt()}
-          onCopy={() => void copyReceiptLink()}
-      />
 
+      <ReceiptActionBar
+        canShare={!!receipt.share_url}
+        copied={copied}
+        onShare={() => void shareReceipt()}
+        onCopy={() => void copyReceiptLink()}
+      />
     </div>
   );
 }

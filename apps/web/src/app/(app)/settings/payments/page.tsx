@@ -6,11 +6,12 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   Check,
+  CircleAlert,
   ExternalLink,
   FileText,
   Globe,
   Landmark,
-  Loader2,
+  LoaderCircle,
   Plus,
   ShieldCheck,
   Smartphone,
@@ -22,8 +23,10 @@ import { Button } from '@/components/ui/button';
 import {
   Alert,
   BaggSelect,
+  Card,
   Checkbox,
   Dialog,
+  DialogFooter,
   FormGrid,
   FormSection,
   FormSubsection,
@@ -32,6 +35,7 @@ import {
   PageHeader,
   PhoneField,
   RadioGroup,
+  StatCard,
   TextArea,
   TextField,
 } from '@/components/ui';
@@ -111,16 +115,12 @@ const PAYMENT_METHODS: {
   },
 ];
 
-function methodFromProfile(profile: PaymentProfile): PaymentMethod {
-  if (profile.bank_name || profile.account_number) return 'bank';
-  if (profile.payment_link) return 'link';
-  if (profile.mobile_money_number) return 'mobile_money';
-  return 'instructions';
-}
-
 interface PendingStepUp {
   challengeId: string;
-  purpose: 'payment_profile_create' | 'payment_profile_update' | 'payment_profile_delete';
+  purpose:
+    | 'payment_profile_create'
+    | 'payment_profile_update'
+    | 'payment_profile_delete';
   action: 'create' | 'update' | 'delete';
   profileId?: string;
   payload: Record<string, unknown>;
@@ -161,13 +161,24 @@ function normaliseProfile(profile: PaymentProfile): PaymentProfile {
   };
 }
 
+function methodFromProfile(profile: PaymentProfile): PaymentMethod {
+  if (profile.bank_name || profile.account_number) return 'bank';
+  if (profile.payment_link) return 'link';
+  if (profile.mobile_money_number) return 'mobile_money';
+  return 'instructions';
+}
+
 function profileMethods(profile: PaymentProfile) {
   const methods: string[] = [];
 
-  if (profile.bank_name || profile.account_number) methods.push('Bank transfer');
+  if (profile.bank_name || profile.account_number) {
+    methods.push('Bank transfer');
+  }
   if (profile.payment_link) methods.push('Payment link');
   if (profile.mobile_money_number) methods.push('Mobile money');
-  if (profile.instructions && methods.length === 0) methods.push('Payment instructions');
+  if (profile.instructions && methods.length === 0) {
+    methods.push('Payment instructions');
+  }
 
   return methods;
 }
@@ -229,8 +240,10 @@ function formToPayload(form: ProfileForm, method: PaymentMethod) {
       method === 'bank' || method === 'mobile_money'
         ? form.account_name.trim() || null
         : null,
-    account_number: method === 'bank' ? form.account_number.trim() || null : null,
-    routing_number: method === 'bank' ? form.routing_number.trim() || null : null,
+    account_number:
+      method === 'bank' ? form.account_number.trim() || null : null,
+    routing_number:
+      method === 'bank' ? form.routing_number.trim() || null : null,
     payment_link: method === 'link' ? form.payment_link.trim() || null : null,
     mobile_money_number:
       method === 'mobile_money'
@@ -259,7 +272,6 @@ function validateForm(form: ProfileForm, method: PaymentMethod): string | null {
 
     try {
       const url = new URL(form.payment_link.trim());
-
       if (url.protocol !== 'https:' && url.protocol !== 'http:') {
         return 'The payment link must use HTTP or HTTPS.';
       }
@@ -289,7 +301,8 @@ export default function PaymentSettingsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editingProfile, setEditingProfile] = useState<PaymentProfile | null>(null);
+  const [editingProfile, setEditingProfile] =
+    useState<PaymentProfile | null>(null);
   const [form, setForm] = useState<ProfileForm>(EMPTY_FORM);
   const [method, setMethod] = useState<PaymentMethod>('bank');
   const [saving, setSaving] = useState(false);
@@ -299,10 +312,12 @@ export default function PaymentSettingsPage() {
   const [stepUpCode, setStepUpCode] = useState('');
   const [stepUpError, setStepUpError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
-  const [pendingStepUp, setPendingStepUp] = useState<PendingStepUp | null>(null);
+  const [pendingStepUp, setPendingStepUp] =
+    useState<PendingStepUp | null>(null);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [profileToDelete, setProfileToDelete] = useState<PaymentProfile | null>(null);
+  const [profileToDelete, setProfileToDelete] =
+    useState<PaymentProfile | null>(null);
 
   const showNotice = (message: string) => {
     setNotice(message);
@@ -320,19 +335,26 @@ export default function PaymentSettingsPage() {
 
       if (!response.ok) {
         throw new Error(
-          await responseError(response, 'We could not load your payment profiles.'),
+          await responseError(
+            response,
+            'We could not load your payment profiles.',
+          ),
         );
       }
 
       const data = await response.json();
 
       if (!Array.isArray(data)) {
-        throw new Error('The payment profiles response was not in the expected format.');
+        throw new Error(
+          'The payment profiles response was not in the expected format.',
+        );
       }
 
       setProfiles(data.map(normaliseProfile));
     } catch (err) {
-      setLoadError(errorText(err, 'We could not load your payment profiles.'));
+      setLoadError(
+        errorText(err, 'We could not load your payment profiles.'),
+      );
     } finally {
       setLoading(false);
     }
@@ -342,27 +364,37 @@ export default function PaymentSettingsPage() {
     void loadProfiles();
   }, [loadProfiles]);
 
-  const profilesByCurrency = useMemo(() => {
-    return CURRENCIES.map((currency) => {
-      const currencyProfiles = profiles.filter(
-        (profile) => profile.currency === currency.value,
-      );
+  const profilesByCurrency = useMemo(
+    () =>
+      CURRENCIES.map((currency) => {
+        const currencyProfiles = profiles.filter(
+          (profile) => profile.currency === currency.value,
+        );
 
-      const defaultProfile = currencyProfiles.find((profile) => profile.is_default);
-      const usableDefault = defaultProfile ? profileIsUsable(defaultProfile) : false;
+        const defaultProfile = currencyProfiles.find(
+          (profile) => profile.is_default,
+        );
+        const usableDefault = defaultProfile
+          ? profileIsUsable(defaultProfile)
+          : false;
 
-      return {
-        ...currency,
-        profiles: currencyProfiles,
-        defaultProfile,
-        configured: Boolean(defaultProfile && usableDefault),
-        needsAttention: Boolean(defaultProfile && !usableDefault),
-      };
-    });
-  }, [profiles]);
+        return {
+          ...currency,
+          profiles: currencyProfiles,
+          defaultProfile,
+          configured: Boolean(defaultProfile && usableDefault),
+          needsAttention: Boolean(defaultProfile && !usableDefault),
+        };
+      }),
+    [profiles],
+  );
 
   const configuredCurrencyCount = profilesByCurrency.filter(
     (currency) => currency.configured,
+  ).length;
+
+  const incompleteProfileCount = profiles.filter(
+    (profile) => !profileIsUsable(profile),
   ).length;
 
   const updateForm = <K extends keyof ProfileForm>(
@@ -419,7 +451,10 @@ export default function PaymentSettingsPage() {
 
     if (!response.ok) {
       throw new Error(
-        await responseError(response, 'Could not initiate security verification.'),
+        await responseError(
+          response,
+          'Could not initiate security verification.',
+        ),
       );
     }
 
@@ -444,7 +479,9 @@ export default function PaymentSettingsPage() {
     setShowStepUp(true);
   };
 
-  const handleSaveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveProfile = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
 
     const validationError = validateForm(form, method);
@@ -472,16 +509,16 @@ export default function PaymentSettingsPage() {
           editingProfile.id,
         );
       } else {
-        const payload = formToPayload(form, method);
-
         await requestStepUp(
           'payment_profile_create',
           'create',
-          payload,
+          formToPayload(form, method),
         );
       }
     } catch (err) {
-      setFormError(errorText(err, 'We could not start this payment profile update.'));
+      setFormError(
+        errorText(err, 'We could not start this payment profile update.'),
+      );
     } finally {
       setSaving(false);
     }
@@ -489,8 +526,6 @@ export default function PaymentSettingsPage() {
 
   const handleMakeDefault = async (profile: PaymentProfile) => {
     if (profile.is_default) return;
-
-    const changes = { is_default: true };
 
     try {
       setActionError(null);
@@ -500,12 +535,14 @@ export default function PaymentSettingsPage() {
         'update',
         {
           profile_id: profile.id,
-          changes,
+          changes: { is_default: true },
         },
         profile.id,
       );
     } catch (err) {
-      setActionError(errorText(err, 'We could not change the default profile.'));
+      setActionError(
+        errorText(err, 'We could not change the default profile.'),
+      );
     }
   };
 
@@ -532,11 +569,15 @@ export default function PaymentSettingsPage() {
       setShowDeleteConfirm(false);
       setProfileToDelete(null);
     } catch (err) {
-      setActionError(errorText(err, 'We could not start the deletion process.'));
+      setActionError(
+        errorText(err, 'We could not start the deletion process.'),
+      );
     }
   };
 
-  const handleVerifyStepUp = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleVerifyStepUp = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
 
     if (!pendingStepUp || stepUpCode.trim().length !== 6) return;
@@ -545,15 +586,18 @@ export default function PaymentSettingsPage() {
       setVerifying(true);
       setStepUpError(null);
 
-      const verifyResponse = await fetch(`${API_BASE}/security/step-up/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          challenge_id: pendingStepUp.challengeId,
-          code: stepUpCode.trim(),
-        }),
-      });
+      const verifyResponse = await fetch(
+        `${API_BASE}/security/step-up/verify`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            challenge_id: pendingStepUp.challengeId,
+            code: stepUpCode.trim(),
+          }),
+        },
+      );
 
       if (!verifyResponse.ok) {
         throw new Error(
@@ -583,8 +627,6 @@ export default function PaymentSettingsPage() {
           throw new Error('The payment profile ID is missing.');
         }
 
-        const changes = pendingStepUp.payload.changes;
-
         mutationResponse = await fetch(
           `${API_BASE}/payments/profiles/${profileId}`,
           {
@@ -594,7 +636,7 @@ export default function PaymentSettingsPage() {
               'X-Security-Challenge-ID': pendingStepUp.challengeId,
             },
             credentials: 'include',
-            body: JSON.stringify(changes),
+            body: JSON.stringify(pendingStepUp.payload.changes),
           },
         );
       } else {
@@ -648,12 +690,14 @@ export default function PaymentSettingsPage() {
 
       await loadProfiles();
     } catch (err) {
-      // The challenge may already have been consumed after successful OTP
-      // verification. Do not retry the mutation using the same challenge.
+      // A challenge may already have been consumed. Never retry the
+      // mutation with the same challenge ID.
       setShowStepUp(false);
       setPendingStepUp(null);
       setStepUpCode('');
-      setActionError(errorText(err, 'The payment profile update failed.'));
+      setActionError(
+        errorText(err, 'The payment profile update failed.'),
+      );
 
       if (pendingStepUp.resumeEditor) {
         setEditorOpen(true);
@@ -691,8 +735,7 @@ export default function PaymentSettingsPage() {
     if (profile.account_name) details.push(profile.account_name);
 
     if (profile.account_number) {
-      const account = profile.account_number;
-      details.push(`•••• ${account.slice(-4)}`);
+      details.push(`•••• ${profile.account_number.slice(-4)}`);
     }
 
     if (profile.mobile_money_number) {
@@ -704,258 +747,332 @@ export default function PaymentSettingsPage() {
 
   return (
     <PageContainer width="form">
-      <div className="space-y-2">
+      <div className="space-y-5">
         <Link
           href="/settings"
-          className="inline-flex items-center gap-2 text-caption font-bold text-text-soft hover:text-text"
+          className="inline-flex min-h-11 items-center gap-2 text-caption font-bold text-text-soft transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to settings
         </Link>
 
         <PageHeader
+          eyebrow="Workspace settings"
           title="Get paid"
-          description="Set up the payment instructions your clients will use to pay your invoices."
-        />
-      </div>
-
-      {notice && (
-        <Alert variant="success" dismissible onDismiss={() => setNotice(null)}>
-          {notice}
-        </Alert>
-      )}
-
-      {actionError && (
-        <Alert variant="error" dismissible onDismiss={() => setActionError(null)}>
-          {actionError}
-        </Alert>
-      )}
-
-      <div className="border-brut-thin border-ink bg-surface-sunken p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-              Currency coverage
-            </p>
-            <p className="mt-1 text-title text-text">
-              {configuredCurrencyCount} of {CURRENCIES.length} currencies configured
-            </p>
-            <p className="mt-1 text-body text-text-soft">
-              A currency is ready when it has a usable default payment profile.
-            </p>
-          </div>
-
-          <Button type="button" onClick={() => openCreateEditor()}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Add payment profile
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <div>
-          <h2 className="text-heading text-text">Payment methods by currency</h2>
-          <p className="mt-1 text-body text-text-soft">
-            You can add more than one profile for a currency. Choose one as the default.
-          </p>
-        </div>
-
-        {loading ? (
-          <div className="space-y-3" aria-label="Loading payment profiles">
-            {[0, 1, 2].map((item) => (
-              <div key={item} className="h-28 animate-pulse bg-surface-tint" />
-            ))}
-          </div>
-        ) : loadError ? (
-          <div className="space-y-3">
-            <Alert variant="error">{loadError}</Alert>
-            <Button type="button" variant="outline" onClick={() => void loadProfiles()}>
-              Try again
+          description="Manage the payment methods and instructions your clients see when they pay your invoices."
+          actions={
+            <Button
+              type="button"
+              zone="expressive"
+              onClick={() => openCreateEditor()}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add payment profile
             </Button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {profilesByCurrency.map((currency) => (
-              <section
-                key={currency.value}
-                className="border-brut border-ink bg-surface p-4"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-label font-extrabold text-text">
-                        {currency.value}
-                      </h3>
+          }
+        />
 
-                      {currency.configured ? (
-                        <span className="rounded-full bg-status-paid px-2 py-0.5 text-caption font-extrabold text-status-paid-fg">
-                          Ready
-                        </span>
-                      ) : currency.needsAttention ? (
-                        <span className="rounded-full bg-status-late px-2 py-0.5 text-caption font-extrabold text-status-late-fg">
-                          Needs attention
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-surface-tint px-2 py-0.5 text-caption font-extrabold text-text-muted">
-                          Not set
-                        </span>
-                      )}
+        {notice && (
+          <Alert
+            variant="success"
+            dismissible
+            onDismiss={() => setNotice(null)}
+          >
+            {notice}
+          </Alert>
+        )}
+
+        {actionError && (
+          <Alert
+            variant="error"
+            dismissible
+            onDismiss={() => setActionError(null)}
+          >
+            {actionError}
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <StatCard
+            label="Currencies ready"
+            value={`${configuredCurrencyCount} / ${CURRENCIES.length}`}
+            description="Usable default profiles"
+            icon={<Globe />}
+            zone="expressive"
+          />
+          <StatCard
+            label="Payment profiles"
+            value={profiles.length}
+            description="Across all currencies"
+            icon={<Landmark />}
+          />
+          <StatCard
+            label="Needs attention"
+            value={incompleteProfileCount}
+            description="Incomplete or invalid profiles"
+            icon={<CircleAlert />}
+          />
+        </div>
+
+        <FormSection
+          title="Payment methods by currency"
+          description="Each currency can have multiple payment profiles, with one selected as its default."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => openCreateEditor()}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add profile
+            </Button>
+          }
+        >
+          {loading ? (
+            <div
+              className="space-y-3"
+              aria-label="Loading payment profiles"
+              aria-busy="true"
+            >
+              {[0, 1, 2].map((item) => (
+                <div
+                  key={item}
+                  className="h-28 animate-pulse border-brut-thin border-ink bg-surface-tint motion-reduce:animate-none"
+                />
+              ))}
+            </div>
+          ) : loadError ? (
+            <div className="space-y-3">
+              <Alert variant="error">{loadError}</Alert>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void loadProfiles()}
+              >
+                Try again
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {profilesByCurrency.map((currency) => (
+                <section
+                  key={currency.value}
+                  aria-labelledby={`currency-${currency.value}`}
+                  className="border-brut-thin border-ink bg-surface p-4"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3
+                          id={`currency-${currency.value}`}
+                          className="text-heading font-extrabold text-text"
+                        >
+                          {currency.value}
+                        </h3>
+
+                        {currency.configured ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-status-paid px-2.5 py-1 text-caption font-bold text-status-paid-fg">
+                            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            Ready
+                          </span>
+                        ) : currency.needsAttention ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-status-late px-2.5 py-1 text-caption font-bold text-status-late-fg">
+                            <CircleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                            Needs attention
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-surface-tint px-2.5 py-1 text-caption font-bold text-text-muted">
+                            Not configured
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-caption text-text-muted">
+                        {currency.label}
+                      </p>
                     </div>
 
-                    <p className="mt-1 text-caption text-text-muted">
-                      {currency.label}
-                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => openCreateEditor(currency.value)}
+                    >
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      Add {currency.value} profile
+                    </Button>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => openCreateEditor(currency.value)}
-                  >
-                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                    Add profile
-                  </Button>
-                </div>
+                  {currency.profiles.length === 0 ? (
+                    <div className="mt-4 border border-dashed border-line-subtle bg-surface-sunken p-4">
+                      <p className="text-body text-text-soft">
+                        No payment instructions have been added for this currency.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-4 space-y-3">
+                      {currency.profiles.map((profile) => {
+                        const usable = profileIsUsable(profile);
+                        const methods = profileMethods(profile);
 
-                {currency.profiles.length === 0 ? (
-                  <div className="mt-4 border border-dashed border-line-subtle p-4">
-                    <p className="text-body text-text-soft">
-                      No payment instructions have been added for this currency.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="mt-4 space-y-2">
-                    {currency.profiles.map((profile) => {
-                      const usable = profileIsUsable(profile);
-                      const methods = profileMethods(profile);
+                        return (
+                          <Card
+                            key={profile.id}
+                            zone="calm"
+                            className="p-3 sm:p-4"
+                          >
+                            <div className="flex flex-col gap-4">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h4 className="font-extrabold text-text">
+                                      {getProfileTitle(profile)}
+                                    </h4>
 
-                      return (
-                        <article
-                          key={profile.id}
-                          className="border-brut-thin border-ink p-3"
-                        >
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-extrabold text-text">
-                                  {getProfileTitle(profile)}
-                                </p>
+                                    {profile.is_default && (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-peach-chip px-2.5 py-1 text-caption font-bold text-text">
+                                        <Star
+                                          className="h-3.5 w-3.5"
+                                          aria-hidden="true"
+                                        />
+                                        Default
+                                      </span>
+                                    )}
 
-                                {profile.is_default && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-peach-chip px-2 py-0.5 text-caption font-extrabold text-text-soft">
-                                    <Star className="h-3 w-3" aria-hidden="true" />
-                                    Default
-                                  </span>
-                                )}
+                                    {!usable && (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-status-late px-2.5 py-1 text-caption font-bold text-status-late-fg">
+                                        <CircleAlert
+                                          className="h-3.5 w-3.5"
+                                          aria-hidden="true"
+                                        />
+                                        Incomplete
+                                      </span>
+                                    )}
+                                  </div>
 
-                                {!usable && (
-                                  <span className="rounded-full bg-status-late px-2 py-0.5 text-caption font-extrabold text-status-late-fg">
-                                    Incomplete
-                                  </span>
-                                )}
-                              </div>
+                                  {getProfileSubtitle(profile) && (
+                                    <p className="mt-1 break-words text-body text-text-soft">
+                                      {getProfileSubtitle(profile)}
+                                    </p>
+                                  )}
 
-                              {getProfileSubtitle(profile) && (
-                                <p className="mt-1 text-body text-text-soft">
-                                  {getProfileSubtitle(profile)}
-                                </p>
-                              )}
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {methods.map((item) => (
+                                      <span
+                                        key={item}
+                                        className="rounded-full bg-surface-tint px-2.5 py-1 text-caption font-semibold text-text-soft"
+                                      >
+                                        {item}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
 
-                              <div className="mt-2 flex flex-wrap gap-1.5">
-                                {methods.map((method) => (
-                                  <span
-                                    key={method}
-                                    className="rounded-full bg-surface-tint px-2 py-1 text-caption font-bold text-text-soft"
+                                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                                  {!profile.is_default && usable && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="md"
+                                      onClick={() => void handleMakeDefault(profile)}
+                                    >
+                                      <Check
+                                        className="h-4 w-4"
+                                        aria-hidden="true"
+                                      />
+                                      Make default
+                                    </Button>
+                                  )}
+
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="md"
+                                    onClick={() => openEditEditor(profile)}
                                   >
-                                    {method}
-                                  </span>
-                                ))}
+                                    Edit
+                                  </Button>
+
+                                  <Button
+                                    type="button"
+                                    variant="danger"
+                                    size="md"
+                                    onClick={() => handleRequestDelete(profile)}
+                                    aria-label={`Delete ${currency.value} payment profile`}
+                                  >
+                                    <Trash2
+                                      className="h-4 w-4"
+                                      aria-hidden="true"
+                                    />
+                                  </Button>
+                                </div>
                               </div>
 
-                              {profile.payment_link && (
-                                <a
-                                  href={profile.payment_link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="mt-2 inline-flex max-w-full items-center gap-1 break-all text-caption font-bold text-link hover:underline"
-                                >
-                                  {profile.payment_link}
-                                  <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                </a>
-                              )}
+                              {(profile.payment_link || profile.instructions) && (
+                                <div className="border-t border-line-subtle pt-3">
+                                  {profile.payment_link && (
+                                    <a
+                                      href={profile.payment_link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex max-w-full items-center gap-1 break-all text-caption font-bold text-link hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                                    >
+                                      {profile.payment_link}
+                                      <ExternalLink
+                                        className="h-3.5 w-3.5 shrink-0"
+                                        aria-hidden="true"
+                                      />
+                                      <span className="sr-only">(opens in a new tab)</span>
+                                    </a>
+                                  )}
 
-                              {profile.instructions && (
-                                <p className="mt-2 whitespace-pre-wrap text-caption text-text-muted">
-                                  {profile.instructions}
-                                </p>
+                                  {profile.instructions && (
+                                    <p className="mt-2 whitespace-pre-wrap text-caption text-text-muted">
+                                      {profile.instructions}
+                                    </p>
+                                  )}
+                                </div>
                               )}
                             </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              ))}
+            </div>
+          )}
+        </FormSection>
 
-                            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                              {!profile.is_default && usable && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => void handleMakeDefault(profile)}
-                                >
-                                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                                  Make default
-                                </Button>
-                              )}
-
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => openEditEditor(profile)}
-                              >
-                                Edit
-                              </Button>
-
-                              <Button
-                                type="button"
-                                variant="danger"
-                                onClick={() => handleRequestDelete(profile)}
-                                aria-label={`Delete ${currency.value} payment profile`}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                              </Button>
-                            </div>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            ))}
+        <FormSection
+          icon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
+          title="Payment information security"
+          description="Sensitive payment-profile changes require an additional security check."
+        >
+          <div className="flex items-start gap-3">
+            <ShieldCheck
+              className="mt-0.5 h-5 w-5 shrink-0 text-text-muted"
+              aria-hidden="true"
+            />
+            <p className="text-body text-text-soft">
+              Bagg uses a six-digit email verification code when you create,
+              edit or delete payment profiles. Your payment profiles are
+              client-facing payment instructions. They do not connect a
+              Paystack merchant account and are separate from your Bagg
+              subscription payments.
+            </p>
           </div>
-        )}
+        </FormSection>
       </div>
 
-      <FormSection
-        icon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
-        title="Payment information security"
-        description="Sensitive payment-profile changes require an additional security check."
-      >
-        <p className="text-body text-text-soft">
-          Bagg uses a six-digit email verification code when you create, edit or delete
-          payment profiles. Your payment profiles are client-facing payment
-          instructions. They do not connect a Paystack merchant account and are
-          separate from your Bagg subscription payments.
-        </p>
-      </FormSection>
-
+      {/* Create / edit profile */}
       <Dialog
         open={editorOpen}
         onClose={closeEditor}
         title={editingProfile ? 'Edit payment profile' : 'Add payment profile'}
+        description="Configure how clients can pay invoices in this currency."
+        className="max-w-[640px]"
       >
         <form onSubmit={handleSaveProfile} className="space-y-5">
-          <p className="text-body text-text-soft">
-            Each profile uses one payment method. Add another profile if you need
-            a different method for the same currency.
-          </p>
-
           <BaggSelect
             label="Currency"
             value={form.currency}
@@ -989,7 +1106,9 @@ export default function PaymentSettingsPage() {
                 required
                 placeholder="e.g. Guaranty Trust Bank"
                 value={form.bank_name}
-                onChange={(event) => updateForm('bank_name', event.target.value)}
+                onChange={(event) =>
+                  updateForm('bank_name', event.target.value)
+                }
               />
 
               <FormGrid>
@@ -1085,7 +1204,9 @@ export default function PaymentSettingsPage() {
             }
             placeholder="e.g. Include the invoice number in the transfer reference."
             value={form.instructions}
-            onChange={(event) => updateForm('instructions', event.target.value)}
+            onChange={(event) =>
+              updateForm('instructions', event.target.value)
+            }
           />
 
           <Checkbox
@@ -1096,33 +1217,37 @@ export default function PaymentSettingsPage() {
 
           {formError && <Alert variant="error">{formError}</Alert>}
 
-          <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">
-            <Button type="button" variant="outline" onClick={closeEditor}>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeEditor}
+              disabled={saving}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
-              {saving && (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              )}
+            <Button type="submit" loading={saving}>
               Continue to verification
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </Dialog>
 
+      {/* Delete confirmation */}
       <Dialog
         open={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         title="Delete payment profile?"
+        description="This action cannot be undone."
       >
         <div className="space-y-4">
           <p className="text-body text-text-soft">
             {profileToDelete
-              ? `You are about to delete the ${profileToDelete.currency} profile "${getProfileTitle(profileToDelete)}". This action cannot be undone.`
+              ? `You are about to delete the ${profileToDelete.currency} profile "${getProfileTitle(profileToDelete)}".`
               : 'This payment profile will be deleted.'}
           </p>
 
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
@@ -1142,24 +1267,32 @@ export default function PaymentSettingsPage() {
             >
               Continue
             </Button>
-          </div>
+          </DialogFooter>
         </div>
       </Dialog>
 
+      {/* Step-up verification */}
       <Dialog
         open={showStepUp}
         onClose={closeStepUp}
         title="Security verification"
+        description="Confirm this sensitive payment profile change."
       >
         <form onSubmit={handleVerifyStepUp} className="space-y-4">
-          <div className="flex items-center gap-2 text-text">
-            <ShieldCheck className="h-5 w-5 text-mango" />
-            <p className="text-body font-bold">Confirm payment profile change</p>
+          <div className="flex items-center gap-3 border-brut-thin border-ink bg-surface-sunken p-3">
+            <ShieldCheck
+              className="h-6 w-6 shrink-0 text-mango"
+              aria-hidden="true"
+            />
+            <div>
+              <p className="font-bold text-text">
+                Verify your identity
+              </p>
+              <p className="text-caption text-text-muted">
+                Enter the six-digit code sent to your account email.
+              </p>
+            </div>
           </div>
-
-          <p className="text-caption text-text-soft">
-            Enter the six-digit verification code sent to your account email.
-          </p>
 
           <OtpField
             id="paymentProfileStepUpCode"
@@ -1172,7 +1305,7 @@ export default function PaymentSettingsPage() {
 
           {stepUpError && <Alert variant="error">{stepUpError}</Alert>}
 
-          <div className="flex justify-end gap-2 pt-2">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
@@ -1189,7 +1322,7 @@ export default function PaymentSettingsPage() {
             >
               Verify and continue
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </Dialog>
     </PageContainer>

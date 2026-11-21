@@ -1,6 +1,7 @@
 
 import type { ReactNode } from 'react';
-import { WarningCircleIcon } from '@phosphor-icons/react';
+import { AlertCircle } from 'lucide-react';
+
 import { cn } from '@/lib/cn';
 import { buttonStyles } from './button';
 
@@ -43,10 +44,7 @@ export function ErrorState({
           'bg-danger/10 text-danger',
         )}
       >
-        <WarningCircleIcon
-          weight="fill"
-          className="h-6 w-6"
-        />
+        <AlertCircle className="h-6 w-6" />
       </span>
 
       <div className="max-w-lg space-y-1">

@@ -137,6 +137,7 @@ export function InvoiceActionBar(p: InvoiceActionBarProps) {
             <Button
               size="lg"
               fullWidth
+              zone="expressive"
               loading={p.busy}
               onClick={primary.run}
             >

@@ -1202,7 +1202,7 @@ export default function InvoiceDetailPage() {
               {invoice.status === 'issued' ? 'Send invoice' : 'Send again'}
             </Button>
           ) : canRecordPayment ? (
-            <Button zone="calm" onClick={openReceiptModal}>
+            <Button zone="expressive" onClick={openReceiptModal}>
               <ReceiptIcon aria-hidden className="h-4 w-4" />
               Record payment
             </Button>
@@ -1494,6 +1494,90 @@ export default function InvoiceDetailPage() {
                     </li>
                   );
                 })}
+              </ul>
+            </Card>
+          )}
+
+          {/* Resolved payment-claim history */}
+          {claims.some((claim) => claim.status !== 'pending') && (
+            <Card zone="calm" className="space-y-4">
+              <div>
+                <h2 className="text-heading">Payment claim history</h2>
+                <p className="mt-1 text-body text-text-soft">
+                  Previous payment reports and their verification outcomes.
+                </p>
+              </div>
+
+              <ul className="divide-y divide-line-subtle">
+                {claims
+                  .filter((claim) => claim.status !== 'pending')
+                  .sort(
+                    (a, b) =>
+                      new Date(b.created_at).getTime() -
+                      new Date(a.created_at).getTime(),
+                  )
+                  .map((claim) => {
+                    const proofUrl = safeExternalUrl(claim.proof_file_url);
+
+                    return (
+                      <li
+                        key={claim.id}
+                        className="flex flex-col gap-3 py-3 sm:flex-row sm:items-start sm:justify-between"
+                      >
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Money
+                                amountMinor={safeAmount(claim.amount_minor)}
+                                currency={invoice.currency}
+                                className="font-bold"
+                              />
+                              <StatusPill status={claim.status} />
+                            </div>
+
+                            <p className="text-caption text-text-muted">
+                              Reported {formatDate(claim.created_at)}
+                              {claim.payment_date
+                                ? ` · Payment date ${formatDate(claim.payment_date)}`
+                                : ''}
+                            </p>
+
+                            {claim.reference && (
+                              <p className="break-all text-caption text-text-soft">
+                                Reference: {claim.reference}
+                              </p>
+                            )}
+
+                            {claim.status === 'rejected' &&
+                              claim.rejection_reason && (
+                                <p className="text-caption text-status-late-fg">
+                                  Rejection reason: {claim.rejection_reason}
+                                </p>
+                              )}
+
+                            {claim.status === 'confirmed' && claim.confirmed_at && (
+                              <p className="text-caption text-text-soft">
+                                Confirmed {formatDate(claim.confirmed_at)}
+                              </p>
+                            )}
+
+                            {proofUrl && (
+                              <a
+                                href={proofUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex min-h-8 items-center gap-1 text-caption font-bold underline underline-offset-4"
+                              >
+                                View payment evidence
+                                <ArrowSquareOutIcon
+                                  aria-hidden
+                                  className="h-3.5 w-3.5"
+                                />
+                              </a>
+                            )}
+                          </div>
+                      </li>
+                    );
+                  })}
               </ul>
             </Card>
           )}

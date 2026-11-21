@@ -3,17 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
-  
-  CheckCircleIcon,
-  CircleNotchIcon,
+  CheckCircle2,
+  LoaderCircle,
+  AlertTriangle,
   Plus,
-  WarningCircleIcon,
-  X,
-} from '@phosphor-icons/react';
+  ExternalLink,
+} from 'lucide-react';
 
 import {
   Sheet,
-  SheetClose,
   SheetContent,
 } from '@/components/ui/sheet';
 
@@ -691,7 +689,7 @@ export default function InvoicesPage() {
           className="flex flex-wrap items-center justify-between gap-3"
         >
           <p className="flex items-center gap-2 text-body">
-            <WarningCircleIcon
+            <AlertTriangle
               aria-hidden
               className="h-4 w-4 shrink-0"
             />
@@ -779,17 +777,17 @@ export default function InvoicesPage() {
           onPerPageChange={table.setPerPage}
         />
       )}
-
+      
       {/* Payment claim review sheet */}
       {reviewingInvoice && (
         <Sheet
           open
           onOpenChange={(open) => {
             if (!open && !processingAction) {
-              // Invalidate any claim request still in flight.
               claimsRequestId.current += 1;
               setLoadingClaims(false);
               setReviewingInvoice(null);
+              setActionError(null);
             }
           }}
         >
@@ -797,49 +795,81 @@ export default function InvoicesPage() {
             title="Review payment claim"
             className="overflow-y-auto"
           >
-            <div className="space-y-4 p-4 pb-8">
-              {/* Sheet header */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="text-title">
-                    Review claim
-                  </h2>
+            <div className="space-y-5 p-4 pb-8 sm:p-6">
+              {/* Invoice context */}
+              <div className="border-brut border-ink bg-surface p-4">
+                <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
+                  Invoice
+                </p>
 
-                  <p className="text-body text-text-soft">
-                    {reviewingInvoice.invoice_number}
-                    {' · '}
-                    {reviewingInvoice.client_name || 'Client'}
-                    {' · total '}
+                <p className="mt-1 text-heading font-extrabold text-text">
+                  {reviewingInvoice.invoice_number}
+                </p>
 
-                    <Money
-                      amountMinor={reviewingInvoice.total_minor}
-                      currency={reviewingInvoice.currency}
-                      variant="inherit"
-                      className="font-extrabold"
-                    />
-                  </p>
+                <p className="mt-1 text-body text-text-soft">
+                  {reviewingInvoice.client_name || 'Unnamed client'}
+                </p>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 border-t border-line-subtle pt-3">
+                  <div>
+                    <p className="text-caption text-text-muted">
+                      Invoice total
+                    </p>
+                    <p className="mt-1 font-bold tabular-nums text-text">
+                      <Money
+                        amountMinor={reviewingInvoice.total_minor}
+                        currency={reviewingInvoice.currency}
+                        variant="inherit"
+                      />
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-caption text-text-muted">
+                      Outstanding balance
+                    </p>
+                    <p className="mt-1 font-extrabold tabular-nums text-text">
+                      <Money
+                        amountMinor={Math.max(
+                          0,
+                          reviewingInvoice.remaining_minor ??
+                            reviewingInvoice.balance_due_minor ??
+                            0,
+                        )}
+                        currency={reviewingInvoice.currency}
+                        variant="inherit"
+                      />
+                    </p>
+                  </div>
                 </div>
-
-                <SheetClose asChild>
-                  <button
-                    type="button"
-                    aria-label="Close"
-                    disabled={processingAction}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-btn hover:bg-surface-tint"
-                  >
-                    <X aria-hidden className="h-5 w-5" />
-                  </button>
-                </SheetClose>
               </div>
 
-              {/* Payment action errors */}
+              {/* Decision guidance */}
+              <div className="flex items-start gap-3 border-brut-thin border-ink bg-peach p-3">
+                <AlertTriangle
+                  className="mt-0.5 h-5 w-5 shrink-0 text-text"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="font-extrabold text-text">
+                    Verify funds before confirming
+                  </p>
+                  <p className="mt-1 text-caption text-text-soft">
+                    A client payment claim is not proof that funds have arrived.
+                    Confirm only after checking your bank, payment provider or
+                    receiving account.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action error */}
               {actionError && (
-                <Alert variant="error">
+                <Alert variant="error" role="alert">
                   {actionError}
                 </Alert>
               )}
 
-              {/* Claims loading error */}
+              {/* Claim loading error */}
               {claimsLoadError && (
                 <Alert
                   variant="error"
@@ -848,12 +878,12 @@ export default function InvoicesPage() {
                     <Button
                       variant="outline"
                       zone="calm"
+                      loading={loadingClaims}
                       onClick={() => {
                         if (reviewingInvoice) {
                           void handleOpenReview(reviewingInvoice);
                         }
                       }}
-                      loading={loadingClaims}
                     >
                       Try again
                     </Button>
@@ -863,281 +893,388 @@ export default function InvoicesPage() {
                 </Alert>
               )}
 
-              {/* Claims loading */}
+              {/* Loading */}
               {loadingClaims && (
                 <div
                   role="status"
-                  className="flex justify-center py-6 text-text-muted"
+                  aria-live="polite"
+                  className="flex items-center justify-center gap-2 py-8 text-text-muted"
                 >
-                  <CircleNotchIcon
-                    aria-hidden
-                    className="h-6 w-6 animate-spin"
+                  <LoaderCircle
+                    className="h-5 w-5 animate-spin motion-reduce:animate-none"
+                    aria-hidden="true"
                   />
-                  <span className="sr-only">Loading claims</span>
+                  <span className="text-body">
+                    Loading payment claims…
+                  </span>
                 </div>
               )}
 
-              {/* Claims empty state */}
+              {/* Empty */}
               {!loadingClaims &&
                 !claimsLoadError &&
                 claimsList.length === 0 && (
-                  <p className="py-4 text-center text-body text-text-soft">
-                    No payment claims on record.
-                  </p>
+                  <div className="border-brut-thin border-ink bg-surface p-5 text-center">
+                    <p className="font-bold text-text">
+                      No payment claims found
+                    </p>
+                    <p className="mt-1 text-caption text-text-muted">
+                      There are no payment claims available for this invoice.
+                    </p>
+                  </div>
                 )}
 
               {/* Claims */}
               {!loadingClaims &&
                 !claimsLoadError &&
                 claimsList.length > 0 && (
-                  <ul className="space-y-3">
-                    {claimsList.map((claim) => {
-                      const isPending = claim.status === 'pending';
-                      const formOpen = actionClaimId === claim.id;
-                      const evidenceUrl = getSafeEvidenceUrl(
-                        claim.proof_file_url,
-                      );
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="font-extrabold text-text">
+                        Submitted claims
+                      </h3>
+                      <span className="text-caption text-text-muted">
+                        {claimsList.length}{' '}
+                        {claimsList.length === 1 ? 'claim' : 'claims'}
+                      </span>
+                    </div>
 
-                      return (
-                        <li key={claim.id}>
-                          <Card zone="calm" className="space-y-4">
-                            {/* Claim amount and status */}
-                            <div className="flex items-center justify-between gap-3">
-                              <Money
-                                amountMinor={claim.amount_minor}
-                                currency={reviewingInvoice.currency}
-                                className="text-amount-m"
-                              />
+                    <ul className="space-y-3">
+                      {claimsList.map((claim) => {
+                        const isPending = claim.status === 'pending';
+                        const formOpen = actionClaimId === claim.id;
+                        const evidenceUrl = getSafeEvidenceUrl(
+                          claim.proof_file_url,
+                        );
 
-                              <span
-                                className={cn(
-                                  'rounded-full px-2.5 py-0.5 text-caption font-extrabold',
-                                  claim.status === 'confirmed'
-                                    ? 'bg-leaf text-on-leaf'
-                                    : claim.status === 'rejected'
-                                      ? 'bg-status-late text-status-late-fg'
-                                      : 'bg-sun text-on-sun',
-                                )}
-                              >
-                                {claim.status === 'pending'
-                                  ? 'Waiting for you'
-                                  : claim.status === 'confirmed'
-                                    ? 'Confirmed'
-                                    : 'Rejected'}
-                              </span>
-                            </div>
+                        const claimStatusLabel =
+                          claim.status === 'pending'
+                            ? 'Awaiting review'
+                            : claim.status === 'confirmed'
+                              ? 'Confirmed'
+                              : claim.status === 'rejected'
+                                ? 'Rejected'
+                                : 'Unknown status';
 
-                            {/* Claim details */}
-                            <dl className="grid grid-cols-2 gap-3 text-body">
-                              <div>
-                                <dt className="text-caption text-text-muted">
-                                  Payment date
-                                </dt>
-                                <dd>
-                                  {formatDate(claim.payment_date)}
-                                </dd>
-                              </div>
-
-                              <div className="min-w-0">
-                                <dt className="text-caption text-text-muted">
-                                  Reference
-                                </dt>
-                                <dd className="tabular truncate font-medium">
-                                  {claim.reference || 'None'}
-                                </dd>
-                              </div>
-                            </dl>
-
-                            {/* Submitted payment evidence */}
-                            <div className="space-y-1">
-                              <p className="text-caption font-semibold text-text-muted">
-                                Payment evidence
-                              </p>
-
-                              {evidenceUrl ? (
-                                <a
-                                  href={evidenceUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center font-bold text-text underline underline-offset-4 hover:text-text-soft"
-                                >
-                                  View submitted proof
-                                </a>
-                              ) : (
-                                <p className="text-body text-text-soft">
-                                  No accessible proof attachment.
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Rejection reason */}
-                            {claim.status === 'rejected' &&
-                              claim.rejection_reason && (
-                                <p className="text-body text-text-soft">
-                                  Reason: {claim.rejection_reason}
-                                </p>
-                              )}
-
-                            {/* Pending claim actions */}
-                            {isPending && (
-                              <div className="space-y-3 border-t border-line-subtle pt-4">
-                                <Button
-                                  zone="calm"
-                                  size="lg"
-                                  fullWidth
-                                  loading={processingAction}
-                                  disabled={processingAction}
-                                  onClick={() =>
-                                    void handleConfirmFull(claim.id)
-                                  }
-                                >
-                                  <CheckCircleIcon
-                                    aria-hidden
-                                    className="h-4 w-4"
-                                  />
-                                  Confirm funds received
-                                </Button>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                  <Button
-                                    variant="outline"
-                                    zone="calm"
-                                    fullWidth
-                                    disabled={processingAction}
-                                    onClick={() => {
-                                      setActionError(null);
-                                      setActionClaimId(claim.id);
-                                      setShowRejectInput(false);
-                                      setShowPartialInput(true);
-                                    }}
-                                  >
-                                    Different amount
-                                  </Button>
-
-                                  <Button
-                                    variant="outline"
-                                    zone="calm"
-                                    fullWidth
-                                    disabled={processingAction}
-                                    onClick={() => {
-                                      setActionError(null);
-                                      setActionClaimId(claim.id);
-                                      setShowPartialInput(false);
-                                      setShowRejectInput(true);
-                                      setRejectReason('');
-                                    }}
-                                  >
-                                    Reject
-                                  </Button>
+                        return (
+                          <li key={claim.id}>
+                            <Card zone="calm" className="space-y-4">
+                              {/* Amount and status */}
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-caption font-semibold text-text-muted">
+                                    Amount claimed
+                                  </p>
+                                  <p className="mt-1 text-amount-m font-extrabold tabular-nums text-text">
+                                    <Money
+                                      amountMinor={claim.amount_minor}
+                                      currency={reviewingInvoice.currency}
+                                      variant="inherit"
+                                    />
+                                  </p>
                                 </div>
 
-                                {/* Partial payment form */}
-                                {formOpen && showPartialInput && (
-                                  <div className="space-y-3">
-                                    <MoneyField
-                                      id={`partial-${claim.id}`}
-                                      label="Amount you actually received"
-                                      value={partialAmount}
-                                      onChange={setPartialAmount}
-                                      currency={reviewingInvoice.currency}
+                                <StatusPill
+                                  status={
+                                    claim.status === 'pending'
+                                      ? 'payment_claimed'
+                                      : claim.status
+                                  }
+                                  labelOverride={claimStatusLabel}
+                                />
+                              </div>
+
+                              {/* Claim information */}
+                              <dl className="grid grid-cols-2 gap-4 border-t border-line-subtle pt-3">
+                                <div className="min-w-0">
+                                  <dt className="text-caption text-text-muted">
+                                    Payment date
+                                  </dt>
+                                  <dd className="mt-1 text-body font-semibold text-text">
+                                    {formatDate(claim.payment_date)}
+                                  </dd>
+                                </div>
+
+                                <div className="min-w-0">
+                                  <dt className="text-caption text-text-muted">
+                                    Submitted
+                                  </dt>
+                                  <dd className="mt-1 text-body font-semibold text-text">
+                                    {formatDate(claim.created_at)}
+                                  </dd>
+                                </div>
+
+                                <div className="col-span-2 min-w-0">
+                                  <dt className="text-caption text-text-muted">
+                                    Payment reference
+                                  </dt>
+                                  <dd className="mt-1 break-all font-mono text-body text-text">
+                                    {claim.reference || 'Not provided'}
+                                  </dd>
+                                </div>
+                              </dl>
+
+                              {/* Evidence */}
+                              <div className="border-t border-line-subtle pt-3">
+                                <p className="text-caption font-bold text-text-muted">
+                                  Payment evidence
+                                </p>
+
+                                {evidenceUrl ? (
+                                  <a
+                                    href={evidenceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-2 inline-flex min-h-11 items-center gap-2 font-bold text-link underline underline-offset-4 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                                  >
+                                    View submitted proof
+                                    <ExternalLink
+                                      className="h-4 w-4"
+                                      aria-hidden="true"
                                     />
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <Button
-                                        variant="outline"
-                                        zone="calm"
-                                        fullWidth
-                                        disabled={processingAction}
-                                        onClick={() => {
-                                          setShowPartialInput(false);
-                                          setActionClaimId(null);
-                                          setActionError(null);
-                                        }}
-                                      >
-                                        Cancel
-                                      </Button>
-
-                                      <Button
-                                        zone="calm"
-                                        fullWidth
-                                        loading={processingAction}
-                                        disabled={processingAction}
-                                        onClick={() =>
-                                          void handleConfirmPartial(claim.id)
-                                        }
-                                      >
-                                        Confirm amount
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Reject form */}
-                                {formOpen && showRejectInput && (
-                                  <div className="space-y-3">
-                                    <Field
-                                      label="Why are you rejecting this?"
-                                      hint="Say what is wrong so your client can fix it."
-                                    >
-                                      {(a11y) => (
-                                        <textarea
-                                          rows={3}
-                                          value={rejectReason}
-                                          disabled={processingAction}
-                                          onChange={(event) =>
-                                            setRejectReason(event.target.value)
-                                          }
-                                          className={cn(
-                                            inputStyles,
-                                            'min-h-24 py-2',
-                                          )}
-                                          {...a11y}
-                                        />
-                                      )}
-                                    </Field>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <Button
-                                        variant="outline"
-                                        zone="calm"
-                                        fullWidth
-                                        disabled={processingAction}
-                                        onClick={() => {
-                                          setShowRejectInput(false);
-                                          setActionClaimId(null);
-                                          setActionError(null);
-                                        }}
-                                      >
-                                        Cancel
-                                      </Button>
-
-                                      <Button
-                                        variant="danger"
-                                        zone="calm"
-                                        fullWidth
-                                        loading={processingAction}
-                                        disabled={processingAction}
-                                        onClick={() =>
-                                          void handleRejectClaim(claim.id)
-                                        }
-                                      >
-                                        Reject claim
-                                      </Button>
-                                    </div>
-                                  </div>
+                                    <span className="sr-only">
+                                      (opens in a new tab)
+                                    </span>
+                                  </a>
+                                ) : (
+                                  <p className="mt-1 text-body text-text-muted">
+                                    No accessible proof attachment was submitted.
+                                  </p>
                                 )}
                               </div>
-                            )}
-                          </Card>
-                        </li>
-                      );
-                    })}
-                  </ul>
+
+                              {/* Rejection explanation */}
+                              {claim.status === 'rejected' &&
+                                claim.rejection_reason && (
+                                  <div className="border-t border-line-subtle pt-3">
+                                    <p className="text-caption font-bold text-text-muted">
+                                      Rejection reason
+                                    </p>
+                                    <p className="mt-1 whitespace-pre-wrap text-body text-text">
+                                      {claim.rejection_reason}
+                                    </p>
+                                  </div>
+                                )}
+
+                              {/* Pending claim actions */}
+                              {isPending && (
+                                <div className="space-y-3 border-t border-line-subtle pt-4">
+                                  <Button
+                                    zone="expressive"
+                                    size="lg"
+                                    fullWidth
+                                    loading={
+                                      processingAction &&
+                                      actionClaimId === claim.id
+                                    }
+                                    disabled={processingAction}
+                                    onClick={() =>
+                                      void handleConfirmFull(claim.id)
+                                    }
+                                  >
+                                    <CheckCircle2
+                                      className="h-4 w-4"
+                                      aria-hidden="true"
+                                    />
+                                    Confirm funds received
+                                  </Button>
+
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <Button
+                                      variant="outline"
+                                      zone="calm"
+                                      fullWidth
+                                      disabled={processingAction}
+                                      onClick={() => {
+                                        setActionError(null);
+                                        setActionClaimId(claim.id);
+                                        setShowRejectInput(false);
+                                        setShowPartialInput(true);
+                                        setPartialAmount('');
+                                      }}
+                                    >
+                                      Confirm different amount
+                                    </Button>
+
+                                    <Button
+                                      variant="outline"
+                                      zone="calm"
+                                      fullWidth
+                                      disabled={processingAction}
+                                      onClick={() => {
+                                        setActionError(null);
+                                        setActionClaimId(claim.id);
+                                        setShowPartialInput(false);
+                                        setShowRejectInput(true);
+                                        setRejectReason('');
+                                      }}
+                                    >
+                                      Reject claim
+                                    </Button>
+                                  </div>
+
+                                  {/* Partial confirmation */}
+                                  {formOpen && showPartialInput && (
+                                    <div className="space-y-3 border-t border-line-subtle pt-4">
+                                      <div>
+                                        <h4 className="font-extrabold text-text">
+                                          Confirm amount received
+                                        </h4>
+                                        <p className="mt-1 text-caption text-text-muted">
+                                          Enter the actual amount received, not
+                                          necessarily the amount the client claimed.
+                                        </p>
+                                      </div>
+
+                                      <MoneyField
+                                        id={`partial-${claim.id}`}
+                                        label="Amount received"
+                                        value={partialAmount}
+                                        onChange={setPartialAmount}
+                                        currency={reviewingInvoice.currency}
+                                      />
+
+                                      <div className="rounded-md bg-surface-sunken p-3">
+                                        <div className="flex items-center justify-between gap-3 text-caption">
+                                          <span className="text-text-muted">
+                                            Outstanding balance
+                                          </span>
+                                          <span className="font-bold tabular-nums text-text">
+                                            <Money
+                                              amountMinor={Math.max(
+                                                0,
+                                                reviewingInvoice.remaining_minor ??
+                                                  reviewingInvoice.balance_due_minor ??
+                                                  0,
+                                              )}
+                                              currency={reviewingInvoice.currency}
+                                              variant="inherit"
+                                            />
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          zone="calm"
+                                          fullWidth
+                                          disabled={processingAction}
+                                          onClick={() => {
+                                            setShowPartialInput(false);
+                                            setActionClaimId(null);
+                                            setPartialAmount('');
+                                            setActionError(null);
+                                          }}
+                                        >
+                                          Cancel
+                                        </Button>
+
+                                        <Button
+                                          type="button"
+                                          zone="expressive"
+                                          fullWidth
+                                          loading={processingAction}
+                                          disabled={
+                                            processingAction ||
+                                            !partialAmount.trim()
+                                          }
+                                          onClick={() =>
+                                            void handleConfirmPartial(claim.id)
+                                          }
+                                        >
+                                          Confirm amount
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Rejection */}
+                                  {formOpen && showRejectInput && (
+                                    <div className="space-y-3 border-t border-line-subtle pt-4">
+                                      <div>
+                                        <h4 className="font-extrabold text-text">
+                                          Reject payment claim
+                                        </h4>
+                                        <p className="mt-1 text-caption text-text-muted">
+                                          Explain why the claim cannot be accepted.
+                                          The client needs this information to
+                                          correct the submission.
+                                        </p>
+                                      </div>
+
+                                      <Field
+                                        label="Reason for rejection"
+                                        hint="A clear explanation helps avoid unnecessary follow-up."
+                                        required
+                                      >
+                                        {(a11y) => (
+                                          <textarea
+                                            rows={3}
+                                            value={rejectReason}
+                                            disabled={processingAction}
+                                            onChange={(event) =>
+                                              setRejectReason(event.target.value)
+                                            }
+                                            className={cn(
+                                              inputStyles,
+                                              'min-h-24 py-2',
+                                            )}
+                                            {...a11y}
+                                          />
+                                        )}
+                                      </Field>
+
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          zone="calm"
+                                          fullWidth
+                                          disabled={processingAction}
+                                          onClick={() => {
+                                            setShowRejectInput(false);
+                                            setActionClaimId(null);
+                                            setRejectReason('');
+                                            setActionError(null);
+                                          }}
+                                        >
+                                          Cancel
+                                        </Button>
+
+                                        <Button
+                                          type="button"
+                                          variant="danger"
+                                          fullWidth
+                                          loading={processingAction}
+                                          disabled={
+                                            processingAction ||
+                                            !rejectReason.trim()
+                                          }
+                                          onClick={() =>
+                                            void handleRejectClaim(claim.id)
+                                          }
+                                        >
+                                          Reject claim
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </Card>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 )}
             </div>
           </SheetContent>
         </Sheet>
       )}
+
 
       {/* Mobile floating action */}
       <div className="fixed bottom-5 right-5 z-30 sm:hidden">
