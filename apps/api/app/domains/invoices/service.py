@@ -124,15 +124,21 @@ async def get_invoice(
     return await _get_invoice_or_404(db, workspace, invoice_id)
 
 
-async def get_currency_metrics(
-    db: AsyncSession, workspace: Workspace
-) -> list[dict]:
+async def get_currency_metrics(db: AsyncSession, workspace: Workspace) -> list[dict]:
     repository = InvoiceRepository(db)
     invoices = await repository.list_for_metrics(workspace.id)
 
     today = date.today()
     first_of_month = date(today.year, today.month, 1)
     metrics_by_currency: dict[str, dict] = {}
+
+    outstanding_statuses = {
+        "issued",
+        "sent",
+        "viewed",
+        "payment_claimed",
+        "partially_paid",
+    }
 
     def empty_metrics(currency: str) -> dict:
         return {
@@ -153,16 +159,24 @@ async def get_currency_metrics(
         }
 
     for inv in invoices:
-        metrics_by_currency.setdefault(inv.currency, empty_metrics(inv.currency))
+        metrics_by_currency.setdefault(
+            inv.currency,
+            empty_metrics(inv.currency),
+        )
         metrics = metrics_by_currency[inv.currency]
+
         metrics["invoices_count"] += 1
 
         target_payable = (
             inv.net_payable_minor
-            if (inv.net_payable_minor and inv.net_payable_minor > 0)
+            if inv.net_payable_minor and inv.net_payable_minor > 0
             else inv.total_minor
         )
-        unpaid_balance = max(0, target_payable - (inv.amount_paid_minor or 0))
+
+        unpaid_balance = max(
+            0,
+            target_payable - (inv.amount_paid_minor or 0),
+        )
 
         status_count_key = {
             "draft": "draft_count",
@@ -174,26 +188,43 @@ async def get_currency_metrics(
             "paid": "paid_count",
             "cancelled": "cancelled_count",
         }.get(inv.status)
+
         if status_count_key:
             metrics[status_count_key] += 1
 
-        if inv.status in ["issued", "sent", "viewed", "payment_claimed", "partially_paid"]:
+        if inv.status in outstanding_statuses:
             metrics["outstanding_minor"] += unpaid_balance
 
-        if inv.status in ["issued", "sent", "viewed", "payment_claimed", "partially_paid"] and inv.due_date and inv.due_date < today:
+        is_overdue = (
+            inv.status in outstanding_statuses
+            and inv.due_date is not None
+            and inv.due_date < today
+            and unpaid_balance > 0
+        )
+
+        if is_overdue:
             metrics["overdue_minor"] += unpaid_balance
             metrics["overdue_count"] += 1
 
     paid_totals = await repository.get_paid_totals_by_currency_since(
-        workspace.id, first_of_month
+        workspace.id,
+        first_of_month,
     )
+
     for currency, amount_minor in paid_totals.items():
-        metrics_by_currency.setdefault(currency, empty_metrics(currency))
+        metrics_by_currency.setdefault(
+            currency,
+            empty_metrics(currency),
+        )
         metrics_by_currency[currency]["paid_this_month_minor"] = amount_minor
 
     profile_currencies = await repository.list_profile_currencies(workspace.id)
+
     for currency in profile_currencies:
-        metrics_by_currency.setdefault(currency, empty_metrics(currency))
+        metrics_by_currency.setdefault(
+            currency,
+            empty_metrics(currency),
+        )
 
     if not metrics_by_currency:
         metrics_by_currency["NGN"] = empty_metrics("NGN")
