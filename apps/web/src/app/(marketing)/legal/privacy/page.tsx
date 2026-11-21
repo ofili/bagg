@@ -21,12 +21,12 @@ export const metadata: Metadata = marketingMetadata({
 });
 
 const contents = [
-    ['01', 'Information we collect', 'information'],
-    ['02', 'How we use information', 'use'],
-    ['03', 'Who we share it with', 'sharing'],
-    ['04', 'Storage and retention', 'retention'],
-    ['05', 'Your rights and choices', 'rights'],
-    ['06', 'Contact', 'contact'],
+    ['Information we collect', 'information'],
+    ['How we use information', 'use'],
+    ['Who we share it with', 'sharing'],
+    ['Storage and retention', 'retention'],
+    ['Your rights and choices', 'rights'],
+    ['Contact', 'contact'],
 ];
 
 export default function PrivacyPage() {
@@ -60,13 +60,12 @@ export default function PrivacyPage() {
                     On this page
                 </p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {contents.map(([number, label, id]) => (
+                    {contents.map(([label, id]) => (
                         <a
                             key={id}
                             href={`#${id}`}
                             className="flex items-center gap-3 text-body font-bold text-text-soft hover:text-ink"
                         >
-                            <span className="text-caption tabular-nums text-text-muted">{number}</span>
                             <span className="underline decoration-transparent underline-offset-4 hover:decoration-ink">
                 {label}
               </span>
@@ -76,7 +75,7 @@ export default function PrivacyPage() {
             </div>
 
             <div className="mt-10 space-y-10">
-                <LegalSection id="information" number="01" title="Information we collect">
+                <LegalSection id="information" title="Information we collect">
                     <p>
                         Your email address and sign-in details. The business name, logo,
                         payment details and workspace settings you add. Client names,
@@ -90,7 +89,7 @@ export default function PrivacyPage() {
                     </p>
                 </LegalSection>
 
-                <LegalSection id="use" number="02" title="How we use information">
+                <LegalSection id="use" title="How we use information">
                     <p>
                         To create and maintain your workspace, generate documents, send
                         the emails you ask us to send, show payment status, provide
@@ -102,7 +101,7 @@ export default function PrivacyPage() {
                     </p>
                 </LegalSection>
 
-                <LegalSection id="sharing" number="03" title="Who we share it with">
+                <LegalSection id="sharing" title="Who we share it with">
                     <p>
                         We use service providers for email delivery, file storage and
                         payment processing. They receive only what they need to perform
@@ -114,7 +113,7 @@ export default function PrivacyPage() {
                     </p>
                 </LegalSection>
 
-                <LegalSection id="retention" number="04" title="Storage and retention">
+                <LegalSection id="retention" title="Storage and retention">
                     <p>
                         We keep workspace and document records while your account is
                         active. If you close your account, we will delete or anonymise
@@ -123,7 +122,7 @@ export default function PrivacyPage() {
                     </p>
                 </LegalSection>
 
-                <LegalSection id="rights" number="05" title="Your rights and choices">
+                <LegalSection id="rights" title="Your rights and choices">
                     <p>
                         You can ask to see, correct or delete the personal information
                         we hold about you. You can also ask how we use it.
@@ -152,7 +151,7 @@ export default function PrivacyPage() {
                     </div>
                 </LegalSection>
 
-                <LegalSection id="contact" number="06" title="Contact">
+                <LegalSection id="contact" title="Contact">
                     <p>
                         Questions about privacy can go to the same address:{' '}
                         <a

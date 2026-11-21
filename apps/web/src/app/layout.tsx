@@ -20,7 +20,7 @@ const themeInitScript = `
 
   try {
     const path = window.location.pathname;
-    const isLightOnly = path === '/' || /^\\/(about|pricing|contact|creatives|help|security|legal|features|login|signup|onboarding)(\\/|$)/.test(path);
+    const isLightOnly = path === '/' || /^\\/(about|pricing|contact|audiences|help|security|legal|features|login|signup|onboarding)(\\/|$)/.test(path);
 
     if (isLightOnly) {
       document.documentElement.dataset.theme = 'light';

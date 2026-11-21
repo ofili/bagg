@@ -33,22 +33,22 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/creatives",
-        destination: "/audiences",
+        destination: "/audiences#creative-studios",
         permanent: true,
       },
       {
         source: "/freelancers",
-        destination: "/audiences",
+        destination: "/audiences#independent-professionals",
         permanent: true,
       },
       {
         source: "/consultants",
-        destination: "/audiences",
+        destination: "/audiences#consultants",
         permanent: true,
       },
       {
         source: "/studios",
-        destination: "/audiences",
+        destination: "/audiences#creative-studios",
         permanent: true,
       },
     ];

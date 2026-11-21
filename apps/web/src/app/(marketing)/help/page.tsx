@@ -142,17 +142,11 @@ export default function HelpPage() {
                         href={`#${category.id}`}
                         className="group flex min-w-0 flex-col border-brut border-ink bg-cream p-5 shadow-brut transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-brut-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink sm:p-6"
                     >
-                      <div className="flex items-start justify-between gap-4">
-                    <span
-                        className={`flex h-11 w-11 items-center justify-center border-brut border-ink shadow-brut ${tone}`}
-                    >
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-
-                        <span className="text-3xl font-extrabold leading-none tracking-[-0.06em] text-ink/20">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                      </div>
+                      <span
+                          className={`flex h-11 w-11 items-center justify-center border-brut border-ink shadow-brut ${tone}`}
+                      >
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      </span>
 
                       <h3 className="mt-5 text-title font-extrabold text-ink">
                         {category.title}
@@ -213,7 +207,7 @@ export default function HelpPage() {
               </div>
 
               <div className="min-w-0 space-y-10">
-                {helpCategories.map((category, index) => {
+                {helpCategories.map((category) => {
                   const faqs = helpFaqs.filter(
                       (faq) => faq.category === category.id,
                   );
@@ -231,7 +225,7 @@ export default function HelpPage() {
                         <div className="flex items-start justify-between gap-4 border-b-2 border-ink pb-4">
                           <div>
                             <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-link">
-                              Help topic {String(index + 1).padStart(2, '0')}
+                              Help topic
                             </p>
 
                             <h3 className="mt-2 text-title-l font-extrabold text-ink">

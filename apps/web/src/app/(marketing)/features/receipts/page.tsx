@@ -343,7 +343,7 @@ export default function ReceiptsFeaturePage() {
           </div>
 
           <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {sharingOptions.map((option, index) => {
+            {sharingOptions.map((option) => {
               const Icon = option.icon;
 
               return (
@@ -352,16 +352,13 @@ export default function ReceiptsFeaturePage() {
                   className="border-brut border-ink bg-surface shadow-brut"
                 >
                   <div
-                    className={`flex min-h-28 items-center justify-between border-b-2 border-ink p-5 ${option.tone}`}
+                    className={`flex min-h-28 items-center border-b-2 border-ink p-5 ${option.tone}`}
                   >
                     <Icon
                       aria-hidden
                       className="h-9 w-9"
                       strokeWidth={2.2}
                     />
-                    <span className="text-title-l font-extrabold">
-                      0{index + 1}
-                    </span>
                   </div>
                   <div className="p-5">
                     <h3 className="text-heading font-extrabold text-ink">

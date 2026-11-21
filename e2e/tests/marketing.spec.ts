@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 const marketingRoutes = [
   '/',
   '/features',
-  '/creatives',
+  '/audiences',
   '/pricing',
   '/security',
   '/about',
@@ -25,6 +25,21 @@ test.describe('Marketing routes', () => {
       await expect(page.locator('header')).toBeVisible();
       await expect(page.locator('footer')).toBeVisible();
     });
+  }
+});
+
+test('legacy audience URLs redirect to the matching card', async ({ page }) => {
+  const redirects = [
+    ['/creatives', '/audiences#creative-studios'],
+    ['/freelancers', '/audiences#independent-professionals'],
+    ['/consultants', '/audiences#consultants'],
+    ['/studios', '/audiences#creative-studios'],
+  ] as const;
+
+  for (const [from, to] of redirects) {
+    await page.goto(from);
+    await expect(page).toHaveURL(new RegExp(`${to}$`));
+    await expect(page.locator(to.slice(to.indexOf('#')))).toBeVisible();
   }
 });
 
@@ -113,7 +128,7 @@ test.describe('Marketing on mobile', () => {
   });
 
   test('key pages do not scroll sideways', async ({ page }) => {
-    for (const route of ['/', '/features', '/pricing', '/creatives', '/legal/terms']) {
+    for (const route of ['/', '/features', '/pricing', '/audiences', '/legal/terms']) {
       await page.goto(route);
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

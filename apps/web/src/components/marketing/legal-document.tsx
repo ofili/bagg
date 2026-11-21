@@ -59,43 +59,26 @@ export function LegalDocumentHeader({
 
 export function LegalSection({
   id,
-  number,
   title,
   icon,
-  tone = 'peach',
   children,
 }: {
   id?: string;
-  number: string;
   title: string;
   icon?: ReactNode;
-  tone?: LegalTone;
   children: ReactNode;
 }) {
   return (
     <section id={id} className="scroll-mt-28 border-t-brut border-ink pt-6">
-      <div className="flex items-start gap-4">
-        <span
-          className={cn(
-            'border-brut border-ink px-2 py-1 text-caption font-bold tabular-nums',
-            toneClasses[tone],
-          )}
-        >
-          {number}
-        </span>
+      <div className="flex items-center gap-2 text-ink">
+        {icon}
+        <h2 className="text-title font-extrabold tracking-tight text-ink">
+          {title}
+        </h2>
+      </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-ink">
-            {icon}
-            <h2 className="text-title font-extrabold tracking-tight text-ink">
-              {title}
-            </h2>
-          </div>
-
-          <div className="mt-4 space-y-4 text-body-l leading-relaxed text-text-soft">
-            {children}
-          </div>
-        </div>
+      <div className="mt-4 space-y-4 text-body-l leading-relaxed text-text-soft">
+        {children}
       </div>
     </section>
   );

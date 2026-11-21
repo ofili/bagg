@@ -24,7 +24,6 @@ export const metadata: Metadata = marketingMetadata({
 
 const contactRoutes = [
   {
-    number: '01',
     title: 'General support',
     description:
         'Account access, invoices, quotes, payments, receipts and reminders.',
@@ -33,7 +32,6 @@ const contactRoutes = [
     tone: 'bg-mango text-on-mango',
   },
   {
-    number: '02',
     title: 'Security reports',
     description:
         'Suspicious invoices, unauthorised links, account security and vulnerability reports.',
@@ -110,13 +108,12 @@ export default function ContactPage() {
 
                 return (
                     <div
-                        key={route.number}
+                        key={route.title}
                         className="border-brut border-ink bg-surface shadow-brut"
                     >
                       <div
-                          className={`flex items-center justify-between gap-4 border-b-2 border-ink ${route.tone} px-5 py-4`}
+                          className={`flex items-center gap-4 border-b-2 border-ink ${route.tone} px-5 py-4`}
                       >
-                        <div className="flex min-w-0 items-center gap-3">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center border-brut border-ink bg-surface">
                           <Icon
                               className="h-5 w-5 text-ink"
@@ -126,10 +123,6 @@ export default function ContactPage() {
                           <h3 className="text-heading">
                             {route.title}
                           </h3>
-                        </div>
-                        <span className="text-caption font-extrabold">
-                        {route.number}
-                      </span>
                       </div>
 
                       <div className="p-5">
@@ -199,15 +192,12 @@ export default function ContactPage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {writingTips.map((tip, index) => (
+              {writingTips.map((tip) => (
                   <div
                       key={tip}
-                      className="flex gap-4 border-brut border-ink bg-cream p-4"
+                      className="border-brut border-ink bg-cream p-4"
                   >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center border-brut border-ink bg-mango text-caption font-extrabold text-on-mango">
-                  0{index + 1}
-                </span>
-                    <p className="self-center text-body font-semibold text-ink">
+                    <p className="text-body font-semibold text-ink">
                       {tip}
                     </p>
                   </div>

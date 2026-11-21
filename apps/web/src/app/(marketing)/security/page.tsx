@@ -29,7 +29,6 @@ export const metadata: Metadata = marketingMetadata({
 
 const safeguards = [
     {
-        number: '01',
         icon: KeyRound,
         label: 'ACCOUNT ACCESS',
         title: 'No password to lose.',
@@ -37,7 +36,6 @@ const safeguards = [
         tone: 'bg-pink text-on-pink',
     },
     {
-        number: '02',
         icon: Link2,
         label: 'SHARE LINKS',
         title: 'Links are made to be shared, not guessed.',
@@ -45,7 +43,6 @@ const safeguards = [
         tone: 'bg-sun text-on-sun',
     },
     {
-        number: '03',
         icon: CreditCard,
         label: 'CARD PAYMENTS',
         title: 'Card details stay with the payment processor.',
@@ -53,7 +50,6 @@ const safeguards = [
         tone: 'bg-mango text-on-mango',
     },
     {
-        number: '04',
         icon: CircleCheck,
         label: 'PAYMENT CLAIMS',
         title: 'You decide when a manual claim is paid.',
@@ -61,7 +57,6 @@ const safeguards = [
         tone: 'bg-surface-tint text-text',
     },
     {
-        number: '05',
         icon: Lock,
         label: 'PAYMENT CONFIRMATION',
         title: 'A redirect is not proof of payment.',
@@ -69,7 +64,6 @@ const safeguards = [
         tone: 'bg-pink text-on-pink',
     },
     {
-        number: '06',
         icon: Flag,
         label: 'ABUSE REPORTING',
         title: 'Suspicious invoices can be reported.',
@@ -236,20 +230,14 @@ export default function SecurityPage() {
 
                             return (
                                 <article
-                                    key={item.number}
+                                    key={item.title}
                                     className="border-brut border-ink bg-cream p-5 shadow-brut sm:p-6"
                                 >
-                                    <div className="flex items-start justify-between gap-4">
-                    <span
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center border-brut border-ink shadow-brut ${item.tone}`}
-                    >
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-
-                                        <span className="text-3xl font-extrabold leading-none tracking-[-0.06em] text-ink/20">
-                      {item.number}
-                    </span>
-                                    </div>
+                                    <span
+                                        className={`flex h-11 w-11 shrink-0 items-center justify-center border-brut border-ink shadow-brut ${item.tone}`}
+                                    >
+                                        <Icon className="h-5 w-5" aria-hidden="true" />
+                                    </span>
 
                                     <p className="mt-5 text-caption font-extrabold uppercase tracking-[0.13em] text-link">
                                         {item.label}
@@ -296,14 +284,15 @@ export default function SecurityPage() {
                         </div>
 
                         <ul className="mt-5 space-y-4">
-                            {safePractices.map((practice, index) => (
+                            {safePractices.map((practice) => (
                                 <li
                                     key={practice}
                                     className="flex items-start gap-3 text-body-l text-text-soft"
                                 >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center border-brut border-ink bg-sun text-caption font-extrabold text-on-sun shadow-brut">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
+                                    <span
+                                        aria-hidden="true"
+                                        className="mt-2 h-2.5 w-2.5 shrink-0 border-brut border-ink bg-sun"
+                                    />
                                     <span>{practice}</span>
                                 </li>
                             ))}

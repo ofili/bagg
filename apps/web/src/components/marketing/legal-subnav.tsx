@@ -6,9 +6,9 @@ import { usePathname } from 'next/navigation';
 import { ArrowUpRight } from 'lucide-react';
 
 const legalLinks = [
-    { label: 'Terms', href: '/legal/terms', number: '01' },
-    { label: 'Privacy', href: '/legal/privacy', number: '02' },
-    { label: 'Cookies', href: '/legal/cookies', number: '03' },
+    { label: 'Terms', href: '/legal/terms' },
+    { label: 'Privacy', href: '/legal/privacy' },
+    { label: 'Cookies', href: '/legal/cookies' },
 ];
 
 export function LegalSubnav() {
@@ -31,12 +31,7 @@ export function LegalSubnav() {
                                 : 'border-transparent bg-surface text-text-soft hover:border-ink hover:bg-peach',
                         ].join(' ')}
                     >
-            <span className="flex items-center gap-3">
-              <span className="text-caption font-bold tabular-nums opacity-60">
-                {link.number}
-              </span>
-              <span className="text-body font-extrabold">{link.label}</span>
-            </span>
+            <span className="text-body font-extrabold">{link.label}</span>
 
                         <ArrowUpRight
                             className={[

@@ -19,13 +19,13 @@ export const metadata: Metadata = marketingMetadata({
 });
 
 const sections = [
-    { id: 'using-bagg', number: '01', title: 'Using Bagg' },
-    { id: 'your-account', number: '02', title: 'Your account' },
-    { id: 'invoices-payments', number: '03', title: 'Invoices and payments' },
-    { id: 'your-content', number: '04', title: 'Your content' },
-    { id: 'availability', number: '05', title: 'Availability and changes' },
-    { id: 'ending-use', number: '06', title: 'Ending use' },
-    { id: 'questions', number: '07', title: 'Questions' },
+    { id: 'using-bagg', title: 'Using Bagg' },
+    { id: 'your-account', title: 'Your account' },
+    { id: 'invoices-payments', title: 'Invoices and payments' },
+    { id: 'your-content', title: 'Your content' },
+    { id: 'availability', title: 'Availability and changes' },
+    { id: 'ending-use', title: 'Ending use' },
+    { id: 'questions', title: 'Questions' },
 ];
 
 export default function TermsPage() {
@@ -52,9 +52,6 @@ export default function TermsPage() {
                             href={`#${section.id}`}
                             className="flex items-center gap-3 text-body font-bold text-text-soft transition hover:text-ink"
                         >
-              <span className="text-caption tabular-nums text-text-muted">
-                {section.number}
-              </span>
                             <span className="underline decoration-transparent underline-offset-4 hover:decoration-ink">
                 {section.title}
               </span>
@@ -64,7 +61,7 @@ export default function TermsPage() {
             </div>
 
             <div className="mt-10 space-y-10">
-                <LegalSection id="using-bagg" number="01" title="Using Bagg">
+                <LegalSection id="using-bagg" title="Using Bagg">
                     <p>
                         Bagg is a workspace for creating invoices, quotes, payment records
                         and receipts. You can use it for your own business or a business
@@ -76,7 +73,7 @@ export default function TermsPage() {
                     </p>
                 </LegalSection>
 
-                <LegalSection id="your-account" number="02" title="Your account">
+                <LegalSection id="your-account" title="Your account">
                     <p>
                         You need a working email address to sign in. Keep access to that
                         email secure. You are responsible for the activity in your
@@ -92,7 +89,6 @@ export default function TermsPage() {
 
                 <LegalSection
                     id="invoices-payments"
-                    number="03"
                     title="Invoices and payments"
                 >
                     <p>
@@ -114,7 +110,7 @@ export default function TermsPage() {
                     </p>
                 </LegalSection>
 
-                <LegalSection id="your-content" number="04" title="Your content">
+                <LegalSection id="your-content" title="Your content">
                     <p>
                         You keep ownership of the business details, client information,
                         line items and files you add to Bagg. You give us permission to
@@ -128,7 +124,6 @@ export default function TermsPage() {
 
                 <LegalSection
                     id="availability"
-                    number="05"
                     title="Availability and changes"
                 >
                     <p>
@@ -139,7 +134,7 @@ export default function TermsPage() {
                     </p>
                 </LegalSection>
 
-                <LegalSection id="ending-use" number="06" title="Ending use">
+                <LegalSection id="ending-use" title="Ending use">
                     <p>
                         You can stop using Bagg at any time. We may suspend or close an
                         account for misuse, for security reasons or where the law requires
@@ -148,7 +143,7 @@ export default function TermsPage() {
                     </p>
                 </LegalSection>
 
-                <LegalSection id="questions" number="07" title="Questions">
+                <LegalSection id="questions" title="Questions">
                     <p>
                         If something here is unclear, email{' '}
                         <a

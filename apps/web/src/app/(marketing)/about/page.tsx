@@ -27,28 +27,24 @@ export const metadata: Metadata = marketingMetadata({
 
 const workflow = [
   {
-    number: "01",
     title: "Agree on the work.",
     copy: "Set out the scope, price and expectations in a quote before the work begins.",
     icon: FileText,
     tone: "bg-pink text-on-pink",
   },
   {
-    number: "02",
     title: "Make the ask clear.",
     copy: "Create an invoice with the right currency, due date and payment details.",
     icon: FileText,
     tone: "bg-mango text-on-mango",
   },
   {
-    number: "03",
     title: "Keep payment moving.",
     copy: "Share one link, track payment progress and follow up without awkwardness.",
     icon: Wallet,
     tone: "bg-sun text-on-sun",
   },
   {
-    number: "04",
     title: "Close the loop.",
     copy: "Confirm payments, keep the record and issue a receipt.",
     icon: ReceiptText,
@@ -58,28 +54,24 @@ const workflow = [
 
 const principles = [
   {
-    number: "01",
     icon: FileText,
     title: "Money first. Joy around.",
     copy: "The amount, the fee and the next step stay plain. The colour and the small moments of delight live around the edges.",
     tone: "bg-sun text-on-sun",
   },
   {
-    number: "02",
     icon: Users,
     title: "Clients should not need another account.",
     copy: "Your client should be able to open a link, understand what to pay and take the next step without creating another account.",
     tone: "bg-pink text-on-pink",
   },
   {
-    number: "03",
     icon: CircleCheck,
     title: "Status is a word, not just a colour.",
     copy: "Sent, viewed, claimed, part paid and paid. You should never have to guess what a colour or icon means.",
     tone: "bg-mango text-on-mango",
   },
   {
-    number: "04",
     icon: ShieldCheck,
     title: "Never claim what is not built.",
     copy: "If a feature is coming, we say so. If a security safeguard is not live, we do not put it on a badge.",
@@ -129,7 +121,7 @@ export default function AboutPage() {
 
                   return (
                     <div
-                      key={step.number}
+                      key={step.title}
                       className="flex items-start gap-4 border-brut border-ink bg-cream p-4"
                     >
                       <span
@@ -138,10 +130,7 @@ export default function AboutPage() {
                         <Icon className="h-5 w-5" aria-hidden="true" />
                       </span>
                       <div className="min-w-0">
-                        <p className="text-caption font-extrabold text-text-muted">
-                          STEP {step.number}
-                        </p>
-                        <h3 className="mt-1 text-body font-extrabold text-ink">
+                        <h3 className="text-body font-extrabold text-ink">
                           {step.title}
                         </h3>
                         <p className="mt-1 text-caption leading-relaxed text-text-soft">
@@ -230,22 +219,16 @@ export default function AboutPage() {
 
             return (
               <MarketingCard
-                key={principle.number}
+                key={principle.title}
                 tone="surface"
                 shadow="default"
                 className="sm:p-7"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <span
-                    className={`flex h-11 w-11 items-center justify-center border-brut border-ink shadow-brut ${principle.tone}`}
-                  >
-                    <Icon className="h-5 w-5" aria-hidden="true" />
-                  </span>
-
-                  <span className="text-4xl font-extrabold leading-none tracking-[-0.06em] text-ink/20">
-                    {principle.number}
-                  </span>
-                </div>
+                <span
+                  className={`flex h-11 w-11 items-center justify-center border-brut border-ink shadow-brut ${principle.tone}`}
+                >
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
 
                 <h3 className="mt-6 text-title font-extrabold tracking-tight text-ink">
                   {principle.title}

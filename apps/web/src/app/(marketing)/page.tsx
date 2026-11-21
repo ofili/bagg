@@ -147,14 +147,12 @@ export default function MarketingPage() {
 
           <MarketingGrid columns={3} gap="lg" className="mt-10">
             <WorkflowCard
-              number="01"
               label="Create"
               title="Make an invoice that looks like you."
               copy="Add your business details, client, line items, currency and payment instructions."
               tone="surface"
             />
             <WorkflowCard
-              number="02"
               label="Share"
               title="Send one link to your client."
               copy="Share through WhatsApp, email or any channel. Your client can open the invoice without creating an account."
@@ -162,7 +160,6 @@ export default function MarketingPage() {
               featured
             />
             <WorkflowCard
-              number="03"
               label="Collect"
               title="Track the money and close the loop."
               copy="Follow invoice activity, record confirmed payments, issue receipts and stop reminders when paid."
@@ -326,7 +323,7 @@ export default function MarketingPage() {
             />
             <div className="flex justify-start lg:justify-end">
               <Link
-                href="/creatives"
+                href="/audiences#creative-studios"
                 className={buttonStyles({ variant: "link" })}
               >
                 See how Bagg fits your work
@@ -380,14 +377,12 @@ export default function MarketingPage() {
 }
 
 function WorkflowCard({
-  number,
   label,
   title,
   copy,
   tone,
   featured = false,
 }: {
-  number: string;
   label: string;
   title: string;
   copy: string;
@@ -396,10 +391,7 @@ function WorkflowCard({
 }) {
   return (
     <MarketingCard tone={tone} featured={featured}>
-      <span className="inline-flex h-9 w-9 items-center justify-center border-brut-thin border-ink bg-surface-tint text-caption font-extrabold text-text">
-        {number}
-      </span>
-      <p className="mt-5 text-caption font-extrabold uppercase tracking-widest opacity-70">
+      <p className="text-caption font-extrabold uppercase tracking-widest opacity-70">
         {label}
       </p>
       <h3 className="mt-2 text-title text-current">{title}</h3>

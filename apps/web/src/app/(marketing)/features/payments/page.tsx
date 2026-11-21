@@ -51,28 +51,24 @@ const reminderSteps = [
 
 const paymentStages = [
   {
-    number: '01',
     title: 'Payment reported',
     copy: 'Your client submits a payment claim with the amount, date and optional reference.',
     status: 'CLAIM SUBMITTED',
     tone: 'bg-sun text-on-sun',
   },
   {
-    number: '02',
     title: 'You review it',
     copy: 'Check the claim against your bank or payment provider before confirming it.',
     status: 'AWAITING REVIEW',
     tone: 'bg-pink text-on-pink',
   },
   {
-    number: '03',
     title: 'Payment confirmed',
     copy: 'Bagg records the confirmed amount and updates the invoice balance.',
     status: 'CONFIRMED',
     tone: 'bg-mango text-on-mango',
   },
   {
-    number: '04',
     title: 'Receipt created',
     copy: 'A verified receipt is generated and linked to the invoice.',
     status: 'RECEIPT READY',
@@ -253,19 +249,14 @@ export default function PaymentsFeaturePage() {
             <div className="grid gap-3 sm:grid-cols-2">
               {paymentStages.map((stage) => (
                 <div
-                  key={stage.number}
+                  key={stage.title}
                   className="relative border-brut border-ink bg-surface p-5 shadow-brut"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="text-title-l font-extrabold tracking-[-0.06em] text-ink">
-                      {stage.number}
-                    </span>
-                    <span
-                      className={`border-brut border-ink px-2 py-1 text-[0.65rem] font-extrabold tracking-[0.08em] ${stage.tone}`}
-                    >
-                      {stage.status}
-                    </span>
-                  </div>
+                  <span
+                    className={`inline-flex border-brut border-ink px-2 py-1 text-[0.65rem] font-extrabold tracking-[0.08em] ${stage.tone}`}
+                  >
+                    {stage.status}
+                  </span>
                   <h3 className="mt-6 text-heading font-extrabold text-ink">
                     {stage.title}
                   </h3>
@@ -327,12 +318,13 @@ export default function PaymentsFeaturePage() {
                       {index !== reminderSteps.length - 1 && (
                         <div
                           aria-hidden
-                          className="absolute bottom-0 left-[1.1rem] top-10 w-0.5 bg-ink"
+                          className="absolute bottom-0 left-[0.35rem] top-6 w-0.5 bg-ink"
                         />
                       )}
-                      <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-brut border-ink bg-sun text-caption font-extrabold text-on-sun">
-                        {index + 1}
-                      </div>
+                      <span
+                        aria-hidden
+                        className="relative z-10 mt-2 h-3 w-3 shrink-0 border-brut border-ink bg-sun"
+                      />
                       <div className="min-w-0 flex-1 border-b border-line pb-5 last:border-0 last:pb-0">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <h4 className="text-body font-extrabold text-ink">

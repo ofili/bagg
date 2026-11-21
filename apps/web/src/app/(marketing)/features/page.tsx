@@ -1,9 +1,7 @@
 import Link from "next/link";
 import {
-  ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
-  Check,
   FileText,
   Globe2,
   ReceiptText,
@@ -31,7 +29,6 @@ export const metadata: Metadata = marketingMetadata({
 
 const capabilities = [
   {
-    number: "01",
     label: "COMMERCIALS",
     title: "Agree on the work.",
     copy: "Put the scope, price and payment expectations in a quote before the work begins.",
@@ -41,7 +38,6 @@ const capabilities = [
     icon: FileText,
   },
   {
-    number: "02",
     label: "INVOICING",
     title: "Make the ask clear.",
     copy: "Create a professional invoice with your line items, currency, due date and payment details.",
@@ -51,7 +47,6 @@ const capabilities = [
     icon: FileText,
   },
   {
-    number: "03",
     label: "COLLECTION",
     title: "Keep the follow-up moving.",
     copy: "Share one link, see payment progress and let reminders handle the awkward nudges.",
@@ -61,7 +56,6 @@ const capabilities = [
     icon: Wallet,
   },
   {
-    number: "04",
     label: "RECORDS",
     title: "Close the loop.",
     copy: "Confirm payments, keep the outstanding balance visible and issue a receipt.",
@@ -122,7 +116,7 @@ export default function FeaturesPage() {
                     const Icon = item.icon;
                     return (
                       <div
-                        key={item.number}
+                        key={item.label}
                         className="flex items-center gap-3 border-brut border-ink bg-cream p-4"
                       >
                         <span
@@ -191,19 +185,14 @@ export default function FeaturesPage() {
 
               return (
                 <article
-                  key={item.number}
+                  key={item.title}
                   className="group relative flex min-h-[18rem] flex-col border-brut border-ink bg-cream p-5 shadow-brut transition-transform duration-150 hover:-translate-y-1 hover:shadow-brut-lg sm:p-7"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <span className="text-[2.6rem] font-extrabold leading-none tracking-[-0.06em] text-ink/20">
-                      {item.number}
-                    </span>
-                    <span
-                      className={`flex h-12 w-12 items-center justify-center border-brut border-ink shadow-brut ${item.tone}`}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </span>
-                  </div>
+                  <span
+                    className={`flex h-12 w-12 items-center justify-center border-brut border-ink shadow-brut ${item.tone}`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
 
                   <p className="mt-5 text-caption font-extrabold uppercase tracking-[0.14em] text-link">
                     {item.label}
@@ -306,40 +295,5 @@ export default function FeaturesPage() {
         </section>
       </div>
     </>
-  );
-}
-
-function WorkflowLine({
-  number,
-  title,
-  description,
-  tone,
-  last = false,
-}: {
-  number: string;
-  title: string;
-  description: string;
-  tone: string;
-  last?: boolean;
-}) {
-  return (
-    <div className="relative flex items-center gap-4 py-3">
-      {!last && (
-        <span
-          aria-hidden="true"
-          className="absolute bottom-[-0.75rem] left-[1.15rem] top-[3.25rem] w-0.5 bg-ink/25"
-        />
-      )}
-      <span
-        className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center border-brut border-ink text-caption font-extrabold shadow-brut ${tone}`}
-      >
-        {number}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="font-extrabold text-ink">{title}</p>
-        <p className="text-caption text-text-muted">{description}</p>
-      </div>
-      <Check className="h-4 w-4 shrink-0 text-status-paid-fg" />
-    </div>
   );
 }

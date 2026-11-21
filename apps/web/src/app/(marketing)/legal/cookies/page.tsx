@@ -48,10 +48,8 @@ export default function CookiesPage() {
 
             <div className="mt-10 space-y-10">
                 <LegalSection
-                    number="01"
                     title="Essential sign-in cookie"
                     icon={<Monitor className="h-5 w-5" />}
-                    tone="mango"
                 >
                     <p>
                         When you sign in, Bagg sets an essential session cookie so the
@@ -66,10 +64,8 @@ export default function CookiesPage() {
                 </LegalSection>
 
                 <LegalSection
-                    number="02"
                     title="Your cookie notice choice"
                     icon={<Cookie className="h-5 w-5" />}
-                    tone="mango"
                 >
                     <p>
                         When you dismiss the cookie notice, we store that choice in your
@@ -84,10 +80,8 @@ export default function CookiesPage() {
                 </LegalSection>
 
                 <LegalSection
-                    number="03"
                     title="What we do not use"
                     icon={<ShieldCheck className="h-5 w-5" />}
-                    tone="mango"
                 >
                     <p>
                         The marketing site does not use advertising cookies or
@@ -97,10 +91,8 @@ export default function CookiesPage() {
                 </LegalSection>
 
                 <LegalSection
-                    number="04"
                     title="Managing browser storage"
                     icon={<Trash2 className="h-5 w-5" />}
-                    tone="mango"
                 >
                     <p>
                         You can clear cookies and local storage in your browser settings.
@@ -141,10 +133,8 @@ export default function CookiesPage() {
                 </LegalSection>
 
                 <LegalSection
-                    number="05"
                     title="Questions"
                     icon={<Cookie className="h-5 w-5" />}
-                    tone="mango"
                 >
                     <p>
                         Email{' '}

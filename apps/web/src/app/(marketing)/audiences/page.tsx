@@ -33,7 +33,7 @@ export const metadata: Metadata = marketingMetadata({
 
 const audiences = [
   {
-    number: "01",
+    id: "independent-professionals",
     label: "Independent professionals",
     title: "For freelancers who do the work and run the business.",
     copy: "You find clients, agree fees, deliver your services and manage your own finances. Bagg helps you keep the commercial side organised without adding unnecessary administration.",
@@ -51,7 +51,7 @@ const audiences = [
     ],
   },
   {
-    number: "02",
+    id: "consultants",
     label: "Consultants and advisers",
     title: "For professionals whose expertise is their business.",
     copy: "Your clients engage you for your judgement, experience and specialist knowledge. Bagg helps you formalise commercial agreements through clear quotes, professional invoices and connected payment records.",
@@ -69,28 +69,27 @@ const audiences = [
     ],
   },
   {
-    number: "03",
-    label: "Creative studios and businesses",
-    title: "For creative businesses that need better billing.",
-    copy: "Whether you operate independently or run a small studio, client work comes with commercial responsibilities. Bagg helps you present pricing clearly, invoice clients and maintain reliable payment records.",
+    id: "creative-studios",
+    label: "Creative studios",
+    title: "Deliver great creative work. Keep the business side under control.",
+    copy: "From agreeing project fees to collecting deposits, billing milestones and issuing receipts, Bagg helps creative teams keep client billing and payment records organised.",
     examples: [
-      "Branding and design studios",
-      "Photography and production businesses",
-      "Digital and creative agencies",
-      "Small independent creative businesses",
+      "Branding and graphic design studios",
+      "Photography and video production teams",
+      "Web design and digital agencies",
+      "Content and creative production businesses",
     ],
     icon: Users,
     tone: "bg-mango text-on-mango",
     links: [
-      { label: "Explore invoicing", href: "/features/invoicing" },
-      { label: "Explore receipts", href: "/features/receipts" },
+      { label: "Explore quotes", href: "/features/quotes" },
+      { label: "Explore payment tracking", href: "/features/payments" },
     ],
   },
 ];
 
 const workflow = [
   {
-    number: "01",
     title: "Agree the work",
     copy: "Prepare and share professional quotes that clearly communicate your services, pricing and commercial terms.",
     icon: FileCheck,
@@ -99,7 +98,6 @@ const workflow = [
     tone: "bg-pink text-on-pink",
   },
   {
-    number: "02",
     title: "Invoice your client",
     copy: "Turn accepted quotes into invoices and give clients clear amounts, due dates and payment instructions.",
     icon: FileText,
@@ -108,7 +106,6 @@ const workflow = [
     tone: "bg-sun text-on-sun",
   },
   {
-    number: "03",
     title: "Track your payments",
     copy: "Keep track of outstanding invoices, payment progress and the follow-ups needed to get paid.",
     icon: Wallet,
@@ -117,7 +114,6 @@ const workflow = [
     tone: "bg-mango text-on-mango",
   },
   {
-    number: "04",
     title: "Record what you receive",
     copy: "Confirm payments and issue receipts connected to the original invoice.",
     icon: ReceiptText,
@@ -129,25 +125,21 @@ const workflow = [
 
 const benefits = [
   {
-    number: "01",
     title: "Look professional",
     copy: "Present your business with consistent, professional quotes, invoices and receipts.",
     icon: FileText,
   },
   {
-    number: "02",
     title: "Make getting paid easier",
     copy: "Give clients the information they need to understand and pay your invoices.",
     icon: Wallet,
   },
   {
-    number: "03",
     title: "Stay on top of outstanding payments",
     copy: "See what has been paid, what remains outstanding and where follow-up is needed.",
     icon: BellRing,
   },
   {
-    number: "04",
     title: "Keep your records connected",
     copy: "Maintain a clearer relationship between quotes, invoices, payments and receipts.",
     icon: ReceiptText,
@@ -241,7 +233,7 @@ export default function AudiencesPage() {
                       icon: ReceiptText,
                       tone: "bg-surface-tint",
                     },
-                  ].map((item, index) => {
+                  ].map((item) => {
                     const Icon = item.icon;
 
                     return (
@@ -269,10 +261,6 @@ export default function AudiencesPage() {
                             {item.description}
                           </p>
                         </div>
-
-                        <span className="text-caption font-extrabold text-text-muted">
-                          0{index + 1}
-                        </span>
                       </div>
                     );
                   })}
@@ -339,20 +327,15 @@ export default function AudiencesPage() {
 
               return (
                 <article
-                  key={audience.number}
-                  className="flex flex-col border-brut border-ink bg-surface p-6 shadow-brut-lg"
+                  id={audience.id}
+                  key={audience.label}
+                  className="flex scroll-mt-24 flex-col border-brut border-ink bg-surface p-6 shadow-brut-lg"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <span
-                      className={`flex h-12 w-12 items-center justify-center border-brut border-ink ${audience.tone}`}
-                    >
-                      <Icon aria-hidden="true" className="h-6 w-6" />
-                    </span>
-
-                    <span className="text-caption font-extrabold text-text-muted">
-                      {audience.number}
-                    </span>
-                  </div>
+                  <span
+                    className={`flex h-12 w-12 items-center justify-center border-brut border-ink ${audience.tone}`}
+                  >
+                    <Icon aria-hidden="true" className="h-6 w-6" />
+                  </span>
 
                   <p className="mt-6 text-caption font-extrabold uppercase tracking-wide text-text-muted">
                     {audience.label}
@@ -425,20 +408,14 @@ export default function AudiencesPage() {
 
               return (
                 <article
-                  key={step.number}
+                  key={step.title}
                   className="flex flex-col border-brut border-ink bg-surface p-5 shadow-brut"
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <span
-                      className={`flex h-12 w-12 items-center justify-center border-brut border-ink ${step.tone}`}
-                    >
-                      <Icon aria-hidden="true" className="h-6 w-6" />
-                    </span>
-
-                    <span className="text-caption font-extrabold text-text-muted">
-                      {step.number}
-                    </span>
-                  </div>
+                  <span
+                    className={`flex h-12 w-12 items-center justify-center border-brut border-ink ${step.tone}`}
+                  >
+                    <Icon aria-hidden="true" className="h-6 w-6" />
+                  </span>
 
                   <h3 className="mt-6 text-heading font-extrabold text-ink">
                     {step.title}
@@ -482,18 +459,12 @@ export default function AudiencesPage() {
 
                 return (
                   <article
-                    key={benefit.number}
+                    key={benefit.title}
                     className="border-brut border-ink bg-surface p-5 shadow-brut"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="flex h-11 w-11 items-center justify-center border-brut border-ink bg-mango text-on-mango">
-                        <Icon aria-hidden="true" className="h-5 w-5" />
-                      </span>
-
-                      <span className="text-caption font-extrabold text-text-muted">
-                        {benefit.number}
-                      </span>
-                    </div>
+                    <span className="flex h-11 w-11 items-center justify-center border-brut border-ink bg-mango text-on-mango">
+                      <Icon aria-hidden="true" className="h-5 w-5" />
+                    </span>
 
                     <h3 className="mt-5 text-heading font-extrabold text-ink">
                       {benefit.title}
