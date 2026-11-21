@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -18,12 +19,6 @@ export interface DateFieldProps
   optional?: boolean;
 }
 
-/**
- * Native date input with the shared control chrome.
- *
- * The browser picker stays available through the trailing button, and the
- * native indicator is hidden so the field matches every other control.
- */
 export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
   function DateField(
     {
@@ -34,6 +29,11 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
       optional,
       className,
       required,
+      disabled,
+      readOnly,
+      'aria-describedby': externalDescribedBy,
+      'aria-invalid': externalInvalid,
+      'aria-errormessage': externalErrorMessage,
       ...props
     },
     ref,
@@ -42,16 +42,18 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
 
     useImperativeHandle(ref, () => inputRef.current as HTMLInputElement, []);
 
+    const unavailable = disabled || readOnly;
+
     function openPicker() {
       const input = inputRef.current;
-      if (!input) return;
+      if (!input || unavailable) return;
 
       if (typeof input.showPicker === 'function') {
         try {
           input.showPicker();
           return;
         } catch {
-          // Some browsers block showPicker outside a user gesture.
+          // Fall back to native focus/click where showPicker is unavailable.
         }
       }
 
@@ -68,37 +70,60 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
         required={required}
         optional={optional}
       >
-        {(a11y) => (
-          <div className="relative">
-            <input
-              ref={inputRef}
-              type="date"
-              required={required}
-              className={cn(
-                inputStyles,
-                'pr-11',
-                '[&::-webkit-calendar-picker-indicator]:hidden',
-                className,
-              )}
-              {...props}
-              {...a11y}
-            />
+        {(a11y) => {
+          const describedBy = [
+            a11y['aria-describedby'],
+            externalDescribedBy,
+          ]
+            .filter(Boolean)
+            .join(' ') || undefined;
 
-            <button
-              type="button"
-              onClick={openPicker}
-              aria-label={`Open ${label.toLocaleLowerCase()} calendar`}
-              className={cn(
-                'absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2',
-                'items-center justify-center rounded-small text-text-soft',
-                'hover:bg-surface-tint hover:text-text',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-              )}
-            >
-              <CalendarDays aria-hidden className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+          return (
+            <div className="relative">
+              <input
+                ref={inputRef}
+                type="date"
+                required={required}
+                disabled={disabled}
+                readOnly={readOnly}
+                className={cn(
+                  inputStyles,
+                  'pr-11',
+                  '[&::-webkit-calendar-picker-indicator]:hidden',
+                  className,
+                )}
+                {...props}
+                {...a11y}
+                aria-describedby={describedBy}
+                aria-invalid={
+                  a11y['aria-invalid'] || externalInvalid
+                    ? true
+                    : undefined
+                }
+                aria-errormessage={
+                  a11y['aria-errormessage'] ?? externalErrorMessage
+                }
+              />
+
+              <button
+                type="button"
+                onClick={openPicker}
+                disabled={unavailable}
+                aria-label={`Open ${label.toLocaleLowerCase()} calendar`}
+                tabIndex={unavailable ? -1 : 0}
+                className={cn(
+                  'absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2',
+                  'items-center justify-center rounded-small text-text-soft',
+                  'hover:bg-surface-tint hover:text-text',
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
+                  'disabled:cursor-not-allowed disabled:opacity-50',
+                )}
+              >
+                <CalendarDays aria-hidden className="h-4 w-4" />
+              </button>
+            </div>
+          );
+        }}
       </Field>
     );
   },

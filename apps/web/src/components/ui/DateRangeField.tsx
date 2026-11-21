@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useId } from 'react';
@@ -86,6 +87,9 @@ export function DateRangeField({
           max={endValue || undefined}
           required={required}
           disabled={disabled}
+          aria-describedby={describedBy}
+          aria-invalid={error ? true : undefined}
+          aria-errormessage={error ? errorId : undefined}
         />
 
         <DateField
@@ -96,6 +100,9 @@ export function DateRangeField({
           min={startValue || undefined}
           required={required}
           disabled={disabled}
+          aria-describedby={describedBy}
+          aria-invalid={error ? true : undefined}
+          aria-errormessage={error ? errorId : undefined}
         />
       </div>
 

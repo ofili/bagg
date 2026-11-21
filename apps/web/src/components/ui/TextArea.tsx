@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -34,7 +35,7 @@ export const TextArea = forwardRef<
 ) {
   return (
     <Field
-    id={id}
+      id={id}
       label={label}
       hint={hint}
       error={error}
@@ -51,8 +52,8 @@ export const TextArea = forwardRef<
             'min-h-28 resize-y py-3 leading-6',
             className,
           )}
-          {...a11y}
           {...props}
+          {...a11y}
         />
       )}
     </Field>

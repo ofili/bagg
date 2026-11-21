@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useId, type ReactNode } from 'react';
@@ -23,9 +24,7 @@ export interface RadioGroupProps {
   optional?: boolean;
   disabled?: boolean;
   direction?: 'vertical' | 'horizontal';
-  /** cards renders each option as a bordered, tappable choice card. */
   variant?: 'default' | 'cards';
-  /** Card grid columns from sm upward. */
   columns?: 1 | 2 | 3;
   className?: string;
 }
@@ -134,6 +133,8 @@ export function RadioGroup({
                 disabled={optionDisabled}
                 required={required}
                 aria-describedby={describedBy}
+                aria-invalid={error ? true : undefined}
+                aria-errormessage={error ? errorId : undefined}
                 className={cn(
                   'mt-0.5 h-5 w-5 shrink-0 accent-[var(--bagg-mango)]',
                   'focus-visible:outline-2 focus-visible:outline-offset-2',
