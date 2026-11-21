@@ -74,6 +74,8 @@ interface InvoiceDocumentProps {
     latest_receipt?: InvoiceReceiptSummary | null;
     remaining_minor?: number;
     amount_paid_minor?: number;
+    showPdfAction?: boolean;
+    showLatestReceipt?: boolean;
   };
   variant: 'public' | 'issuer';
   className?: string;
@@ -141,6 +143,8 @@ export function InvoiceDocument({
     latest_claim,
     latest_receipt,
     remaining_minor,
+    showPdfAction = true,
+    showLatestReceipt = true,
     amount_paid_minor = 0,
   } = invoice;
 
@@ -307,7 +311,7 @@ export function InvoiceDocument({
           <h2 id="line-items" className="text-heading">
             Line items
           </h2>
-          {variant === 'issuer' && share_token && (
+          {variant === 'issuer' && showPdfAction && share_token && (
             <a
               href={`${'/api'}/invoices/${invoice.id}/pdf`}
               target="_blank"
@@ -394,7 +398,7 @@ export function InvoiceDocument({
       )}
 
       {/* Latest receipt */}
-      {latest_receipt && (
+      {latest_receipt && showLatestReceipt && (
         <Card zone="calm" className="space-y-3">
           <div className="flex items-center gap-2">
             <ReceiptText aria-hidden className="h-4 w-4" />

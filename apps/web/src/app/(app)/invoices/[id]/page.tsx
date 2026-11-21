@@ -123,6 +123,7 @@ interface InvoiceDetail {
   tax_rate_percent?: number;
   tax_minor: number;
   total_minor: number;
+  balance_due_minor?: number;
   wht_minor?: number;
   net_payable_minor?: number;
   amount_paid_minor: number;
@@ -448,7 +449,14 @@ export default function InvoiceDetailPage() {
       : (invoice?.total_minor ?? 0);
 
   const paidMinor = safeAmount(invoice?.amount_paid_minor);
-  const balanceMinor = Math.max(0, netPayable - paidMinor);
+
+  const balanceMinor = invoice
+    ? safeAmount(
+        invoice.remaining_minor ??
+          invoice.balance_due_minor ??
+          Math.max(0, netPayable - paidMinor),
+      )
+    : 0;
 
   const pendingClaims = claims.filter(
     (claim) => claim.status === 'pending',
@@ -1107,10 +1115,12 @@ export default function InvoiceDetailPage() {
   const invoiceDoc = (
     <InvoiceDocument
       variant="issuer"
+      showPdfAction={false}
+      showLatestReceipt={false}
       invoice={{
         ...invoice,
         tax_rate_percent: invoice.tax_rate_percent ?? 0,
-        remaining_minor: invoice.remaining_minor,
+        remaining_minor: balanceMinor,
       }}
     />
   );
@@ -1171,7 +1181,7 @@ export default function InvoiceDetailPage() {
 
         <div className="flex shrink-0 items-center gap-2 self-start">
           {hasPendingClaims ? (
-            <Button zone="calm" onClick={scrollToClaims}>
+            <Button zone="expressive" onClick={scrollToClaims}>
               <WarningCircleIcon aria-hidden className="h-4 w-4" />
               Review payment{pendingClaims.length === 1 ? '' : 's'}
             </Button>
@@ -1200,9 +1210,9 @@ export default function InvoiceDetailPage() {
             <Link
               href={`/receipts/${encodeURIComponent(primaryReceipt.id)}`}
               className={buttonStyles({
-                variant: 'primary',
-                zone: 'calm',
-              })}
+              variant: 'primary',
+              zone: 'expressive',
+            })}
             >
               <ReceiptIcon aria-hidden className="h-4 w-4" />
               View receipt
@@ -1374,6 +1384,7 @@ export default function InvoiceDetailPage() {
         currency={invoice.currency}
         netPayableMinor={netPayable}
         paidMinor={paidMinor}
+        remainingMinor={balanceMinor}
         overdue={overdue}
       />
 
