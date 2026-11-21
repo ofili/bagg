@@ -86,17 +86,19 @@ function useDashboardProfile(): DashboardProfile {
 function DashboardSkeleton() {
   return (
     <div role="status" aria-label="Loading dashboard" className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-8">
-          <div className="h-56 animate-pulse border-brut border-ink bg-surface-tint" />
-          <div className="h-32 animate-pulse border-brut border-ink bg-surface-tint" />
-          <div className="h-28 animate-pulse border-brut border-ink bg-surface-tint" />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-6">
+        <div className="space-y-5 lg:col-span-8">
+          <div className="h-56 animate-pulse border-brut border-ink bg-surface-tint motion-reduce:animate-none" />
+          <div className="h-32 animate-pulse border-brut border-ink bg-surface-tint motion-reduce:animate-none" />
+          <div className="h-28 animate-pulse border-brut border-ink bg-surface-tint motion-reduce:animate-none" />
         </div>
-        <div className="space-y-6 lg:col-span-4">
-          <div className="h-20 animate-pulse border-brut border-ink bg-surface-tint" />
-          <div className="h-72 animate-pulse border-brut border-ink bg-surface-tint" />
+
+        <div className="space-y-5 lg:col-span-4">
+          <div className="h-20 animate-pulse border-brut border-ink bg-surface-tint motion-reduce:animate-none" />
+          <div className="h-72 animate-pulse border-brut border-ink bg-surface-tint motion-reduce:animate-none" />
         </div>
       </div>
+
       <span className="sr-only">Loading your business activity</span>
     </div>
   );
@@ -107,7 +109,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [selected, setSelected] = useState('');
-  const [hasDispatchedDocument, setHasDispatchedDocument] = useState<boolean | null>(null);
+  const [hasDispatchedDocument, setHasDispatchedDocument] =
+    useState<boolean | null>(null);
 
   const profile = useDashboardProfile();
 
@@ -198,13 +201,14 @@ export default function DashboardPage() {
     void load();
   }, [load]);
 
-  const metric = metrics.find((item) => item.currency === selected) ?? metrics[0];
+  const metric =
+    metrics.find((item) => item.currency === selected) ?? metrics[0];
 
   const hasMetricActivity = metrics.some(
-    (m) =>
-      (m.sent_count ?? 0) > 0 ||
-      (m.paid_count ?? 0) > 0 ||
-      (m.paid_this_month_minor ?? 0) > 0,
+    (item) =>
+      (item.sent_count ?? 0) > 0 ||
+      (item.paid_count ?? 0) > 0 ||
+      (item.paid_this_month_minor ?? 0) > 0,
   );
 
   const isTeachingMode =
@@ -215,29 +219,44 @@ export default function DashboardPage() {
     setHasDispatchedDocument(dispatched);
   }, []);
 
+  // In teaching mode, the expanded setup guide already contains a prominent
+  // create-invoice action. If it is minimised or dismissed, expose that action
+  // in the page header on mobile as well as desktop.
+  const showHeaderCreateAction =
+    !isTeachingMode ||
+    !setupPreferenceReady ||
+    setupVisibility !== 'expanded';
+
   return (
     <PageContainer width="list">
       <PageHeader
+        eyebrow="Your workspace"
         title={profile.name ? `Hi, ${profile.name}` : 'Hi there'}
+        description="A clear view of what you’re owed, what needs attention, and what’s happening across your invoices."
         actions={
           <>
             {setupPreferenceReady && setupVisibility === 'dismissed' && (
               <button
                 type="button"
                 onClick={() => changeSetupVisibility('expanded')}
-                className="inline-flex items-center rounded-btn border-brut-thin border-ink bg-surface px-3 py-2 text-caption font-extrabold text-ink shadow-brut-sm transition-colors hover:bg-surface-tint"
+                className="inline-flex min-h-11 items-center rounded-btn border-brut-thin border-ink bg-surface px-3 py-2 text-caption font-extrabold text-ink shadow-brut-sm transition-colors hover:bg-surface-tint"
               >
                 Setup guide
               </button>
             )}
 
-            <Link
-              href="/invoices/new"
-              className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
-            >
-              <Plus aria-hidden weight="bold" className="h-4 w-4" />
-              Create invoice
-            </Link>
+            {showHeaderCreateAction && (
+              <Link
+                href="/invoices/new"
+                className={cn(
+                  buttonStyles({ variant: 'accent' }),
+                  'w-full sm:w-auto',
+                )}
+              >
+                <Plus aria-hidden weight="bold" className="h-4 w-4" />
+                Create invoice
+              </Link>
+            )}
           </>
         }
       />
@@ -256,7 +275,7 @@ export default function DashboardPage() {
       {!loading && !failed && (
         <>
           {isTeachingMode ? (
-            <div className="mx-auto max-w-2xl space-y-6">
+            <div className="mx-auto w-full max-w-2xl space-y-5">
               {setupPreferenceReady && (
                 <SetupChecklistCard
                   mode="hero"
@@ -271,14 +290,19 @@ export default function DashboardPage() {
                 selectedCurrency={selected || 'NGN'}
               />
 
-              <div className="flex items-center gap-4 border-brut border-ink bg-surface p-6 shadow-brut-sm">
-                <BagCharacter mood="happy" size={54} className="shrink-0" />
+              <div className="flex items-center gap-4 border-brut border-ink bg-surface p-5 shadow-brut-sm sm:p-6">
+                <BagCharacter
+                  mood="happy"
+                  size={54}
+                  className="shrink-0"
+                />
                 <div>
                   <p className="text-body font-extrabold text-ink">
                     Nothing needs you yet. Nice and calm.
                   </p>
                   <p className="mt-1 text-caption text-text-soft">
-                    Your invoices, client payments, and action items will appear here once you send your first invoice.
+                    Your invoices, client payments, and action items will
+                    appear here once you send your first invoice.
                   </p>
                 </div>
               </div>
@@ -288,61 +312,26 @@ export default function DashboardPage() {
               </p>
             </div>
           ) : (
-            <>
-              <div className="hidden lg:grid lg:grid-cols-12 lg:gap-6">
-                <div className="space-y-6 lg:col-span-8">
-                  <HeroOwedCard
-                    metric={metric}
-                    metrics={metrics}
-                    selectedCurrency={selected}
-                    onCurrencyChange={setSelected}
-                  />
-
-                  <NeedsAttentionStrip
-                    overdueCount={metric?.overdue_count ?? 0}
-                    claimsCount={metric?.claimed_count ?? 0}
-                    viewedCount={metric?.viewed_count ?? 0}
-                    currency={metric?.currency ?? selected ?? 'NGN'}
-                  />
-
-                  <ThisMonthCard
-                    paidMinor={metric?.paid_this_month_minor ?? 0}
-                    paidCount={metric?.paid_count ?? 0}
-                    sentCount={metric?.sent_count ?? 0}
-                    draftCount={metric?.draft_count ?? 0}
-                    currency={metric?.currency ?? selected ?? 'NGN'}
-                  />
-                </div>
-
-                <div className="space-y-6 lg:col-span-4">
-                  {setupPreferenceReady && (
-                    <SetupChecklistCard
-                      mode="slim"
-                      visibility={setupVisibility}
-                      onVisibilityChange={changeSetupVisibility}
-                      onMilestonesLoaded={handleMilestonesLoaded}
-                    />
-                  )}
-
-                  <RecentActivityFeed />
-                </div>
-              </div>
-
-              <div className="space-y-5 lg:hidden">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-6">
+              <div className="lg:col-span-8 lg:col-start-1 lg:row-start-1">
                 <HeroOwedCard
                   metric={metric}
                   metrics={metrics}
                   selectedCurrency={selected}
                   onCurrencyChange={setSelected}
                 />
+              </div>
 
+              <div className="lg:col-span-8 lg:col-start-1 lg:row-start-2">
                 <NeedsAttentionStrip
                   overdueCount={metric?.overdue_count ?? 0}
                   claimsCount={metric?.claimed_count ?? 0}
                   viewedCount={metric?.viewed_count ?? 0}
                   currency={metric?.currency ?? selected ?? 'NGN'}
                 />
+              </div>
 
+              <div className="lg:col-span-4 lg:col-start-9 lg:row-start-1">
                 {setupPreferenceReady && (
                   <SetupChecklistCard
                     mode="slim"
@@ -351,7 +340,9 @@ export default function DashboardPage() {
                     onMilestonesLoaded={handleMilestonesLoaded}
                   />
                 )}
+              </div>
 
+              <div className="lg:col-span-8 lg:col-start-1 lg:row-start-3">
                 <ThisMonthCard
                   paidMinor={metric?.paid_this_month_minor ?? 0}
                   paidCount={metric?.paid_count ?? 0}
@@ -359,10 +350,12 @@ export default function DashboardPage() {
                   draftCount={metric?.draft_count ?? 0}
                   currency={metric?.currency ?? selected ?? 'NGN'}
                 />
+              </div>
 
+              <div className="lg:col-span-4 lg:col-start-9 lg:row-start-2">
                 <RecentActivityFeed />
               </div>
-            </>
+            </div>
           )}
         </>
       )}
