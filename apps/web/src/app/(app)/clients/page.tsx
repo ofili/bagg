@@ -756,8 +756,8 @@ export default function ClientsPage() {
               onChange={setSearchQuery}
               placeholder={
                 activeTab === 'clients'
-                    ? 'Search clients by name, email or phone'
-                    : 'Search contacts or client names'
+                  ? 'Search clients by name, email, phone or reference'
+                  : 'Search contacts or client names'
               }
               className="w-full sm:max-w-md"
           />
@@ -777,17 +777,19 @@ export default function ClientsPage() {
               {/* Loading skeleton - intentionally unchanged */}
 
               {loading ? (
-                  <div
-                      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
-                      aria-label="Loading clients"
-                  >
-                    {[0, 1, 2].map((item) => (
-                        <div
-                            key={item}
-                            className="h-56 animate-pulse bg-surface-tint"
-                        />
-                    ))}
-                  </div>
+                <div
+                  role="status"
+                  aria-label="Loading clients"
+                  className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                >
+                  {[0, 1, 2].map((item) => (
+                    <div
+                      key={item}
+                      className="h-56 animate-pulse border-brut border-ink bg-surface-tint motion-reduce:animate-none"
+                    />
+                  ))}
+                  <span className="sr-only">Loading clients...</span>
+                </div>
               ) : filteredClients.length === 0 ? (
                   <div className="border-brut border-ink bg-surface px-6 py-12 text-center">
                     <BagCharacter size={80} className="mx-auto" />
@@ -884,9 +886,8 @@ export default function ClientsPage() {
 
                                 <div className="flex shrink-0 items-center">
                                   <Link
-                                      href={`/clients/${encodeURIComponent(client.id)}`}
-                                      aria-label={`Edit ${client.name}`}
-                                      className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
+                                    href={`/clients/${encodeURIComponent(client.id)}`}
+                                    aria-label={`Open ${client.name} details`}
                                   >
                                     <Edit2
                                         className="h-4 w-4"

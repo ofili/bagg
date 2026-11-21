@@ -5,17 +5,17 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
-  CaretDown,
-  ArrowsClockwise,
-  CircleNotch,
+  ChevronDown,
+  Repeat,
+  LoaderCircle,
   FileText,
-  FloppyDisk,
+  Save,
   Plus,
   Printer,
-  Receipt,
-  Scroll,
+  ReceiptText,
+  ScrollText,
   Users,
-} from '@phosphor-icons/react';
+} from 'lucide-react';
 
 import { BagCharacter } from '@/components/brand';
 import { Money } from '@/components/money/Money';
@@ -395,7 +395,7 @@ export default function ClientDetailPage() {
   if (loading) {
     return (
       <div role="status" className="flex min-h-[50vh] items-center justify-center text-text-muted">
-        <CircleNotch aria-hidden className="h-6 w-6 animate-spin" />
+        <LoaderCircle aria-hidden className="h-6 w-6 animate-spin" />
         <span className="sr-only">Loading client...</span>
       </div>
     );
@@ -426,7 +426,7 @@ export default function ClientDetailPage() {
 //   
 
 return (
-  <div className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6 sm:pb-6 lg:p-8">
+   <div className="mx-auto w-full max-w-6xl space-y-6 p-4 pb-24 sm:p-6 sm:pb-8 lg:p-8">
     <PageHeader
       title={client.name}
       description={[
@@ -455,7 +455,7 @@ return (
             >
               <Plus aria-hidden className="h-4 w-4" />
               Create new
-              <CaretDown
+              <ChevronDown
                 aria-hidden
                 className={cn(
                   'h-3.5 w-3.5 transition-transform duration-150',
@@ -475,7 +475,7 @@ return (
                   onClick={() => setCreateDropdownOpen(false)}
                   className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-on-sun"
                 >
-                  <Receipt aria-hidden className="h-4 w-4 shrink-0 text-ink" />
+                  <ReceiptText aria-hidden className="h-4 w-4 shrink-0 text-ink" />
                   <div>
                     <div className="font-extrabold text-ink">Invoice</div>
                     <p className="text-[11px] font-normal text-text-soft">Bill this client</p>
@@ -488,7 +488,7 @@ return (
                   onClick={() => setCreateDropdownOpen(false)}
                   className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-on-sun"
                 >
-                  <Scroll aria-hidden className="h-4 w-4 shrink-0 text-ink" />
+                  <ScrollText aria-hidden className="h-4 w-4 shrink-0 text-ink" />
                   <div>
                     <div className="font-extrabold text-ink">Quote</div>
                     <p className="text-[11px] font-normal text-text-soft">Send estimate with expiry</p>
@@ -501,7 +501,7 @@ return (
                   onClick={() => setCreateDropdownOpen(false)}
                   className="flex items-center gap-2.5 rounded-btn px-3 py-2.5 text-body font-bold text-ink transition-colors hover:bg-sun hover:text-on-sun"
                 >
-                  <ArrowsClockwise aria-hidden className="h-4 w-4 shrink-0 text-ink" />
+                  <Repeat aria-hidden className="h-4 w-4 shrink-0 text-ink" />
                   <div>
                     <div className="font-extrabold text-ink">Recurring schedule</div>
                     <p className="text-[11px] font-normal text-text-soft">Repeat invoice on a cadence</p>
@@ -623,13 +623,18 @@ return (
       })()}
 
       {/* Navigation Tabs */}
-      <div className="flex gap-1 overflow-x-auto border-b border-line pb-px">
+      <div
+        role="group"
+        aria-label="Client sections"
+        className="flex gap-1 overflow-x-auto border-b border-line pb-px"
+      >
         {(
           [
             ['overview', 'Overview'],
             ['statement', 'Statement of Account'],
             ['invoices', 'Invoices'],
             ['quotes', 'Quotes'],
+            ['recurring', 'Recurring'],
             ['contacts', 'Contacts'],
             ['edit', 'Edit Details'],
           ] as const
@@ -637,12 +642,13 @@ return (
           <button
             key={tabKey}
             type="button"
+            aria-pressed={activeTab === tabKey}
             onClick={() => setActiveTab(tabKey)}
             className={cn(
-              'min-h-11 whitespace-nowrap px-4 text-body font-bold transition-colors',
+              'min-h-11 shrink-0 whitespace-nowrap border-b-2 px-4 text-body font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-mango',
               activeTab === tabKey
-                ? 'border-b-2 border-cocoa text-ink'
-                : 'text-text-muted hover:text-ink'
+                ? 'border-cocoa text-ink'
+                : 'border-transparent text-text-muted hover:border-line hover:text-ink',
             )}
           >
             {label}
@@ -719,7 +725,7 @@ return (
 
           {statementLoading ? (
             <div className="flex min-h-[200px] items-center justify-center text-text-muted">
-              <CircleNotch className="h-6 w-6 animate-spin" />
+              <LoaderCircle className="h-6 w-6 animate-spin" />
             </div>
           ) : !statement || statement.entries.length === 0 ? (
             <div className="border border-dashed border-line p-8 text-center">
@@ -792,7 +798,7 @@ return (
           </div>
           {invoicesLoading ? (
             <div className="flex min-h-[200px] items-center justify-center text-text-muted">
-              <CircleNotch className="h-6 w-6 animate-spin" />
+              <LoaderCircle className="h-6 w-6 animate-spin" />
             </div>
           ) : invoices.length === 0 ? (
             <div className="border border-dashed border-line p-8 text-center">
@@ -833,11 +839,11 @@ return (
           </div>
           {quotesLoading ? (
             <div className="flex min-h-[200px] items-center justify-center text-text-muted">
-              <CircleNotch className="h-6 w-6 animate-spin" />
+              <LoaderCircle className="h-6 w-6 animate-spin" />
             </div>
           ) : quotes.length === 0 ? (
             <div className="border border-dashed border-line p-8 text-center">
-              <Scroll className="mx-auto h-8 w-8 text-text-muted" />
+              <ScrollText className="mx-auto h-8 w-8 text-text-muted" />
               <p className="mt-2 font-bold">No quotes for this client</p>
             </div>
           ) : (
@@ -874,11 +880,11 @@ return (
           </div>
           {recurringLoading ? (
             <div className="flex min-h-[200px] items-center justify-center text-text-muted">
-              <CircleNotch className="h-6 w-6 animate-spin" />
+              <LoaderCircle className="h-6 w-6 animate-spin" />
             </div>
           ) : recurringSchedules.length === 0 ? (
             <div className="border border-dashed border-line p-8 text-center">
-              <ArrowsClockwise className="mx-auto h-8 w-8 text-text-muted" />
+              <Repeat className="mx-auto h-8 w-8 text-text-muted" />
               <p className="mt-2 font-bold">No recurring schedules for this client</p>
               <p className="mt-1 text-caption text-text-soft">Set up automated billing on a repeat cadence.</p>
               <div className="mt-4">
@@ -940,7 +946,7 @@ return (
           </div>
           {contactsLoading ? (
             <div className="flex min-h-[200px] items-center justify-center text-text-muted">
-              <CircleNotch className="h-6 w-6 animate-spin" />
+              <LoaderCircle className="h-6 w-6 animate-spin" />
             </div>
           ) : contacts.length === 0 ? (
             <div className="border border-dashed border-line p-8 text-center">
@@ -1121,7 +1127,7 @@ return (
           <StickyFormActions>
             <FormActions divider={false}>
               <Button type="submit" zone="calm" loading={saving}>
-                <FloppyDisk className="h-4 w-4" /> Save changes
+                <Save className="h-4 w-4" /> Save changes
               </Button>
             </FormActions>
           </StickyFormActions>
