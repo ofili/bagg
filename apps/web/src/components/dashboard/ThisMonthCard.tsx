@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -6,7 +7,6 @@ import { cn } from '@/lib/cn';
 
 interface ThisMonthCardProps {
   paidMinor: number;
-  paidCount: number;
   sentCount: number;
   draftCount: number;
   currency: string;
@@ -15,72 +15,79 @@ interface ThisMonthCardProps {
 
 export function ThisMonthCard({
   paidMinor,
-  paidCount,
   sentCount,
   draftCount,
   currency,
   className,
 }: ThisMonthCardProps) {
+  const encodedCurrency = encodeURIComponent(currency);
+
   return (
-    <section aria-labelledby="this-month-heading" className={cn('space-y-2', className)}>
+    <section
+      aria-labelledby="invoice-snapshot-heading"
+      className={cn('space-y-2', className)}
+    >
       <h2
-        id="this-month-heading"
+        id="invoice-snapshot-heading"
         className="text-heading font-extrabold text-ink"
       >
-        This month
+        Invoice snapshot
       </h2>
 
-      <div className="grid grid-cols-3 border-brut border-ink bg-surface shadow-brut-sm divide-x-2 divide-ink">
-        {/* PAID */}
-        <Link
-          href={`/invoices?status=paid&currency=${encodeURIComponent(currency)}`}
-          className="p-4 transition-colors hover:bg-surface-tint sm:p-5"
-        >
+      <div className="grid grid-cols-1 divide-y-2 divide-ink border-brut border-ink bg-surface shadow-brut-sm sm:grid-cols-3 sm:divide-x-2 sm:divide-y-0">
+        <div className="min-w-0 p-4 sm:p-5">
           <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
-            Paid
+            Collected this month
           </p>
-          <div className="mt-1.5">
+
+          <div className="mt-2">
             <MoneyAmount
               amountMinor={paidMinor}
               currency={currency}
-              size="md"
-              className="font-extrabold text-body sm:text-heading"
+              size="lg"
+              tone="paid"
+              className="font-extrabold"
             />
           </div>
-          <p className="mt-0.5 text-[11px] text-text-muted">
-            {paidCount} {paidCount === 1 ? 'payment' : 'payments'}
-          </p>
-        </Link>
 
-        {/* SENT */}
+          <p className="mt-1 text-[11px] text-text-muted">
+            Confirmed payments this month
+          </p>
+        </div>
+
         <Link
-          href={`/invoices?currency=${encodeURIComponent(currency)}`}
-          className="p-4 transition-colors hover:bg-surface-tint sm:p-5"
+          href={`/invoices?status=sent&currency=${encodedCurrency}`}
+          className="min-w-0 p-4 transition-colors hover:bg-surface-tint focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-ink sm:p-5"
+          aria-label={`View ${sentCount} sent invoices in ${currency}`}
         >
           <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
-            Sent
+            Sent invoices
           </p>
-          <p className="mt-1.5 text-body font-black text-ink sm:text-heading">
+
+          <p className="mt-2 text-title-l font-black tabular-nums text-ink">
             {sentCount.toLocaleString()}
           </p>
-          <p className="mt-0.5 text-[11px] text-text-muted">
-            {sentCount === 1 ? 'document' : 'documents'} delivered
+
+          <p className="mt-1 text-[11px] text-text-muted">
+            Currently sent
           </p>
         </Link>
 
-        {/* DRAFTS */}
         <Link
-          href={`/invoices?status=draft&currency=${encodeURIComponent(currency)}`}
-          className="p-4 transition-colors hover:bg-surface-tint sm:p-5"
+          href={`/invoices?status=draft&currency=${encodedCurrency}`}
+          className="min-w-0 p-4 transition-colors hover:bg-surface-tint focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-ink sm:p-5"
+          aria-label={`View ${draftCount} draft invoices in ${currency}`}
         >
           <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
-            Drafts
+            Draft invoices
           </p>
-          <p className="mt-1.5 text-body font-black text-ink sm:text-heading">
+
+          <p className="mt-2 text-title-l font-black tabular-nums text-ink">
             {draftCount.toLocaleString()}
           </p>
-          <p className="mt-0.5 text-[11px] text-text-muted">
-            {draftCount === 1 ? 'ready to review' : 'in progress'}
+
+          <p className="mt-1 text-[11px] text-text-muted">
+            {draftCount === 1 ? 'Needs review' : 'In progress'}
           </p>
         </Link>
       </div>

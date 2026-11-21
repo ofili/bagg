@@ -345,7 +345,6 @@ export default function DashboardPage() {
               <div className="lg:col-span-8 lg:col-start-1 lg:row-start-3">
                 <ThisMonthCard
                   paidMinor={metric?.paid_this_month_minor ?? 0}
-                  paidCount={metric?.paid_count ?? 0}
                   sentCount={metric?.sent_count ?? 0}
                   draftCount={metric?.draft_count ?? 0}
                   currency={metric?.currency ?? selected ?? 'NGN'}

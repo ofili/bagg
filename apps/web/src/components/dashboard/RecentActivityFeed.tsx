@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -10,7 +11,8 @@ import {
   FileText,
   PaperPlaneTilt,
 } from '@phosphor-icons/react';
-import { MoneyAmount } from '@/components/ui';
+
+import { ErrorState, MoneyAmount } from '@/components/ui';
 import { cn } from '@/lib/cn';
 
 const API_BASE = '/api';
@@ -24,22 +26,28 @@ interface ActivityInvoice {
   currency: string;
   created_at: string;
   updated_at: string;
-  paid_at?: string | null;
-  sent_at?: string | null;
 }
 
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
-  const now = new Date();
-  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (diffSec < 60) return 'Just now';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}h ago`;
-  const diffDay = Math.floor(diffHour / 24);
-  if (diffDay < 7) return `${diffDay}d ago`;
+  if (Number.isNaN(date.getTime())) {
+    return 'Recently';
+  }
+
+  const diffSeconds = Math.floor((Date.now() - date.getTime()) / 1000);
+
+  if (diffSeconds < 0) return 'Just now';
+  if (diffSeconds < 60) return 'Just now';
+
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
 
   return new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
@@ -47,114 +55,198 @@ function formatRelativeTime(dateString: string): string {
   }).format(date);
 }
 
-export function RecentActivityFeed({ className }: { className?: string }) {
+function getActivityMeta(item: ActivityInvoice) {
+  const invoiceLabel = item.invoice_number
+    ? `Invoice #${item.invoice_number}`
+    : 'Invoice';
+
+  switch (item.status) {
+    case 'paid':
+      return {
+        icon: CheckCircle,
+        label: `${invoiceLabel} paid`,
+        iconClass: 'text-status-paid-fg',
+      };
+
+    case 'payment_claimed':
+      return {
+        icon: Clock,
+        label: `Payment claimed for ${invoiceLabel}`,
+        iconClass: 'text-status-due-fg',
+      };
+
+    case 'viewed':
+      return {
+        icon: Eye,
+        label: `${invoiceLabel} viewed`,
+        iconClass: 'text-link',
+      };
+
+    case 'sent':
+      return {
+        icon: PaperPlaneTilt,
+        label: `${invoiceLabel} sent`,
+        iconClass: 'text-ink',
+      };
+
+    default:
+      return {
+        icon: FileText,
+        label: item.invoice_number
+          ? invoiceLabel
+          : 'Draft invoice updated',
+        iconClass: 'text-text-muted',
+      };
+  }
+}
+
+function ActivitySkeleton() {
+  return (
+    <div
+      role="status"
+      aria-label="Loading recent invoice updates"
+      className="space-y-3 p-4"
+    >
+      {[0, 1, 2].map((item) => (
+        <div
+          key={item}
+          className="h-12 animate-pulse bg-surface-tint motion-reduce:animate-none"
+        />
+      ))}
+    </div>
+  );
+}
+
+export function RecentActivityFeed({
+  className,
+}: {
+  className?: string;
+}) {
   const [items, setItems] = useState<ActivityInvoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    let live = true;
-    fetch(`${API_BASE}/invoices?per_page=5&sort_by=updated_at&sort_order=desc`, {
-      credentials: 'include',
-      cache: 'no-store',
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!live || !data) return;
-        const list = Array.isArray(data.items) ? data.items : [];
-        setItems(list);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (live) setLoading(false);
-      });
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
 
-    return () => {
-      live = false;
-    };
+    try {
+      const response = await fetch(
+        `${API_BASE}/invoices?per_page=5&sort_by=updated_at&sort_order=desc`,
+        {
+          credentials: 'include',
+          cache: 'no-store',
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('Could not load recent invoice updates');
+      }
+
+      const data: unknown = await response.json();
+
+      if (
+        !data ||
+        typeof data !== 'object' ||
+        !('items' in data) ||
+        !Array.isArray(data.items)
+      ) {
+        throw new Error('Invalid invoice list response');
+      }
+
+      setItems(data.items as ActivityInvoice[]);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  function renderStatusMeta(item: ActivityInvoice) {
-    switch (item.status) {
-      case 'paid':
-        return {
-          icon: <CheckCircle weight="fill" className="h-4 w-4 text-leaf" />,
-          label: `Invoice #${item.invoice_number || 'draft'} paid`,
-          dot: 'bg-leaf',
-        };
-      case 'payment_claimed':
-        return {
-          icon: <Clock weight="fill" className="h-4 w-4 text-mango" />,
-          label: `Claim received for #${item.invoice_number || 'draft'}`,
-          dot: 'bg-mango',
-        };
-      case 'viewed':
-        return {
-          icon: <Eye weight="bold" className="h-4 w-4 text-link" />,
-          label: `Invoice #${item.invoice_number || 'draft'} viewed`,
-          dot: 'bg-link',
-        };
-      case 'sent':
-        return {
-          icon: <PaperPlaneTilt weight="fill" className="h-4 w-4 text-ink" />,
-          label: `Invoice #${item.invoice_number || 'draft'} sent`,
-          dot: 'bg-ink',
-        };
-      default:
-        return {
-          icon: <FileText weight="duotone" className="h-4 w-4 text-text-muted" />,
-          label: item.invoice_number ? `Invoice #${item.invoice_number}` : 'Draft invoice',
-          dot: 'bg-text-muted',
-        };
-    }
-  }
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   return (
-    <section aria-labelledby="activity-heading" className={cn('space-y-2', className)}>
-      <h2
-        id="activity-heading"
-        className="text-heading font-extrabold text-ink"
-      >
-        Recent activity
-      </h2>
+    <section
+      aria-labelledby="recent-updates-heading"
+      className={cn('space-y-2', className)}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h2
+          id="recent-updates-heading"
+          className="text-heading font-extrabold text-ink"
+        >
+          Recent invoice updates
+        </h2>
+      </div>
 
-      <div className="border-brut border-ink bg-surface shadow-brut-sm divide-y-2 divide-ink">
+      <div className="divide-y-2 divide-ink border-brut border-ink bg-surface shadow-brut-sm">
         {loading ? (
-          <div className="space-y-3 p-4">
-            <div className="h-10 animate-pulse bg-surface-tint" />
-            <div className="h-10 animate-pulse bg-surface-tint" />
-            <div className="h-10 animate-pulse bg-surface-tint" />
+          <ActivitySkeleton />
+        ) : error ? (
+          <div className="p-4">
+            <ErrorState
+              compact
+              title="Updates unavailable"
+              description="Your recent invoice updates could not be loaded."
+              retryLabel="Retry"
+              onRetry={() => void load()}
+            />
           </div>
         ) : items.length === 0 ? (
-          <div className="p-5 text-center text-caption text-text-muted">
-            No recent document activity yet.
+          <div className="p-5 text-center">
+            <FileText
+              aria-hidden
+              className="mx-auto h-7 w-7 text-text-muted"
+            />
+            <p className="mt-2 text-caption font-bold text-ink">
+              No invoice updates yet
+            </p>
+            <p className="mt-1 text-caption text-text-muted">
+              Changes to your invoices will appear here.
+            </p>
           </div>
         ) : (
           items.map((item) => {
-            const meta = renderStatusMeta(item);
-            const timeAgo = formatRelativeTime(item.updated_at || item.created_at);
+            const meta = getActivityMeta(item);
+            const Icon = meta.icon;
+            const updatedAt = item.updated_at || item.created_at;
 
             return (
               <Link
                 key={item.id}
-                href={`/invoices/${item.id}`}
-                className="flex items-center justify-between p-3.5 transition-colors hover:bg-surface-tint sm:p-4"
+                href={`/invoices/${encodeURIComponent(item.id)}`}
+                className="flex min-h-[68px] items-center justify-between gap-3 p-3.5 transition-colors hover:bg-surface-tint focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-ink sm:p-4"
               >
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <span className="mt-0.5 shrink-0">{meta.icon}</span>
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <Icon
+                    aria-hidden
+                    weight="bold"
+                    className={cn(
+                      'mt-0.5 h-4 w-4 shrink-0',
+                      meta.iconClass,
+                    )}
+                  />
+
                   <div className="min-w-0">
                     <p className="truncate text-caption font-extrabold text-ink sm:text-body">
                       {meta.label}
                     </p>
+
                     <p className="truncate text-[11px] text-text-soft">
                       {item.client_name || 'No client specified'}
                     </p>
                   </div>
                 </div>
 
-                <div className="ml-3 shrink-0 text-right">
-                  <span className="text-[11px] font-bold text-text-muted block">
-                    {timeAgo}
-                  </span>
+                <div className="ml-2 shrink-0 text-right">
+                  <time
+                    dateTime={updatedAt}
+                    className="block text-[11px] font-bold text-text-muted"
+                  >
+                    {formatRelativeTime(updatedAt)}
+                  </time>
+
                   <MoneyAmount
                     amountMinor={item.total_minor}
                     currency={item.currency}
@@ -167,13 +259,12 @@ export function RecentActivityFeed({ className }: { className?: string }) {
           })
         )}
 
-        {/* Footer Link */}
         <Link
           href="/invoices"
-          className="flex items-center justify-between bg-surface-sunken p-3 text-caption font-extrabold text-link transition-colors hover:bg-surface-tint hover:underline"
+          className="flex min-h-11 items-center justify-between gap-3 bg-surface-sunken p-3 text-caption font-extrabold text-link transition-colors hover:bg-surface-tint hover:underline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-ink"
         >
-          <span>See all invoices & activity</span>
-          <ArrowRight aria-hidden className="h-3.5 w-3.5" />
+          <span>View all invoices</span>
+          <ArrowRight aria-hidden className="h-3.5 w-3.5 shrink-0" />
         </Link>
       </div>
     </section>
