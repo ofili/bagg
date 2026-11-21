@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
-  ChatDots,
-  CheckCircle,
-  CircleNotch,
+  
+  CheckCircleIcon,
+  CircleNotchIcon,
   Plus,
-  WarningCircle,
+  WarningCircleIcon,
   X,
 } from '@phosphor-icons/react';
 
@@ -78,6 +78,8 @@ interface Invoice {
     | 'partially_paid'
     | 'paid'
     | 'cancelled';
+    remaining_minor: number;
+  balance_due_minor: number;
   effective_status?: string | null;
   is_overdue?: boolean;
   days_overdue?: number;
@@ -354,8 +356,12 @@ export default function InvoicesPage() {
       return;
     }
 
-    const outstandingMinor =
-      reviewingInvoice.total_minor - reviewingInvoice.amount_paid_minor;
+    const outstandingMinor = Math.max(
+      0,
+      reviewingInvoice.remaining_minor ??
+        reviewingInvoice.balance_due_minor ??
+        0,
+    );
 
     if (minorValue > outstandingMinor) {
       setActionError(
@@ -493,24 +499,14 @@ export default function InvoicesPage() {
       align: 'left',
       sortable: true,
       render: (invoice) => (
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/invoices/${encodeURIComponent(invoice.id)}`}
-            className="font-bold underline-offset-4 hover:underline"
-          >
-            {invoice.invoice_number}
-          </Link>
-
-          {(invoice.comment_count ?? 0) > 0 && (
-            <span
-              title={`${invoice.comment_count} comment${(invoice.comment_count ?? 0) > 1 ? 's' : ''}`}
-              className="inline-flex items-center gap-1 rounded-small border-brut-thin border-ink bg-surface-tint px-1.5 py-0.5 text-caption font-bold text-ink"
-            >
-              <ChatDots className="h-3 w-3 text-text-muted" />
-              <span>{invoice.comment_count}</span>
-            </span>
+        <Money
+          amountMinor={Math.max(
+            0,
+            invoice.remaining_minor ?? invoice.balance_due_minor ?? 0,
           )}
-        </div>
+          currency={invoice.currency}
+          hideCurrencyCode
+        />
       ),
     },
     {
@@ -695,7 +691,7 @@ export default function InvoicesPage() {
           className="flex flex-wrap items-center justify-between gap-3"
         >
           <p className="flex items-center gap-2 text-body">
-            <WarningCircle
+            <WarningCircleIcon
               aria-hidden
               className="h-4 w-4 shrink-0"
             />
@@ -731,7 +727,7 @@ export default function InvoicesPage() {
         chipLabel="Filter invoices by status"
         search={table.search}
         onSearchChange={table.setSearch}
-        searchPlaceholder="Search invoice number, customer or status"
+        searchPlaceholder="Search invoice number or customer"
         filters={[
           {
             key: 'currency',
@@ -873,7 +869,7 @@ export default function InvoicesPage() {
                   role="status"
                   className="flex justify-center py-6 text-text-muted"
                 >
-                  <CircleNotch
+                  <CircleNotchIcon
                     aria-hidden
                     className="h-6 w-6 animate-spin"
                   />
@@ -995,7 +991,7 @@ export default function InvoicesPage() {
                                     void handleConfirmFull(claim.id)
                                   }
                                 >
-                                  <CheckCircle
+                                  <CheckCircleIcon
                                     aria-hidden
                                     className="h-4 w-4"
                                   />

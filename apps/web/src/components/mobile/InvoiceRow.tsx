@@ -15,6 +15,8 @@ export interface InvoiceRowData {
   currency: string;
   total_minor: number;
   amount_paid_minor: number;
+  remaining_minor?: number;
+  balance_due_minor?: number;
   due_date: string;
   status: string;
   effective_status?: string | null;
@@ -97,9 +99,9 @@ export function InvoiceRow({
   overdue: boolean;
   onReview: (inv: InvoiceRowData) => void;
 }) {
-  const total = safeAmount(inv.total_minor);
-  const paid = safeAmount(inv.amount_paid_minor);
-  const balance = Math.max(0, total - paid);
+  const balance = safeAmount(
+    inv.remaining_minor ?? inv.balance_due_minor ?? 0,
+  );
 
   const canReview = inv.latest_claim?.status === 'pending';
 
