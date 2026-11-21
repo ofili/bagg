@@ -30,13 +30,20 @@ export function ErrorState({
       role="alert"
       className={cn(
         'flex flex-col items-center text-center',
-        compact ? 'gap-2 py-5' : 'gap-3 border-brut border-ink bg-surface p-6 sm:p-8',
+        compact
+          ? 'gap-2 py-5'
+          : 'gap-3 border-brut border-ink bg-surface p-6 sm:p-8',
         className,
       )}
     >
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-danger/10 text-danger">
+      <span
+        aria-hidden="true"
+        className={cn(
+          'flex h-11 w-11 items-center justify-center rounded-full',
+          'bg-danger/10 text-danger',
+        )}
+      >
         <WarningCircleIcon
-          aria-hidden="true"
           weight="fill"
           className="h-6 w-6"
         />
@@ -68,7 +75,13 @@ export function ErrorState({
             <button
               type="button"
               onClick={onRetry}
-              className={cn(buttonStyles({ variant: 'ink', zone: 'calm' }), 'px-4')}
+              className={cn(
+                buttonStyles({
+                  variant: 'ink',
+                  zone: 'calm',
+                }),
+                'px-4',
+              )}
             >
               {retryLabel}
             </button>

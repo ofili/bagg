@@ -1,9 +1,10 @@
-"use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/cn";
-import { buttonStyles } from "./button";
-import { BaggSelect } from "./BaggSelect";
+'use client';
+
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/cn';
+import { buttonStyles } from './button';
+import { BaggSelect } from './BaggSelect';
 
 type PaginationProps = {
   page: number;
@@ -21,20 +22,31 @@ function getPageNumbers(
   current: number,
   total: number,
 ): (number | null)[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, index) => index + 1);
+  }
 
   const pages: (number | null)[] = [];
-  const addPage = (p: number) => {
-    if (!pages.includes(p)) pages.push(p);
-  };
 
-  addPage(1);
-  if (current > 3) pages.push(null); // left ellipsis
-  for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) {
-    addPage(p);
+  pages.push(1);
+
+  if (current > 3) {
+    pages.push(null);
   }
-  if (current < total - 2) pages.push(null); // right ellipsis
-  addPage(total);
+
+  for (
+    let page = Math.max(2, current - 1);
+    page <= Math.min(total - 1, current + 1);
+    page += 1
+  ) {
+    pages.push(page);
+  }
+
+  if (current < total - 2) {
+    pages.push(null);
+  }
+
+  pages.push(total);
 
   return pages;
 }
@@ -49,69 +61,97 @@ export function Pagination({
   onPerPageChange,
   className,
 }: PaginationProps) {
-  if (totalPages <= 1 && total <= perPage) return null;
+  const safeTotal = Math.max(0, total);
+  const safePerPage = Math.max(1, perPage);
+  const safeTotalPages = Math.max(
+    0,
+    Math.ceil(safeTotal / safePerPage),
+    totalPages,
+  );
 
-  const from = Math.min((page - 1) * perPage + 1, total);
-  const to = Math.min(page * perPage, total);
-  const pages = getPageNumbers(page, totalPages);
+  if (safeTotalPages <= 1 && safeTotal <= safePerPage) {
+    return null;
+  }
+
+  const safePage = Math.min(
+    Math.max(1, page),
+    Math.max(1, safeTotalPages),
+  );
+
+  const from =
+    safeTotal === 0
+      ? 0
+      : Math.min((safePage - 1) * safePerPage + 1, safeTotal);
+
+  const to = Math.min(safePage * safePerPage, safeTotal);
+  const pages = getPageNumbers(safePage, safeTotalPages);
 
   return (
-    <div
+    <nav
+      aria-label="Pagination"
       className={cn(
-        "flex flex-wrap items-center justify-between gap-3 text-caption text-text-soft",
+        'flex flex-wrap items-center justify-between gap-3',
+        'text-caption text-text-soft',
         className,
       )}
     >
-      {/* Count */}
-      <span>
-        Showing {from}–{to} of {total}
+      <span aria-live="polite" aria-atomic="true">
+        Showing {from}–{to} of {safeTotal}
       </span>
 
-      {/* Page controls */}
       <div className="flex items-center gap-1">
         <button
           type="button"
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
+          disabled={safePage <= 1}
+          onClick={() => onPageChange(safePage - 1)}
           className={cn(
-            buttonStyles({ variant: "outline", zone: "calm" }),
-            "px-2",
+            buttonStyles({ variant: 'outline', zone: 'calm' }),
+            'px-2',
           )}
           aria-label="Previous page"
         >
           <ChevronLeft aria-hidden className="h-4 w-4" />
         </button>
 
-        {pages.map((p, i) =>
-          p === null ? (
-            <span key={`ellipsis-${i}`} className="px-1">
+        {pages.map((pageNumber, index) =>
+          pageNumber === null ? (
+            <span
+              key={`ellipsis-${index}`}
+              aria-hidden="true"
+              className="px-1"
+            >
               …
             </span>
           ) : (
             <button
-              key={p}
+              key={pageNumber}
               type="button"
-              onClick={() => onPageChange(p)}
+              onClick={() => onPageChange(pageNumber)}
               className={cn(
-                "flex h-9 min-w-9 items-center justify-center rounded-btn border px-2 text-body font-semibold transition-colors",
-                p === page
-                  ? "border-ink bg-ink text-surface"
-                  : "border-line hover:border-ink hover:bg-surface-tint",
+                'flex h-9 min-w-9 items-center justify-center',
+                'rounded-btn border px-2 text-body font-semibold',
+                'transition-colors',
+                pageNumber === safePage
+                  ? 'border-ink bg-ink text-surface'
+                  : 'border-line hover:border-ink hover:bg-surface-tint',
               )}
-              aria-current={p === page ? "page" : undefined}
+              aria-current={
+                pageNumber === safePage ? 'page' : undefined
+              }
+              aria-label={`Page ${pageNumber}`}
             >
-              {p}
+              {pageNumber}
             </button>
           ),
         )}
 
         <button
           type="button"
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
+          disabled={safePage >= safeTotalPages}
+          onClick={() => onPageChange(safePage + 1)}
           className={cn(
-            buttonStyles({ variant: "outline", zone: "calm" }),
-            "px-2",
+            buttonStyles({ variant: 'outline', zone: 'calm' }),
+            'px-2',
           )}
           aria-label="Next page"
         >
@@ -119,19 +159,18 @@ export function Pagination({
         </button>
       </div>
 
-      {/* Per-page */}
       {onPerPageChange && (
         <BaggSelect
           label="Per page"
           hideLabel
-          value={String(perPage)}
-          onChange={(v) => onPerPageChange(Number(v))}
-          options={perPageOptions.map((n) => ({
-            value: String(n),
-            label: `${n} per page`,
+          value={String(safePerPage)}
+          onChange={(value) => onPerPageChange(Number(value))}
+          options={perPageOptions.map((count) => ({
+            value: String(count),
+            label: `${count} per page`,
           }))}
         />
       )}
-    </div>
+    </nav>
   );
 }

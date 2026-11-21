@@ -16,7 +16,8 @@ export function Skeleton({
     <div
       aria-hidden="true"
       className={cn(
-        'animate-pulse bg-surface-tint',
+        'bg-surface-tint',
+        'animate-pulse motion-reduce:animate-none',
         variant === 'text' && 'h-4 rounded-small',
         variant === 'rectangular' && 'rounded-none',
         variant === 'circular' && 'rounded-full',
@@ -34,17 +35,19 @@ export function SkeletonText({
   lines?: number;
   className?: string;
 }) {
+  const safeLines = Math.max(0, Math.floor(lines));
+
   return (
     <div
       className={cn('space-y-2', className)}
       aria-hidden="true"
     >
-      {Array.from({ length: lines }, (_, index) => (
+      {Array.from({ length: safeLines }, (_, index) => (
         <Skeleton
           key={index}
           variant="text"
           className={
-            index === lines - 1 ? 'w-2/3' : 'w-full'
+            index === safeLines - 1 ? 'w-2/3' : 'w-full'
           }
         />
       ))}

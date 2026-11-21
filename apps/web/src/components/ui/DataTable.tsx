@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -41,10 +42,29 @@ const alignClass = {
   center: 'text-center',
 };
 
-const shellClass = 'overflow-hidden border-brut border-ink bg-surface';
+const shellClass =
+  'overflow-hidden border-brut border-ink bg-surface';
 
 const headerCellClass =
   'border-b-brut border-ink bg-surface-tint px-4 py-3 text-caption font-extrabold uppercase tracking-wide text-text-soft';
+
+const INTERACTIVE_SELECTOR = [
+  'button',
+  'a',
+  'input',
+  'select',
+  'textarea',
+  '[role="button"]',
+  '[role="link"]',
+  '[data-no-row-click]',
+].join(', ');
+
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    Boolean(target.closest(INTERACTIVE_SELECTOR))
+  );
+}
 
 function SortIcon({
   column,
@@ -57,9 +77,7 @@ function SortIcon({
 }) {
   if (!column.sortable) return null;
 
-  const active = sortBy === column.key;
-
-  if (!active) {
+  if (sortBy !== column.key) {
     return (
       <ArrowUpDown
         aria-hidden
@@ -89,9 +107,18 @@ function LoadingTable<TRow>({
   tableClassName?: string;
 }) {
   return (
-    <div role="status" aria-live="polite" aria-label="Loading records">
-      <div className={cn(shellClass, 'hidden md:block')} aria-hidden="true">
-        <table className={cn('w-full text-left text-body', tableClassName)}>
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label="Loading records"
+    >
+      <div
+        className={cn(shellClass, 'hidden md:block')}
+        aria-hidden="true"
+      >
+        <table
+          className={cn('w-full text-left text-body', tableClassName)}
+        >
           <thead>
             <tr>
               {columns.map((column) => (
@@ -124,9 +151,11 @@ function LoadingTable<TRow>({
                   >
                     <div
                       className={cn(
-                        'h-4 animate-pulse rounded-small bg-surface-tint',
-                        'motion-reduce:animate-none',
-                        column.align === 'right' ? 'ml-auto w-16' : 'w-3/4',
+                        'h-4 rounded-small bg-surface-tint',
+                        'animate-pulse motion-reduce:animate-none',
+                        column.align === 'right'
+                          ? 'ml-auto w-16'
+                          : 'w-3/4',
                       )}
                     />
                   </td>
@@ -137,13 +166,17 @@ function LoadingTable<TRow>({
         </table>
       </div>
 
-      <div className="space-y-3 md:hidden" aria-hidden="true">
+      <div
+        className="space-y-3 md:hidden"
+        aria-hidden="true"
+      >
         {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={index}
             className={cn(
               shellClass,
-              'h-24 animate-pulse bg-surface-tint motion-reduce:animate-none',
+              'h-24 bg-surface-tint',
+              'animate-pulse motion-reduce:animate-none',
             )}
           />
         ))}
@@ -173,43 +206,59 @@ export function DataTable<TRow>({
   const router = useRouter();
   const isClickable = Boolean(onRowClick || getRowHref);
 
+  const activateRow = (row: TRow) => {
+    if (onRowClick) {
+      onRowClick(row);
+      return;
+    }
+
+    if (getRowHref) {
+      router.push(getRowHref(row));
+    }
+  };
+
   const handleRowClick = (
     row: TRow,
-    e: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>,
+    event: React.MouseEvent<HTMLElement>,
   ) => {
-    const target = e.target as HTMLElement | null;
+    if (isInteractiveTarget(event.target)) return;
+
+    if (getRowHref && (event.metaKey || event.ctrlKey)) {
+      window.open(getRowHref(row), '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    activateRow(row);
+  };
+
+  const handleRowAuxClick = (
+    row: TRow,
+    event: React.MouseEvent<HTMLElement>,
+  ) => {
     if (
-      target?.closest(
-        'button, a, input, select, textarea, [role="button"], [data-no-row-click]',
-      )
+      event.button !== 1 ||
+      !getRowHref ||
+      isInteractiveTarget(event.target)
     ) {
       return;
     }
 
-    if (onRowClick) {
-      onRowClick(row);
-    } else if (getRowHref) {
-      const href = getRowHref(row);
-      if ('metaKey' in e && (e.metaKey || e.ctrlKey)) {
-        window.open(href, '_blank', 'noopener,noreferrer');
-        return;
-      }
-      router.push(href);
-    }
+    window.open(getRowHref(row), '_blank', 'noopener,noreferrer');
   };
 
-  const handleRowAuxClick = (row: TRow, e: React.MouseEvent<HTMLElement>) => {
-    if (e.button === 1 && getRowHref) {
-      const target = e.target as HTMLElement | null;
-      if (
-        target?.closest(
-          'button, a, input, select, textarea, [role="button"], [data-no-row-click]',
-        )
-      ) {
-        return;
-      }
-      window.open(getRowHref(row), '_blank', 'noopener,noreferrer');
+  const handleRowKeyDown = (
+    row: TRow,
+    event: React.KeyboardEvent<HTMLElement>,
+  ) => {
+    if (
+      (event.key !== 'Enter' && event.key !== ' ') ||
+      isInteractiveTarget(event.target)
+    ) {
+      return;
     }
+
+    event.preventDefault();
+    activateRow(row);
   };
 
   if (loading) {
@@ -316,31 +365,35 @@ export function DataTable<TRow>({
                 <tr
                   key={getRowKey(row)}
                   tabIndex={isClickable ? 0 : undefined}
-                  role={isClickable ? 'button' : undefined}
-                  onClick={isClickable ? (e) => handleRowClick(row, e) : undefined}
-                  onAuxClick={isClickable ? (e) => handleRowAuxClick(row, e) : undefined}
+                  aria-label={
+                    isClickable ? 'Open record' : undefined
+                  }
+                  onClick={
+                    isClickable
+                      ? (event) => handleRowClick(row, event)
+                      : undefined
+                  }
+                  onAuxClick={
+                    isClickable
+                      ? (event) => handleRowAuxClick(row, event)
+                      : undefined
+                  }
                   onKeyDown={
                     isClickable
-                      ? (e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            const target = e.target as HTMLElement | null;
-                            if (
-                              target?.closest(
-                                'button, a, input, select, textarea, [role="button"], [data-no-row-click]',
-                              )
-                            ) {
-                              return;
-                            }
-                            e.preventDefault();
-                            handleRowClick(row, e);
-                          }
-                        }
+                      ? (event) => handleRowKeyDown(row, event)
                       : undefined
                   }
                   className={cn(
                     'transition-colors',
                     isClickable
-                      ? 'cursor-pointer hover:bg-surface-tint active:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink'
+                      ? [
+                          'cursor-pointer hover:bg-surface-tint',
+                          'active:bg-surface-sunken',
+                          'focus-visible:outline',
+                          'focus-visible:outline-2',
+                          'focus-visible:outline-ink',
+                          'focus-visible:outline-offset-[-2px]',
+                        ]
                       : 'hover:bg-surface-tint/60',
                   )}
                 >
@@ -368,29 +421,26 @@ export function DataTable<TRow>({
           <li
             key={getRowKey(row)}
             tabIndex={isClickable ? 0 : undefined}
-            role={isClickable ? 'button' : undefined}
-            onClick={isClickable ? (e) => handleRowClick(row, e) : undefined}
+            aria-label={
+              isClickable ? 'Open record' : undefined
+            }
+            onClick={
+              isClickable
+                ? (event) => handleRowClick(row, event)
+                : undefined
+            }
             onKeyDown={
               isClickable
-                ? (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      const target = e.target as HTMLElement | null;
-                      if (
-                        target?.closest(
-                          'button, a, input, select, textarea, [role="button"], [data-no-row-click]',
-                        )
-                      ) {
-                        return;
-                      }
-                      e.preventDefault();
-                      handleRowClick(row, e);
-                    }
-                  }
+                ? (event) => handleRowKeyDown(row, event)
                 : undefined
             }
             className={cn(
-              isClickable &&
-                'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink',
+              isClickable && [
+                'cursor-pointer',
+                'focus-visible:outline',
+                'focus-visible:outline-2',
+                'focus-visible:outline-ink',
+              ],
             )}
           >
             {renderMobileCard(row)}

@@ -1,9 +1,10 @@
-"use client";
 
-import { cn } from "@/lib/cn";
-import { ChipStrip } from "@/components/mobile/ChipStrip";
-import { BaggSelect } from "./BaggSelect";
-import { SearchInput } from "./SearchInput";
+'use client';
+
+import { cn } from '@/lib/cn';
+import { ChipStrip } from '@/components/mobile/ChipStrip';
+import { BaggSelect } from './BaggSelect';
+import { SearchInput } from './SearchInput';
 
 export type FilterConfig = {
   key: string;
@@ -15,18 +16,14 @@ export type FilterConfig = {
 };
 
 type TableToolbarProps = {
-  // Search
   search: string;
-  onSearchChange: (v: string) => void;
+  onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
-  // Status chips (optional)
   chips?: { value: string; label: string; count?: number }[];
   chipValue?: string;
-  onChipChange?: (v: string) => void;
+  onChipChange?: (value: string) => void;
   chipLabel?: string;
-  // Extra filter dropdowns
   filters?: FilterConfig[];
-  // Right-side CTA
   actions?: React.ReactNode;
   className?: string;
 };
@@ -36,7 +33,7 @@ export function TableToolbar({
   onSearchChange,
   searchPlaceholder,
   chips,
-  chipValue = "",
+  chipValue = '',
   onChipChange,
   chipLabel,
   filters,
@@ -44,41 +41,46 @@ export function TableToolbar({
   className,
 }: TableToolbarProps) {
   return (
-    <div className={cn("space-y-4", className)}>
-      {/* Row 1: Chip strip (status filters) */}
+    <div className={cn('space-y-4', className)}>
       {chips && chips.length > 0 && onChipChange && (
         <ChipStrip
           chips={chips}
           value={chipValue}
           onChange={onChipChange}
-          label={chipLabel ?? "Filter by status"}
+          label={chipLabel ?? 'Filter by status'}
         />
       )}
 
-      {/* Row 2: Search + dropdowns + CTA */}
-      <div className="flex items-center gap-2 sm:flex-wrap sm:gap-3">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <SearchInput
           value={search}
           onChange={onSearchChange}
           placeholder={searchPlaceholder}
-          className="min-w-0 flex-1"
+          className="w-full min-w-0 sm:w-auto sm:flex-1"
         />
 
-        {filters?.map((f) => (
-          <div key={f.key} className="shrink-0 sm:shrink sm:w-auto">
+        {filters?.map((filter) => (
+          <div
+            key={filter.key}
+            className="min-w-0 flex-1 sm:w-auto sm:flex-none"
+          >
             <BaggSelect
-              label={f.label}
-              hideLabel={f.hideLabel ?? true}
-              value={f.value}
-              onChange={f.onChange}
-              options={f.options}
+              label={filter.label}
+              hideLabel={filter.hideLabel ?? true}
+              value={filter.value}
+              onChange={filter.onChange}
+              options={filter.options}
               width="auto"
-              className="w-auto"
+              className="w-full sm:w-auto"
             />
           </div>
         ))}
 
-        {actions && <div className="ml-auto shrink-0">{actions}</div>}
+        {actions && (
+          <div className="ml-auto flex w-full justify-end sm:w-auto">
+            {actions}
+          </div>
+        )}
       </div>
     </div>
   );
