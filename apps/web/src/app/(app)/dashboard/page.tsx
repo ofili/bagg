@@ -1,11 +1,10 @@
+"use client";
 
-'use client';
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { Plus } from "@phosphor-icons/react";
 
-import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Plus } from '@phosphor-icons/react';
-
-import { BagCharacter } from '@/components/brand';
+import { BagCharacter } from "@/components/brand";
 import {
   HeroOwedCard,
   NeedsAttentionStrip,
@@ -14,18 +13,18 @@ import {
   SetupChecklistCard,
   type CurrencyMetrics,
   type CurrencyMonthMetrics,
-} from '@/components/dashboard';
+} from "@/components/dashboard";
 import {
   ErrorState,
   PageContainer,
   PageHeader,
   buttonStyles,
-} from '@/components/ui';
-import { cn } from '@/lib/cn';
+} from "@/components/ui";
+import { cn } from "@/lib/cn";
 
-const API_BASE = '/api';
+const API_BASE = "/api";
 
-type SetupVisibility = 'expanded' | 'minimized' | 'dismissed';
+type SetupVisibility = "expanded" | "minimized" | "dismissed";
 
 interface DashboardProfile {
   name: string;
@@ -35,7 +34,7 @@ interface DashboardProfile {
 
 function useDashboardProfile(): DashboardProfile {
   const [profile, setProfile] = useState<DashboardProfile>({
-    name: '',
+    name: "",
     workspaceId: null,
     loaded: false,
   });
@@ -44,8 +43,8 @@ function useDashboardProfile(): DashboardProfile {
     let live = true;
 
     fetch(`${API_BASE}/auth/me`, {
-      credentials: 'include',
-      cache: 'no-store',
+      credentials: "include",
+      cache: "no-store",
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
@@ -56,11 +55,9 @@ function useDashboardProfile(): DashboardProfile {
         const workspaceId = data?.workspace?.id;
 
         setProfile({
-          name: fullName
-            ? fullName.split(/\s+/)[0]
-            : businessName || '',
+          name: fullName ? fullName.split(/\s+/)[0] : businessName || "",
           workspaceId:
-            typeof workspaceId === 'string' && workspaceId.length > 0
+            typeof workspaceId === "string" && workspaceId.length > 0
               ? workspaceId
               : null,
           loaded: true,
@@ -69,7 +66,7 @@ function useDashboardProfile(): DashboardProfile {
       .catch(() => {
         if (live) {
           setProfile({
-            name: '',
+            name: "",
             workspaceId: null,
             loaded: true,
           });
@@ -109,17 +106,18 @@ export default function DashboardPage() {
   const [metrics, setMetrics] = useState<CurrencyMetrics[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState("");
   const [history, setHistory] = useState<CurrencyMonthMetrics[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyFailed, setHistoryFailed] = useState(false);
-  const [hasDispatchedDocument, setHasDispatchedDocument] =
-    useState<boolean | null>(null);
+  const [hasDispatchedDocument, setHasDispatchedDocument] = useState<
+    boolean | null
+  >(null);
 
   const profile = useDashboardProfile();
 
   const [setupVisibility, setSetupVisibility] =
-    useState<SetupVisibility>('expanded');
+    useState<SetupVisibility>("expanded");
   const [setupPreferenceReady, setSetupPreferenceReady] = useState(false);
 
   const setupPreferenceKey = profile.workspaceId
@@ -129,16 +127,16 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!profile.loaded) return;
 
-    let visibility: SetupVisibility = 'expanded';
+    let visibility: SetupVisibility = "expanded";
 
     if (setupPreferenceKey) {
       try {
         const saved = window.localStorage.getItem(setupPreferenceKey);
 
         if (
-          saved === 'expanded' ||
-          saved === 'minimized' ||
-          saved === 'dismissed'
+          saved === "expanded" ||
+          saved === "minimized" ||
+          saved === "dismissed"
         ) {
           visibility = saved;
         }
@@ -174,19 +172,19 @@ export default function DashboardPage() {
       const response = await fetch(
         `${API_BASE}/invoices/metrics/history?months=6`,
         {
-          credentials: 'include',
-          cache: 'no-store',
+          credentials: "include",
+          cache: "no-store",
         },
       );
 
       if (!response.ok) {
-        throw new Error('Could not load performance history');
+        throw new Error("Could not load performance history");
       }
 
       const data: unknown = await response.json();
 
       if (!Array.isArray(data)) {
-        throw new Error('Invalid performance history response');
+        throw new Error("Invalid performance history response");
       }
 
       setHistory(data as CurrencyMonthMetrics[]);
@@ -203,18 +201,18 @@ export default function DashboardPage() {
 
     try {
       const response = await fetch(`${API_BASE}/invoices/metrics`, {
-        credentials: 'include',
-        cache: 'no-store',
+        credentials: "include",
+        cache: "no-store",
       });
 
       if (!response.ok) {
-        throw new Error('Could not load dashboard metrics');
+        throw new Error("Could not load dashboard metrics");
       }
 
       const data: unknown = await response.json();
 
       if (!Array.isArray(data)) {
-        throw new Error('Invalid dashboard metrics response');
+        throw new Error("Invalid dashboard metrics response");
       }
 
       const nextMetrics = data as CurrencyMetrics[];
@@ -223,7 +221,7 @@ export default function DashboardPage() {
       setSelected((current) =>
         nextMetrics.some((item) => item.currency === current)
           ? current
-          : nextMetrics[0]?.currency ?? '',
+          : (nextMetrics[0]?.currency ?? ""),
       );
     } catch {
       setFailed(true);
@@ -251,9 +249,7 @@ export default function DashboardPage() {
   );
 
   const isTeachingMode =
-    !loading &&
-    !hasMetricActivity &&
-    hasDispatchedDocument !== true;
+    !loading && !hasMetricActivity && hasDispatchedDocument !== true;
 
   const handleMilestonesLoaded = useCallback((dispatched: boolean) => {
     setHasDispatchedDocument(dispatched);
@@ -263,22 +259,20 @@ export default function DashboardPage() {
   // create-invoice action. If it is minimised or dismissed, expose that action
   // in the page header on mobile as well as desktop.
   const showHeaderCreateAction =
-    !isTeachingMode ||
-    !setupPreferenceReady ||
-    setupVisibility !== 'expanded';
+    !isTeachingMode || !setupPreferenceReady || setupVisibility !== "expanded";
 
   return (
     <PageContainer width="list">
       <PageHeader
         eyebrow="Your workspace"
-        title={profile.name ? `Hi, ${profile.name}` : 'Hi there'}
+        title={profile.name ? `Hi, ${profile.name}` : "Hi there"}
         description="A clear view of what you’re owed, what needs attention, and what’s happening across your invoices."
         actions={
           <>
-            {setupPreferenceReady && setupVisibility === 'dismissed' && (
+            {setupPreferenceReady && setupVisibility === "dismissed" && (
               <button
                 type="button"
-                onClick={() => changeSetupVisibility('expanded')}
+                onClick={() => changeSetupVisibility("expanded")}
                 className="inline-flex min-h-11 items-center rounded-btn border-brut-thin border-ink bg-surface px-3 py-2 text-caption font-extrabold text-ink shadow-brut-sm transition-colors hover:bg-surface-tint"
               >
                 Setup guide
@@ -289,8 +283,8 @@ export default function DashboardPage() {
               <Link
                 href="/invoices/new"
                 className={cn(
-                  buttonStyles({ variant: 'accent' }),
-                  'w-full sm:w-auto',
+                  buttonStyles({ variant: "accent" }),
+                  "w-full sm:w-auto",
                 )}
               >
                 <Plus aria-hidden weight="bold" className="h-4 w-4" />
@@ -327,22 +321,24 @@ export default function DashboardPage() {
 
               <HeroOwedCard
                 isTeachingMode
-                selectedCurrency={selected || 'NGN'}
+                selectedCurrency={selected || "NGN"}
               />
 
               <div className="flex items-center gap-4 border-brut border-ink bg-surface p-5 shadow-brut-sm sm:p-6">
                 <BagCharacter
-                  mood="happy"
+                  mood="sleepy"
                   size={54}
                   className="shrink-0"
+                  decorative
                 />
                 <div>
                   <p className="text-body font-extrabold text-ink">
-                    Nothing needs you yet. Nice and calm.
+                    all caught up.
                   </p>
                   <p className="mt-1 text-caption text-text-soft">
-                    Your invoices, client payments, and action items will
-                    appear here once you send your first invoice.
+                    Nothing needs you right now. Your invoices, client payments,
+                    and action items will appear here once you send your first
+                    invoice.
                   </p>
                 </div>
               </div>
@@ -367,7 +363,7 @@ export default function DashboardPage() {
                   overdueCount={metric?.overdue_count ?? 0}
                   claimsCount={metric?.claimed_count ?? 0}
                   viewedCount={metric?.viewed_count ?? 0}
-                  currency={metric?.currency ?? selected ?? 'NGN'}
+                  currency={metric?.currency ?? selected ?? "NGN"}
                 />
               </div>
 
@@ -376,7 +372,7 @@ export default function DashboardPage() {
                   paidMinor={metric?.paid_this_month_minor ?? 0}
                   sentCount={metric?.sent_count ?? 0}
                   draftCount={metric?.draft_count ?? 0}
-                  currency={metric?.currency ?? selected ?? 'NGN'}
+                  currency={metric?.currency ?? selected ?? "NGN"}
                   history={history}
                   historyLoading={historyLoading}
                   historyFailed={historyFailed}

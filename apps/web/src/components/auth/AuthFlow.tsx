@@ -1,13 +1,12 @@
+"use client";
 
-'use client';
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
-
-import { BagCharacter, BagMark, Wordmark } from '@/components/brand';
+import { BagCharacter, BagMark, Wordmark } from "@/components/brand";
 import {
   Alert,
   Button,
@@ -16,21 +15,21 @@ import {
   StepIndicator,
   TextField,
   buttonStyles,
-} from '@/components/ui';
-import { cn } from '@/lib/cn';
+} from "@/components/ui";
+import { cn } from "@/lib/cn";
 import {
   getPostAuthDestination,
   readOnboardingContinuation,
-} from '@/lib/onboarding-navigation';
+} from "@/lib/onboarding-navigation";
 import {
   captureFirstTouchAttribution,
   readFirstTouchAttribution,
-} from '@/lib/acquisition-attribution';
+} from "@/lib/acquisition-attribution";
 
-const API_BASE = '/api';
+const API_BASE = "/api";
 const RESEND_SECONDS = 30;
 
-type AuthMode = 'signup' | 'login';
+type AuthMode = "signup" | "login";
 
 type AuthResponse = {
   detail?: string;
@@ -46,13 +45,11 @@ type Props = {
   mode: AuthMode;
 };
 
-async function readApiResponse(
-  response: Response,
-): Promise<AuthResponse> {
+async function readApiResponse(response: Response): Promise<AuthResponse> {
   const data: unknown = await response.json().catch(() => null);
 
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new Error('Unexpected response from the server. Please try again.');
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Unexpected response from the server. Please try again.");
   }
 
   return data as AuthResponse;
@@ -66,14 +63,14 @@ export function AuthFlow({ mode }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const isSignup = mode === 'signup';
-  const expired = searchParams.has('expired');
+  const isSignup = mode === "signup";
+  const expired = searchParams.has("expired");
   const continuation = readOnboardingContinuation(searchParams);
 
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState<'details' | 'code'>('details');
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"details" | "code">("details");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
@@ -96,15 +93,15 @@ export function AuthFlow({ mode }: Props) {
   }, [cooldown]);
 
   useEffect(() => {
-    if (step === 'code') {
+    if (step === "code") {
       codeRef.current?.focus();
     }
   }, [step]);
 
   const sendCode = useCallback(async (address: string): Promise<string> => {
     const response = await fetch(`${API_BASE}/auth/magic-link`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: address }),
     });
 
@@ -112,11 +109,11 @@ export function AuthFlow({ mode }: Props) {
 
     if (!response.ok) {
       throw new Error(
-        data.detail || 'We could not send the code. Please try again.',
+        data.detail || "We could not send the code. Please try again.",
       );
     }
 
-    return data.code ?? '';
+    return data.code ?? "";
   }, []);
 
   async function handleSendCode(event: FormEvent<HTMLFormElement>) {
@@ -128,12 +125,12 @@ export function AuthFlow({ mode }: Props) {
     if (!normalizedEmail) return;
 
     if (isSignup && !normalizedName) {
-      setError('Enter your full name to create your account.');
+      setError("Enter your full name to create your account.");
       return;
     }
 
     if (isSignup && normalizedName.length > 120) {
-      setError('Your name must be 120 characters or fewer.');
+      setError("Your name must be 120 characters or fewer.");
       return;
     }
 
@@ -146,9 +143,11 @@ export function AuthFlow({ mode }: Props) {
       setEmail(normalizedEmail);
       setCode(developmentCode);
       setCooldown(RESEND_SECONDS);
-      setStep('code');
+      setStep("code");
     } catch (err) {
-      setError(errorMessage(err, 'We could not send the code. Please try again.'));
+      setError(
+        errorMessage(err, "We could not send the code. Please try again."),
+      );
     } finally {
       setLoading(false);
     }
@@ -167,7 +166,9 @@ export function AuthFlow({ mode }: Props) {
       setCooldown(RESEND_SECONDS);
       codeRef.current?.focus();
     } catch (err) {
-      setError(errorMessage(err, 'We could not send a new code. Please try again.'));
+      setError(
+        errorMessage(err, "We could not send a new code. Please try again."),
+      );
     } finally {
       setLoading(false);
     }
@@ -181,9 +182,9 @@ export function AuthFlow({ mode }: Props) {
 
     try {
       const response = await fetch(`${API_BASE}/auth/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           email,
           code: value,
@@ -197,7 +198,7 @@ export function AuthFlow({ mode }: Props) {
 
       if (!response.ok) {
         throw new Error(
-          data.detail || 'That code is not valid. Check it and try again.',
+          data.detail || "That code is not valid. Check it and try again.",
         );
       }
 
@@ -209,12 +210,9 @@ export function AuthFlow({ mode }: Props) {
       router.replace(destination);
     } catch (err) {
       setError(
-        errorMessage(
-          err,
-          'That code is not valid. Check it and try again.',
-        ),
+        errorMessage(err, "That code is not valid. Check it and try again."),
       );
-      setCode('');
+      setCode("");
       codeRef.current?.focus();
       setLoading(false);
     }
@@ -225,11 +223,12 @@ export function AuthFlow({ mode }: Props) {
     void verify(code.trim());
   }
 
-  const heading = step === 'code'
-    ? 'check your email'
-    : isSignup
-      ? 'create your Bagg account'
-      : 'welcome back';
+  const heading =
+    step === "code"
+      ? "check your email"
+      : isSignup
+        ? "create your Bagg account"
+        : "welcome back";
 
   return (
     <div className="flex min-h-dvh flex-col bg-cream" data-theme="light">
@@ -253,14 +252,19 @@ export function AuthFlow({ mode }: Props) {
 
       <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-8 px-5 pb-10 pt-2 md:grid-cols-[1fr_420px] md:content-center md:items-center md:py-16">
         <section className="hidden md:block">
-          <BagCharacter size={104} className="mb-6" />
+          <BagCharacter
+            size={104}
+            mood={step === "code" ? "thinking" : "happy"}
+            className="mb-6"
+            decorative
+          />
           <h1 className="text-display text-text">
-            {isSignup ? 'less admin. more creating.' : 'welcome back.'}
+            {isSignup ? "less admin. more creating." : "welcome back."}
           </h1>
           <p className="mt-4 max-w-md text-body-l text-text-soft">
             {isSignup
-              ? 'Create invoices, share payment links and keep track of what clients owe you.'
-              : 'Your invoices, clients and payments are where you left them. Sign in and pick up the thread.'}
+              ? "Create invoices, share payment links and keep track of what clients owe you."
+              : "Your invoices, clients and payments are where you left them. Sign in and pick up the thread."}
           </p>
           <p className="mt-8 text-caption text-text-muted">
             No passwords. No stored card numbers.
@@ -270,42 +274,42 @@ export function AuthFlow({ mode }: Props) {
         <section className="space-y-5 md:border-brut md:border-ink md:bg-surface md:p-8">
           <StepIndicator
             steps={[
-              { id: 'details', label: isSignup ? 'Your details' : 'Email' },
-              { id: 'code', label: 'Verify' },
+              { id: "details", label: isSignup ? "Your details" : "Email" },
+              { id: "code", label: "Verify" },
             ]}
             current={step}
-            label={isSignup ? 'Signup progress' : 'Sign-in progress'}
+            label={isSignup ? "Signup progress" : "Sign-in progress"}
           />
 
           <div className="flex items-center gap-3 md:hidden">
             <BagCharacter
               size={64}
-              mood={step === 'code' ? 'thinking' : 'happy'}
+              mood={step === "code" ? "thinking" : "happy"}
               decorative
             />
           </div>
 
           <div>
-            <h1 className="text-title-l text-text md:text-title">
-              {heading}
-            </h1>
+            <h1 className="text-title-l text-text md:text-title">{heading}</h1>
 
             <p className="mt-2 text-body text-text-soft">
-              {step === 'details'
-                ? isSignup
-                  ? 'Start with your name and email. You can add your business details next.'
-                  : 'We send a one-time code. No password to remember.'
-                : (
-                  <>
-                    We sent a 6-digit code to{' '}
-                    <span className="break-all font-bold text-text">{email}</span>.
-                    It can take a minute. Check spam if it has not arrived.
-                  </>
-                )}
+              {step === "details" ? (
+                isSignup ? (
+                  "Start with your name and email. You can add your business details next."
+                ) : (
+                  "We send a one-time code. No password to remember."
+                )
+              ) : (
+                <>
+                  We sent a 6-digit code to{" "}
+                  <span className="break-all font-bold text-text">{email}</span>
+                  . It can take a minute. Check spam if it has not arrived.
+                </>
+              )}
             </p>
           </div>
 
-          {expired && step === 'details' && (
+          {expired && step === "details" && (
             <Alert variant="warning">
               You were signed out. Sign in to carry on where you left off.
             </Alert>
@@ -313,7 +317,7 @@ export function AuthFlow({ mode }: Props) {
 
           {error && <Alert variant="error">{error}</Alert>}
 
-          {step === 'details' ? (
+          {step === "details" ? (
             <form onSubmit={handleSendCode} className="space-y-4">
               {isSignup && (
                 <TextField
@@ -329,7 +333,7 @@ export function AuthFlow({ mode }: Props) {
               )}
 
               <EmailField
-                id={isSignup ? 'signup-email' : 'login-email'}
+                id={isSignup ? "signup-email" : "login-email"}
                 label="Email address"
                 required
                 autoFocus={!isSignup}
@@ -344,12 +348,15 @@ export function AuthFlow({ mode }: Props) {
               <Button type="submit" size="lg" fullWidth disabled={loading}>
                 {loading ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <Loader2
+                      className="h-4 w-4 animate-spin"
+                      aria-hidden="true"
+                    />
                     Sending code…
                   </>
                 ) : (
                   <>
-                    {isSignup ? 'Create account' : 'Continue with email'}
+                    {isSignup ? "Create account" : "Continue with email"}
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </>
                 )}
@@ -359,7 +366,7 @@ export function AuthFlow({ mode }: Props) {
             <form onSubmit={handleVerifyCode} className="space-y-4">
               <OtpField
                 ref={codeRef}
-                id={isSignup ? 'signup-code' : 'login-code'}
+                id={isSignup ? "signup-code" : "login-code"}
                 label="6-digit code"
                 placeholder="000000"
                 value={code}
@@ -378,11 +385,16 @@ export function AuthFlow({ mode }: Props) {
               >
                 {loading ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <Loader2
+                      className="h-4 w-4 animate-spin"
+                      aria-hidden="true"
+                    />
                     Checking…
                   </>
+                ) : isSignup ? (
+                  "Verify and continue"
                 ) : (
-                  isSignup ? 'Verify and continue' : 'Enter workspace'
+                  "Enter workspace"
                 )}
               </Button>
 
@@ -392,24 +404,24 @@ export function AuthFlow({ mode }: Props) {
                   disabled={loading || cooldown > 0}
                   onClick={handleResend}
                   className={cn(
-                    buttonStyles({ variant: 'link' }),
-                    'disabled:text-text-muted disabled:no-underline',
+                    buttonStyles({ variant: "link" }),
+                    "disabled:text-text-muted disabled:no-underline",
                   )}
                 >
                   {cooldown > 0
                     ? `Send a new code in ${cooldown}s`
-                    : 'Send a new code'}
+                    : "Send a new code"}
                 </button>
 
                 <button
                   type="button"
                   disabled={loading}
                   onClick={() => {
-                    setStep('details');
+                    setStep("details");
                     setError(null);
-                    setCode('');
+                    setCode("");
                   }}
-                  className={buttonStyles({ variant: 'link' })}
+                  className={buttonStyles({ variant: "link" })}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
                   Use a different email
@@ -421,9 +433,9 @@ export function AuthFlow({ mode }: Props) {
           <div className="border-t border-line-subtle pt-4 text-center text-caption text-text-muted">
             {isSignup ? (
               <>
-                Already have an account?{' '}
+                Already have an account?{" "}
                 <Link
-                  href={`/login${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+                  href={`/login${searchParams.toString() ? `?${searchParams.toString()}` : ""}`}
                   className="font-bold text-link hover:underline"
                 >
                   Sign in
@@ -431,9 +443,9 @@ export function AuthFlow({ mode }: Props) {
               </>
             ) : (
               <>
-                New to Bagg?{' '}
+                New to Bagg?{" "}
                 <Link
-                  href={`/signup${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+                  href={`/signup${searchParams.toString() ? `?${searchParams.toString()}` : ""}`}
                   className="font-bold text-link hover:underline"
                 >
                   Create an account
@@ -441,7 +453,8 @@ export function AuthFlow({ mode }: Props) {
               </>
             )}
             <p className="mt-3">
-              By continuing, you agree to Bagg&apos;s terms of service and privacy policy.
+              By continuing, you agree to Bagg&apos;s terms of service and
+              privacy policy.
             </p>
           </div>
         </section>

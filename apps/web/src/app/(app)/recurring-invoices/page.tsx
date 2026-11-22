@@ -1,22 +1,22 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Clock3, LoaderCircle, Plus } from 'lucide-react';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Clock3, LoaderCircle, Plus } from "lucide-react";
 
-import { BagCharacter } from '@/components/brand';
-import { DocTabs } from '@/components/mobile/DocTabs';
-import { Money } from '@/components/money/Money';
-import { formatDate } from '@/lib/date';
-import { cn } from '@/lib/cn';
+import { BagCharacter } from "@/components/brand";
+import { DocTabs } from "@/components/mobile/DocTabs";
+import { Money } from "@/components/money/Money";
+import { formatDate } from "@/lib/date";
+import { cn } from "@/lib/cn";
 import {
   Alert,
   PageContainer,
   PageHeader,
   buttonStyles,
-} from '@/components/ui';
+} from "@/components/ui";
 
-const API_BASE = '/api';
+const API_BASE = "/api";
 
 export interface RecurringLineItem {
   description: string;
@@ -30,16 +30,16 @@ export interface RecurringSchedule {
   client_id: string;
   name: string;
   currency: string;
-  frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
   interval: number;
   start_date: string;
   next_run_date: string;
   anchor_day: number;
   anchor_month: number;
-  end_rule: 'never' | 'after_count' | 'on_date';
+  end_rule: "never" | "after_count" | "on_date";
   end_after_count?: number | null;
   end_date?: string | null;
-  issue_mode: 'draft' | 'auto_issue';
+  issue_mode: "draft" | "auto_issue";
   draft_lead_days: number;
   due_date_offset_days: number;
   review_reminder_days: number;
@@ -54,7 +54,7 @@ export interface RecurringSchedule {
   notes?: string | null;
   pause_if_previous_overdue_days?: number | null;
   timezone: string;
-  status: 'active' | 'paused' | 'cancelled' | 'completed';
+  status: "active" | "paused" | "cancelled" | "completed";
   generated_count: number;
   paused_at?: string | null;
   pause_started_on?: string | null;
@@ -71,25 +71,25 @@ interface Client {
 }
 
 const STATUS_FILTERS = [
-  { value: '', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'paused', label: 'Paused' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: "", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "paused", label: "Paused" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
 ];
 
 function statusColor(status: string) {
   switch (status) {
-    case 'active':
-      return 'bg-leaf text-on-leaf border-ink';
-    case 'paused':
-      return 'bg-sun text-on-sun border-ink';
-    case 'completed':
-      return 'bg-status-void text-status-void-fg border-line';
-    case 'cancelled':
-      return 'bg-status-late text-status-late-fg border-line';
+    case "active":
+      return "bg-leaf text-on-leaf border-ink";
+    case "paused":
+      return "bg-sun text-on-sun border-ink";
+    case "completed":
+      return "bg-status-void text-status-void-fg border-line";
+    case "cancelled":
+      return "bg-status-late text-status-late-fg border-line";
     default:
-      return 'bg-surface-tint text-text-soft border-line';
+      return "bg-surface-tint text-text-soft border-line";
   }
 }
 
@@ -99,17 +99,14 @@ function getScheduleNetPayable(schedule: RecurringSchedule): number {
     0,
   );
 
-  const discountedSubtotal = Math.max(
-    0,
-    subtotal - schedule.discount_minor,
-  );
+  const discountedSubtotal = Math.max(0, subtotal - schedule.discount_minor);
 
   const tax = Math.round(
-    discountedSubtotal * schedule.tax_rate_percent / 100,
+    (discountedSubtotal * schedule.tax_rate_percent) / 100,
   );
 
   const withholdingTax = Math.round(
-    discountedSubtotal * schedule.wht_rate_percent / 100,
+    (discountedSubtotal * schedule.wht_rate_percent) / 100,
   );
 
   return Math.max(0, discountedSubtotal + tax - withholdingTax);
@@ -120,7 +117,7 @@ export default function RecurringInvoicesPage() {
   const [clients, setClients] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -131,29 +128,28 @@ export default function RecurringInvoicesPage() {
 
       try {
         const queryParams = new URLSearchParams();
-        if (selectedStatus) queryParams.set('status', selectedStatus);
-        queryParams.set('limit', '50');
+        if (selectedStatus) queryParams.set("status", selectedStatus);
+        queryParams.set("limit", "50");
 
         const [schedulesRes, clientsRes] = await Promise.all([
           fetch(`${API_BASE}/recurring-invoices?${queryParams.toString()}`, {
-            credentials: 'include',
+            credentials: "include",
           }),
           fetch(`${API_BASE}/clients`, {
-            credentials: 'include',
+            credentials: "include",
           }),
         ]);
 
         if (!schedulesRes.ok) {
-          throw new Error('Failed to load recurring invoice schedules');
+          throw new Error("Failed to load recurring invoice schedules");
         }
 
         const schedulesPayload = await schedulesRes.json();
         const schedulesData: RecurringSchedule[] = await schedulesPayload.items;
 
         if (!Array.isArray(schedulesData)) {
-          throw new Error('Failed to load recurring invoice schedules');
+          throw new Error("Failed to load recurring invoice schedules");
         }
-
 
         let clientMap: Record<string, string> = {};
         if (clientsRes.ok) {
@@ -161,10 +157,13 @@ export default function RecurringInvoicesPage() {
           const items: Client[] = Array.isArray(clientsData)
             ? clientsData
             : clientsData.items || [];
-          clientMap = items.reduce((acc, c) => {
-            acc[c.id] = c.name;
-            return acc;
-          }, {} as Record<string, string>);
+          clientMap = items.reduce(
+            (acc, c) => {
+              acc[c.id] = c.name;
+              return acc;
+            },
+            {} as Record<string, string>,
+          );
         }
 
         if (!cancelled) {
@@ -174,7 +173,7 @@ export default function RecurringInvoicesPage() {
       } catch (err: unknown) {
         if (!cancelled) {
           setError(
-            err instanceof Error ? err.message : 'An unexpected error occurred',
+            err instanceof Error ? err.message : "An unexpected error occurred",
           );
         }
       } finally {
@@ -195,18 +194,21 @@ export default function RecurringInvoicesPage() {
     <PageContainer width="list">
       {/* Header */}
       <PageHeader
-          eyebrow="Documents"
-          title="Recurring invoices"
-          description="Automate ongoing invoices with scheduled generation and draft lead times."
-          actions={
-            <Link
-                href="/recurring-invoices/new"
-                className={cn(buttonStyles({ variant: 'accent' }), 'hidden sm:inline-flex')}
-            >
-              <Plus aria-hidden className="h-4 w-4" />
-              New schedule
-            </Link>
-          }
+        eyebrow="Documents"
+        title="Recurring invoices"
+        description="Automate ongoing invoices with scheduled generation and draft lead times."
+        actions={
+          <Link
+            href="/recurring-invoices/new"
+            className={cn(
+              buttonStyles({ variant: "accent" }),
+              "hidden sm:inline-flex",
+            )}
+          >
+            <Plus aria-hidden className="h-4 w-4" />
+            New schedule
+          </Link>
+        }
       />
 
       {/* Mobile document navigation */}
@@ -223,10 +225,10 @@ export default function RecurringInvoicesPage() {
               aria-pressed={active}
               onClick={() => setSelectedStatus(f.value)}
               className={cn(
-                'min-h-10 rounded-full border-brut-thin border-ink px-3.5 py-1.5 text-caption font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mango',
+                "min-h-10 rounded-full border-brut-thin border-ink px-3.5 py-1.5 text-caption font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mango",
                 active
-                  ? 'bg-sun text-on-sun shadow-brut-sm'
-                  : 'bg-surface text-text-soft hover:bg-surface-tint',
+                  ? "bg-sun text-on-sun shadow-brut-sm"
+                  : "bg-surface text-text-soft hover:bg-surface-tint",
               )}
             >
               {f.label}
@@ -264,15 +266,23 @@ export default function RecurringInvoicesPage() {
         </div>
       ) : schedules.length === 0 ? (
         <div className="border border-dashed border-line bg-surface p-12 text-center">
-          <BagCharacter size={80} className="mx-auto mb-4" />
-          <h3 className="text-heading font-black text-ink">no recurring schedules yet</h3>
+          <BagCharacter
+            size={80}
+            mood="happy"
+            className="mx-auto mb-4"
+            decorative
+          />
+          <h3 className="text-heading font-black text-ink">
+            no recurring schedules yet
+          </h3>
           <p className="mx-auto mt-1 max-w-sm text-body text-text-soft">
-            Set up an automated schedule once and Bagg will handle draft generation, reminders, and delivery for you.
+            Set up an automated schedule once and Bagg will handle draft
+            generation, reminders, and delivery for you.
           </p>
           <div className="mt-6">
             <Link
               href="/recurring-invoices/new"
-              className={buttonStyles({ variant: 'accent' })}
+              className={buttonStyles({ variant: "accent" })}
             >
               <Plus className="h-4 w-4" /> Create first schedule
             </Link>
@@ -281,7 +291,7 @@ export default function RecurringInvoicesPage() {
       ) : (
         <div className="space-y-3">
           {schedules.map((schedule) => {
-            const clientName = clients[schedule.client_id] || 'Client';
+            const clientName = clients[schedule.client_id] || "Client";
             const netPayableMinor = getScheduleNetPayable(schedule);
 
             return (
@@ -297,7 +307,7 @@ export default function RecurringInvoicesPage() {
                     </span>
                     <span
                       className={cn(
-                        'rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-wider',
+                        "rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-wider",
                         statusColor(schedule.status),
                       )}
                     >
@@ -309,7 +319,8 @@ export default function RecurringInvoicesPage() {
                   </div>
 
                   <p className="text-body text-text-soft">
-                    Client: <span className="font-bold text-ink">{clientName}</span>
+                    Client:{" "}
+                    <span className="font-bold text-ink">{clientName}</span>
                   </p>
 
                   <div className="flex flex-wrap items-center gap-4 text-caption text-text-muted">
@@ -321,20 +332,27 @@ export default function RecurringInvoicesPage() {
                     <span>Generated: {schedule.generated_count} invoices</span>
                     <span>•</span>
                     <span>
-                      Mode: {schedule.issue_mode === 'auto_issue' ? 'Auto-issue' : 'Draft for review'}
+                      Mode:{" "}
+                      {schedule.issue_mode === "auto_issue"
+                        ? "Auto-issue"
+                        : "Draft for review"}
                     </span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between border-t border-line pt-3 sm:border-0 sm:pt-0 sm:text-right">
-                  <span className="text-caption text-text-soft sm:hidden">Schedule value</span>
+                  <span className="text-caption text-text-soft sm:hidden">
+                    Schedule value
+                  </span>
                   <div>
                     <Money
                       amountMinor={netPayableMinor}
                       currency={schedule.currency}
                       className="text-title font-black text-ink"
                     />
-                    <p className="text-[12px] text-text-muted">net payable per cycle</p>
+                    <p className="text-[12px] text-text-muted">
+                      net payable per cycle
+                    </p>
                   </div>
                 </div>
               </Link>

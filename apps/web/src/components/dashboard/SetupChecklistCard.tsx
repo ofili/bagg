@@ -1,8 +1,7 @@
+"use client";
 
-'use client';
-
-import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   CaretDown,
   Check,
@@ -10,13 +9,13 @@ import {
   Plus,
   Sparkle,
   X,
-} from '@phosphor-icons/react';
+} from "@phosphor-icons/react";
 
-import { BagCharacter } from '@/components/brand';
-import { buttonStyles } from '@/components/ui';
-import { cn } from '@/lib/cn';
+import { BagCharacter } from "@/components/brand";
+import { buttonStyles } from "@/components/ui";
+import { cn } from "@/lib/cn";
 
-const API_BASE = '/api';
+const API_BASE = "/api";
 
 interface Milestone {
   key: string;
@@ -30,10 +29,10 @@ interface StepItem {
   href: string;
 }
 
-export type SetupVisibility = 'expanded' | 'minimized' | 'dismissed';
+export type SetupVisibility = "expanded" | "minimized" | "dismissed";
 
 interface SetupChecklistCardProps {
-  mode: 'hero' | 'slim';
+  mode: "hero" | "slim";
   visibility: SetupVisibility;
   onVisibilityChange: (visibility: SetupVisibility) => void;
   onMilestonesLoaded?: (dispatched: boolean, paid: boolean) => void;
@@ -41,7 +40,9 @@ interface SetupChecklistCardProps {
 }
 
 function hasMilestone(milestones: Milestone[], key: string): boolean {
-  return milestones.some((milestone) => milestone.key === key && milestone.completed);
+  return milestones.some(
+    (milestone) => milestone.key === key && milestone.completed,
+  );
 }
 
 export function SetupChecklistCard({
@@ -60,12 +61,12 @@ export function SetupChecklistCard({
 
     Promise.all([
       fetch(`${API_BASE}/activation`, {
-        credentials: 'include',
-        cache: 'no-store',
+        credentials: "include",
+        cache: "no-store",
       }),
       fetch(`${API_BASE}/auth/me`, {
-        credentials: 'include',
-        cache: 'no-store',
+        credentials: "include",
+        cache: "no-store",
       }),
     ])
       .then(async ([actRes, authRes]) => {
@@ -79,18 +80,13 @@ export function SetupChecklistCard({
           : [];
 
         setMilestones(nextMilestones);
-        setOnboardingDone(
-          authData?.workspace?.onboarding_completed === true,
-        );
+        setOnboardingDone(authData?.workspace?.onboarding_completed === true);
 
         const dispatched = hasMilestone(
           nextMilestones,
-          'first_document_dispatched',
+          "first_document_dispatched",
         );
-        const paid = hasMilestone(
-          nextMilestones,
-          'first_payment_confirmed',
-        );
+        const paid = hasMilestone(nextMilestones, "first_payment_confirmed");
 
         onMilestonesLoaded?.(dispatched, paid);
       })
@@ -101,51 +97,43 @@ export function SetupChecklistCard({
     };
   }, [onMilestonesLoaded]);
 
-  const invoiceCreated = hasMilestone(milestones, 'first_invoice_created');
-  const quoteCreated = hasMilestone(milestones, 'first_quote_created');
+  const invoiceCreated = hasMilestone(milestones, "first_invoice_created");
+  const quoteCreated = hasMilestone(milestones, "first_quote_created");
   const documentCreated = invoiceCreated || quoteCreated;
   const documentDispatched = hasMilestone(
     milestones,
-    'first_document_dispatched',
+    "first_document_dispatched",
   );
-  const paymentConfirmed = hasMilestone(
-    milestones,
-    'first_payment_confirmed',
-  );
+  const paymentConfirmed = hasMilestone(milestones, "first_payment_confirmed");
 
   const steps: StepItem[] = useMemo(
     () => [
       {
-        id: 'business',
-        label: 'Set up your business',
+        id: "business",
+        label: "Set up your business",
         done: onboardingDone,
-        href: '/onboarding',
+        href: "/onboarding",
       },
       {
-        id: 'invoice',
-        label: 'Create your first invoice',
+        id: "invoice",
+        label: "Create your first invoice",
         done: documentCreated,
-        href: '/invoices/new',
+        href: "/invoices/new",
       },
       {
-        id: 'send',
-        label: 'Send your first document',
+        id: "send",
+        label: "Send your first document",
         done: documentDispatched,
-        href: '/invoices',
+        href: "/invoices",
       },
       {
-        id: 'payment',
-        label: 'Record your first payment',
+        id: "payment",
+        label: "Record your first payment",
         done: paymentConfirmed,
-        href: '/invoices',
+        href: "/invoices",
       },
     ],
-    [
-      onboardingDone,
-      documentCreated,
-      documentDispatched,
-      paymentConfirmed,
-    ],
+    [onboardingDone, documentCreated, documentDispatched, paymentConfirmed],
   );
 
   const completedCount = steps.filter((step) => step.done).length;
@@ -158,23 +146,19 @@ export function SetupChecklistCard({
     return (
       <div
         className={cn(
-          'flex items-center justify-between gap-3 border-brut border-ink bg-peach p-5 shadow-brut-sm',
+          "flex items-center justify-between gap-3 border-brut border-ink bg-peach p-5 shadow-brut-sm",
           className,
         )}
       >
         <div className="flex min-w-0 items-center gap-4">
-          <BagCharacter
-            mood="celebrating"
-            size={56}
-            className="shrink-0"
-          />
+          <BagCharacter mood="celebrating" size={56} className="shrink-0" />
           <div>
             <div className="flex items-center gap-1.5 font-extrabold text-ink">
               <Sparkle weight="fill" className="h-4 w-4 text-mango" />
-              First payment received!
+              your first payment landed!
             </div>
             <p className="mt-0.5 text-caption text-text-soft">
-              Your cashflow is in motion. Keep creating and sharing invoices.
+              Money in. That&apos;s the whole point. Keep the invoices coming.
             </p>
           </div>
         </div>
@@ -190,7 +174,7 @@ export function SetupChecklistCard({
     );
   }
 
-  if (visibility === 'dismissed') {
+  if (visibility === "dismissed") {
     return null;
   }
 
@@ -198,7 +182,7 @@ export function SetupChecklistCard({
     <div className="flex shrink-0 items-center gap-1">
       <button
         type="button"
-        onClick={() => onVisibilityChange('minimized')}
+        onClick={() => onVisibilityChange("minimized")}
         aria-label="Minimize setup guide"
         title="Minimize setup guide"
         className="inline-flex h-8 w-8 items-center justify-center rounded-btn border-brut-thin border-ink bg-surface text-ink hover:bg-surface-tint"
@@ -208,7 +192,7 @@ export function SetupChecklistCard({
 
       <button
         type="button"
-        onClick={() => onVisibilityChange('dismissed')}
+        onClick={() => onVisibilityChange("dismissed")}
         aria-label="Close setup guide"
         title="Close setup guide"
         className="inline-flex h-8 w-8 items-center justify-center rounded-btn border-brut-thin border-ink bg-surface text-ink hover:bg-surface-tint"
@@ -218,11 +202,11 @@ export function SetupChecklistCard({
     </div>
   );
 
-  if (visibility === 'minimized') {
+  if (visibility === "minimized") {
     return (
       <div
         className={cn(
-          'flex items-center justify-between gap-3 border-brut border-ink bg-surface p-3 shadow-brut-sm',
+          "flex items-center justify-between gap-3 border-brut border-ink bg-surface p-3 shadow-brut-sm",
           className,
         )}
       >
@@ -254,7 +238,7 @@ export function SetupChecklistCard({
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            onClick={() => onVisibilityChange('expanded')}
+            onClick={() => onVisibilityChange("expanded")}
             className="rounded-btn border-brut-thin border-ink bg-surface px-3 py-2 text-caption font-extrabold text-ink shadow-brut-sm hover:bg-surface-tint"
           >
             Expand
@@ -262,7 +246,7 @@ export function SetupChecklistCard({
 
           <button
             type="button"
-            onClick={() => onVisibilityChange('dismissed')}
+            onClick={() => onVisibilityChange("dismissed")}
             aria-label="Close setup guide"
             title="Close setup guide"
             className="inline-flex h-8 w-8 items-center justify-center rounded-btn text-text-muted hover:bg-surface-tint hover:text-ink"
@@ -274,19 +258,26 @@ export function SetupChecklistCard({
     );
   }
 
-  if (mode === 'hero') {
+  if (mode === "hero") {
     return (
       <section
         aria-labelledby="first-steps-heading"
         className={cn(
-          'border-brut border-ink bg-status-pending p-6 shadow-brut sm:p-7',
+          "border-brut border-ink bg-status-pending p-6 shadow-brut sm:p-7",
           className,
         )}
       >
         <div className="flex items-center justify-between gap-3">
-          <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
-            Your first steps
-          </p>
+          <div className="flex items-center gap-3">
+            <BagCharacter
+              mood={completedCount >= 3 ? "excited" : "happy"}
+              size={40}
+              decorative
+            />
+            <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
+              Your first steps
+            </p>
+          </div>
 
           <div className="flex items-center gap-2">
             <span className="rounded-full border-brut-thin border-ink bg-surface px-2.5 py-0.5 text-caption font-black text-ink">
@@ -323,10 +314,10 @@ export function SetupChecklistCard({
               <Link
                 href={step.href}
                 className={cn(
-                  'flex items-center justify-between rounded-btn border-brut-thin p-3 text-body font-extrabold transition-colors',
+                  "flex items-center justify-between rounded-btn border-brut-thin p-3 text-body font-extrabold transition-colors",
                   step.done
-                    ? 'border-ink/50 bg-surface/80 text-text-muted line-through'
-                    : 'border-ink bg-surface text-ink shadow-brut-sm hover:bg-surface-tint',
+                    ? "border-ink/50 bg-surface/80 text-text-muted line-through"
+                    : "border-ink bg-surface text-ink shadow-brut-sm hover:bg-surface-tint",
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -352,8 +343,8 @@ export function SetupChecklistCard({
           <Link
             href="/invoices/new"
             className={buttonStyles({
-              variant: 'accent',
-              size: 'lg',
+              variant: "accent",
+              size: "lg",
               fullWidth: true,
             })}
           >
@@ -368,7 +359,7 @@ export function SetupChecklistCard({
   return (
     <div
       className={cn(
-        'border-brut border-ink bg-surface p-4 shadow-brut-sm transition-all',
+        "border-brut border-ink bg-surface p-4 shadow-brut-sm transition-all",
         className,
       )}
     >
@@ -405,8 +396,8 @@ export function SetupChecklistCard({
             <Link
               href={step.href}
               className={cn(
-                'flex items-center justify-between py-1.5 font-bold transition-colors hover:text-link',
-                step.done ? 'text-text-muted line-through' : 'text-ink',
+                "flex items-center justify-between py-1.5 font-bold transition-colors hover:text-link",
+                step.done ? "text-text-muted line-through" : "text-ink",
               )}
             >
               <div className="flex items-center gap-2">

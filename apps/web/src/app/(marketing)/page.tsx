@@ -20,6 +20,7 @@ import { MarketingGrid } from "@/components/marketing/marketing-grid";
 import { MarketingSticker } from "@/components/marketing/marketing-sticker";
 import { SectionHeading } from "@/components/marketing/section-heading";
 import { buttonStyles } from "@/components/ui/button";
+import { BagCharacter } from "@/components/brand";
 
 import { currencies, homeFaqs } from "@/content/marketing";
 
@@ -102,6 +103,14 @@ export default function MarketingPage() {
             <div
               className="absolute -bottom-5 -left-5 h-24 w-24 rotate-12 border-brut border-ink bg-pink"
               aria-hidden="true"
+            />
+
+            {/* Sisi peeks over the top-right of the dashboard image */}
+            <BagCharacter
+              mood="happy"
+              size={80}
+              className="absolute -top-12 right-4 z-10 lg:-right-6 lg:-top-14 lg:size-[96px]"
+              decorative
             />
 
             <div className="relative overflow-hidden border-brut border-ink bg-surface shadow-brut-lg">
