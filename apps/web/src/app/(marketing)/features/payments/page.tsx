@@ -99,9 +99,9 @@ export default function PaymentsFeaturePage() {
           }
           title={
             <>
-              Know what came in.
+              know what came in.
               <span className="mt-2 block text-pink">
-                Know what is still owed.
+                know what is still owed.
               </span>
             </>
           }

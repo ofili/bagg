@@ -21,7 +21,7 @@ import { MarketingCard } from "@/components/marketing/marketing-card";
 export const metadata: Metadata = marketingMetadata({
   title: "About Bagg",
   description:
-    "Discover why Bagg is building a simpler invoicing and payment workspace for African freelancers, consultants and creative businesses.",
+    "Discover why Bagg is building simpler invoicing and payment tracking for African freelancers, consultants and creative businesses.",
   path: "/about",
 });
 

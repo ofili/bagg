@@ -54,7 +54,23 @@ export function SetupChecklistCard({
 }: SetupChecklistCardProps) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [onboardingDone, setOnboardingDone] = useState(true);
-  const [dismissedCelebration, setDismissedCelebration] = useState(false);
+  const [dismissedCelebration, setDismissedCelebration] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      window.localStorage.getItem("bagg:dashboard:celebration-dismissed") ===
+      "true"
+    );
+  });
+
+  const dismissCelebration = () => {
+    setDismissedCelebration(true);
+    try {
+      window.localStorage.setItem(
+        "bagg:dashboard:celebration-dismissed",
+        "true",
+      );
+    } catch {}
+  };
 
   useEffect(() => {
     let live = true;
@@ -116,19 +132,19 @@ export function SetupChecklistCard({
       },
       {
         id: "invoice",
-        label: "Create your first invoice",
+        label: "Make your first invoice",
         done: documentCreated,
         href: "/invoices/new",
       },
       {
         id: "send",
-        label: "Send your first document",
+        label: "Send it",
         done: documentDispatched,
         href: "/invoices",
       },
       {
         id: "payment",
-        label: "Record your first payment",
+        label: "Get paid and record it",
         done: paymentConfirmed,
         href: "/invoices",
       },
@@ -151,7 +167,12 @@ export function SetupChecklistCard({
         )}
       >
         <div className="flex min-w-0 items-center gap-4">
-          <BagCharacter mood="celebrating" size={56} className="shrink-0" />
+          <BagCharacter
+            mood="celebrating"
+            size={56}
+            className="shrink-0"
+            decorative
+          />
           <div>
             <div className="flex items-center gap-1.5 font-extrabold text-ink">
               <Sparkle weight="fill" className="h-4 w-4 text-mango" />
@@ -165,10 +186,10 @@ export function SetupChecklistCard({
 
         <button
           type="button"
-          onClick={() => setDismissedCelebration(true)}
+          onClick={dismissCelebration}
           className="shrink-0 rounded-btn border-brut-thin border-ink bg-surface px-2.5 py-1 text-caption font-extrabold text-ink shadow-brut-sm hover:bg-surface-tint"
         >
-          Got it
+          Nice
         </button>
       </div>
     );
@@ -275,7 +296,7 @@ export function SetupChecklistCard({
               decorative
             />
             <p className="text-caption font-extrabold uppercase tracking-wider text-text-muted">
-              Your first steps
+              your first steps
             </p>
           </div>
 
@@ -291,7 +312,7 @@ export function SetupChecklistCard({
           id="first-steps-heading"
           className="mt-2 text-title font-black text-ink"
         >
-          Let us get your first invoice moving
+          let&apos;s get your first invoice out the door
         </h2>
 
         <div
@@ -349,7 +370,7 @@ export function SetupChecklistCard({
             })}
           >
             <Plus aria-hidden className="h-4 w-4" />
-            Create invoice
+            Make an invoice
           </Link>
         </div>
       </section>

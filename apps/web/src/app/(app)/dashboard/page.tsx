@@ -333,7 +333,7 @@ export default function DashboardPage() {
                 />
                 <div>
                   <p className="text-body font-extrabold text-ink">
-                    all caught up.
+                    nothing to chase yet.
                   </p>
                   <p className="mt-1 text-caption text-text-soft">
                     Nothing needs you right now. Your invoices, client payments,

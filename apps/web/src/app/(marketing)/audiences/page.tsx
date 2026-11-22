@@ -27,7 +27,7 @@ import { demoInvoiceHref } from "@/lib/site";
 export const metadata: Metadata = marketingMetadata({
   title: "Who Bagg Is For | Freelancers, Consultants and Creative Businesses",
   description:
-    "Whether you freelance, advise clients or run a creative business, Bagg helps you agree fees, invoice professionally, track payments and issue receipts.",
+    "Whether you freelance, advise clients or run a creative business, Bagg helps you agree fees, send invoices, track payments and issue receipts.",
   path: "/audiences",
 });
 

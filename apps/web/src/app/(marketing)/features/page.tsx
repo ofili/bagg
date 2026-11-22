@@ -100,7 +100,6 @@ export default function FeaturesPage() {
             </>
           }
           visual={
-            /* Move the existing Editorial product composition div here unchanged. */
             <div className="relative mx-auto w-full max-w-[34rem] pb-5 pr-5">
               <div className="absolute right-0 top-0 h-full w-full rotate-3 border-brut border-ink bg-pink" />
               <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
@@ -276,7 +275,7 @@ export default function FeaturesPage() {
                   Your next invoice
                 </p>
                 <h2 className="mt-3 text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] text-on-sun sm:text-5xl">
-                  Make getting paid part of the process.
+                  make getting paid part of the process.
                 </h2>
                 <p className="mt-4 max-w-xl text-body-l text-on-sun/80">
                   Start free. Make your first invoice and give your client one

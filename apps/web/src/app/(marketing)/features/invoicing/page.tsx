@@ -24,7 +24,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = marketingMetadata({
   title: "Invoice Software for Freelancers",
   description:
-    "Create professional invoices, add line items and payment details, share invoice links and track outstanding balances with Bagg.",
+    "Make invoices with everything your client needs to pay you. Share one link, send a PDF and track outstanding balances.",
   path: "/features/invoicing",
 });
 
@@ -53,8 +53,8 @@ export default function InvoicingPage() {
           }
           title={
             <>
-              Send an invoice.
-              <span className="block text-mango">Not a spreadsheet.</span>
+              send an invoice.
+              <span className="block text-mango">not a spreadsheet.</span>
             </>
           }
           titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem]"
@@ -65,7 +65,6 @@ export default function InvoicingPage() {
             </>
           }
           visual={
-            /* Move the existing Invoice artefact div here unchanged. */
             <div className="relative mx-auto w-full max-w-[36rem] pb-5 pr-5">
               <div className="absolute inset-0 rotate-3 border-brut border-ink bg-mango" />
               <div className="relative border-brut border-ink bg-surface p-5 shadow-brut-lg sm:p-7">
@@ -209,7 +208,7 @@ export default function InvoicingPage() {
 
                 <div className="mt-5 flex items-center justify-between gap-3 border-brut border-ink bg-cream p-3">
                   <span className="truncate font-mono text-caption text-text-soft">
-                    bagg.app/i/your-invoice
+                    bagg.ng/i/your-invoice
                   </span>
                   <span className="shrink-0 border-brut border-ink bg-sun px-2 py-1 text-[10px] font-extrabold uppercase text-on-sun">
                     Link

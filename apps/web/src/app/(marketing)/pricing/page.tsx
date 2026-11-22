@@ -54,8 +54,7 @@ const professionalFeatures = [
   "Fine-tuned reminder controls",
   "Auto-issue recurring invoices (opt-in)",
   "Retainers and payment schedules",
-  "Unlimited clients",
-  "Up to 25 active engagements",
+  "Up to 25 active clients",
   "Up to 3 team members",
 ];
 
@@ -78,7 +77,7 @@ const pricingFaqs = [
   {
     question: "What do I get with Professional?",
     answer:
-      "Everything in Creator Pro, plus invoice recall (when eligible), full version history, reports, finer reminder controls, opt-in auto-issue, retainers and payment schedules. It also covers unlimited clients, up to 25 active engagements and up to 3 team members.",
+      "Everything in Creator Pro, plus invoice recall (when eligible), full version history, reports, finer reminder controls, opt-in auto-issue, retainers and payment schedules. It also covers up to 25 active clients and up to 3 team members.",
   },
   {
     question: "What is Studio?",

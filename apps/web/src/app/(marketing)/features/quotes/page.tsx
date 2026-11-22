@@ -19,7 +19,7 @@ import { MarketingBreadcrumbStructuredData } from "@/components/marketing/market
 export const metadata: Metadata = marketingMetadata({
   title: "Quotation Software for Freelancers",
   description:
-    "Prepare professional quotes, agree commercial terms with clients and convert accepted quotes into invoices.",
+    "Prepare clear quotes, agree terms with clients and convert accepted quotes into invoices.",
   path: "/features/quotes",
 });
 

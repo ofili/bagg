@@ -119,6 +119,8 @@ export default function RecurringInvoicesPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState("");
 
+  const [reloadKey, setReloadKey] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -188,7 +190,7 @@ export default function RecurringInvoicesPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedStatus]);
+  }, [selectedStatus, reloadKey]);
 
   return (
     <PageContainer width="list">
@@ -244,7 +246,7 @@ export default function RecurringInvoicesPage() {
           action={
             <button
               type="button"
-              onClick={() => setSelectedStatus((current) => current)}
+              onClick={() => setReloadKey((k) => k + 1)}
               className="font-bold underline underline-offset-4"
             >
               Retry
@@ -264,7 +266,7 @@ export default function RecurringInvoicesPage() {
           <LoaderCircle className="h-6 w-6 animate-spin motion-reduce:animate-none" />
           <span>Loading recurring schedules...</span>
         </div>
-      ) : schedules.length === 0 ? (
+      ) : error ? null : schedules.length === 0 ? (
         <div className="border border-dashed border-line bg-surface p-12 text-center">
           <BagCharacter
             size={80}
@@ -276,8 +278,8 @@ export default function RecurringInvoicesPage() {
             no recurring schedules yet
           </h3>
           <p className="mx-auto mt-1 max-w-sm text-body text-text-soft">
-            Set up an automated schedule once and Bagg will handle draft
-            generation, reminders, and delivery for you.
+            Set up a recurring schedule once and Bagg will create drafts ready
+            for your review before each invoice date.
           </p>
           <div className="mt-6">
             <Link

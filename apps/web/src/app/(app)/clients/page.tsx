@@ -572,19 +572,21 @@ export default function ClientsPage() {
 
   const emptyContactsState = (
     <div className="border-brut border-ink bg-surface px-6 py-10 text-center">
-      <ContactRound
-        className="mx-auto h-10 w-10 text-text-muted"
-        aria-hidden="true"
+      <BagCharacter
+        size={80}
+        mood={searchQuery ? "confused" : "happy"}
+        className="mx-auto"
+        decorative
       />
 
-      <h3 className="mt-3 text-heading text-ink">
-        {searchQuery ? "No contacts match that search" : "No contacts yet"}
+      <h3 className="mt-4 text-heading text-ink">
+        {searchQuery ? "no contacts match that search" : "no contacts yet"}
       </h3>
 
-      <p className="mt-1 text-body text-text-soft">
+      <p className="mx-auto mt-1 max-w-sm text-body text-text-soft">
         {searchQuery
           ? "Try searching by contact name, role, email or client."
-          : "Add a contact to an existing client using the Add contact action."}
+          : "Contacts belong to a client. Add people you talk to so you always know who to reach."}
       </p>
 
       {!searchQuery && clients.length > 0 && (
@@ -592,7 +594,7 @@ export default function ClientsPage() {
           href="/clients/contacts/new"
           className={cn(
             buttonStyles({ variant: "primary" }),
-            "mt-4 inline-flex",
+            "mt-5 inline-flex",
           )}
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -605,7 +607,7 @@ export default function ClientsPage() {
           href="/clients/new"
           className={cn(
             buttonStyles({ variant: "primary" }),
-            "mt-4 inline-flex",
+            "mt-5 inline-flex",
           )}
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -778,8 +780,8 @@ export default function ClientsPage() {
 
               <h2 className="mt-4 text-heading text-ink">
                 {searchQuery
-                  ? "No clients match that search"
-                  : "No clients yet"}
+                  ? "no clients match that search"
+                  : "no clients yet"}
               </h2>
 
               <p className="mx-auto mt-1 max-w-sm text-body text-text-soft">
@@ -863,10 +865,11 @@ export default function ClientsPage() {
                           </div>
                         </div>
 
-                        <div className="flex shrink-0 items-center">
+                        <div className="flex shrink-0 items-center gap-1">
                           <Link
                             href={`/clients/${encodeURIComponent(client.id)}`}
                             aria-label={`Open ${client.name} details`}
+                            className="flex h-9 w-9 items-center justify-center rounded-btn text-text-soft transition-colors hover:bg-surface-tint hover:text-ink"
                           >
                             <Edit2 className="h-4 w-4" aria-hidden="true" />
                           </Link>

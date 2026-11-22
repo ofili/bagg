@@ -1,10 +1,6 @@
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 
-import {
-  absoluteUrl,
-  siteDescription,
-  siteName,
-} from '@/lib/site';
+import { absoluteUrl, siteDescription, siteName } from "@/lib/site";
 
 interface MarketingMetadataOptions {
   title: string;
@@ -14,11 +10,11 @@ interface MarketingMetadataOptions {
 }
 
 export function marketingMetadata({
-                                    title,
-                                    description,
-                                    path,
-                                    noIndex = false,
-                                  }: MarketingMetadataOptions): Metadata {
+  title,
+  description,
+  path,
+  noIndex = false,
+}: MarketingMetadataOptions): Metadata {
   const canonical = absoluteUrl(path);
 
   return {
@@ -35,9 +31,9 @@ export function marketingMetadata({
       googleBot: {
         index: !noIndex,
         follow: true,
-        'max-image-preview': 'large',
-        'max-snippet': -1,
-        'max-video-preview': -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
       },
     },
 
@@ -46,12 +42,12 @@ export function marketingMetadata({
       description,
       url: canonical,
       siteName,
-      type: 'website',
-      locale: 'en_NG',
+      type: "website",
+      locale: "en_NG",
     },
 
     twitter: {
-      card: 'summary_large_image',
+      card: "summary_large_image",
       title,
       description,
     },
@@ -61,13 +57,13 @@ export function marketingMetadata({
 export const defaultMarketingMetadata: Metadata = {
   title: {
     absolute:
-        'Invoicing and Payment Workspace for Independent Professionals | Bagg',
+      "Invoicing and Payment Tracking for Freelancers & Creators | Bagg",
   },
 
   description: siteDescription,
 
   alternates: {
-    canonical: absoluteUrl('/'),
+    canonical: absoluteUrl("/"),
   },
 
   robots: {
@@ -76,31 +72,31 @@ export const defaultMarketingMetadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      'max-image-preview': 'large',
+      "max-image-preview": "large",
     },
   },
 
   openGraph: {
-    title: 'Freelancer Invoicing & Payment Software | Bagg',
+    title: "Freelancer Invoicing & Payment Software | Bagg",
     description: siteDescription,
-    url: absoluteUrl('/'),
+    url: absoluteUrl("/"),
     siteName,
-    type: 'website',
-    locale: 'en_NG',
+    type: "website",
+    locale: "en_NG",
     images: [
       {
-        url: '/og-image.png',
+        url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: 'Bagg — invoice like a pro. Get paid without chasing.',
+        alt: "Bagg — invoice like a pro. Get paid without chasing.",
       },
     ],
   },
 
   twitter: {
-    card: 'summary_large_image',
-    title: 'Freelancer Invoicing & Payment Software | Bagg',
+    card: "summary_large_image",
+    title: "Freelancer Invoicing & Payment Software | Bagg",
     description: siteDescription,
-    images: ['/og-image.png']
+    images: ["/og-image.png"],
   },
 };

@@ -43,24 +43,17 @@ const safeguards = [
   },
   {
     icon: CreditCard,
-    label: "CARD PAYMENTS",
+    label: "SUBSCRIPTION BILLING",
     title: "Card details stay with the payment processor.",
-    copy: "When card payment is enabled, card details are entered on our payment partner’s checkout. Bagg does not store your card number.",
+    copy: "When you upgrade to Creator Pro or Professional, card details are handled directly by our payment processor. Bagg never stores your card number.",
     tone: "bg-mango text-on-mango",
   },
   {
     icon: CircleCheck,
     label: "PAYMENT CLAIMS",
-    title: "You decide when a manual claim is paid.",
-    copy: "A client can say they have paid, but the invoice only moves to paid when you confirm the claim or the payment gateway confirms the money.",
+    title: "You decide when a claim is confirmed.",
+    copy: "When a client says they have paid, the invoice stays in review until you verify the money in your account and confirm it.",
     tone: "bg-surface-tint text-text",
-  },
-  {
-    icon: Lock,
-    label: "PAYMENT CONFIRMATION",
-    title: "A redirect is not proof of payment.",
-    copy: "Automated payments are confirmed by the signed gateway webhook, not just by a browser redirect or a success screen.",
-    tone: "bg-pink text-on-pink",
   },
   {
     icon: Flag,
@@ -91,7 +84,7 @@ export default function SecurityPage() {
               </div>
 
               <h1 className="mt-7 max-w-3xl text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem] lg:text-[5.25rem]">
-                Your money details
+                your money details
                 <span className="block text-mango">are not content.</span>
               </h1>
 
@@ -156,7 +149,7 @@ export default function SecurityPage() {
                     <div>
                       <p className="font-extrabold text-ink">Verify payments</p>
                       <p className="mt-1 text-caption leading-relaxed text-text-muted">
-                        Payment claims and gateway confirmation.
+                        Payment claims and verified confirmation.
                       </p>
                     </div>
                   </div>

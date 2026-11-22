@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -255,7 +255,7 @@ function OnboardingForm() {
             />
 
             <div className="mt-6 flex items-start gap-4">
-              <BagCharacter size={64} className="shrink-0" />
+              <BagCharacter size={64} className="shrink-0" decorative />
 
               <div className="min-w-0">
                 <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
@@ -386,7 +386,7 @@ function OnboardingForm() {
                   </>
                 ) : (
                   <>
-                    Let's go
+                    Let&apos;s go
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </>
                 )}
