@@ -116,10 +116,34 @@ class SharingService:
         # Only expose a default payment profile when its instructions are
         # complete and valid. This protects public invoices from displaying
         # incomplete legacy profiles as usable payment instructions.
-        profile = await self.repo.get_default_payment_profile(
-            invoice.workspace_id,
-            invoice.currency,
-        )
+        profile_snapshot = invoice.payment_profile_snapshot
+
+        if profile_snapshot:
+            profile_response = PaymentProfileResponse.model_validate(
+                profile_snapshot
+            )
+        else:
+            # Legacy invoices that have not yet been backfilled.
+            profile = await self.repo.get_default_payment_profile(
+                invoice.workspace_id,
+                invoice.currency,
+            )
+
+            if profile is not None and not is_payment_profile_usable(profile):
+                logger.warning(
+                    "Ignoring unusable payment profile on legacy public invoice "
+                    "(workspace_id=%s, invoice_id=%s, profile_id=%s)",
+                    invoice.workspace_id,
+                    invoice.id,
+                    profile.id,
+                )
+                profile = None
+
+            profile_response = (
+                PaymentProfileResponse.model_validate(profile)
+                if profile is not None
+                else None
+            )
 
         if profile is not None and not is_payment_profile_usable(profile):
             logger.warning(

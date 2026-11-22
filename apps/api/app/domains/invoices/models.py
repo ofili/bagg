@@ -54,6 +54,7 @@ class Invoice(Base):
 
     issue_date = Column(Date, nullable=True, default=date.today)
     due_date = Column(Date, nullable=True)
+    payment_profile_snapshot = Column(JSON, nullable=True)
 
     # Financial arithmetic strictly in minor integer units (US-INV-02)
     subtotal_minor = Column(BigInteger, nullable=False, default=0)

@@ -567,6 +567,34 @@ async def finalize_invoice(
     if not locked_workspace:
         raise NotFoundException("Workspace not found")
 
+    # Capture payment instructions only once.
+    # Reissue must not replace the original instructions.
+    if invoice.payment_profile_snapshot is None:
+        if invoice.payment_profile_id:
+            profile = await repository.get_payment_profile_for_snapshot(
+                workspace.id,
+                invoice.payment_profile_id,
+            )
+
+            if profile is None:
+                raise BadRequestException(
+                    "The selected payment profile is no longer available. "
+                    "Select another payment profile before issuing this invoice."
+                )
+        else:
+            profile = await repository.get_default_payment_profile_for_snapshot(
+                workspace.id,
+                invoice.currency,
+            )
+
+        if profile is not None:
+            if profile.currency.upper() != invoice.currency.upper():
+                raise BadRequestException(
+                    "Payment profile currency must match the invoice currency."
+                )
+
+            invoice.payment_profile_snapshot = _build_payment_profile_snapshot(profile)
+
     # Recheck after acquiring the workspace lock. This protects against
     # duplicate finalization attempts and stale invoice state.
     await InvoiceRepository(db).refresh(invoice)
@@ -1235,3 +1263,32 @@ async def recall_invoice(
         db, workspace.id, invoice_id,
         actor_user_id=actor_user_id, reason=reason,
     )
+
+
+from app.domains.payments.profile_rules import (
+    payment_profile_methods,
+)
+
+
+def _build_payment_profile_snapshot(profile) -> dict:
+    try:
+        payment_profile_methods(profile)
+    except ValueError as exc:
+        raise BadRequestException(
+            f"Cannot issue invoice with incomplete payment instructions: {exc}"
+        ) from exc
+
+    return {
+        "id": profile.id,
+        "workspace_id": profile.workspace_id,
+        "currency": profile.currency,
+        "bank_name": profile.bank_name,
+        "account_name": profile.account_name,
+        "account_number": profile.account_number,
+        "routing_number": profile.routing_number,
+        "payment_link": profile.payment_link,
+        "mobile_money_number": profile.mobile_money_number,
+        "instructions": profile.instructions,
+        "is_default": profile.is_default,
+        "created_at": profile.created_at.isoformat(),
+    }

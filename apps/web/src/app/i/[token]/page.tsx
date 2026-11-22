@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -116,6 +117,10 @@ interface PublicInvoiceData {
   viral_footer_link?: string;
 }
 
+interface PaymentVerificationResponse {
+  status?: "success" | "processing" | "failed" | string;
+}
+
 export default function PublicClientInvoiceView() {
   const params = useParams();
   const token = params?.token as string;
@@ -137,8 +142,6 @@ export default function PublicClientInvoiceView() {
   const [submittingClaim, setSubmittingClaim] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
 
-  const handleInitiateCheckout = async () => {
-
   const [showAbuseDialog, setShowAbuseDialog] = useState(false);
   const [abuseReason, setAbuseReason] = useState("");
   const [abuseEmail, setAbuseEmail] = useState("");
@@ -149,16 +152,23 @@ export default function PublicClientInvoiceView() {
 
   const fetchInvoiceData = useCallback(() => {
     if (!token) return;
+
     fetch(`${API_BASE}/share/${token}`)
       .then(async (res) => {
-        if (!res.ok) throw new Error("Invoice link not found or expired");
+        if (!res.ok) {
+          throw new Error("Invoice link not found or expired");
+        }
+
         return res.json();
       })
       .then((json: PublicInvoiceData) => {
         setData(json);
+        setError(null);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Could not load invoice");
+        setError(
+          err instanceof Error ? err.message : "Could not load invoice",
+        );
       })
       .finally(() => {
         setLoading(false);
@@ -167,12 +177,14 @@ export default function PublicClientInvoiceView() {
 
   const handleClaimPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!token || !data) return;
 
     setSubmittingClaim(true);
     setClaimError(null);
 
     const amountMinor = toMinor(claimAmount);
+
     if (amountMinor <= 0) {
       setClaimError("Enter the amount you paid.");
       setSubmittingClaim(false);
@@ -184,6 +196,7 @@ export default function PublicClientInvoiceView() {
     const remainingMinor =
       invoice.remaining_minor ??
       Math.max(0, payable - (invoice.amount_paid_minor || 0));
+
     if (amountMinor > remainingMinor) {
       setClaimError(
         `The amount cannot exceed the remaining balance of ${(remainingMinor / 100).toFixed(2)} ${invoice.currency}.`,
@@ -193,7 +206,11 @@ export default function PublicClientInvoiceView() {
     }
 
     let sanitizedProofUrl = claimProofUrl.trim();
-    if (sanitizedProofUrl && !/^https?:\/\//i.test(sanitizedProofUrl)) {
+
+    if (
+      sanitizedProofUrl &&
+      !/^https?:\/\//i.test(sanitizedProofUrl)
+    ) {
       sanitizedProofUrl = `https://${sanitizedProofUrl}`;
     }
 
@@ -211,7 +228,9 @@ export default function PublicClientInvoiceView() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to submit payment claim.");
+        throw new Error(
+          errData.detail || "Failed to submit payment claim.",
+        );
       }
 
       setIsClaimDialogOpen(false);
@@ -219,6 +238,7 @@ export default function PublicClientInvoiceView() {
         "Done. Your payment details have been sent to your freelancer.",
       );
       setTimeout(() => setToastMsg(null), 4000);
+
       fetchInvoiceData();
     } catch (err) {
       setClaimError(
@@ -231,13 +251,16 @@ export default function PublicClientInvoiceView() {
 
   const handleReportAbuse = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (abuseReason.trim().length < 10) {
       setAbuseError("Please provide a reason with at least 10 characters.");
       return;
     }
+
     try {
       setSubmittingAbuse(true);
       setAbuseError(null);
+
       const res = await fetch(`${API_BASE}/share/${token}/report-abuse`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -247,11 +270,14 @@ export default function PublicClientInvoiceView() {
           reporter_name: abuseName.trim() || undefined,
         }),
       });
+
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.detail || "Failed to submit report");
       }
+
       setAbuseSuccess(true);
+
       setTimeout(() => {
         setShowAbuseDialog(false);
         setAbuseSuccess(false);
@@ -270,31 +296,86 @@ export default function PublicClientInvoiceView() {
     fetchInvoiceData();
   }, [fetchInvoiceData]);
 
+  /**
+   * A payment-provider redirect is not proof of payment.
+   * Ask the server to verify the reference and interpret the server's
+   * explicit status response.
+   */
   useEffect(() => {
     if (!token) return;
-    const urlParams = new URLSearchParams(window.location.search);
-    const ref = urlParams.get("reference");
-    if (ref) {
-      fetch(`${API_BASE}/share/${token}/verify-payment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference: ref }),
-      })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((verification) => {
-          if (verification?.verified) {
-            setToastMsg("Payment verified successfully! Thank you.");
+
+    let cancelled = false;
+
+    const verifyRedirectPayment = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const reference = urlParams.get("reference");
+
+      if (!reference) return;
+
+      try {
+        const res = await fetch(
+          `${API_BASE}/share/${token}/verify-payment`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reference }),
+          },
+        );
+
+        if (!res.ok) {
+          throw new Error("Payment verification request failed.");
+        }
+
+        const verification =
+          (await res.json()) as PaymentVerificationResponse;
+
+        if (cancelled) return;
+
+        switch (verification.status) {
+          case "success":
+            setToastMsg("Your payment has already been recorded.");
             fetchInvoiceData();
-          }
-        })
-        .catch(() => {});
-    }
+            break;
+
+          case "processing":
+            setToastMsg(
+              "Your payment is being checked. Please check again shortly.",
+            );
+            break;
+
+          case "failed":
+            setToastMsg(
+              "Your payment was not confirmed. Please contact your freelancer.",
+            );
+            break;
+
+          default:
+            setToastMsg(
+              "We could not confirm the payment status. Please contact your freelancer.",
+            );
+            break;
+        }
+      } catch {
+        if (cancelled) return;
+
+        setToastMsg(
+          "We could not check the payment status. Please try again later.",
+        );
+      }
+    };
+
+    verifyRedirectPayment();
+
+    return () => {
+      cancelled = true;
+    };
   }, [token, fetchInvoiceData]);
 
   const handleCopy = (text: string, key: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setToastMsg(`${label} copied to clipboard!`);
+
     setTimeout(() => {
       setCopiedKey(null);
       setToastMsg(null);
@@ -316,8 +397,14 @@ export default function PublicClientInvoiceView() {
   if (error || !data) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-cream p-4">
-        <Card zone="calm" className="w-full max-w-sm space-y-3 p-6 text-center">
-          <Info aria-hidden className="mx-auto h-9 w-9 text-text-muted" />
+        <Card
+          zone="calm"
+          className="w-full max-w-sm space-y-3 p-6 text-center"
+        >
+          <Info
+            aria-hidden
+            className="mx-auto h-9 w-9 text-text-muted"
+          />
           <h1 className="text-title">invoice unavailable</h1>
           <p className="text-body text-text-soft">
             {error || "This link may have been revoked or expired."}
@@ -337,19 +424,29 @@ export default function PublicClientInvoiceView() {
     latest_claim: rootLatestClaim,
   } = data;
 
-  const resolvedLatestClaim = invoice.latest_claim ?? rootLatestClaim ?? null;
+  const resolvedLatestClaim =
+    invoice.latest_claim ?? rootLatestClaim ?? null;
+
   const payable = invoice.net_payable_minor || invoice.total_minor;
+
   const remainingMinor =
     invoice.remaining_minor ??
     Math.max(0, payable - (invoice.amount_paid_minor || 0));
 
   const openClaimSheet = () => {
-    if (resolvedLatestClaim && resolvedLatestClaim.status === "pending") {
-      setClaimAmount((resolvedLatestClaim.amount_minor / 100).toFixed(2));
+    if (
+      resolvedLatestClaim &&
+      resolvedLatestClaim.status === "pending"
+    ) {
+      setClaimAmount(
+        (resolvedLatestClaim.amount_minor / 100).toFixed(2),
+      );
+
       setClaimDate(
         resolvedLatestClaim.payment_date ||
           new Date().toISOString().split("T")[0],
       );
+
       setClaimReference(resolvedLatestClaim.reference || "");
       setClaimProofUrl(resolvedLatestClaim.proof_file_url || "");
     } else {
@@ -358,6 +455,7 @@ export default function PublicClientInvoiceView() {
       setClaimReference("");
       setClaimProofUrl("");
     }
+
     setClaimError(null);
     setIsClaimDialogOpen(true);
   };
@@ -409,7 +507,10 @@ export default function PublicClientInvoiceView() {
             role="status"
             className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2 rounded-btn border-brut-thin border-ink bg-surface px-4 py-2 text-body font-extrabold shadow-brut"
           >
-            <Check aria-hidden className="h-4 w-4 text-leaf" />
+            <Check
+              aria-hidden
+              className="h-4 w-4 text-leaf"
+            />
             <span>{toastMsg}</span>
           </div>
         )}
@@ -421,7 +522,10 @@ export default function PublicClientInvoiceView() {
             tone="peach"
             className="flex items-start gap-2.5 text-body"
           >
-            <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+            <Info
+              aria-hidden
+              className="mt-0.5 h-4 w-4 shrink-0"
+            />
             <span>{revision_banner}</span>
           </Card>
         )}
@@ -429,38 +533,6 @@ export default function PublicClientInvoiceView() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           {/* Main document column */}
           <div className="min-w-0 space-y-6">
-            {/* Online payment: mobile and tablet */}
-            {remainingMinor > 0 && invoice.status !== "paid" && (
-              <Card
-                zone="calm"
-                className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between lg:hidden"
-              >
-                <div>
-                  <p className="font-extrabold text-heading">
-                    Pay online securely
-                  </p>
-                  <p className="text-body text-text-soft">
-                    Pay with debit card, bank transfer, or USSD.
-                  </p>
-                  {checkoutError && (
-                    <p role="alert" className="mt-1 text-caption text-danger">
-                      {checkoutError}
-                    </p>
-                  )}
-                </div>
-
-                <Button
-                  zone="calm"
-                  size="lg"
-                  loading={checkingOut}
-                  onClick={handleInitiateCheckout}
-                >
-                  <CreditCard aria-hidden className="h-4 w-4" />
-                  Pay now
-                </Button>
-              </Card>
-            )}
-
             {/* Mobile payment experience */}
             <ClientPayView {...payProps} />
 
@@ -472,6 +544,7 @@ export default function PublicClientInvoiceView() {
                   {invoice.invoice_number}
                 </span>
               </summary>
+
               <div className="p-3">{invoiceDoc}</div>
             </details>
 
@@ -501,53 +574,6 @@ export default function PublicClientInvoiceView() {
 
           {/* Supporting payment column */}
           <aside className="hidden space-y-6 lg:sticky lg:top-6 lg:block">
-            {/* Payment action */}
-            {remainingMinor > 0 && invoice.status !== "paid" && (
-              <Card
-                zone="calm"
-                className="space-y-4 border-brut border-ink p-5 shadow-brut"
-              >
-                <div>
-                  <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                    Ready to pay?
-                  </p>
-                  <p className="mt-2 text-amount-l font-extrabold">
-                    <Money
-                      amountMinor={remainingMinor}
-                      currency={invoice.currency}
-                      variant="total"
-                      hideCurrencyCode
-                    />
-                  </p>
-                  <p className="mt-1 text-body text-text-soft">
-                    Outstanding balance
-                  </p>
-                </div>
-
-                <Button
-                  zone="calm"
-                  size="lg"
-                  fullWidth
-                  loading={checkingOut}
-                  onClick={handleInitiateCheckout}
-                >
-                  <CreditCard aria-hidden className="h-4 w-4" />
-                  Pay online
-                </Button>
-
-                {checkoutError && (
-                  <p role="alert" className="text-caption text-danger">
-                    {checkoutError}
-                  </p>
-                )}
-
-                <p className="text-caption text-text-muted">
-                  Secure checkout. Your payment is confirmed through the payment
-                  provider.
-                </p>
-              </Card>
-            )}
-
             {/* Payment summary */}
             <Card zone="calm" className="space-y-4 p-5">
               <div>
@@ -614,7 +640,10 @@ export default function PublicClientInvoiceView() {
 
               {invoice.status === "paid" || remainingMinor === 0 ? (
                 <div className="border border-leaf/40 bg-leaf/10 p-3 text-body font-bold">
-                  <Check aria-hidden className="mr-2 inline h-4 w-4" />
+                  <Check
+                    aria-hidden
+                    className="mr-2 inline h-4 w-4"
+                  />
                   Payment complete
                 </div>
               ) : (
@@ -663,7 +692,9 @@ export default function PublicClientInvoiceView() {
       {/* Payment claim dialog */}
       <Dialog
         open={isClaimDialogOpen}
-        onClose={() => !submittingClaim && setIsClaimDialogOpen(false)}
+        onClose={() =>
+          !submittingClaim && setIsClaimDialogOpen(false)
+        }
         title="I've paid this invoice"
         description="Share your payment details so your freelancer can verify the funds and send your receipt."
         className="max-h-[92dvh] overflow-y-auto"
@@ -676,7 +707,9 @@ export default function PublicClientInvoiceView() {
               label="Amount you paid"
               currency={invoice.currency}
               value={claimAmount}
-              onChange={(v) => setClaimAmount(cleanAmount(v, claimAmount))}
+              onChange={(v) =>
+                setClaimAmount(cleanAmount(v, claimAmount))
+              }
               required
             />
 
@@ -699,13 +732,17 @@ export default function PublicClientInvoiceView() {
                     type="button"
                     onClick={() =>
                       setClaimAmount(
-                        ((invoice.deposit_amount_minor || 0) / 100).toFixed(2),
+                        (
+                          (invoice.deposit_amount_minor || 0) / 100
+                        ).toFixed(2),
                       )
                     }
                     className="rounded-btn border-brut-thin border-ink bg-surface-tint px-2.5 py-1 text-caption font-bold text-ink hover:border-ink hover:bg-surface"
                   >
                     Deposit only (
-                    {((invoice.deposit_amount_minor || 0) / 100).toFixed(2)}{" "}
+                    {(
+                      (invoice.deposit_amount_minor || 0) / 100
+                    ).toFixed(2)}{" "}
                     {invoice.currency})
                   </button>
                 )}
@@ -749,6 +786,7 @@ export default function PublicClientInvoiceView() {
             >
               Cancel
             </Button>
+
             <Button
               type="submit"
               zone="calm"
@@ -764,7 +802,9 @@ export default function PublicClientInvoiceView() {
       {/* Report abuse dialog */}
       <Dialog
         open={showAbuseDialog}
-        onClose={() => !submittingAbuse && setShowAbuseDialog(false)}
+        onClose={() =>
+          !submittingAbuse && setShowAbuseDialog(false)
+        }
         title="Report this invoice"
         description="If this invoice looks like impersonation, phishing, or a charge you did not expect, let us know."
         className="max-h-[92dvh] overflow-y-auto"
@@ -783,8 +823,13 @@ export default function PublicClientInvoiceView() {
               invoice promptly.
             </p>
           ) : (
-            <form onSubmit={handleReportAbuse} className="space-y-4">
-              {abuseError && <Alert variant="error">{abuseError}</Alert>}
+            <form
+              onSubmit={handleReportAbuse}
+              className="space-y-4"
+            >
+              {abuseError && (
+                <Alert variant="error">{abuseError}</Alert>
+              )}
 
               <TextArea
                 label="What looks wrong?"

@@ -428,6 +428,40 @@ class InvoiceRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_payment_profile_for_snapshot(
+    self,
+    workspace_id: str,
+    profile_id: str,
+    ) -> PaymentProfile | None:
+        result = await self.db.execute(
+            select(PaymentProfile)
+            .where(
+                PaymentProfile.id == profile_id,
+                PaymentProfile.workspace_id == workspace_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_default_payment_profile_for_snapshot(
+        self,
+        workspace_id: str,
+        currency: str,
+    ) -> PaymentProfile | None:
+        result = await self.db.execute(
+            select(PaymentProfile)
+            .where(
+                PaymentProfile.workspace_id == workspace_id,
+                PaymentProfile.currency == currency.upper().strip(),
+                PaymentProfile.is_default.is_(True),
+            )
+            .with_for_update()
+            .limit(1)
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
+
     def add(self, instance: Any) -> None:
         self.db.add(instance)
 
