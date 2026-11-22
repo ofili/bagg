@@ -1115,12 +1115,12 @@ export default function InvoiceDetailPage() {
   const invoiceDoc = (
     <InvoiceDocument
       variant="issuer"
-      showPdfAction={false}
-      showLatestReceipt={false}
       invoice={{
         ...invoice,
         tax_rate_percent: invoice.tax_rate_percent ?? 0,
         remaining_minor: balanceMinor,
+        showPdfAction: false,
+        showLatestReceipt: false,
       }}
     />
   );
