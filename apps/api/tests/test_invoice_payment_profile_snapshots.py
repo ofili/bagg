@@ -40,14 +40,16 @@ async def authenticated_client():
             json={
                 "email": email,
                 "code": login_code_for(email),
+                "intent": "signup",
+                "full_name": "Invoice Profile Test",
             },
         )
         assert response.status_code == 200, response.text
 
-        client.cookies.set(
-            "bagg_session",
-            response.cookies["bagg_session"],
-        )
+        session_cookie = response.cookies.get("bagg_session")
+        assert session_cookie, "Signup did not return a session cookie."
+
+        client.cookies.set("bagg_session", session_cookie)
 
         yield client, response.json()["workspace"]["id"]
 

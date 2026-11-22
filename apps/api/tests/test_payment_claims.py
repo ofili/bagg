@@ -8,15 +8,40 @@ from tests.helpers import create_sent_invoice, login_code_for
 async def setup_claimable_invoice(amount_minor: int = 50_000_00):
     transport = ASGITransport(app=app)
     client = AsyncClient(transport=transport, base_url="http://test")
+
     email = f"claims-{uuid.uuid4().hex[:8]}@studio.ng"
-    req = await client.post("/auth/magic-link", json={"email": email})
+
+    req = await client.post(
+        "/auth/magic-link",
+        json={"email": email},
+    )
+    assert req.status_code == 200, req.text
+
     verify = await client.post(
-        "/auth/verify", json={"email": email, "code": login_code_for(email)}
+        "/auth/verify",
+        json={
+            "email": email,
+            "code": login_code_for(email),
+            "intent": "signup",
+            "full_name": "Payment Claims Test",
+        },
     )
-    client.cookies.set("bagg_session", verify.cookies["bagg_session"])
+    assert verify.status_code == 200, verify.text
+
+    session_cookie = verify.cookies.get("bagg_session")
+    assert session_cookie, "Signup did not return a session cookie."
+
+    client.cookies.set("bagg_session", session_cookie)
+
     created_client = await client.post(
-        "/clients", json={"name": "Claims Test Ltd", "preferred_currency": "NGN"}
+        "/clients",
+        json={
+            "name": "Claims Test Ltd",
+            "preferred_currency": "NGN",
+        },
     )
+    assert created_client.status_code == 201, created_client.text
+
     invoice = await create_sent_invoice(
         client,
         {
@@ -32,6 +57,7 @@ async def setup_claimable_invoice(amount_minor: int = 50_000_00):
             ],
         },
     )
+
     return client, invoice
 
 
