@@ -1,5 +1,5 @@
 
-import { CURRENCIES } from '@/lib/money';
+import { CURRENCIES, formatCompactNumber } from '@/lib/money';
 import { cn } from '@/lib/cn';
 
 interface MoneyProps {
@@ -11,21 +11,6 @@ interface MoneyProps {
   showCurrencyCode?: boolean;
   compact?: boolean;
   nowrap?: boolean;
-}
-
-function compactNumber(value: number, locale: string): string {
-  const abs = Math.abs(value);
-  const formatter = (maximumFractionDigits: number) =>
-    new Intl.NumberFormat(locale, { maximumFractionDigits });
-
-  if (abs >= 1_000_000_000) return `${formatter(2).format(value / 1_000_000_000)}B`;
-  if (abs >= 1_000_000) return `${formatter(2).format(value / 1_000_000)}M`;
-  if (abs >= 1_000) return `${formatter(1).format(value / 1_000)}K`;
-
-  return new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(value);
 }
 
 export function Money({
@@ -51,7 +36,7 @@ export function Money({
   const absolute = Math.abs(major);
 
   const formatted = compact
-    ? compactNumber(absolute, locale)
+    ? formatCompactNumber(absolute, locale)
     : new Intl.NumberFormat(locale, {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals,

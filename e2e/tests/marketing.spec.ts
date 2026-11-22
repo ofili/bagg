@@ -9,7 +9,6 @@ const marketingRoutes = [
   '/about',
   '/help',
   '/contact',
-  '/early-access',
   '/legal/terms',
   '/legal/privacy',
   '/legal/cookies',
@@ -22,7 +21,7 @@ test.describe('Marketing routes', () => {
       expect(response?.status()).toBe(200);
       await expect(page).toHaveTitle(/bagg/i);
       await expect(page.locator('h1')).toBeVisible();
-      await expect(page.locator('header')).toBeVisible();
+      await expect(page.getByRole('banner')).toBeVisible();
       await expect(page.locator('footer')).toBeVisible();
     });
   }
@@ -60,9 +59,9 @@ test('desktop navigation marks the active page', async ({ page }) => {
   ).toHaveAttribute('aria-current', 'page');
 });
 
-test('legal pages are noindex placeholders', async ({ page }) => {
+test('legal pages are noindex plain-language notices', async ({ page }) => {
   await page.goto('/legal/terms');
-  await expect(page.getByText(/plain-language summary, not the final legal agreement/i)).toBeVisible();
+  await expect(page.getByText(/written in plain language/i)).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
 });
 
@@ -71,16 +70,10 @@ test('/signup redirects into the sign-in flow', async ({ page }) => {
   await expect(page).toHaveURL(/\/login\?intent=signup$/);
 });
 
-test('contact and early-access forms are present and honest about mailto', async ({ page }) => {
+test('contact page lists the support email routes', async ({ page }) => {
   await page.goto('/contact');
-  await expect(page.getByLabel('your name')).toBeVisible();
-  await expect(page.getByLabel('email address')).toBeVisible();
-  await expect(page.getByRole('button', { name: /open email app/i })).toBeVisible();
-  await expect(page.getByText(/nothing sends until you press send there/i)).toBeVisible();
-
-  await page.goto('/early-access');
-  await expect(page.getByLabel('what do you do?')).toBeVisible();
-  await expect(page.getByRole('button', { name: /join early access/i })).toBeVisible();
+  await expect(page.getByText(/there is no form to fill in/i)).toBeVisible();
+  await expect(page.getByRole('link', { name: /hello@bagg\.app/i })).toBeVisible();
 });
 
 test('cookie notice can be dismissed and stays dismissed', async ({ page }) => {

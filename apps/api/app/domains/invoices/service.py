@@ -232,6 +232,59 @@ async def get_currency_metrics(db: AsyncSession, workspace: Workspace) -> list[d
     return list(metrics_by_currency.values())
 
 
+def _shift_month(value: date, offset: int) -> date:
+    month_index = value.year * 12 + value.month - 1 + offset
+    return date(month_index // 12, month_index % 12 + 1, 1)
+
+
+async def get_currency_metrics_history(
+    db: AsyncSession,
+    workspace: Workspace,
+    months: int = 6,
+) -> list[dict]:
+    repository = InvoiceRepository(db)
+
+    today = date.today()
+    current_month = date(today.year, today.month, 1)
+    start_month = _shift_month(current_month, -(months - 1))
+    end_month = _shift_month(current_month, 1)
+
+    collected = await repository.get_collected_totals_by_month(
+        workspace.id,
+        start_month,
+        end_month,
+    )
+    invoiced = await repository.get_invoiced_totals_by_month(
+        workspace.id,
+        start_month,
+        end_month,
+    )
+    workspace_currencies = await repository.list_workspace_currencies(workspace.id)
+    profile_currencies = await repository.list_profile_currencies(workspace.id)
+
+    currencies = sorted(
+        {currency for currency, _ in collected}
+        | {currency for currency, _ in invoiced}
+        | set(workspace_currencies)
+        | set(profile_currencies)
+    )
+    month_keys = [
+        _shift_month(start_month, offset).strftime("%Y-%m")
+        for offset in range(months)
+    ]
+
+    return [
+        {
+            "currency": currency,
+            "month": month,
+            "invoiced_minor": invoiced.get((currency, month), 0),
+            "collected_minor": collected.get((currency, month), 0),
+        }
+        for currency in currencies
+        for month in month_keys
+    ]
+
+
 async def create_invoice(
     db: AsyncSession,
     workspace: Workspace,
@@ -309,7 +362,9 @@ async def create_invoice(
         deposit_amount_minor=totals["deposit_amount_minor"],
         deposit_due_date=payload.deposit_due_date,
 
-        direct_checkout_enabled=payload.direct_checkout_enabled,
+        # Direct invoice checkout remains disabled until freelancer settlement
+        # is implemented and independently verified.
+        direct_checkout_enabled=False,
         amount_paid_minor=0,
 
         payment_profile_id=payload.payment_profile_id,
@@ -429,8 +484,7 @@ async def update_draft_invoice(
 
     if payload.deposit_due_date is not None:
         invoice.deposit_due_date = payload.deposit_due_date
-    if payload.direct_checkout_enabled is not None:
-        invoice.direct_checkout_enabled = payload.direct_checkout_enabled
+    
     repository = InvoiceRepository(db)
     if payload.client_id:
         client = await repository.get_client(workspace.id, payload.client_id)

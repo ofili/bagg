@@ -9,10 +9,11 @@ import { BagCharacter } from '@/components/brand';
 import {
   HeroOwedCard,
   NeedsAttentionStrip,
+  PerformanceCard,
   RecentActivityFeed,
   SetupChecklistCard,
-  ThisMonthCard,
   type CurrencyMetrics,
+  type CurrencyMonthMetrics,
 } from '@/components/dashboard';
 import {
   ErrorState,
@@ -90,7 +91,7 @@ function DashboardSkeleton() {
         <div className="space-y-5 lg:col-span-8">
           <div className="h-56 animate-pulse border-brut border-ink bg-surface-tint motion-reduce:animate-none" />
           <div className="h-32 animate-pulse border-brut border-ink bg-surface-tint motion-reduce:animate-none" />
-          <div className="h-28 animate-pulse border-brut border-ink bg-surface-tint motion-reduce:animate-none" />
+          <div className="h-80 animate-pulse border-brut border-ink bg-surface-tint motion-reduce:animate-none" />
         </div>
 
         <div className="space-y-5 lg:col-span-4">
@@ -109,6 +110,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [selected, setSelected] = useState('');
+  const [history, setHistory] = useState<CurrencyMonthMetrics[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyFailed, setHistoryFailed] = useState(false);
   const [hasDispatchedDocument, setHasDispatchedDocument] =
     useState<boolean | null>(null);
 
@@ -162,6 +166,37 @@ export default function DashboardPage() {
     [setupPreferenceKey],
   );
 
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryFailed(false);
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/invoices/metrics/history?months=6`,
+        {
+          credentials: 'include',
+          cache: 'no-store',
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('Could not load performance history');
+      }
+
+      const data: unknown = await response.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error('Invalid performance history response');
+      }
+
+      setHistory(data as CurrencyMonthMetrics[]);
+    } catch {
+      setHistoryFailed(true);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setFailed(false);
@@ -200,6 +235,10 @@ export default function DashboardPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
 
   const metric =
     metrics.find((item) => item.currency === selected) ?? metrics[0];
@@ -332,6 +371,19 @@ export default function DashboardPage() {
                 />
               </div>
 
+              <div className="lg:col-span-8 lg:col-start-1 lg:row-start-3">
+                <PerformanceCard
+                  paidMinor={metric?.paid_this_month_minor ?? 0}
+                  sentCount={metric?.sent_count ?? 0}
+                  draftCount={metric?.draft_count ?? 0}
+                  currency={metric?.currency ?? selected ?? 'NGN'}
+                  history={history}
+                  historyLoading={historyLoading}
+                  historyFailed={historyFailed}
+                  onRetryHistory={() => void loadHistory()}
+                />
+              </div>
+
               <div className="lg:col-span-4 lg:col-start-9 lg:row-start-1">
                 {setupPreferenceReady && (
                   <SetupChecklistCard
@@ -341,15 +393,6 @@ export default function DashboardPage() {
                     onMilestonesLoaded={handleMilestonesLoaded}
                   />
                 )}
-              </div>
-
-              <div className="lg:col-span-8 lg:col-start-1 lg:row-start-3">
-                <ThisMonthCard
-                  paidMinor={metric?.paid_this_month_minor ?? 0}
-                  sentCount={metric?.sent_count ?? 0}
-                  draftCount={metric?.draft_count ?? 0}
-                  currency={metric?.currency ?? selected ?? 'NGN'}
-                />
               </div>
 
               <div className="lg:col-span-4 lg:col-start-9 lg:row-start-2">

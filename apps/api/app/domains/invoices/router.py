@@ -21,6 +21,7 @@ from app.domains.documents.delivery import (
 
 from app.domains.invoices.schemas import (
     CurrencyMetricsResponse,
+    CurrencyMonthMetricsResponse,
     DocumentStatusEventResponse,
     InvoiceCreate,
     InvoiceResponse,
@@ -93,6 +94,24 @@ async def get_invoice_metrics(
 ):
     metrics = await service.get_currency_metrics(db, workspace)
     return [CurrencyMetricsResponse(**data) for data in metrics]
+
+
+@router.get(
+    "/metrics/history",
+    response_model=List[CurrencyMonthMetricsResponse],
+)
+async def get_invoice_metrics_history(
+    months: int = Query(
+        6,
+        ge=3,
+        le=12,
+        description="Number of months to include, ending with the current month",
+    ),
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    history = await service.get_currency_metrics_history(db, workspace, months)
+    return [CurrencyMonthMetricsResponse(**row) for row in history]
 
 
 @router.post("", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)

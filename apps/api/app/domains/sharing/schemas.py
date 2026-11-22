@@ -70,7 +70,6 @@ class PublicInvoiceView(BaseModel):
 class DirectCheckoutRequest(BaseModel):
     amount_minor: Optional[int] = None
     payer_email: Optional[str] = None
-    callback_url: Optional[str] = None
 
 
 class DirectCheckoutResponse(BaseModel):

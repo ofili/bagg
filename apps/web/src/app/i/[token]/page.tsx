@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Check, CreditCard, Info, Loader2 } from "lucide-react";
+import { Check, Info, Loader2 } from "lucide-react";
 import { BagCharacter } from "@/components/brand";
 import { DocumentComments } from "@/components/comments/DocumentComments";
 import { InvoiceDocument, PaymentDetails } from "@/components/invoice";
@@ -137,38 +137,7 @@ export default function PublicClientInvoiceView() {
   const [submittingClaim, setSubmittingClaim] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
 
-  const [checkingOut, setCheckingOut] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
-
   const handleInitiateCheckout = async () => {
-    try {
-      setCheckingOut(true);
-      setCheckoutError(null);
-      const res = await fetch(`${API_BASE}/share/${token}/checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          callback_url: window.location.href,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Online payment could not be started.");
-      }
-      const data = await res.json();
-      if (data.authorization_url) {
-        window.location.href = data.authorization_url;
-      }
-    } catch (err) {
-      setCheckoutError(
-        err instanceof Error
-          ? err.message
-          : "Online payment could not be started.",
-      );
-    } finally {
-      setCheckingOut(false);
-    }
-  };
 
   const [showAbuseDialog, setShowAbuseDialog] = useState(false);
   const [abuseReason, setAbuseReason] = useState("");

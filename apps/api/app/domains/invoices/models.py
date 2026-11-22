@@ -77,7 +77,12 @@ class Invoice(Base):
     paid_at = Column(DateTime(timezone=True), nullable=True)
 
     # Direct Payer Checkout (US-INT-01)
-    direct_checkout_enabled = Column(Boolean, nullable=False, default=True)
+    direct_checkout_enabled = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
     direct_payment_reference = Column(String, nullable=True)
 
     # Online payment is only confirmed by a verified gateway webhook.

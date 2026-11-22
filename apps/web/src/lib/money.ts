@@ -39,3 +39,34 @@ export function formatMoney(
   }).format(major);
   return `${conf.symbol}${formatted}`;
 }
+
+/** Compact major-unit formatting used by chart axes and summaries. */
+export function formatCompactNumber(value: number, locale: string): string {
+  const abs = Math.abs(value);
+  const formatter = (maximumFractionDigits: number) =>
+    new Intl.NumberFormat(locale, { maximumFractionDigits });
+
+  if (abs >= 1_000_000_000) {
+    return `${formatter(2).format(value / 1_000_000_000)}B`;
+  }
+  if (abs >= 1_000_000) {
+    return `${formatter(2).format(value / 1_000_000)}M`;
+  }
+  if (abs >= 1_000) {
+    return `${formatter(1).format(value / 1_000)}K`;
+  }
+
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+export function formatCompactMoney(
+  amountMinor: number,
+  currency: string | CurrencyCode = 'NGN',
+): string {
+  const conf = CURRENCIES[currency as CurrencyCode] || CURRENCIES.NGN;
+  const major = (amountMinor || 0) / conf.factor;
+  return `${conf.symbol}${formatCompactNumber(major, conf.locale)}`;
+}

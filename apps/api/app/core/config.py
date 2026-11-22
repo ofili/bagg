@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     API_BASE_URL: str = "http://localhost:8000"
     WEB_BASE_URL: str = "http://localhost:3000"
 
+    # Direct invoice checkout.
+    # Disabled until freelancer-owned settlement is implemented and verified.
+    # This setting does not affect Paystack subscription billing.
+    DIRECT_INVOICE_CHECKOUT_ENABLED: bool = False
+
     # Internal scheduled jobs / worker endpoints
     INTERNAL_JOB_TOKEN: str | None = None
     EMAIL_ENCRYPTION_KEY: str | None = None

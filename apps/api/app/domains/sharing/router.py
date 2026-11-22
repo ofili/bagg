@@ -107,9 +107,16 @@ async def list_comments(
 async def initiate_direct_checkout(
     token: str,
     payload: DirectCheckoutRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    # Checkout creation remains owned by the Payments domain.
+    await enforce_rate_limit(
+        action="invoice-checkout",
+        identity=get_client_ip(request),
+        limit=5,
+        window_seconds=3600,
+    )
+
     from app.domains.payments.checkout_service import (
         initiate_invoice_checkout,
     )
@@ -118,7 +125,7 @@ async def initiate_direct_checkout(
         db,
         token,
         amount_minor=payload.amount_minor,
-        callback_url=payload.callback_url,
+        callback_url=None,
         payer_email=payload.payer_email,
     )
 
@@ -132,10 +139,16 @@ async def initiate_direct_checkout(
 async def verify_direct_payment(
     token: str,
     payload: PaymentVerificationRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    # This is a status lookup only. The signed provider webhook
-    # remains the authority that records a successful payment.
+    await enforce_rate_limit(
+        action="invoice-payment-verification",
+        identity=get_client_ip(request),
+        limit=10,
+        window_seconds=3600,
+    )
+
     from app.domains.payments.checkout_service import (
         verify_invoice_checkout,
     )
@@ -147,6 +160,7 @@ async def verify_direct_payment(
     )
 
     return PaymentVerificationResponse(**result)
+
 
 
 @router.post(

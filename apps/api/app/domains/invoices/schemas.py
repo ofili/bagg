@@ -27,7 +27,7 @@ class InvoiceCreate(BaseModel):
     deposit_percentage: Optional[float] = Field(None, ge=0.0, le=100.0)
     deposit_amount_minor: Optional[int] = Field(None, ge=0)
     deposit_due_date: Optional[date] = None
-    direct_checkout_enabled: bool = True
+    direct_checkout_enabled: bool = False
     notes: Optional[str] = None
     payment_profile_id: Optional[str] = None
     recurring_schedule_id: Optional[str] = None
@@ -164,7 +164,7 @@ class InvoiceResponse(BaseModel):
     amount_paid_minor: int = 0
     remaining_minor: int = 0
     balance_due_minor: int = 0
-    direct_checkout_enabled: bool = True
+    direct_checkout_enabled: bool = False
     direct_payment_reference: Optional[str] = None
     payment_processing_at: Optional[datetime] = None
     payment_state: str = "none"
@@ -218,6 +218,13 @@ class CurrencyMetricsResponse(BaseModel):
     paid_count: int = 0
     overdue_count: int = 0
     cancelled_count: int = 0
+
+
+class CurrencyMonthMetricsResponse(BaseModel):
+    currency: str
+    month: str
+    invoiced_minor: int = 0
+    collected_minor: int = 0
 
 
 class InvoiceRecallRequest(BaseModel):

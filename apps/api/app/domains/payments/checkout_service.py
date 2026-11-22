@@ -23,66 +23,130 @@ async def initiate_invoice_checkout(
     token: str,
     *,
     amount_minor: int | None,
-    callback_url: str | None,
+    callback_url: str | None = None,
     payer_email: str | None = None,
 ) -> dict:
+    """
+    Direct invoice checkout is intentionally disabled until Bagg has
+    a verified freelancer-owned settlement arrangement.
+
+    Keep this guard before payment-attempt creation. No payment attempt
+    should be created when checkout is disabled.
+    """
+    if not settings.DIRECT_INVOICE_CHECKOUT_ENABLED:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Online invoice checkout is temporarily unavailable. "
+                "Please use the payment instructions on the invoice "
+                "or contact the freelancer."
+            ),
+        )
+
     repo = PaymentRepository(db)
     row = await repo.get_public_invoice_for_checkout(token)
+
     if row is None:
         raise NotFoundException("Invoice not found")
+
     invoice, client, workspace = row
-    if invoice.status in {"draft", "cancelled", "void"}:
-        raise HTTPException(
-            status_code=400, detail=f"Cannot pay a {invoice.status} invoice."
-        )
+
     if not invoice.direct_checkout_enabled:
         raise HTTPException(
-            status_code=403, detail="Direct checkout is disabled for this invoice."
+            status_code=503,
+            detail="Direct checkout is disabled for this invoice.",
         )
+
+    if invoice.status in {"draft", "cancelled", "void", "voided"}:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot pay a {invoice.status} invoice.",
+        )
+
     if invoice.status == "paid":
-        raise HTTPException(status_code=400, detail="Invoice is already fully paid.")
+        raise HTTPException(
+            status_code=400,
+            detail="Invoice is already fully paid.",
+        )
+
     if invoice.reconciliation_required:
         raise HTTPException(
             status_code=409,
-            detail="A previous payment requires reconciliation. A new checkout cannot be initiated yet.",
+            detail=(
+                "A previous payment requires reconciliation. "
+                "A new checkout cannot be initiated yet."
+            ),
         )
+
+    currency = invoice.currency.upper()
+
+    # This allowlist is deliberately conservative. Enabling the global
+    # feature flag does not automatically enable unsupported currencies.
+    if currency != "NGN":
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Online checkout is not enabled for {currency}. "
+                "Please use the payment instructions on the invoice."
+            ),
+        )
+
     target = (
         invoice.net_payable_minor
         if invoice.net_payable_minor and invoice.net_payable_minor > 0
         else invoice.total_minor
     )
-    balance = max(0, target - (invoice.amount_paid_minor or 0))
+
+    balance = max(
+        0,
+        target - (invoice.amount_paid_minor or 0),
+    )
+
     if amount_minor is not None and amount_minor > 0:
         charge = min(amount_minor, balance)
     elif invoice.deposit_amount_minor and (invoice.amount_paid_minor or 0) == 0:
         charge = invoice.deposit_amount_minor
     else:
         charge = balance
+
     if charge <= 0:
-        raise HTTPException(status_code=400, detail="No outstanding balance to pay.")
+        raise HTTPException(
+            status_code=400,
+            detail="No outstanding balance to pay.",
+        )
+
     payer_email = (payer_email or (client.email if client else None) or "").strip()
+
     if not payer_email or "@" not in payer_email or len(payer_email) > 320:
         raise HTTPException(
             status_code=400,
             detail="A valid payer email is required for online checkout.",
         )
+
     attempt = await create_invoice_payment_attempt(
-        db, invoice, amount_minor=charge, provider="paystack"
+        db,
+        invoice,
+        amount_minor=charge,
+        provider="paystack",
     )
+
     invoice.direct_payment_reference = attempt.provider_reference
     invoice.payment_processing_at = None
     invoice.payment_processing_reference = None
+
     await db.commit()
     await db.refresh(attempt)
-    callback = (
-        callback_url or f"{settings.WEB_BASE_URL.rstrip('/')}/i/{token}?payment=success"
-    )
+
+    # Never accept a callback URL supplied by the public client.
+    # Use the trusted application origin.
+    callback = f"{settings.WEB_BASE_URL.rstrip('/')}" f"/i/{token}?payment=success"
+
     try:
         result = await PaystackClient().initialize_payment(
             amount_minor=charge,
             email=payer_email,
             reference=attempt.provider_reference,
-            currency=invoice.currency,
+            currency=currency,
             callback_url=callback,
             metadata={
                 "invoice_id": invoice.id,
@@ -93,38 +157,64 @@ async def initiate_invoice_checkout(
                 "type": "direct_invoice_payment",
             },
         )
-        locked_attempt = await repo.get_attempt(attempt.id, lock=True)
+
+        locked_attempt = await repo.get_attempt(
+            attempt.id,
+            lock=True,
+        )
+
         if locked_attempt is None:
             raise RuntimeError(
                 "Payment attempt disappeared during provider initialization."
             )
+
         if locked_attempt.status == "invalidated":
             await db.commit()
             raise HTTPException(
                 status_code=409,
-                detail="This invoice checkout was invalidated while the payment provider was initializing it.",
+                detail=(
+                    "This invoice checkout was invalidated while "
+                    "the payment provider was initializing it."
+                ),
             )
+
         await mark_attempt_initialized(
-            db, locked_attempt, checkout_url=result["authorization_url"]
+            db,
+            locked_attempt,
+            checkout_url=result["authorization_url"],
         )
+
         await db.commit()
+
         return {
             "checkout_url": result["authorization_url"],
             "reference": locked_attempt.provider_reference,
             "amount_minor": locked_attempt.amount_minor,
             "currency": locked_attempt.currency,
         }
+
     except HTTPException:
         raise
+
     except Exception as exc:
         await db.rollback()
-        failed = await repo.get_attempt(attempt.id, lock=True)
+
+        failed = await repo.get_attempt(
+            attempt.id,
+            lock=True,
+        )
+
         if failed and failed.status != "invalidated":
-            await mark_attempt_initialization_failed(db, failed, reason=str(exc))
+            await mark_attempt_initialization_failed(
+                db,
+                failed,
+                reason=str(exc),
+            )
             await db.commit()
+
         raise HTTPException(
             status_code=502,
-            detail="Payment gateway unavailable or unable to initialize checkout.",
+            detail=("Payment gateway unavailable or unable " "to initialize checkout."),
         ) from exc
 
 

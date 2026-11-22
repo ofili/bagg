@@ -18,7 +18,6 @@ import { MarketingCard } from "@/components/marketing/marketing-card";
 import { MarketingFrame } from "@/components/marketing/marketing-frame";
 import { MarketingGrid } from "@/components/marketing/marketing-grid";
 import { MarketingSticker } from "@/components/marketing/marketing-sticker";
-import { ProductPreview } from "@/components/marketing/product-preview";
 import { SectionHeading } from "@/components/marketing/section-heading";
 import { buttonStyles } from "@/components/ui/button";
 
@@ -35,7 +34,7 @@ export default function MarketingPage() {
     <>
       {/* HERO */}
       <section className="relative overflow-hidden border-b-2 border-ink bg-cream">
-        <Container className="grid items-center gap-12 py-14 sm:py-20 lg:grid-cols-[1fr_0.9fr] lg:gap-10 lg:py-24">
+        <Container className="grid items-center gap-12 py-14 sm:py-20 lg:grid-cols-[1fr_1fr] lg:gap-10 lg:py-24">
           <div className="relative z-10">
             <MarketingSticker tone="pink" tilt="left">
               Built for independent work
@@ -94,7 +93,7 @@ export default function MarketingPage() {
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[29rem] lg:ml-auto">
+          <div className="relative mx-auto w-full max-w-[34rem] lg:ml-auto lg:max-w-none">
             <div
               className="absolute -right-5 -top-5 h-28 w-28 rounded-full bg-sun"
               aria-hidden="true"
@@ -104,14 +103,24 @@ export default function MarketingPage() {
               aria-hidden="true"
             />
 
-            <div className="relative">
-              <MarketingFrame
-                label="A client payment journey"
-                meta="Invoice 0041"
-                caption="From sending the invoice to recording payment."
-              >
-                <ProductPreview />
-              </MarketingFrame>
+            <div className="relative overflow-hidden border-brut border-ink bg-surface shadow-brut-lg">
+              <picture>
+                <source
+                  srcSet="/images/marketing/hero-dashboard.webp"
+                  type="image/webp"
+                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/images/marketing/hero-dashboard.png"
+                  alt="Bagg workspace dashboard showing active invoices, cash flow, and payment tracking"
+                  width={2100}
+                  height={1205}
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
+                  className="h-auto w-full object-cover"
+                />
+              </picture>
             </div>
           </div>
         </Container>

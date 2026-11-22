@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from sqlalchemy import and_, asc, desc, func, or_, select
+from sqlalchemy import Date, and_, asc, cast, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.clients.models import Client
@@ -206,6 +206,67 @@ class InvoiceRepository:
             .group_by(Receipt.currency)
         )
         return {currency: int(amount or 0) for currency, amount in result.all()}
+
+    async def get_collected_totals_by_month(
+        self, workspace_id: str, start_date: date, end_date: date
+    ) -> dict[tuple[str, str], int]:
+        month_expr = func.date_trunc("month", Receipt.payment_date)
+        result = await self.db.execute(
+            select(
+                Receipt.currency,
+                month_expr,
+                func.coalesce(func.sum(Receipt.amount_paid_minor), 0),
+            )
+            .where(
+                Receipt.workspace_id == workspace_id,
+                Receipt.payment_date >= start_date,
+                Receipt.payment_date < end_date,
+                Receipt.is_verified.is_(True),
+            )
+            .group_by(Receipt.currency, month_expr)
+        )
+        return {
+            (currency, month.strftime("%Y-%m")): int(amount or 0)
+            for currency, month, amount in result.all()
+        }
+
+    async def get_invoiced_totals_by_month(
+        self, workspace_id: str, start_date: date, end_date: date
+    ) -> dict[tuple[str, str], int]:
+        issued_on = func.coalesce(Invoice.issue_date, cast(Invoice.created_at, Date))
+        month_expr = func.date_trunc("month", issued_on)
+        target_payable = func.coalesce(
+            func.nullif(Invoice.net_payable_minor, 0),
+            Invoice.total_minor,
+        )
+        result = await self.db.execute(
+            select(
+                Invoice.currency,
+                month_expr,
+                func.coalesce(func.sum(target_payable), 0),
+            )
+            .where(
+                Invoice.workspace_id == workspace_id,
+                Invoice.status.notin_(("draft", "cancelled")),
+                issued_on >= start_date,
+                issued_on < end_date,
+            )
+            .group_by(Invoice.currency, month_expr)
+        )
+        return {
+            (currency, month.strftime("%Y-%m")): int(amount or 0)
+            for currency, month, amount in result.all()
+        }
+
+    async def list_workspace_currencies(self, workspace_id: str) -> list[str]:
+        invoice_currencies = select(Invoice.currency).where(
+            Invoice.workspace_id == workspace_id
+        )
+        receipt_currencies = select(Receipt.currency).where(
+            Receipt.workspace_id == workspace_id
+        )
+        result = await self.db.execute(invoice_currencies.union(receipt_currencies))
+        return list(result.scalars().all())
 
     async def list_profile_currencies(self, workspace_id: str) -> list[str]:
         result = await self.db.execute(
