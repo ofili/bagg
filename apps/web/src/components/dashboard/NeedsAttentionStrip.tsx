@@ -53,35 +53,37 @@ export function NeedsAttentionStrip({
 }: NeedsAttentionStripProps) {
   const encodedCurrency = encodeURIComponent(currency);
 
-  const items: AttentionItem[] = [
-    {
-      id: 'overdue',
-      title: 'Overdue invoices',
-      description: 'Follow up on invoices past their due date.',
-      count: overdueCount,
-      href: `/invoices?status=overdue&currency=${encodedCurrency}`,
-      icon: WarningCircle,
-      tone: 'danger',
-    },
-    {
-      id: 'claims',
-      title: 'Payment claims to review',
-      description: 'Check payment evidence and confirm legitimate claims.',
-      count: claimsCount,
-      href: `/invoices?status=payment_claimed&currency=${encodedCurrency}`,
-      icon: CheckCircle,
-      tone: 'warning',
-    },
-    {
-      id: 'viewed',
-      title: 'Viewed invoices awaiting payment',
-      description: 'Clients have opened these invoices but payment is outstanding.',
-      count: viewedCount,
-      href: `/invoices?status=viewed&currency=${encodedCurrency}`,
-      icon: Clock,
-      tone: 'neutral',
-    },
-  ].filter((item) => item.count > 0);
+  const items = [
+  {
+    id: 'overdue',
+    title: 'Overdue invoices',
+    description: 'Follow up on invoices past their due date.',
+    count: overdueCount,
+    href: `/invoices?status=overdue&currency=${encodedCurrency}`,
+    icon: WarningCircle,
+    tone: 'danger',
+  },
+  {
+    id: 'claims',
+    title: 'Payment claims to review',
+    description: 'Check payment evidence and confirm legitimate claims.',
+    count: claimsCount,
+    href: `/invoices?status=payment_claimed&currency=${encodedCurrency}`,
+    icon: CheckCircle,
+    tone: 'warning',
+  },
+  {
+    id: 'viewed',
+    title: 'Viewed invoices awaiting payment',
+    description: 'Clients have opened these invoices but payment is outstanding.',
+    count: viewedCount,
+    href: `/invoices?status=viewed&currency=${encodedCurrency}`,
+    icon: Clock,
+    tone: 'neutral',
+  },
+] satisfies AttentionItem[];
+
+const visibleItems = items.filter((item) => item.count > 0);
 
   return (
     <section
@@ -101,16 +103,16 @@ export function NeedsAttentionStrip({
           </p>
         </div>
 
-        {items.length > 0 && (
+        {visibleItems.length > 0 && (
           <span className="text-caption font-bold text-text-muted">
-            {items.length} {items.length === 1 ? 'category' : 'categories'}
+            {visibleItems.length} {visibleItems.length === 1 ? 'category' : 'categories'}
           </span>
         )}
       </div>
 
-      {items.length > 0 ? (
+      {visibleItems.length > 0 ? (
         <div className="divide-y-2 divide-ink border-brut border-ink bg-surface shadow-brut-sm">
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const Icon = item.icon;
             const styles = TONE_STYLES[item.tone];
 
