@@ -1,10 +1,11 @@
 """Workspace-scoped persistence operations for receipts and statements."""
 
 from __future__ import annotations
-from datetime import date
+from datetime import date, timedelta, timezone
+from datetime import datetime
 from sqlalchemy import and_, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.domains.receipts.models import Receipt
+from app.domains.receipts.models import Receipt, ReceiptReversal
 from app.domains.invoices.models import Invoice
 from app.domains.clients.models import Client
 from app.domains.workspaces.models import Workspace
@@ -179,6 +180,40 @@ class ReceiptRepository:
                 .with_for_update()
             )
         ).scalar_one_or_none()
+
+    async def list_statement_reversals(
+        self,
+        workspace_id: str,
+        client_id: str,
+        currency: str,
+        date_to: date | None,
+    ):
+        stmt = (
+            select(ReceiptReversal)
+            .join(
+                Receipt,
+                ReceiptReversal.receipt_id == Receipt.id,
+            )
+            .where(
+                ReceiptReversal.workspace_id == workspace_id,
+                Receipt.client_id == client_id,
+                Receipt.currency == currency,
+                ReceiptReversal.status == "posted",
+                ReceiptReversal.posted_at.is_not(None),
+            )
+        )
+
+        if date_to:
+            stmt = stmt.where(
+                ReceiptReversal.posted_at
+                < datetime.combine(
+                    date_to + timedelta(days=1),
+                    datetime.min.time(),
+                    tzinfo=timezone.utc,
+                )
+            )
+
+        return list((await self.db.execute(stmt)).scalars().all())
 
     async def add(self, entity):
         self.db.add(entity)

@@ -29,6 +29,25 @@ from app.domains.lifecycle.service import (
 logger = logging.getLogger(__name__)
 
 
+def classify_payment_evidence(
+    confirmation_source: str,
+    payment_method: str,
+) -> str:
+    source = (confirmation_source or "").lower()
+    method = (payment_method or "").lower()
+
+    if source.startswith("webhook_paystack"):
+        return "provider_verified"
+
+    if method == "cash":
+        return "cash_attested"
+
+    if source in {"issuer_manual", "issuer_claim_confirmed"}:
+        return "issuer_attested"
+
+    return "legacy_unclassified"
+
+
 async def confirm_payment(
     db: AsyncSession,
     workspace: Workspace,
@@ -131,6 +150,10 @@ async def confirm_payment(
         provider_reference=provider_reference,
         share_token=raw_token,
         share_token_hash=token_hash,
+        evidence_classification=classify_payment_evidence(
+            confirmation_source,
+            payment_method,
+        ),
     )
     await repo.add(receipt)
     record_status_event(

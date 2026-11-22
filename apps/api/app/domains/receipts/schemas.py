@@ -93,16 +93,6 @@ class PublicReceiptView(BaseModel):
     show_badge: bool = True
 
 
-class StatementEntry(BaseModel):
-    date: date
-    type: str  # 'invoice' or 'receipt'
-    reference_number: str
-    description: str
-    debit_minor: int  # billed (invoice)
-    credit_minor: int  # paid (receipt)
-    running_balance_minor: int
-
-
 class ClientStatementResponse(BaseModel):
     client_id: str
     client_name: str
@@ -116,3 +106,53 @@ class ClientStatementResponse(BaseModel):
     closing_balance_minor: int = 0
     business_name: str
     generated_at: datetime
+
+
+class ReceiptReversalCreate(BaseModel):
+    amount_minor: int = Field(..., gt=0)
+    reversal_type: str
+    reason: str = Field(..., min_length=3, max_length=2000)
+    idempotency_key: str = Field(..., min_length=8, max_length=128)
+    evidence_reference: Optional[str] = Field(None, max_length=255)
+
+    @field_validator("reversal_type")
+    @classmethod
+    def validate_reversal_type(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        allowed = {"correction", "refund", "chargeback"}
+        if normalized not in allowed:
+            raise ValueError(
+                f"reversal_type must be one of: {', '.join(sorted(allowed))}"
+            )
+        return normalized
+
+
+class ReceiptReversalPost(BaseModel):
+    evidence_reference: Optional[str] = Field(None, max_length=255)
+
+
+class ReceiptReversalResponse(BaseModel):
+    id: str
+    receipt_id: str
+    invoice_id: str
+    amount_minor: int
+    reversal_type: str
+    status: str
+    reason: str
+    idempotency_key: str
+    evidence_reference: Optional[str] = None
+    reversed_by_user_id: Optional[str] = None
+    created_at: datetime
+    posted_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StatementEntry(BaseModel):
+    date: date
+    type: str  # 'invoice', 'receipt', or 'reversal'
+    reference_number: str
+    description: str
+    debit_minor: int
+    credit_minor: int
+    running_balance_minor: int

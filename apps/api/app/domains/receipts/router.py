@@ -32,6 +32,15 @@ from app.domains.receipts.schemas import (
     PublicReceiptView,
     ClientStatementResponse,
 )
+from app.domains.receipts.schemas import (
+    ReceiptReversalCreate,
+    ReceiptReversalPost,
+    ReceiptReversalResponse,
+)
+from app.domains.receipts.reversal_service import (
+    create_reversal,
+    post_pending_reversal,
+)
 
 router = APIRouter(prefix="/receipts", tags=["Receipts"])
 
@@ -106,6 +115,63 @@ def map_receipt_to_response(
         whatsapp_share_url=wa,
         created_at=rcp.created_at,
         updated_at=rcp.updated_at,
+    )
+
+
+@router.post(
+    "/{receipt_id}/reversals",
+    response_model=ReceiptReversalResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_receipt_reversal_endpoint(
+    receipt_id: str,
+    payload: ReceiptReversalCreate,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    auth_data=Depends(get_current_user_and_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    actor = auth_data[0] if auth_data else None
+    if actor is None:
+        from app.core.errors import UnauthorizedException
+
+        raise UnauthorizedException("Authentication is required.")
+
+    return await create_reversal(
+        db,
+        workspace_id=workspace.id,
+        receipt_id=receipt_id,
+        amount_minor=payload.amount_minor,
+        reversal_type=payload.reversal_type,
+        reason=payload.reason,
+        idempotency_key=payload.idempotency_key,
+        actor_user_id=actor.id,
+        evidence_reference=payload.evidence_reference,
+    )
+
+
+@router.post(
+    "/reversals/{reversal_id}/post",
+    response_model=ReceiptReversalResponse,
+)
+async def post_receipt_reversal_endpoint(
+    reversal_id: str,
+    payload: ReceiptReversalPost,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    auth_data=Depends(get_current_user_and_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    actor = auth_data[0] if auth_data else None
+    if actor is None:
+        from app.core.errors import UnauthorizedException
+
+        raise UnauthorizedException("Authentication is required.")
+
+    return await post_pending_reversal(
+        db,
+        workspace_id=workspace.id,
+        reversal_id=reversal_id,
+        actor_user_id=actor.id,
+        evidence_reference=payload.evidence_reference,
     )
 
 
