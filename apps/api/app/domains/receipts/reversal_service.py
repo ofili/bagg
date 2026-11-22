@@ -1,15 +1,130 @@
+"""Authoritative receipt reversal use cases."""
+
+from __future__ import annotations
 
 from datetime import datetime, timezone
+
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import BadRequestException, NotFoundException
+from app.core.errors import (
+    BadRequestException,
+    ConflictException,
+    NotFoundException,
+)
 from app.domains.invoices.models import Invoice
-from app.domains.receipts.models import Receipt, ReceiptReversal
 from app.domains.lifecycle.service import (
+    invoice_balance_minor,
     invoice_target_payable,
     record_status_event,
 )
+from app.domains.receipts.models import Receipt, ReceiptReversal
+from app.domains.reminders.service import resume_invoice_reminders
+
+
+async def _find_idempotent_reversal(
+    db: AsyncSession,
+    workspace_id: str,
+    idempotency_key: str,
+) -> ReceiptReversal | None:
+    result = await db.execute(
+        select(ReceiptReversal).where(
+            ReceiptReversal.workspace_id == workspace_id,
+            ReceiptReversal.idempotency_key == idempotency_key,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+def _validate_idempotent_match(
+    existing: ReceiptReversal,
+    *,
+    receipt_id: str,
+    amount_minor: int,
+    reversal_type: str,
+) -> ReceiptReversal:
+    if (
+        existing.receipt_id != receipt_id
+        or existing.amount_minor != amount_minor
+        or existing.reversal_type != reversal_type
+    ):
+        raise ConflictException(
+            "Idempotency key was already used for a different reversal."
+        )
+    return existing
+
+
+async def _lock_invoice_and_receipt(
+    db: AsyncSession,
+    *,
+    workspace_id: str,
+    receipt_id: str,
+) -> tuple[Invoice, Receipt]:
+    """Acquire financial locks in the canonical invoice → receipt order."""
+
+    invoice_id = (
+        await db.execute(
+            select(Receipt.invoice_id).where(
+                Receipt.id == receipt_id,
+                Receipt.workspace_id == workspace_id,
+            )
+        )
+    ).scalar_one_or_none()
+
+    if invoice_id is None:
+        raise NotFoundException("Receipt not found.")
+
+    invoice = (
+        await db.execute(
+            select(Invoice)
+            .where(
+                Invoice.id == invoice_id,
+                Invoice.workspace_id == workspace_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+
+    if invoice is None:
+        raise NotFoundException("Invoice not found.")
+
+    receipt = (
+        await db.execute(
+            select(Receipt)
+            .where(
+                Receipt.id == receipt_id,
+                Receipt.workspace_id == workspace_id,
+                Receipt.invoice_id == invoice.id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+
+    if receipt is None:
+        raise NotFoundException("Receipt not found.")
+
+    return invoice, receipt
+
+
+async def _get_posted_reversal_total(
+    db: AsyncSession,
+    receipt_id: str,
+    *,
+    exclude_reversal_id: str | None = None,
+) -> int:
+    stmt = select(func.coalesce(func.sum(ReceiptReversal.amount_minor), 0)).where(
+        ReceiptReversal.receipt_id == receipt_id,
+        ReceiptReversal.status == "posted",
+    )
+
+    if exclude_reversal_id:
+        stmt = stmt.where(ReceiptReversal.id != exclude_reversal_id)
+
+    result = await db.execute(stmt)
+    return int(result.scalar_one() or 0)
 
 
 async def create_reversal(
@@ -31,87 +146,51 @@ async def create_reversal(
         raise BadRequestException("Invalid reversal type.")
 
     reason = (reason or "").strip()
-    if not reason:
-        raise BadRequestException("A reversal reason is required.")
+    if len(reason) < 3:
+        raise BadRequestException(
+            "A reversal reason of at least three characters is required."
+        )
 
     idempotency_key = (idempotency_key or "").strip()
     if not idempotency_key:
         raise BadRequestException("An idempotency key is required.")
 
-    existing = (
-        await db.execute(
-            select(ReceiptReversal).where(
-                ReceiptReversal.workspace_id == workspace_id,
-                ReceiptReversal.idempotency_key == idempotency_key,
-            )
-        )
-    ).scalar_one_or_none()
-
+    existing = await _find_idempotent_reversal(db, workspace_id, idempotency_key)
     if existing:
-        if existing.receipt_id != receipt_id or existing.amount_minor != amount_minor:
-            raise BadRequestException(
-                "Idempotency key was already used for a different reversal."
-            )
-        return existing
-
-    # Lock the invoice first, then the receipt. All reversal operations use
-    # this same lock order to serialize concurrent reversals.
-    invoice = (
-        await db.execute(
-            select(Invoice)
-            .where(
-                Invoice.id == (
-                    select(Receipt.invoice_id).where(
-                        Receipt.id == receipt_id,
-                        Receipt.workspace_id == workspace_id,
-                    ).scalar_subquery()
-                ),
-                Invoice.workspace_id == workspace_id,
-            )
-            .with_for_update()
+        return _validate_idempotent_match(
+            existing,
+            receipt_id=receipt_id,
+            amount_minor=amount_minor,
+            reversal_type=reversal_type,
         )
-    ).scalar_one_or_none()
 
-    if invoice is None:
-        raise NotFoundException("Receipt not found.")
+    invoice, receipt = await _lock_invoice_and_receipt(
+        db,
+        workspace_id=workspace_id,
+        receipt_id=receipt_id,
+    )
 
-    receipt = (
-        await db.execute(
-            select(Receipt)
-            .where(
-                Receipt.id == receipt_id,
-                Receipt.workspace_id == workspace_id,
-                Receipt.invoice_id == invoice.id,
-            )
-            .with_for_update()
+    # Recheck after acquiring the financial locks. This serialises retries
+    # for the same receipt and prevents duplicate work after a concurrent
+    # request has committed.
+    existing = await _find_idempotent_reversal(db, workspace_id, idempotency_key)
+    if existing:
+        return _validate_idempotent_match(
+            existing,
+            receipt_id=receipt_id,
+            amount_minor=amount_minor,
+            reversal_type=reversal_type,
         )
-    ).scalar_one_or_none()
 
-    if receipt is None:
-        raise NotFoundException("Receipt not found.")
-
-    reversed_amount = (
-        await db.execute(
-            select(func.coalesce(func.sum(ReceiptReversal.amount_minor), 0))
-            .where(
-                ReceiptReversal.receipt_id == receipt.id,
-                ReceiptReversal.status == "posted",
-            )
-        )
-    ).scalar_one()
-
-    remaining_reversible = receipt.amount_paid_minor - int(reversed_amount or 0)
+    reversed_amount = await _get_posted_reversal_total(db, receipt.id)
+    remaining_reversible = receipt.amount_paid_minor - reversed_amount
 
     if amount_minor > remaining_reversible:
         raise BadRequestException(
             "Reversal amount exceeds the remaining reversible receipt amount."
         )
 
-    # A correction is an accounting adjustment. Refunds and chargebacks
-    # remain pending until their external financial event is confirmed.
-    initial_status = (
-        "posted" if reversal_type == "correction" else "pending"
-    )
+    initial_status = "posted" if reversal_type == "correction" else "pending"
 
     reversal = ReceiptReversal(
         receipt_id=receipt.id,
@@ -124,14 +203,14 @@ async def create_reversal(
         idempotency_key=idempotency_key,
         reversed_by_user_id=actor_user_id,
         evidence_reference=evidence_reference,
-        posted_at=(
-            datetime.now(timezone.utc)
-            if initial_status == "posted"
-            else None
-        ),
+        posted_at=(datetime.now(timezone.utc) if initial_status == "posted" else None),
     )
 
     db.add(reversal)
+
+    # Assign the generated reversal ID before it is used in lifecycle
+    # metadata. SQLAlchemy column defaults are applied at flush time.
+    await db.flush()
 
     if initial_status == "posted":
         await apply_posted_reversal(
@@ -142,7 +221,26 @@ async def create_reversal(
             actor_user_id=actor_user_id,
         )
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+
+        # A concurrent request may have won the workspace/idempotency
+        # unique constraint. Return its record only if the request matches.
+        existing = await _find_idempotent_reversal(db, workspace_id, idempotency_key)
+        if existing:
+            return _validate_idempotent_match(
+                existing,
+                receipt_id=receipt_id,
+                amount_minor=amount_minor,
+                reversal_type=reversal_type,
+            )
+
+        raise ConflictException(
+            "A conflicting reversal operation was committed. Retry with a new idempotency key."
+        )
+
     await db.refresh(reversal)
     return reversal
 
@@ -155,33 +253,32 @@ async def post_pending_reversal(
     actor_user_id: str,
     evidence_reference: str | None = None,
 ) -> ReceiptReversal:
-    reversal = (
+    # Read identifiers without locking the reversal. The canonical lock
+    # order is invoice → receipt → reversal.
+    reversal_ref = (
         await db.execute(
-            select(ReceiptReversal)
-            .where(
+            select(
+                ReceiptReversal.invoice_id,
+                ReceiptReversal.receipt_id,
+            ).where(
                 ReceiptReversal.id == reversal_id,
                 ReceiptReversal.workspace_id == workspace_id,
             )
-            .with_for_update()
         )
-    ).scalar_one_or_none()
+    ).first()
 
-    if reversal is None:
+    if reversal_ref is None:
         raise NotFoundException("Reversal not found.")
-
-    if reversal.status != "pending":
-        raise BadRequestException(
-            f"Only pending reversals can be posted. Current status: {reversal.status}."
-        )
 
     invoice = (
         await db.execute(
             select(Invoice)
             .where(
-                Invoice.id == reversal.invoice_id,
+                Invoice.id == reversal_ref.invoice_id,
                 Invoice.workspace_id == workspace_id,
             )
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
     ).scalar_one_or_none()
 
@@ -192,39 +289,67 @@ async def post_pending_reversal(
         await db.execute(
             select(Receipt)
             .where(
-                Receipt.id == reversal.receipt_id,
+                Receipt.id == reversal_ref.receipt_id,
                 Receipt.workspace_id == workspace_id,
+                Receipt.invoice_id == invoice.id,
             )
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
     ).scalar_one_or_none()
 
     if receipt is None:
         raise NotFoundException("Receipt not found.")
 
-    already_reversed = (
+    reversal = (
         await db.execute(
-            select(func.coalesce(func.sum(ReceiptReversal.amount_minor), 0))
+            select(ReceiptReversal)
             .where(
+                ReceiptReversal.id == reversal_id,
+                ReceiptReversal.workspace_id == workspace_id,
+                ReceiptReversal.invoice_id == invoice.id,
                 ReceiptReversal.receipt_id == receipt.id,
-                ReceiptReversal.status == "posted",
-                ReceiptReversal.id != reversal.id,
             )
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
-    ).scalar_one()
+    ).scalar_one_or_none()
 
-    if reversal.amount_minor > (
-        receipt.amount_paid_minor - int(already_reversed or 0)
-    ):
+    if reversal is None:
+        raise NotFoundException("Reversal not found.")
+
+    if reversal.status != "pending":
+        raise ConflictException(
+            f"Only pending reversals can be posted. Current status: {reversal.status}."
+        )
+
+    confirmed_evidence = (
+        evidence_reference or reversal.evidence_reference or ""
+    ).strip()
+
+    if reversal.reversal_type in {"refund", "chargeback"} and not confirmed_evidence:
         raise BadRequestException(
-            "Posting this reversal would exceed the remaining reversible amount."
+            "Evidence of the completed refund or chargeback is required before posting."
+        )
+
+    already_reversed = await _get_posted_reversal_total(
+        db,
+        receipt.id,
+        exclude_reversal_id=reversal.id,
+    )
+
+    remaining_reversible = receipt.amount_paid_minor - already_reversed
+
+    if reversal.amount_minor > remaining_reversible:
+        raise BadRequestException(
+            "Posting this reversal would exceed the remaining reversible receipt amount."
         )
 
     reversal.status = "posted"
     reversal.posted_at = datetime.now(timezone.utc)
-    reversal.evidence_reference = (
-        evidence_reference or reversal.evidence_reference
-    )
+
+    if confirmed_evidence:
+        reversal.evidence_reference = confirmed_evidence
 
     await apply_posted_reversal(
         db,
@@ -258,8 +383,8 @@ async def apply_posted_reversal(
     invoice.amount_paid_minor = old_paid - reversal.amount_minor
 
     if invoice.status in {"cancelled", "void", "voided"}:
-        # Preserve discontinued invoice state. The financial adjustment is
-        # still recorded, but it must not reopen the invoice.
+        # A reversal changes the financial position but does not reinstate
+        # a discontinued invoice.
         new_status = invoice.status
     elif invoice.amount_paid_minor >= invoice_target_payable(invoice):
         new_status = "paid"
@@ -293,9 +418,24 @@ async def apply_posted_reversal(
             "reversal_id": reversal.id,
             "reversal_type": reversal.reversal_type,
             "reversal_amount_minor": reversal.amount_minor,
+            "previous_amount_paid_minor": old_paid,
             "new_amount_paid_minor": invoice.amount_paid_minor,
+            "new_outstanding_minor": invoice_balance_minor(invoice),
             "reason": reversal.reason,
         },
     )
 
     await db.flush()
+
+    # A fully paid invoice has had its reminder jobs cancelled. If a
+    # reversal makes it outstanding again, begin a new future-only cycle.
+    if old_status == "paid" and new_status in {
+        "sent",
+        "viewed",
+        "partially_paid",
+    }:
+        await resume_invoice_reminders(
+            invoice,
+            db,
+            commit=False,
+        )

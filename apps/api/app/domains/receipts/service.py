@@ -48,6 +48,25 @@ def classify_payment_evidence(
     return "legacy_unclassified"
 
 
+def classify_payment_evidence(
+    confirmation_source: str,
+    payment_method: str,
+) -> str:
+    source = (confirmation_source or "").strip().lower()
+    method = (payment_method or "").strip().lower()
+
+    if source.startswith("webhook_paystack"):
+        return "provider_verified"
+
+    if method == "cash":
+        return "cash_attested"
+
+    if source.startswith("issuer"):
+        return "issuer_attested"
+
+    return "legacy_unclassified"
+
+
 async def confirm_payment(
     db: AsyncSession,
     workspace: Workspace,

@@ -93,20 +93,6 @@ class PublicReceiptView(BaseModel):
     show_badge: bool = True
 
 
-class ClientStatementResponse(BaseModel):
-    client_id: str
-    client_name: str
-    currency: str
-    date_from: Optional[date] = None
-    date_to: Optional[date] = None
-    opening_balance_minor: int = 0
-    entries: List[StatementEntry] = []
-    total_invoiced_minor: int = 0
-    total_paid_minor: int = 0
-    closing_balance_minor: int = 0
-    business_name: str
-    generated_at: datetime
-
 
 class ReceiptReversalCreate(BaseModel):
     amount_minor: int = Field(..., gt=0)
@@ -156,3 +142,18 @@ class StatementEntry(BaseModel):
     debit_minor: int
     credit_minor: int
     running_balance_minor: int
+
+
+class ClientStatementResponse(BaseModel):
+    client_id: str
+    client_name: str
+    currency: str
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+    opening_balance_minor: int = 0
+    entries: List[StatementEntry] = Field(default_factory=list)
+    total_invoiced_minor: int = 0
+    total_paid_minor: int = 0
+    closing_balance_minor: int = 0
+    business_name: str
+    generated_at: datetime
