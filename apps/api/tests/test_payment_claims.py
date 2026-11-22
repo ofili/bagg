@@ -229,3 +229,155 @@ async def test_claim_cannot_be_submitted_for_paid_invoice():
         assert "paid" in response.json()["detail"].lower()
     finally:
         await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_second_pending_claim_is_rejected_without_superseding_first():
+    client, invoice = await setup_claimable_invoice()
+
+    try:
+        first = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={
+                "amount_minor": 10_000_00,
+                "reference": "NIP/FIRST",
+            },
+        )
+
+        assert first.status_code == 201
+        first_claim_id = first.json()["id"]
+
+        second = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={
+                "amount_minor": 15_000_00,
+                "reference": "NIP/SECOND",
+            },
+        )
+
+        assert second.status_code == 409
+
+        claims = await client.get(f"/invoices/{invoice['id']}/claims")
+
+        assert claims.status_code == 200
+        assert len(claims.json()) == 1
+        assert claims.json()[0]["id"] == first_claim_id
+        assert claims.json()[0]["status"] == "pending"
+
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_confirmed_amount_cannot_exceed_claimed_amount():
+    client, invoice = await setup_claimable_invoice()
+
+    try:
+        claim = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={
+                "amount_minor": 10_000_00,
+                "reference": "NIP/CLAIM-LIMIT",
+            },
+        )
+
+        claim_id = claim.json()["id"]
+
+        response = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/confirm",
+            json={
+                "amount_paid_minor": 10_000_01,
+            },
+        )
+
+        assert response.status_code == 400
+        assert "claim" in response.json()["detail"].lower()
+
+        current_claim = await client.get(f"/invoices/{invoice['id']}/claims")
+
+        assert current_claim.json()[0]["status"] == "pending"
+
+        receipts = await client.get(f"/receipts?invoice_id={invoice['id']}")
+
+        assert len(receipts.json()["items"]) == 0
+
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_partial_confirmation_records_claimed_and_confirmed_amounts():
+    client, invoice = await setup_claimable_invoice()
+
+    try:
+        claim = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={
+                "amount_minor": 20_000_00,
+                "reference": "NIP/PARTIAL-CLAIM",
+            },
+        )
+
+        claim_id = claim.json()["id"]
+
+        response = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/confirm",
+            json={
+                "amount_paid_minor": 15_000_00,
+            },
+        )
+
+        assert response.status_code == 200
+
+        result = response.json()
+
+        assert result["status"] == "confirmed"
+        assert result["amount_minor"] == 20_000_00
+        assert result["confirmed_amount_minor"] == 15_000_00
+        assert result["confirmed_by_user_id"]
+
+        receipts = await client.get(f"/receipts?invoice_id={invoice['id']}")
+
+        assert len(receipts.json()["items"]) == 1
+        assert receipts.json()["items"][0]["amount_paid_minor"] == 15_000_00
+
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_rejected_claim_records_reviewer_and_reason():
+    client, invoice = await setup_claimable_invoice()
+
+    try:
+        claim = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={
+                "amount_minor": 10_000_00,
+                "reference": "NIP/REVIEW",
+            },
+        )
+
+        claim_id = claim.json()["id"]
+
+        current_user = await client.get("/auth/me")
+        assert current_user.status_code == 200
+
+        reviewer_id = current_user.json()["id"]
+
+        response = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/reject",
+            json={"rejection_reason": "The transfer could not be verified."},
+        )
+
+        assert response.status_code == 200
+
+        result = response.json()
+
+        assert result["status"] == "rejected"
+        assert result["rejection_reason"] == ("The transfer could not be verified.")
+        assert result["rejected_by_user_id"] == reviewer_id
+        assert result["rejected_at"] is not None
+
+    finally:
+        await client.aclose()

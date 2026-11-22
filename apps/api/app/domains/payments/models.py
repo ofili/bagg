@@ -1,7 +1,21 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import Column, String, Boolean, DateTime, Date, BigInteger, ForeignKey, Index, Text, JSON, Integer, UniqueConstraint
+from sqlalchemy import (
+    Column,
+    String,
+    Boolean,
+    DateTime,
+    Date,
+    BigInteger,
+    ForeignKey,
+    Index,
+    Text,
+    JSON,
+    Integer,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -48,19 +62,74 @@ class PaymentProfile(Base):
 class PaymentClaim(Base):
     __tablename__ = "payment_claims"
 
-    id = Column(String, primary_key=True, default=lambda: generate_uuid("claim_"))
-    invoice_id = Column(String, ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(
+        String,
+        primary_key=True,
+        default=lambda: generate_uuid("claim_"),
+    )
+
+    invoice_id = Column(
+        String,
+        ForeignKey("invoices.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
     amount_minor = Column(BigInteger, nullable=False)
     payment_date = Column(Date, nullable=False, default=date.today)
+
     reference = Column(String, nullable=True)
     proof_file_url = Column(String, nullable=True)
-    status = Column(String, nullable=False, default="pending", index=True)  # pending, confirmed, rejected
-    rejection_reason = Column(Text, nullable=True)
-    confirmed_at = Column(DateTime(timezone=True), nullable=True)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # Current states:
+    # pending, confirmed, rejected
+    #
+    # "superseded" is retained for historical records created by the
+    # previous implementation. New claims must never enter this state.
+    status = Column(
+        String,
+        nullable=False,
+        default="pending",
+        index=True,
+    )
+
+    rejection_reason = Column(Text, nullable=True)
+
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    confirmed_amount_minor = Column(BigInteger, nullable=True)
+
+    confirmed_by_user_id = Column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    rejected_at = Column(DateTime(timezone=True), nullable=True)
+
+    rejected_by_user_id = Column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
 
     invoice = relationship("Invoice", back_populates="claims")
+
+    __table_args__ = (
+        # Database-level enforcement: at most one pending claim per invoice.
+        Index(
+            "uq_payment_claims_one_pending_per_invoice",
+            "invoice_id",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
+            sqlite_where=text("status = 'pending'"),
+        ),
+    )
 
 
 class InvoicePaymentAttempt(Base):
@@ -184,4 +253,3 @@ class InvoicePaymentAttempt(Base):
             "created_at",
         ),
     )
-

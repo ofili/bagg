@@ -1041,19 +1041,30 @@ async def confirm_payment_claim(
     *,
     confirmed_by_user_id: str,
 ) -> PaymentClaim:
-    # Lock the invoice first so all payment and claim-confirmation paths
-    # serialize on the same financial record.
-    repository = InvoiceRepository(db)
-    invoice = await repository.get_for_update(workspace.id, invoice_id)
+    """
+    Confirm a client-submitted payment assertion.
 
-    if not invoice:
+    The actual receipt, invoice balance update, claim transition and
+    reviewer attribution are committed in one database transaction.
+    """
+
+    repository = InvoiceRepository(db)
+
+    # All financial claim operations serialize on the invoice.
+    invoice = await repository.get_for_update(
+        workspace.id,
+        invoice_id,
+    )
+
+    if invoice is None:
         raise NotFoundException(f"Invoice '{invoice_id}' not found")
 
-    # Reload claim status after acquiring the invoice lock. A concurrent
-    # request may already have confirmed or rejected this claim.
-    claim = await repository.get_claim_for_update(invoice.id, claim_id)
+    claim = await repository.get_claim_for_update(
+        invoice.id,
+        claim_id,
+    )
 
-    if not claim:
+    if claim is None:
         raise NotFoundException(f"Payment claim '{claim_id}' not found")
 
     if claim.status != "pending":
@@ -1067,6 +1078,17 @@ async def confirm_payment_claim(
         else claim.amount_minor
     )
 
+    if confirmed_amount <= 0:
+        raise BadRequestException("Confirmed payment amount must be greater than zero.")
+
+    if confirmed_amount > claim.amount_minor:
+        raise BadRequestException(
+            "Confirmed payment cannot exceed the amount submitted "
+            "in the payment claim."
+        )
+
+    # confirm_payment() also enforces the invoice's outstanding balance,
+    # creates the receipt and records the invoice status transition.
     await confirm_payment(
         db=db,
         workspace=workspace,
@@ -1083,10 +1105,15 @@ async def confirm_payment_claim(
 
     claim.status = "confirmed"
     claim.confirmed_at = datetime.now(timezone.utc)
+    claim.confirmed_amount_minor = confirmed_amount
+    claim.confirmed_by_user_id = confirmed_by_user_id
 
+    # The receipt, invoice, claim and audit event remain in one transaction.
     await db.commit()
-    await InvoiceRepository(db).refresh(claim)
+    await repository.refresh(claim)
+
     return claim
+
 
 async def reject_payment_claim(
     db: AsyncSession,
@@ -1094,23 +1121,49 @@ async def reject_payment_claim(
     invoice_id: str,
     claim_id: str,
     payload,
+    *,
+    rejected_by_user_id: str,
 ) -> PaymentClaim:
+    """
+    Reject a pending payment assertion and record the responsible reviewer.
+    """
+
     repository = InvoiceRepository(db)
-    invoice = await repository.get_for_update(workspace.id, invoice_id)
+
+    invoice = await repository.get_for_update(
+        workspace.id,
+        invoice_id,
+    )
+
     if invoice is None:
         raise NotFoundException(f"Invoice '{invoice_id}' not found")
-    claim = await repository.get_claim_for_update(invoice.id, claim_id)
+
+    claim = await repository.get_claim_for_update(
+        invoice.id,
+        claim_id,
+    )
+
     if claim is None:
         raise NotFoundException(f"Payment claim '{claim_id}' not found")
+
     if claim.status != "pending":
         raise BadRequestException(
             f"Payment claim '{claim_id}' is already '{claim.status}'"
         )
 
-    claim.status = "rejected"
-    claim.rejection_reason = payload.rejection_reason
+    rejection_reason = payload.rejection_reason.strip()
+
+    if not rejection_reason:
+        raise BadRequestException("A rejection reason is required.")
 
     old_status = invoice.status
+
+    claim.status = "rejected"
+    claim.rejection_reason = rejection_reason
+    claim.rejected_at = datetime.now(timezone.utc)
+    claim.rejected_by_user_id = rejected_by_user_id
+
+    # Restore the invoice's financial status without changing its balance.
     if (invoice.amount_paid_minor or 0) > 0:
         invoice.status = "partially_paid"
     elif invoice.viewed_at:
@@ -1126,13 +1179,18 @@ async def reject_payment_claim(
         from_status=old_status,
         to_status=invoice.status,
         actor_type="issuer",
-        actor_id=workspace.owner_id,
+        actor_id=rejected_by_user_id,
         source="issuer_claim_rejected",
-        metadata={"claim_id": claim.id, "reason": payload.rejection_reason},
+        metadata={
+            "claim_id": claim.id,
+            "reason": rejection_reason,
+            "reviewer_user_id": rejected_by_user_id,
+        },
     )
 
     await db.commit()
-    await InvoiceRepository(db).refresh(claim)
+    await repository.refresh(claim)
+
     return claim
 
 

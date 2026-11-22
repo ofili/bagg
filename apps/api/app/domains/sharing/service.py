@@ -7,6 +7,7 @@ from datetime import date, datetime, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.core.money import format_money
@@ -113,17 +114,13 @@ class SharingService:
             base_url=settings.WEB_BASE_URL,
         )
 
-        # Only expose a default payment profile when its instructions are
-        # complete and valid. This protects public invoices from displaying
-        # incomplete legacy profiles as usable payment instructions.
+        # Issued invoices use their immutable payment-instruction snapshot.
+        # Only legacy invoices without a snapshot may temporarily fall back
+        # to the workspace's current default profile.
+        profile_response = None
         profile_snapshot = invoice.payment_profile_snapshot
 
-        if profile_snapshot:
-            profile_response = PaymentProfileResponse.model_validate(
-                profile_snapshot
-            )
-        else:
-            # Legacy invoices that have not yet been backfilled.
+        if profile_snapshot is None:
             profile = await self.repo.get_default_payment_profile(
                 invoice.workspace_id,
                 invoice.currency,
@@ -131,7 +128,7 @@ class SharingService:
 
             if profile is not None and not is_payment_profile_usable(profile):
                 logger.warning(
-                    "Ignoring unusable payment profile on legacy public invoice "
+                    "Ignoring unusable default payment profile on legacy public invoice "
                     "(workspace_id=%s, invoice_id=%s, profile_id=%s)",
                     invoice.workspace_id,
                     invoice.id,
@@ -139,29 +136,20 @@ class SharingService:
                 )
                 profile = None
 
-            profile_response = (
-                PaymentProfileResponse.model_validate(profile)
-                if profile is not None
-                else None
-            )
+            if profile is not None:
+                profile_response = PaymentProfileResponse.model_validate(profile)
 
-        if profile is not None and not is_payment_profile_usable(profile):
+        elif is_payment_profile_usable(profile_snapshot):
+            profile_response = PaymentProfileResponse.model_validate(
+                profile_snapshot
+            )
+        else:
             logger.warning(
-                "Ignoring unusable default payment profile on public invoice "
-                "(workspace_id=%s, invoice_id=%s, currency=%s, profile_id=%s)",
+                "Ignoring unusable payment profile snapshot on public invoice "
+                "(workspace_id=%s, invoice_id=%s)",
                 invoice.workspace_id,
                 invoice.id,
-                invoice.currency,
-                profile.id,
             )
-            profile = None
-
-        profile_response = (
-            PaymentProfileResponse.model_validate(profile)
-            if profile is not None
-            else None
-        )
-
         comments = [
             CommentResponse.model_validate(item)
             for item in await self.repo.list_comments(invoice.id)
@@ -250,11 +238,18 @@ class SharingService:
             )
 
         try:
-            # Supersede earlier pending claims before creating the new one.
+            # Claim, invoice status, lifecycle event, reminder cancellation
+            # and notification are committed together.
             pending_claims = await self.repo.get_pending_claims(invoice.id)
 
-            for previous_claim in pending_claims:
-                previous_claim.status = "superseded"
+            if pending_claims:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "A payment claim is already awaiting review. "
+                        "Please wait for the existing claim to be resolved."
+                    ),
+                )
 
             claim = PaymentClaim(
                 invoice_id=invoice.id,
@@ -322,6 +317,19 @@ class SharingService:
             await self.repo.refresh(claim)
 
             return PaymentClaimResponse.model_validate(claim)
+
+        except IntegrityError as exc:
+            await self.repo.rollback()
+
+            # The partial unique index is the final protection against
+            # concurrent pending-claim submissions.
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "A payment claim is already awaiting review. "
+                    "Please wait for the existing claim to be resolved."
+                ),
+            ) from exc
 
         except Exception:
             await self.repo.rollback()

@@ -346,10 +346,18 @@ async def reject_payment_claim(
     claim_id: str,
     payload: PaymentClaimRejectRequest,
     workspace: Workspace = Depends(resolve_active_workspace),
+    auth_data=Depends(get_current_user_and_workspace),
     db: AsyncSession = Depends(get_db),
 ):
+    user, _ = auth_data
+
     return await service.reject_payment_claim(
-        db, workspace, invoice_id, claim_id, payload
+        db,
+        workspace,
+        invoice_id,
+        claim_id,
+        payload,
+        rejected_by_user_id=user.id,
     )
 
 
