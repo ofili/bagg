@@ -1,6 +1,12 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
-
 from typing import Literal
+
+from pydantic import (
+    BaseModel,
+    EmailStr,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from app.domains.workspaces.schemas import WorkspaceResponse
 
@@ -50,10 +56,18 @@ class VerifyCodeRequest(BaseModel):
             return None
 
         value = value.strip()
+
         if value is None or len(value) == 0:
             raise ValueError("Full name cannot be blank.")
 
         return value
+
+    @model_validator(mode="after")
+    def require_name_for_signup(self):
+        if self.intent == "signup" and not self.full_name:
+            raise ValueError("Full name is required to create an account.")
+
+        return self
 
 
 class UserResponse(BaseModel):

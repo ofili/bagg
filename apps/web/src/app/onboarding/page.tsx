@@ -264,7 +264,10 @@ function OnboardingForm() {
           </div>
         ) : (
           <section className="w-full border-brut border-ink bg-surface p-6 sm:p-9">
-            <OnboardingSteps current="business" />
+            <OnboardingSteps
+              current="business"
+              includePlan={continuation.plan !== null}
+            />
 
             <div className="mt-6 flex items-start gap-4">
               <BagCharacter size={64} className="shrink-0" />

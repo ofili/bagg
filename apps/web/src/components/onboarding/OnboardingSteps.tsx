@@ -1,15 +1,29 @@
-import { StepIndicator } from '@/components/ui/StepIndicator';
 
-const STEPS = [
-  { id: 'business', label: 'Business details' },
-  { id: 'plan', label: 'Choose a plan' },
-];
+import { StepIndicator } from '@/components/ui/StepIndicator';
 
 export type OnboardingStep = 'business' | 'plan';
 
-/** The two-step setup indicator shared by the onboarding screens. */
-export function OnboardingSteps({ current }: { current: OnboardingStep }) {
+type Props = {
+  current: OnboardingStep;
+  includePlan?: boolean;
+};
+
+export function OnboardingSteps({
+  current,
+  includePlan = true,
+}: Props) {
+  const steps = [
+    { id: 'business', label: 'Business details' },
+    ...(includePlan
+      ? [{ id: 'plan', label: 'Choose a plan' }]
+      : []),
+  ];
+
   return (
-    <StepIndicator steps={STEPS} current={current} label="Setup progress" />
+    <StepIndicator
+      steps={steps}
+      current={current}
+      label="Setup progress"
+    />
   );
 }

@@ -138,6 +138,21 @@ class AuthService:
         attribution: dict | None = None,
     ) -> tuple[User, Workspace, str, bool]:
 
+        if intent not in {"signup", "login"}:
+            raise BadRequestException("Invalid authentication intent")
+
+        normalized_name = full_name.strip() if full_name else None
+
+        if intent == "signup" and not normalized_name:
+            raise BadRequestException(
+                "Full name is required to create an account."
+            )
+
+        if normalized_name and len(normalized_name) > 120:
+            raise BadRequestException(
+                "Full name must be 120 characters or fewer."
+            )
+
         clean_email = email.lower().strip()
         now = datetime.now(UTC)
 
@@ -196,7 +211,7 @@ class AuthService:
             if user is None:
                 user = User(
                     email=clean_email,
-                    full_name=full_name.strip() if full_name else None,
+                    full_name=normalized_name,
                     is_active=True,
                 )
 
