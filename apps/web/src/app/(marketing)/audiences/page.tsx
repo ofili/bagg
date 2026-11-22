@@ -34,114 +34,114 @@ export const metadata: Metadata = marketingMetadata({
 const audiences = [
   {
     id: "independent-professionals",
-    label: "Independent professionals",
-    title: "For freelancers who do the work and run the business.",
-    copy: "You find clients, agree fees, deliver your services and manage your own finances. Bagg helps you keep the commercial side organised without adding unnecessary administration.",
+    label: "Freelancers",
+    title: "you do the work and run the business.",
+    copy: "You find the clients, agree the fee, deliver, and then handle the money too. Bagg takes care of the admin bit.",
     examples: [
-      "Freelance developers and software engineers",
-      "Writers, editors and content professionals",
-      "Designers and independent creatives",
+      "Freelance developers and engineers",
+      "Writers and editors",
+      "Designers and other creatives",
       "Photographers and videographers",
     ],
     icon: Palette,
     tone: "bg-pink text-on-pink",
     links: [
-      { label: "Create professional invoices", href: "/features/invoicing" },
-      { label: "Prepare client quotes", href: "/features/quotes" },
+      { label: "Make an invoice", href: "/features/invoicing" },
+      { label: "Send a client quote", href: "/features/quotes" },
     ],
   },
   {
     id: "consultants",
     label: "Consultants and advisers",
-    title: "For professionals whose expertise is their business.",
-    copy: "Your clients engage you for your judgement, experience and specialist knowledge. Bagg helps you formalise commercial agreements through clear quotes, professional invoices and connected payment records.",
+    title: "your expertise is the product.",
+    copy: "Clients hire you for your judgement and experience. Bagg backs that up with clear quotes, tidy invoices and payment records that match.",
     examples: [
-      "Management and strategy consultants",
+      "Strategy and management consultants",
       "Business and financial advisers",
       "Technology and digital consultants",
-      "Independent professional service providers",
+      "Independent specialists",
     ],
     icon: BriefcaseBusiness,
     tone: "bg-sun text-on-sun",
     links: [
-      { label: "Explore quotes", href: "/features/quotes" },
-      { label: "Explore payment tracking", href: "/features/payments" },
+      { label: "See quotes", href: "/features/quotes" },
+      { label: "See payment tracking", href: "/features/payments" },
     ],
   },
   {
     id: "creative-studios",
     label: "Creative studios",
-    title: "Deliver great creative work. Keep the business side under control.",
-    copy: "From agreeing project fees to collecting deposits, billing milestones and issuing receipts, Bagg helps creative teams keep client billing and payment records organised.",
+    title: "do great creative work. keep the money tidy.",
+    copy: "From agreeing the project fee to collecting deposits and final payments, Bagg keeps your billing and payment records in order.",
     examples: [
-      "Branding and graphic design studios",
-      "Photography and video production teams",
-      "Web design and digital agencies",
+      "Branding and design studios",
+      "Photo and video production teams",
+      "Web and digital agencies",
       "Content and creative production businesses",
     ],
     icon: Users,
     tone: "bg-mango text-on-mango",
     links: [
-      { label: "Explore quotes", href: "/features/quotes" },
-      { label: "Explore payment tracking", href: "/features/payments" },
+      { label: "See quotes", href: "/features/quotes" },
+      { label: "See payment tracking", href: "/features/payments" },
     ],
   },
 ];
 
 const workflow = [
   {
-    title: "Agree the work",
-    copy: "Prepare and share professional quotes that clearly communicate your services, pricing and commercial terms.",
+    title: "agree the work",
+    copy: "Send a quote that spells out services, price and terms.",
     icon: FileCheck,
     href: "/features/quotes",
-    link: "Explore quotes",
+    link: "See quotes",
     tone: "bg-pink text-on-pink",
   },
   {
-    title: "Invoice your client",
-    copy: "Turn accepted quotes into invoices and give clients clear amounts, due dates and payment instructions.",
+    title: "invoice your client",
+    copy: "Turn the accepted quote into an invoice with a clear amount, due date and how to pay.",
     icon: FileText,
     href: "/features/invoicing",
-    link: "Explore invoicing",
+    link: "See invoicing",
     tone: "bg-sun text-on-sun",
   },
   {
-    title: "Track your payments",
-    copy: "Keep track of outstanding invoices, payment progress and the follow-ups needed to get paid.",
+    title: "track the payment",
+    copy: "See what's outstanding, what's part paid and who needs a nudge.",
     icon: Wallet,
     href: "/features/payments",
-    link: "Explore payments",
+    link: "See payments",
     tone: "bg-mango text-on-mango",
   },
   {
-    title: "Record what you receive",
-    copy: "Confirm payments and issue receipts connected to the original invoice.",
+    title: "record what lands",
+    copy: "Confirm payments and issue receipts tied to the original invoice.",
     icon: ReceiptText,
     href: "/features/receipts",
-    link: "Explore receipts",
+    link: "See receipts",
     tone: "bg-surface-tint text-text",
   },
 ];
 
 const benefits = [
   {
-    title: "Look professional",
-    copy: "Present your business with consistent, professional quotes, invoices and receipts.",
+    title: "look the part",
+    copy: "Consistent quotes, invoices and receipts that make you look like the business you are.",
     icon: FileText,
   },
   {
-    title: "Make getting paid easier",
-    copy: "Give clients the information they need to understand and pay your invoices.",
+    title: "make paying easy",
+    copy: "Give clients everything they need to understand and pay.",
     icon: Wallet,
   },
   {
-    title: "Stay on top of outstanding payments",
-    copy: "See what has been paid, what remains outstanding and where follow-up is needed.",
+    title: "stay on top of it",
+    copy: "See what's paid, what's open and who needs a follow-up.",
     icon: BellRing,
   },
   {
-    title: "Keep your records connected",
-    copy: "Maintain a clearer relationship between quotes, invoices, payments and receipts.",
+    title: "keep it all connected",
+    copy: "Quotes, invoices, payments and receipts, linked together.",
     icon: ReceiptText,
   },
 ];
@@ -166,26 +166,27 @@ export default function AudiencesPage() {
             <div className="inline-flex items-center gap-2 border-brut border-ink bg-sun px-3 py-2 text-on-sun shadow-brut">
               <Sparkles aria-hidden="true" className="h-4 w-4" />
               <span className="text-caption font-extrabold uppercase tracking-wide">
-                Built for independent professionals and creative businesses
+                built for people who work for themselves
               </span>
             </div>
           }
           title={
             <>
-              Your work is
+              your work is
               <span className="mt-2 block">your business.</span>
               <span className="mt-2 inline-block -rotate-1 border-brut border-ink bg-mango px-3 pb-2 text-on-mango shadow-brut-lg">
-                Make it pay.
+                make it pay.
               </span>
             </>
           }
           titleClassName="mt-7 text-title-l leading-[0.98] sm:text-[4.5rem] lg:text-[5.2rem]"
           copy={
             <>
-              Whether you work independently, advise clients or run a creative
-              business, you deserve a better way to manage the money side of
-              your work. Bagg helps you agree fees, invoice professionally,
-              track payments and keep your records organised.
+              Whether you freelance, advise clients or run a creative studio,
+              the money side of the work deserves better than a spreadsheet and
+              a lot of &quot;just checking in&quot; messages. Bagg helps you
+              agree fees, invoice clearly, track payments and keep your records
+              tidy.
             </>
           }
           copyClassName="mt-8 max-w-xl"
@@ -196,10 +197,10 @@ export default function AudiencesPage() {
               <div className="relative border-brut border-ink bg-surface shadow-brut-lg">
                 <div className="border-b-2 border-ink bg-mango px-5 py-5 text-on-mango">
                   <p className="text-caption font-extrabold uppercase tracking-wide">
-                    The business side of your work
+                    the money side of your work
                   </p>
                   <h2 className="mt-2 text-heading font-extrabold">
-                    One connected workflow.
+                    one connected flow.
                   </h2>
                 </div>
 
@@ -207,29 +208,29 @@ export default function AudiencesPage() {
                   {[
                     {
                       label: "QUOTE",
-                      title: "Agree the work and fees.",
-                      description: "Clear services and pricing.",
+                      title: "agree the work and the fee.",
+                      description: "Clear services, clear price.",
                       icon: FileCheck,
                       tone: "bg-pink",
                     },
                     {
                       label: "INVOICE",
-                      title: "Make payment clear.",
-                      description: "Professional billing and due dates.",
+                      title: "make paying easy.",
+                      description: "Clear amounts and due dates.",
                       icon: FileText,
                       tone: "bg-sun",
                     },
                     {
                       label: "PAYMENT",
-                      title: "Know what comes in.",
-                      description: "Track payments and balances.",
+                      title: "know what has come in.",
+                      description: "Payments and balances, tracked.",
                       icon: Wallet,
                       tone: "bg-mango",
                     },
                     {
                       label: "RECEIPT",
-                      title: "Keep a record.",
-                      description: "Connected payment documentation.",
+                      title: "keep the record.",
+                      description: "Receipts linked to the invoice.",
                       icon: ReceiptText,
                       tone: "bg-surface-tint",
                     },
@@ -268,14 +269,14 @@ export default function AudiencesPage() {
 
                 <div className="border-t-2 border-ink bg-cream px-5 py-4">
                   <p className="text-caption font-bold text-text-soft">
-                    Less time managing the money. More time doing the work.
+                    Less time on the money side. More time on the work.
                   </p>
                 </div>
               </div>
 
               <div className="absolute -right-3 -top-5 rotate-6 border-brut border-ink bg-sun px-4 py-2 text-on-sun shadow-brut sm:-right-6">
                 <span className="text-caption font-extrabold uppercase">
-                  Work. Invoice. Get paid.
+                  work. invoice. get paid.
                 </span>
               </div>
             </div>
@@ -301,7 +302,7 @@ export default function AudiencesPage() {
                 mobileFullWidth: true,
               })}
             >
-              See a client invoice
+              See what your client sees
               <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
             </Link>
           </div>
@@ -314,9 +315,9 @@ export default function AudiencesPage() {
         {/* AUDIENCE SEGMENTS */}
         <MarketingSection spacing="large" border="both" className="bg-mango">
           <SectionHeading
-            eyebrow="Who Bagg is for"
-            title="Different businesses. Shared commercial needs."
-            copy="Your profession determines the work you do. But every client relationship needs clear pricing, professional billing and reliable payment records."
+            eyebrow="who it's for"
+            title="different jobs. same money questions."
+            copy="Your craft is your own. But every client needs a clear price, a clear invoice and a clear record of what's been paid."
             titleClassName="text-title-l text-on-mango"
             copyClassName="mt-5 text-on-mango"
           />
@@ -351,7 +352,7 @@ export default function AudiencesPage() {
 
                   <div className="mt-6 border-t-2 border-ink pt-5">
                     <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-                      This includes
+                      think:
                     </p>
 
                     <ul className="mt-4 space-y-3">
@@ -395,9 +396,9 @@ export default function AudiencesPage() {
         {/* COMMON WORKFLOW */}
         <MarketingSection spacing="large" className="bg-cream">
           <SectionHeading
-            eyebrow="One connected experience"
-            title="From agreeing the work to getting paid."
-            copy="Whatever your profession, Bagg helps you manage the commercial journey between you and your client."
+            eyebrow="start to finish"
+            title='from "let&apos;s work together" to paid.'
+            copy="Whatever you do, the journey with your client is the same. Bagg walks it with you."
             titleClassName="text-title-l"
             copyClassName="mt-5"
           />
@@ -446,9 +447,9 @@ export default function AudiencesPage() {
         >
           <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
             <SectionHeading
-              eyebrow="Why Bagg"
-              title="The business side, without the unnecessary admin."
-              copy="You do not need another complicated system to manage your client relationships. You need a straightforward way to handle the money side of your work."
+              eyebrow="why Bagg"
+              title="the business side, minus the admin."
+              copy="You don't need a giant system. You need an easy way to handle the money side of client work."
               titleClassName="text-title-l"
               copyClassName="mt-5"
             />
@@ -483,9 +484,9 @@ export default function AudiencesPage() {
         {/* FEATURE DISCOVERY */}
         <MarketingSection spacing="large" className="bg-cream">
           <SectionHeading
-            eyebrow="Explore Bagg"
-            title="Everything you need to manage getting paid."
-            copy="Discover the individual capabilities that work together to support your client billing workflow."
+            eyebrow="look around"
+            title="everything you need to get paid."
+            copy="Four pieces, one flow."
             titleClassName="text-title-l"
           />
 
@@ -494,28 +495,25 @@ export default function AudiencesPage() {
               {
                 title: "Quotes",
                 description:
-                  "Agree services, pricing and commercial terms before work begins.",
+                  "Agree services, price and terms before work starts.",
                 href: "/features/quotes",
                 icon: FileCheck,
               },
               {
                 title: "Invoicing",
-                description:
-                  "Create professional invoices and share them with clients.",
+                description: "Make an invoice and share it with one link.",
                 href: "/features/invoicing",
                 icon: FileText,
               },
               {
                 title: "Payments",
-                description:
-                  "Track invoice payments, balances and payment follow-ups.",
+                description: "Track payments, balances and follow-ups.",
                 href: "/features/payments",
                 icon: Wallet,
               },
               {
                 title: "Receipts",
-                description:
-                  "Issue payment receipts and maintain connected records.",
+                description: "Issue receipts linked to the original invoice.",
                 href: "/features/receipts",
                 icon: ReceiptText,
               },
@@ -541,7 +539,7 @@ export default function AudiencesPage() {
                   </p>
 
                   <span className="mt-5 inline-flex items-center gap-2 text-label font-extrabold text-ink">
-                    Learn more
+                    Take a look
                     <ArrowRight
                       aria-hidden="true"
                       className="h-4 w-4 transition-transform group-hover:translate-x-1"
@@ -559,16 +557,15 @@ export default function AudiencesPage() {
             <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
               <div>
                 <p className="text-caption font-extrabold uppercase tracking-wide text-on-mango">
-                  Your work deserves a better business experience
+                  your work deserves better admin
                 </p>
 
                 <h2 className="mt-3 max-w-3xl text-title-l font-extrabold leading-tight text-on-mango">
-                  Do the work you love. Let Bagg help with getting paid.
+                  do the work you love. let Bagg handle getting paid.
                 </h2>
 
                 <p className="mt-4 max-w-2xl text-body-l leading-relaxed text-on-mango">
-                  Start managing quotes, invoices, payments and receipts in one
-                  connected workspace.
+                  Quotes, invoices, payments and receipts, all in one place.
                 </p>
 
                 <p className="mt-4 text-caption font-semibold text-on-mango">
@@ -597,7 +594,7 @@ export default function AudiencesPage() {
                     mobileFullWidth: true,
                   })}
                 >
-                  View pricing
+                  See pricing
                 </Link>
               </div>
             </div>

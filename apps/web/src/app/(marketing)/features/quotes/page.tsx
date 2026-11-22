@@ -1,5 +1,4 @@
-
-import Link from 'next/link';
+import Link from "next/link";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -7,21 +6,21 @@ import {
   FileText,
   MessageSquare,
   Wallet,
-} from 'lucide-react';
-import { Container } from '@/components/marketing/container';
-import { MarketingSection } from '@/components/marketing/marketing-section';
-import { PageHero } from '@/components/marketing/page-hero';
-import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
-import { buttonStyles } from '@/components/ui/button';
-import { marketingMetadata } from '@/lib/metadata';
-import type { Metadata } from 'next';
-import { MarketingBreadcrumbStructuredData } from '@/components/marketing/marketing-structured-data';
+} from "lucide-react";
+import { Container } from "@/components/marketing/container";
+import { MarketingSection } from "@/components/marketing/marketing-section";
+import { PageHero } from "@/components/marketing/page-hero";
+import { FeatureSubnav } from "@/components/marketing/feature-sub-nav";
+import { buttonStyles } from "@/components/ui/button";
+import { marketingMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+import { MarketingBreadcrumbStructuredData } from "@/components/marketing/marketing-structured-data";
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'Quotation Software for Freelancers',
+  title: "Quotation Software for Freelancers",
   description:
-    'Prepare professional quotes, agree commercial terms with clients and convert accepted quotes into invoices.',
-  path: '/features/quotes',
+    "Prepare professional quotes, agree commercial terms with clients and convert accepted quotes into invoices.",
+  path: "/features/quotes",
 });
 
 export default function QuotesPage() {
@@ -29,9 +28,9 @@ export default function QuotesPage() {
     <>
       <MarketingBreadcrumbStructuredData
         items={[
-          { name: 'Home', path: '/' },
-          { name: 'Features', path: '/features' },
-          { name: 'Quotes', path: '/features/quotes' },
+          { name: "Home", path: "/" },
+          { name: "Features", path: "/features" },
+          { name: "Quotes", path: "/features/quotes" },
         ]}
       />
 
@@ -48,16 +47,15 @@ export default function QuotesPage() {
           }
           title={
             <>
-              Agree on the work.
-              <span className="block text-mango">Then get started.</span>
+              agree on the work.
+              <span className="block text-mango">then get started.</span>
             </>
           }
           titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem]"
           copy={
             <>
-              Put the scope, price and payment expectations in writing. Share a
-              quote your client can review and respond to, then turn the accepted
-              work into an invoice.
+              Put scope, price and payment terms in writing. Your client reviews
+              and replies, and the accepted quote turns into an invoice.
             </>
           }
           visual={
@@ -86,7 +84,9 @@ export default function QuotesPage() {
                     <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-text-muted">
                       Prepared by
                     </p>
-                    <p className="mt-1 font-extrabold text-ink">Your business</p>
+                    <p className="mt-1 font-extrabold text-ink">
+                      Your business
+                    </p>
                     <p className="text-caption text-text-muted">
                       Your business details
                     </p>
@@ -96,7 +96,9 @@ export default function QuotesPage() {
                       Prepared for
                     </p>
                     <p className="mt-1 font-extrabold text-ink">Your client</p>
-                    <p className="text-caption text-text-muted">Client details</p>
+                    <p className="text-caption text-text-muted">
+                      Client details
+                    </p>
                   </div>
                 </div>
 
@@ -146,7 +148,7 @@ export default function QuotesPage() {
               </div>
 
               <div className="absolute -bottom-1 -left-2 -rotate-6 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
-                Agree before delivery.
+                agree before you deliver.
               </div>
             </div>
           }
@@ -155,8 +157,8 @@ export default function QuotesPage() {
             <Link
               href="/signup"
               className={buttonStyles({
-                size: 'lg',
-                variant: 'primary',
+                size: "lg",
+                variant: "primary",
                 mobileFullWidth: true,
               })}
             >
@@ -167,12 +169,12 @@ export default function QuotesPage() {
             <Link
               href="/features/receipts"
               className={buttonStyles({
-                size: 'lg',
-                variant: 'outline',
+                size: "lg",
+                variant: "outline",
                 mobileFullWidth: true,
               })}
             >
-              Explore receipts
+              See receipts
               <ArrowUpRight aria-hidden className="h-4 w-4" />
             </Link>
           </div>
@@ -186,40 +188,40 @@ export default function QuotesPage() {
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div>
               <p className="text-caption font-extrabold uppercase tracking-[0.16em]">
-                A useful client experience
+                your client can reply
               </p>
               <h2 className="mt-3 text-title-l font-extrabold tracking-tight sm:text-4xl">
-                Give the client a way to respond.
+                give your client a way to answer.
               </h2>
               <p className="mt-4 max-w-xl text-body-l text-on-pink/80">
-                Your client can review the quote, accept it, decline it or
-                request changes. Comments help keep the conversation attached
-                to the commercial document.
+                They can accept, decline or ask for changes, right on the quote.
+                Comments stay attached, so the conversation doesn&apos;t get
+                lost in your DMs.
               </p>
             </div>
 
             <div className="border-brut border-ink bg-surface p-5 text-text shadow-brut-lg sm:p-7">
               <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                Client response options
+                What your client can do
               </p>
 
               <div className="mt-5 space-y-3">
                 <ResponseOption
                   icon={<Check className="h-5 w-5" />}
                   title="Accept the quote"
-                  copy="Confirm the proposed commercial terms."
+                  copy="They're happy with the terms."
                   tone="bg-mango text-on-mango"
                 />
                 <ResponseOption
                   icon={<MessageSquare className="h-5 w-5" />}
-                  title="Request a review"
-                  copy="Ask for a change or clarification."
+                  title="Request changes"
+                  copy="Ask for a tweak or a clarification."
                   tone="bg-sun text-on-sun"
                 />
                 <ResponseOption
                   icon={<ArrowRight className="h-5 w-5" />}
                   title="Decline the quote"
-                  copy="Record that the offer will not proceed."
+                  copy="Record that this one isn't going ahead."
                   tone="bg-pink text-on-pink"
                 />
               </div>
@@ -231,10 +233,10 @@ export default function QuotesPage() {
                   </span>
                   <div>
                     <p className="font-extrabold text-ink">
-                      Keep the conversation with the quote.
+                      keep the conversation with the quote.
                     </p>
                     <p className="mt-1 text-caption text-text-muted">
-                      Comments and review requests stay connected to the
+                      Comments and change requests stay attached to the
                       document.
                     </p>
                   </div>
@@ -252,15 +254,14 @@ export default function QuotesPage() {
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div>
               <p className="text-caption font-extrabold uppercase tracking-[0.16em]">
-                From agreement to payment
+                from yes to invoice
               </p>
               <h2 className="mt-3 text-title-l font-extrabold tracking-tight sm:text-4xl">
-                Accepted? Move to invoicing.
+                accepted? turn it into an invoice.
               </h2>
               <p className="mt-4 max-w-xl text-body-l text-on-mango/80">
-                Once a quote is accepted, you can convert it into an invoice.
-                The conversion is a deliberate next step, so you remain in
-                control of when billing begins.
+                Once your client accepts, convert the quote into an invoice in
+                one step. It&apos;s your call when billing starts.
               </p>
             </div>
 
@@ -270,7 +271,7 @@ export default function QuotesPage() {
                   <FileText className="h-6 w-6" />
                   <p className="mt-4 font-extrabold">Accepted quote</p>
                   <p className="mt-1 text-caption text-on-pink/80">
-                    Commercial terms agreed
+                    Terms agreed
                   </p>
                 </div>
 
@@ -282,17 +283,17 @@ export default function QuotesPage() {
                   <Wallet className="h-6 w-6" />
                   <p className="mt-4 font-extrabold">Invoice</p>
                   <p className="mt-1 text-caption text-on-sun/80">
-                    Ready for billing
+                    Ready to bill
                   </p>
                 </div>
               </div>
 
               <div className="mt-5 border-t-2 border-ink pt-4">
                 <p className="font-extrabold text-ink">
-                  Acceptance is not automatic invoicing.
+                  accepting doesn&apos;t invoice automatically.
                 </p>
                 <p className="mt-1 text-caption text-text-muted">
-                  You decide when to convert the accepted quote into an invoice.
+                  You decide when to convert it.
                 </p>
               </div>
             </div>
@@ -303,25 +304,25 @@ export default function QuotesPage() {
           <Container>
             <div className="relative border-brut border-ink bg-sun p-7 shadow-brut-lg sm:p-10">
               <span className="absolute -right-2 -top-3 rotate-3 border-brut border-ink bg-pink px-3 py-2 text-caption font-extrabold uppercase text-on-pink shadow-brut">
-                Start with clarity
+                start clear
               </span>
 
               <div className="max-w-2xl">
                 <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-on-sun">
-                  Before the work begins
+                  before the work begins
                 </p>
                 <h2 className="mt-3 text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] text-on-sun sm:text-5xl">
-                  Put the agreement in writing.
+                  put the agreement in writing.
                 </h2>
                 <p className="mt-4 max-w-xl text-body-l text-on-sun/80">
-                  Create a quote, share it with your client and keep the
-                  commercial conversation connected to the work.
+                  Make a quote, share it and keep the price conversation
+                  attached to the work.
                 </p>
                 <Link
                   href="/signup"
-                  className={`${buttonStyles({ size: 'lg', variant: 'outline' })} mt-7`}
+                  className={`${buttonStyles({ size: "lg", variant: "outline" })} mt-7`}
                 >
-                  Create a quote <ArrowRight className="h-4 w-4" />
+                  Make a quote <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
             </div>

@@ -1,5 +1,4 @@
-
-import Link from 'next/link';
+import Link from "next/link";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -10,41 +9,41 @@ import {
   MessageCircle,
   ReceiptText,
   ShieldCheck,
-} from 'lucide-react';
-import { Container } from '@/components/marketing/container';
-import { MarketingSection } from '@/components/marketing/marketing-section';
-import { PageHero } from '@/components/marketing/page-hero';
-import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
-import { buttonStyles } from '@/components/ui/button';
-import { marketingMetadata } from '@/lib/metadata';
-import type { Metadata } from 'next';
-import { MarketingBreadcrumbStructuredData } from '@/components/marketing/marketing-structured-data';
+} from "lucide-react";
+import { Container } from "@/components/marketing/container";
+import { MarketingSection } from "@/components/marketing/marketing-section";
+import { PageHero } from "@/components/marketing/page-hero";
+import { FeatureSubnav } from "@/components/marketing/feature-sub-nav";
+import { buttonStyles } from "@/components/ui/button";
+import { marketingMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+import { MarketingBreadcrumbStructuredData } from "@/components/marketing/marketing-structured-data";
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'Payment Receipt Generator for Freelancers',
+  title: "Payment Receipt Generator for Freelancers",
   description:
-    'Create verified payment receipts, share them with clients and keep every receipt connected to its original invoice.',
-  path: '/features/receipts',
+    "Create verified payment receipts, share them with clients and keep every receipt connected to its original invoice.",
+  path: "/features/receipts",
 });
 
 const sharingOptions = [
   {
     icon: MessageCircle,
-    title: 'WhatsApp',
-    copy: 'Share the receipt link with your client when their phone number is available.',
-    tone: 'bg-mango text-on-mango',
+    title: "WhatsApp",
+    copy: "Share the receipt link when you have your client's phone number.",
+    tone: "bg-mango text-on-mango",
   },
   {
     icon: ArrowUpRight,
-    title: 'Public receipt link',
-    copy: 'Give your client a link to view the receipt without signing in to Bagg.',
-    tone: 'bg-pink text-on-pink',
+    title: "Public receipt link",
+    copy: "A link they can open any time, no sign-in.",
+    tone: "bg-pink text-on-pink",
   },
   {
     icon: ClipboardList,
-    title: 'Printable record',
-    copy: 'Open the receipt in a clean, printable format for your records.',
-    tone: 'bg-sun text-on-sun',
+    title: "Printable record",
+    copy: "A clean printable version for your files.",
+    tone: "bg-sun text-on-sun",
   },
 ];
 
@@ -53,9 +52,9 @@ export default function ReceiptsFeaturePage() {
     <>
       <MarketingBreadcrumbStructuredData
         items={[
-          { name: 'Home', path: '/' },
-          { name: 'Features', path: '/features' },
-          { name: 'Receipts', path: '/features/receipts' },
+          { name: "Home", path: "/" },
+          { name: "Features", path: "/features" },
+          { name: "Receipts", path: "/features/receipts" },
         ]}
       />
 
@@ -73,15 +72,15 @@ export default function ReceiptsFeaturePage() {
           }
           title={
             <>
-              Payment received.
-              <span className="mt-2 block text-pink-ink">Proof provided.</span>
+              payment received.
+              <span className="mt-2 block text-pink-ink">proof provided.</span>
             </>
           }
           titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem]"
           copy={
             <>
-              Every confirmed payment gets a numbered, verified receipt. Share it
-              with your client and keep it connected to the invoice it belongs to.
+              Every confirmed payment gets a numbered, verified receipt. Share
+              it with your client and keep it attached to its invoice.
             </>
           }
           visual={
@@ -196,7 +195,7 @@ export default function ReceiptsFeaturePage() {
               </div>
 
               <div className="absolute -bottom-6 -left-4 hidden -rotate-3 border-brut border-ink bg-pink px-4 py-3 text-caption font-extrabold uppercase text-on-pink shadow-brut sm:block">
-                Every payment has a paper trail
+                every payment leaves a paper trail
               </div>
             </div>
           }
@@ -204,14 +203,14 @@ export default function ReceiptsFeaturePage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/signup"
-              className={buttonStyles({ size: 'lg', variant: 'primary' })}
+              className={buttonStyles({ size: "lg", variant: "primary" })}
             >
               Start free
               <ArrowRight aria-hidden className="h-4 w-4" />
             </Link>
             <Link
               href="/features/payments"
-              className={buttonStyles({ size: 'lg', variant: 'outline' })}
+              className={buttonStyles({ size: "lg", variant: "outline" })}
             >
               How payments work
               <ArrowUpRight aria-hidden className="h-4 w-4" />
@@ -223,19 +222,19 @@ export default function ReceiptsFeaturePage() {
           <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
             <div>
               <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                One payment, one connected record
+                one payment, one record
               </p>
               <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-ink">
-                Your receipt belongs to its invoice.
+                your receipt belongs to its invoice.
               </h2>
               <p className="mt-5 text-body-l leading-relaxed text-text-soft">
-                Bagg keeps confirmed payments connected to the invoice they
-                settle. That means you can follow the history without piecing
-                together separate messages and spreadsheets.
+                Confirmed payments stay linked to the invoice they settle, so
+                you can follow the whole history without digging through chats
+                and spreadsheets.
               </p>
               <Link
                 href="/features/payments"
-                className={`${buttonStyles({ variant: 'link' })} mt-6`}
+                className={`${buttonStyles({ variant: "link" })} mt-6`}
               >
                 See payment tracking
                 <ArrowRight aria-hidden className="h-4 w-4" />
@@ -288,7 +287,7 @@ export default function ReceiptsFeaturePage() {
                       Confirmed payment
                     </p>
                     <p className="text-caption text-on-mango">
-                      Amount received and balance updated
+                      Amount received, balance updated
                     </p>
                   </div>
                   <span className="text-caption font-extrabold text-on-mango">
@@ -317,8 +316,8 @@ export default function ReceiptsFeaturePage() {
               </div>
 
               <p className="mt-5 text-caption leading-relaxed text-text-muted">
-                Each confirmed payment has its own receipt. An invoice with
-                multiple payments can therefore have multiple receipt records.
+                Each confirmed payment gets its own receipt. Part payments mean
+                more than one receipt.
               </p>
             </div>
           </div>
@@ -331,14 +330,14 @@ export default function ReceiptsFeaturePage() {
         >
           <div className="max-w-3xl">
             <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
-              Share with your client
+              share it
             </p>
             <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-ink">
-              A receipt they can actually find again.
+              a receipt your client can find again.
             </h2>
             <p className="mt-5 text-body-l leading-relaxed text-text-soft">
-              Give your client a direct way to view their payment record. They
-              do not need to create a Bagg account to open a public receipt link.
+              Give your client a direct link to their payment record. No Bagg
+              account needed.
             </p>
           </div>
 
@@ -354,11 +353,7 @@ export default function ReceiptsFeaturePage() {
                   <div
                     className={`flex min-h-28 items-center border-b-2 border-ink p-5 ${option.tone}`}
                   >
-                    <Icon
-                      aria-hidden
-                      className="h-9 w-9"
-                      strokeWidth={2.2}
-                    />
+                    <Icon aria-hidden className="h-9 w-9" strokeWidth={2.2} />
                   </div>
                   <div className="p-5">
                     <h3 className="text-heading font-extrabold text-ink">
@@ -380,19 +375,19 @@ export default function ReceiptsFeaturePage() {
               <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
                 <div className="max-w-3xl">
                   <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-on-mango">
-                    Close the loop
+                    close the loop
                   </p>
                   <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-on-mango">
-                    From invoice sent to payment recorded.
+                    from invoice sent to payment recorded.
                   </h2>
                   <p className="mt-5 max-w-2xl text-body-l leading-relaxed text-on-mango">
-                    Create the invoice, track the payment and give your client a
-                    verified record when the money arrives.
+                    Make the invoice, track the payment and give your client a
+                    verified record when the money lands.
                   </p>
                 </div>
                 <Link
                   href="/features"
-                  className={buttonStyles({ size: 'lg', variant: 'outline' })}
+                  className={buttonStyles({ size: "lg", variant: "outline" })}
                 >
                   Explore all features
                   <ArrowUpRight aria-hidden className="h-4 w-4" />

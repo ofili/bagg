@@ -1,5 +1,4 @@
-
-import Link from 'next/link';
+import Link from "next/link";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -9,70 +8,70 @@ import {
   CreditCard,
   ReceiptText,
   ShieldCheck,
-} from 'lucide-react';
-import { Container } from '@/components/marketing/container';
-import { MarketingSection } from '@/components/marketing/marketing-section';
-import { PageHero } from '@/components/marketing/page-hero';
-import { FeatureSubnav } from '@/components/marketing/feature-sub-nav';
-import { buttonStyles } from '@/components/ui/button';
-import { marketingMetadata } from '@/lib/metadata';
-import type { Metadata } from 'next';
-import { MarketingBreadcrumbStructuredData } from '@/components/marketing/marketing-structured-data';
+} from "lucide-react";
+import { Container } from "@/components/marketing/container";
+import { MarketingSection } from "@/components/marketing/marketing-section";
+import { PageHero } from "@/components/marketing/page-hero";
+import { FeatureSubnav } from "@/components/marketing/feature-sub-nav";
+import { buttonStyles } from "@/components/ui/button";
+import { marketingMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+import { MarketingBreadcrumbStructuredData } from "@/components/marketing/marketing-structured-data";
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'Payments Tracking and Reminders for Freelancers',
+  title: "Payments Tracking and Reminders for Freelancers",
   description:
-    'Track payments, confirm transfers, manage partial payments and follow up on outstanding invoices with Bagg.',
-  path: '/features/payments',
+    "Track payments, confirm transfers, manage partial payments and follow up on outstanding invoices with Bagg.",
+  path: "/features/payments",
 });
 
 const reminderSteps = [
   {
-    label: 'Before it is due',
-    timing: '3 days before',
-    copy: 'A friendly heads-up while there is still time to pay.',
+    label: "Before it's due",
+    timing: "3 days before",
+    copy: "A heads-up while there's still time.",
   },
   {
-    label: 'Due date',
-    timing: 'On the due date',
-    copy: 'A clear reminder that payment is now due.',
+    label: "Due date",
+    timing: "On the day",
+    copy: "A clear reminder that payment is due today.",
   },
   {
-    label: 'First follow-up',
-    timing: '3 days after',
-    copy: 'A polite follow-up when the balance is still outstanding.',
+    label: "First follow-up",
+    timing: "3 days after",
+    copy: "A polite nudge: the balance is still open.",
   },
   {
-    label: 'Final scheduled nudge',
-    timing: '7 days after',
-    copy: 'One more reminder to bring the open invoice back to attention.',
+    label: "Last scheduled nudge",
+    timing: "7 days after",
+    copy: "One more reminder to bring it back to the top of their inbox.",
   },
 ];
 
 const paymentStages = [
   {
-    title: 'Payment reported',
-    copy: 'Your client submits a payment claim with the amount, date and optional reference.',
-    status: 'CLAIM SUBMITTED',
-    tone: 'bg-sun text-on-sun',
+    title: "client says they've paid",
+    copy: "They send a payment claim with the amount, the date and a reference if they have one.",
+    status: "CLAIM SENT",
+    tone: "bg-sun text-on-sun",
   },
   {
-    title: 'You review it',
-    copy: 'Check the claim against your bank or payment provider before confirming it.',
-    status: 'AWAITING REVIEW',
-    tone: 'bg-pink text-on-pink',
+    title: "you check",
+    copy: "Look at your bank or payment provider. Does the money match?",
+    status: "YOUR TURN",
+    tone: "bg-pink text-on-pink",
   },
   {
-    title: 'Payment confirmed',
-    copy: 'Bagg records the confirmed amount and updates the invoice balance.',
-    status: 'CONFIRMED',
-    tone: 'bg-mango text-on-mango',
+    title: "you confirm",
+    copy: "Bagg records the payment and updates the balance.",
+    status: "CONFIRMED",
+    tone: "bg-mango text-on-mango",
   },
   {
-    title: 'Receipt created',
-    copy: 'A verified receipt is generated and linked to the invoice.',
-    status: 'RECEIPT READY',
-    tone: 'bg-surface-tint text-text',
+    title: "receipt created",
+    copy: "A verified receipt is made and linked to the invoice.",
+    status: "RECEIPT READY",
+    tone: "bg-surface-tint text-text",
   },
 ];
 
@@ -81,9 +80,9 @@ export default function PaymentsFeaturePage() {
     <>
       <MarketingBreadcrumbStructuredData
         items={[
-          { name: 'Home', path: '/' },
-          { name: 'Features', path: '/features' },
-          { name: 'Payments', path: '/features/payments' },
+          { name: "Home", path: "/" },
+          { name: "Features", path: "/features" },
+          { name: "Payments", path: "/features/payments" },
         ]}
       />
       <FeatureSubnav currentPath="/features/payments" />
@@ -109,8 +108,8 @@ export default function PaymentsFeaturePage() {
           titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem]"
           copy={
             <>
-              Bagg helps you track money against the invoice, review payment claims,
-              keep the remaining balance visible and follow up when payment is late.
+              Track payments against each invoice, review payment claims, see
+              the balance left and follow up when something&apos;s late.
             </>
           }
           visual={
@@ -178,8 +177,8 @@ export default function PaymentsFeaturePage() {
                       Payment records stay connected
                     </p>
                     <p className="mt-1 text-caption leading-relaxed text-text-soft">
-                      Confirmed payments, balances and receipts belong to the same
-                      invoice record.
+                      Confirmed payments, balances and receipts belong to the
+                      same invoice record.
                     </p>
                   </div>
                 </div>
@@ -188,7 +187,9 @@ export default function PaymentsFeaturePage() {
                   <span className="text-caption font-bold text-text-muted">
                     Your money. Your account.
                   </span>
-                  <span className="text-caption font-extrabold text-ink">BAGG</span>
+                  <span className="text-caption font-extrabold text-ink">
+                    BAGG
+                  </span>
                 </div>
               </div>
 
@@ -201,23 +202,23 @@ export default function PaymentsFeaturePage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/signup"
-              className={buttonStyles({ size: 'lg', variant: 'primary' })}
+              className={buttonStyles({ size: "lg", variant: "primary" })}
             >
               Start free
               <ArrowRight aria-hidden className="h-4 w-4" />
             </Link>
             <Link
               href="/features/receipts"
-              className={buttonStyles({ size: 'lg', variant: 'outline' })}
+              className={buttonStyles({ size: "lg", variant: "outline" })}
             >
-              Explore receipts
+              See receipts
               <ArrowUpRight aria-hidden className="h-4 w-4" />
             </Link>
           </div>
 
           <p className="mt-5 max-w-lg text-caption leading-relaxed text-text-muted">
-            Bagg records and tracks payments. Your client pays you directly; Bagg
-            does not hold your money.
+            Bagg records and tracks payments. Your client pays you directly, and
+            Bagg never holds your money.
           </p>
         </PageHero>
 
@@ -225,23 +226,23 @@ export default function PaymentsFeaturePage() {
           <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr]">
             <div>
               <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-text-muted">
-                How payment confirmation works
+                how confirming works
               </p>
               <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-ink">
-                From payment claim to verified record.
+                from &quot;I&apos;ve paid&quot; to verified.
               </h2>
               <p className="mt-5 text-body leading-relaxed text-text-soft">
-                When a client reports a manual payment, Bagg gives you a review
-                step before the payment becomes part of your confirmed records.
+                When a client reports a manual payment, you get a review step
+                before it counts.
               </p>
               <div className="mt-7 border-brut border-ink bg-pink p-5 shadow-brut">
                 <ShieldCheck aria-hidden className="h-7 w-7 text-on-pink" />
                 <p className="mt-4 text-heading font-extrabold text-on-pink">
-                  You stay in control.
+                  you&apos;re in control.
                 </p>
                 <p className="mt-2 text-body text-on-pink">
-                  Verify the money in your bank or payment provider before
-                  confirming a client&apos;s claim.
+                  Check the money in your bank or payment provider before you
+                  confirm anything.
                 </p>
               </div>
             </div>
@@ -274,20 +275,18 @@ export default function PaymentsFeaturePage() {
             <div>
               <div className="inline-flex items-center gap-2 border-brut border-ink bg-sun px-3 py-2 text-caption font-extrabold uppercase text-on-sun shadow-brut">
                 <BellRing aria-hidden className="h-4 w-4" />
-                Automatic follow-up
+                automatic follow-up
               </div>
               <h2 className="mt-6 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-ink">
-                Follow up without making it your full-time job.
+                follow up without it becoming a second job.
               </h2>
               <p className="mt-5 text-body-l leading-relaxed text-text-soft">
-                Bagg schedules a small, predictable set of email reminders
-                around the invoice due date. You do not have to remember every
-                follow-up yourself.
+                Bagg sends four email reminders around the due date, so you
+                don&apos;t have to remember to nudge anyone.
               </p>
               <p className="mt-5 text-caption leading-relaxed text-text-muted">
-                Scheduled reminders require a client email address. They are
-                cancelled when the invoice is paid or a payment claim is
-                submitted.
+                Reminders need a client email address. They stop when the
+                invoice is paid or a client claims payment.
               </p>
             </div>
 
@@ -300,10 +299,10 @@ export default function PaymentsFeaturePage() {
                 <div className="flex items-center justify-between gap-4 border-b-2 border-ink pb-5">
                   <div>
                     <p className="text-caption font-extrabold uppercase tracking-[0.12em] text-text-muted">
-                      Reminder schedule
+                      four friendly nudges
                     </p>
                     <h3 className="mt-2 text-heading font-extrabold text-ink">
-                      Four scheduled touchpoints
+                      Reminder schedule
                     </h3>
                   </div>
                   <BellRing aria-hidden className="h-7 w-7 text-ink" />
@@ -349,8 +348,7 @@ export default function PaymentsFeaturePage() {
                     strokeWidth={3}
                   />
                   <p className="text-body font-bold text-on-pink">
-                    When a payment is claimed or the invoice is paid, scheduled
-                    reminders stop.
+                    Claimed or paid? Reminders stop.
                   </p>
                 </div>
               </div>
@@ -364,21 +362,21 @@ export default function PaymentsFeaturePage() {
               <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
                 <div className="max-w-3xl">
                   <p className="text-caption font-extrabold uppercase tracking-[0.14em] text-on-mango">
-                    Keep the money trail clear
+                    keep the money trail clear
                   </p>
                   <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-on-mango">
-                    Every confirmed payment deserves a proper record.
+                    every confirmed payment deserves a receipt.
                   </h2>
                   <p className="mt-5 max-w-2xl text-body-l leading-relaxed text-on-mango">
-                    See how Bagg turns a confirmed payment into a receipt that
-                    stays connected to the invoice.
+                    See how a confirmed payment becomes a receipt that stays
+                    attached to its invoice.
                   </p>
                 </div>
                 <Link
                   href="/features/receipts"
-                  className={buttonStyles({ size: 'lg', variant: 'outline' })}
+                  className={buttonStyles({ size: "lg", variant: "outline" })}
                 >
-                  Explore receipts
+                  See receipts
                   <ArrowUpRight aria-hidden className="h-4 w-4" />
                 </Link>
               </div>

@@ -1,12 +1,12 @@
-﻿'use client';
+﻿"use client";
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, Loader2 } from 'lucide-react';
-import Link from 'next/link';
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, Loader2 } from "lucide-react";
+import Link from "next/link";
 
-import { BagCharacter, BagMark, Wordmark } from '@/components/brand';
-import { OnboardingSteps } from '@/components/onboarding/OnboardingSteps';
+import { BagCharacter, BagMark, Wordmark } from "@/components/brand";
+import { OnboardingSteps } from "@/components/onboarding/OnboardingSteps";
 import {
   Alert,
   BaggSelect,
@@ -15,14 +15,14 @@ import {
   FormSubsection,
   TextArea,
   TextField,
-} from '@/components/ui';
+} from "@/components/ui";
 
 import {
   getPostSetupDestination,
   readOnboardingContinuation,
-} from '@/lib/onboarding-navigation';
+} from "@/lib/onboarding-navigation";
 
-const API_BASE = '/api';
+const API_BASE = "/api";
 
 type BusinessProfile = {
   business_name: string;
@@ -32,7 +32,7 @@ type BusinessProfile = {
 };
 
 type OnboardingProgressResponse = {
-  status: 'not_started' | 'in_progress' | 'completed';
+  status: "not_started" | "in_progress" | "completed";
   schema_version: number;
   current_step: string | null;
   completed_steps: string[];
@@ -50,11 +50,11 @@ type OnboardingProgressResponse = {
 };
 
 function getApiError(data: unknown, fallback: string): string {
-  if (!data || typeof data !== 'object') return fallback;
+  if (!data || typeof data !== "object") return fallback;
 
   const detail = (data as { detail?: unknown }).detail;
 
-  if (typeof detail === 'string' && detail.trim()) {
+  if (typeof detail === "string" && detail.trim()) {
     return detail;
   }
 
@@ -63,9 +63,9 @@ function getApiError(data: unknown, fallback: string): string {
       .map((item) => {
         if (
           item &&
-          typeof item === 'object' &&
-          'msg' in item &&
-          typeof item.msg === 'string'
+          typeof item === "object" &&
+          "msg" in item &&
+          typeof item.msg === "string"
         ) {
           return item.msg;
         }
@@ -74,7 +74,7 @@ function getApiError(data: unknown, fallback: string): string {
       })
       .filter(Boolean);
 
-    if (messages.length) return messages.join(' ');
+    if (messages.length) return messages.join(" ");
   }
 
   return fallback;
@@ -83,13 +83,13 @@ function getApiError(data: unknown, fallback: string): string {
 async function readJson<T>(response: Response): Promise<T> {
   const data: unknown = await response.json().catch(() => null);
 
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new Error('Unexpected response from the server. Please try again.');
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Unexpected response from the server. Please try again.");
   }
 
   if (!response.ok) {
     throw new Error(
-      getApiError(data, 'Something went wrong. Please try again.'),
+      getApiError(data, "Something went wrong. Please try again."),
     );
   }
 
@@ -105,10 +105,10 @@ function OnboardingForm() {
     [searchParams],
   );
 
-  const [businessName, setBusinessName] = useState('');
-  const [country, setCountry] = useState('NG');
-  const [currency, setCurrency] = useState('NGN');
-  const [address, setAddress] = useState('');
+  const [businessName, setBusinessName] = useState("");
+  const [country, setCountry] = useState("NG");
+  const [currency, setCurrency] = useState("NGN");
+  const [address, setAddress] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -120,18 +120,17 @@ function OnboardingForm() {
     async function loadProgress() {
       try {
         const response = await fetch(`${API_BASE}/onboarding`, {
-          method: 'GET',
-          credentials: 'include',
-          cache: 'no-store',
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
         });
 
         if (response.status === 401) {
-          router.replace('/login');
+          router.replace("/login");
           return;
         }
 
-        const progress =
-          await readJson<OnboardingProgressResponse>(response);
+        const progress = await readJson<OnboardingProgressResponse>(response);
 
         if (cancelled) return;
 
@@ -143,20 +142,20 @@ function OnboardingForm() {
         const profile = progress.business_profile;
 
         setBusinessName(
-          profile?.business_name === 'My Business'
-            ? ''
-            : profile?.business_name || '',
+          profile?.business_name === "My Business"
+            ? ""
+            : profile?.business_name || "",
         );
 
-        setCountry(profile?.country || 'NG');
-        setCurrency(profile?.default_currency || 'NGN');
-        setAddress(profile?.address || '');
+        setCountry(profile?.country || "NG");
+        setCurrency(profile?.default_currency || "NGN");
+        setAddress(profile?.address || "");
       } catch (err) {
         if (!cancelled) {
           setError(
             err instanceof Error
               ? err.message
-              : 'We could not load your workspace. Please try again.',
+              : "We couldn't load your setup. Please try again.",
           );
         }
       } finally {
@@ -173,20 +172,18 @@ function OnboardingForm() {
     };
   }, [router, continuation]);
 
-  async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const cleanName = businessName.trim();
 
     if (!cleanName) {
-      setError('Enter the business name you want on your documents.');
+      setError("Add the business name you want on your documents.");
       return;
     }
 
     if (cleanName.length > 200) {
-      setError('Business name must be 200 characters or fewer.');
+      setError("Keep the business name to 200 characters or fewer.");
       return;
     }
 
@@ -194,35 +191,29 @@ function OnboardingForm() {
     setError(null);
 
     try {
-      const response = await fetch(
-        `${API_BASE}/onboarding/business-profile`,
-        {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            business_name: cleanName,
-            country,
-            default_currency: currency,
-            address: address.trim() || null,
-          }),
+      const response = await fetch(`${API_BASE}/onboarding/business-profile`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          business_name: cleanName,
+          country,
+          default_currency: currency,
+          address: address.trim() || null,
+        }),
+      });
 
       if (response.status === 401) {
-        router.replace('/login');
+        router.replace("/login");
         return;
       }
 
-      const result =
-        await readJson<OnboardingProgressResponse>(response);
+      const result = await readJson<OnboardingProgressResponse>(response);
 
       if (result.onboarding_completed !== true) {
-        throw new Error(
-          'Your business setup was not confirmed. Please try again.',
-        );
+        throw new Error("That didn’t save properly. Please try again.");
       }
 
       router.replace(getPostSetupDestination(continuation));
@@ -230,7 +221,7 @@ function OnboardingForm() {
       setError(
         err instanceof Error
           ? err.message
-          : 'We could not save your details. Please try again.',
+          : "Something went wrong. Please try again.",
       );
     } finally {
       setSaving(false);
@@ -252,14 +243,8 @@ function OnboardingForm() {
 
       <main className="mx-auto flex w-full max-w-2xl flex-1 items-center px-5 py-10">
         {loading ? (
-          <div
-            role="status"
-            className="flex w-full justify-center py-16"
-          >
-            <Loader2
-              className="h-7 w-7 animate-spin"
-              aria-hidden="true"
-            />
+          <div role="status" className="flex w-full justify-center py-16">
+            <Loader2 className="h-7 w-7 animate-spin" aria-hidden="true" />
             <span className="sr-only">Loading workspace</span>
           </div>
         ) : (
@@ -274,18 +259,18 @@ function OnboardingForm() {
 
               <div className="min-w-0">
                 <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-                  First, the basics
+                  quick setup
                 </p>
 
                 <h1 className="mt-2 text-title-l text-text sm:text-display">
-                  Set up your business.
+                  what should we call your business?
                 </h1>
               </div>
             </div>
 
             <p className="mt-4 text-body-l text-text-soft">
-              Your business name appears on invoices, quotes and receipts.
-              You can change these details later in Settings.
+              This name goes on your invoices, quotes and receipts. You can
+              change it any time in Settings.
             </p>
 
             {error && (
@@ -296,8 +281,8 @@ function OnboardingForm() {
 
             <form onSubmit={handleSubmit} className="mt-7 space-y-5">
               <FormSubsection
-                title="Business identity"
-                description="The name your clients will recognise."
+                title="Business name"
+                description="The name your clients know you by."
               >
                 <TextField
                   id="business-name"
@@ -308,18 +293,16 @@ function OnboardingForm() {
                   autoComplete="organization"
                   maxLength={200}
                   placeholder="e.g. Ada Studio or Acme Limited"
-                  hint="Use your trading name or registered business name."
+                  hint="Your trading name or registered name, whichever your clients know."
                   value={businessName}
-                  onChange={(event) =>
-                    setBusinessName(event.target.value)
-                  }
+                  onChange={(event) => setBusinessName(event.target.value)}
                 />
               </FormSubsection>
 
               <FormSubsection
                 divided
-                title="Location and currency"
-                description="Where you operate and the currency you invoice in."
+                title="Where you're based"
+                description="We'll start you off with the currency you most likely invoice in."
               >
                 <FormGrid>
                   <BaggSelect
@@ -329,12 +312,12 @@ function OnboardingForm() {
                       setCountry(next);
 
                       const defaults: Record<string, string> = {
-                        NG: 'NGN',
-                        GH: 'GHS',
-                        KE: 'KES',
-                        ZA: 'ZAR',
-                        GB: 'GBP',
-                        US: 'USD',
+                        NG: "NGN",
+                        GH: "GHS",
+                        KE: "KES",
+                        ZA: "ZAR",
+                        GB: "GBP",
+                        US: "USD",
                       };
 
                       if (defaults[next]) {
@@ -342,12 +325,12 @@ function OnboardingForm() {
                       }
                     }}
                     options={[
-                      { value: 'NG', label: 'Nigeria' },
-                      { value: 'GH', label: 'Ghana' },
-                      { value: 'KE', label: 'Kenya' },
-                      { value: 'ZA', label: 'South Africa' },
-                      { value: 'GB', label: 'United Kingdom' },
-                      { value: 'US', label: 'United States' },
+                      { value: "NG", label: "Nigeria" },
+                      { value: "GH", label: "Ghana" },
+                      { value: "KE", label: "Kenya" },
+                      { value: "ZA", label: "South Africa" },
+                      { value: "GB", label: "United Kingdom" },
+                      { value: "US", label: "United States" },
                     ]}
                   />
 
@@ -356,13 +339,13 @@ function OnboardingForm() {
                     value={currency}
                     onChange={setCurrency}
                     options={[
-                      { value: 'NGN', label: 'NGN · Nigerian naira' },
-                      { value: 'USD', label: 'USD · US dollar' },
-                      { value: 'GBP', label: 'GBP · British pound' },
-                      { value: 'EUR', label: 'EUR · Euro' },
-                      { value: 'GHS', label: 'GHS · Ghanaian cedi' },
-                      { value: 'KES', label: 'KES · Kenyan shilling' },
-                      { value: 'ZAR', label: 'ZAR · South African rand' },
+                      { value: "NGN", label: "NGN · Nigerian naira" },
+                      { value: "USD", label: "USD · US dollar" },
+                      { value: "GBP", label: "GBP · British pound" },
+                      { value: "EUR", label: "EUR · Euro" },
+                      { value: "GHS", label: "GHS · Ghanaian cedi" },
+                      { value: "KES", label: "KES · Kenyan shilling" },
+                      { value: "ZAR", label: "ZAR · South African rand" },
                     ]}
                   />
                 </FormGrid>
@@ -370,8 +353,8 @@ function OnboardingForm() {
 
               <FormSubsection
                 divided
-                title="Document details"
-                description="Shown in the footer of invoices, quotes and receipts."
+                title="Address (optional)"
+                description="Shown in the footer of your documents."
               >
                 <TextArea
                   id="address"
@@ -399,21 +382,18 @@ function OnboardingForm() {
                       className="h-4 w-4 animate-spin"
                       aria-hidden="true"
                     />
-                    Saving your business…
+                    Saving…
                   </>
                 ) : (
                   <>
-                    Continue to Bagg
-                    <ArrowRight
-                      className="h-4 w-4"
-                      aria-hidden="true"
-                    />
+                    Let's go
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </>
                 )}
               </Button>
 
               <p className="text-center text-caption text-text-muted">
-                You can update these details in Settings at any time.
+                You can update all of this in Settings any time.
               </p>
             </form>
           </section>

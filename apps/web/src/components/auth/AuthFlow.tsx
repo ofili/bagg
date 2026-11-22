@@ -125,12 +125,12 @@ export function AuthFlow({ mode }: Props) {
     if (!normalizedEmail) return;
 
     if (isSignup && !normalizedName) {
-      setError("Enter your full name to create your account.");
+      setError("Add your full name so we know what to call you.");
       return;
     }
 
     if (isSignup && normalizedName.length > 120) {
-      setError("Your name must be 120 characters or fewer.");
+      setError("Keep your name to 120 characters or fewer.");
       return;
     }
 
@@ -146,7 +146,7 @@ export function AuthFlow({ mode }: Props) {
       setStep("code");
     } catch (err) {
       setError(
-        errorMessage(err, "We could not send the code. Please try again."),
+        errorMessage(err, "We couldn't send the code. Try again in a moment."),
       );
     } finally {
       setLoading(false);
@@ -167,7 +167,10 @@ export function AuthFlow({ mode }: Props) {
       codeRef.current?.focus();
     } catch (err) {
       setError(
-        errorMessage(err, "We could not send a new code. Please try again."),
+        errorMessage(
+          err,
+          "We couldn't send a new code. Try again in a moment.",
+        ),
       );
     } finally {
       setLoading(false);
@@ -198,7 +201,7 @@ export function AuthFlow({ mode }: Props) {
 
       if (!response.ok) {
         throw new Error(
-          data.detail || "That code is not valid. Check it and try again.",
+          data.detail || "That code didn't work. Check it and try again.",
         );
       }
 
@@ -210,7 +213,7 @@ export function AuthFlow({ mode }: Props) {
       router.replace(destination);
     } catch (err) {
       setError(
-        errorMessage(err, "That code is not valid. Check it and try again."),
+        errorMessage(err, "That code didn't work. Check it and try again."),
       );
       setCode("");
       codeRef.current?.focus();
@@ -263,8 +266,8 @@ export function AuthFlow({ mode }: Props) {
           </h1>
           <p className="mt-4 max-w-md text-body-l text-text-soft">
             {isSignup
-              ? "Create invoices, share payment links and keep track of what clients owe you."
-              : "Your invoices, clients and payments are where you left them. Sign in and pick up the thread."}
+              ? "Make invoices, share one link and see who has paid. That's the whole job."
+              : "Your invoices, clients and payments are right where you left them."}
           </p>
           <p className="mt-8 text-caption text-text-muted">
             No passwords. No stored card numbers.
@@ -295,15 +298,15 @@ export function AuthFlow({ mode }: Props) {
             <p className="mt-2 text-body text-text-soft">
               {step === "details" ? (
                 isSignup ? (
-                  "Start with your name and email. You can add your business details next."
+                  "Your name and email to start. Business details come next."
                 ) : (
-                  "We send a one-time code. No password to remember."
+                  "We'll email you a one-time code. No password to remember."
                 )
               ) : (
                 <>
                   We sent a 6-digit code to{" "}
                   <span className="break-all font-bold text-text">{email}</span>
-                  . It can take a minute. Check spam if it has not arrived.
+                  . It can take a minute. Check spam if it&apos;s being shy.
                 </>
               )}
             </p>
@@ -356,7 +359,7 @@ export function AuthFlow({ mode }: Props) {
                   </>
                 ) : (
                   <>
-                    {isSignup ? "Create account" : "Continue with email"}
+                    {isSignup ? "Create account" : "Send me a code"}
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </>
                 )}
@@ -392,9 +395,9 @@ export function AuthFlow({ mode }: Props) {
                     Checking…
                   </>
                 ) : isSignup ? (
-                  "Verify and continue"
+                  "Confirm code"
                 ) : (
-                  "Enter workspace"
+                  "Take me in"
                 )}
               </Button>
 

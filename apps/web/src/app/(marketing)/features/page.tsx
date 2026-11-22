@@ -29,38 +29,38 @@ export const metadata: Metadata = marketingMetadata({
 
 const capabilities = [
   {
-    label: "COMMERCIALS",
-    title: "Agree on the work.",
-    copy: "Put the scope, price and payment expectations in a quote before the work begins.",
+    label: "AGREE",
+    title: "agree on the work.",
+    copy: "Put the scope, price and payment terms in a quote before you start.",
     href: "/features/quotes",
-    link: "Explore quotes",
+    link: "See quotes",
     tone: "bg-pink text-on-pink",
     icon: FileText,
   },
   {
-    label: "INVOICING",
-    title: "Make the ask clear.",
-    copy: "Create a professional invoice with your line items, currency, due date and payment details.",
+    label: "ASK",
+    title: "make the ask clear.",
+    copy: "An invoice with your line items, currency, due date and how to pay.",
     href: "/features/invoicing",
-    link: "Explore invoicing",
+    link: "See invoicing",
     tone: "bg-mango text-on-mango",
     icon: FileText,
   },
   {
-    label: "COLLECTION",
-    title: "Keep the follow-up moving.",
-    copy: "Share one link, see payment progress and let reminders handle the awkward nudges.",
+    label: "FOLLOW UP",
+    title: "let Bagg do the nudging.",
+    copy: "Share one link, watch payment progress and let reminders cover the awkward bit.",
     href: "/features/payments",
-    link: "Explore payments",
+    link: "See payments",
     tone: "bg-sun text-on-sun",
     icon: Wallet,
   },
   {
-    label: "RECORDS",
-    title: "Close the loop.",
-    copy: "Confirm payments, keep the outstanding balance visible and issue a receipt.",
+    label: "CLOSE",
+    title: "close the loop.",
+    copy: "Confirm the payment, see the balance and send a receipt.",
     href: "/features/receipts",
-    link: "Explore receipts",
+    link: "See receipts",
     tone: "bg-surface-tint text-text",
     icon: ReceiptText,
   },
@@ -83,21 +83,20 @@ export default function FeaturesPage() {
           containerClassName="gap-12 lg:grid-cols-[1.05fr_0.95fr]"
           kicker={
             <div className="inline-flex items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut-sm">
-              Financial workflow
+              the whole workflow
             </div>
           }
           title={
             <>
-              From proposal
-              <span className="block text-mango">to settled payment.</span>
+              from &quot;yes, let&apos;s do it&quot;
+              <span className="block text-mango">to paid.</span>
             </>
           }
           titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem] lg:text-[5.25rem]"
           copy={
             <>
-              Quotes, invoices, automated payment reminders and instant
-              receipts. Keep your client finances connected in one focused
-              workspace.
+              Quotes, invoices, reminders and receipts, all connected, so the
+              money side of your work runs without you babysitting it.
             </>
           }
           visual={
@@ -156,7 +155,7 @@ export default function FeaturesPage() {
               href={demoInvoiceHref}
               className="inline-flex min-h-11 items-center gap-2 font-extrabold text-link underline decoration-2 underline-offset-4 hover:no-underline"
             >
-              See the client experience
+              See what your client sees
               <ArrowUpRight className="h-4 w-4" />
             </Link>
           </div>
@@ -170,11 +169,11 @@ export default function FeaturesPage() {
         <MarketingSection spacing="large" className="bg-surface">
           <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <SectionHeading
-              eyebrow="Core capabilities"
-              title="Everything you need to bill and collect."
+              eyebrow="what's in the box"
+              title="everything you need to bill and collect."
             />
             <p className="max-w-sm text-body text-text-soft">
-              Each part has a job. Together, they give you a clearer record from
+              Each part has one job. Together they give you a clean trail from
               the first agreement to the final payment.
             </p>
           </div>
@@ -223,14 +222,14 @@ export default function FeaturesPage() {
             <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
               <div>
                 <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
-                  Work across borders
+                  work across borders
                 </p>
                 <h2 className="mt-3 text-title-l font-extrabold tracking-tight text-ink sm:text-4xl">
-                  Your currency. Your payment details.
+                  your currency. your payment details.
                 </h2>
                 <p className="mt-4 max-w-lg text-body-l text-text-soft">
-                  Keep payment details for the currencies you use and apply the
-                  right details to each invoice.
+                  Save payment details for each currency you work in. Bagg puts
+                  the right ones on each invoice.
                 </p>
               </div>
 
@@ -280,8 +279,8 @@ export default function FeaturesPage() {
                   Make getting paid part of the process.
                 </h2>
                 <p className="mt-4 max-w-xl text-body-l text-on-sun/80">
-                  Start free. Create your first invoice and give your client one
-                  clear way to see what is due.
+                  Start free. Make your first invoice and give your client one
+                  clear page showing what&apos;s due.
                 </p>
                 <Link
                   href="/signup"

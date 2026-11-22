@@ -27,26 +27,26 @@ export const metadata: Metadata = marketingMetadata({
 
 const workflow = [
   {
-    title: "Agree on the work.",
-    copy: "Set out the scope, price and expectations in a quote before the work begins.",
+    title: "agree on the work.",
+    copy: "Put the scope, price and expectations in a quote before you start.",
     icon: FileText,
     tone: "bg-pink text-on-pink",
   },
   {
-    title: "Make the ask clear.",
-    copy: "Create an invoice with the right currency, due date and payment details.",
+    title: "make the ask clear.",
+    copy: "Invoice with the right currency, due date and payment details.",
     icon: FileText,
     tone: "bg-mango text-on-mango",
   },
   {
-    title: "Keep payment moving.",
-    copy: "Share one link, track payment progress and follow up without awkwardness.",
+    title: "keep it moving.",
+    copy: "Share one link, watch progress and let reminders handle the awkward follow-up.",
     icon: Wallet,
     tone: "bg-sun text-on-sun",
   },
   {
-    title: "Close the loop.",
-    copy: "Confirm payments, keep the record and issue a receipt.",
+    title: "close the loop.",
+    copy: "Confirm the payment, keep the record and send a receipt.",
     icon: ReceiptText,
     tone: "bg-surface-tint text-text",
   },
@@ -87,20 +87,22 @@ export default function AboutPage() {
         layout="split"
         kicker={
           <div className="inline-flex -rotate-2 items-center border-brut border-ink bg-sun px-3 py-1.5 text-caption font-extrabold uppercase tracking-[0.14em] text-on-sun shadow-brut">
-            Why Bagg exists
+            why Bagg exists
           </div>
         }
         title={
           <>
-            Focus on client work.
-            <span className="block text-mango">We handle getting paid.</span>
+            you do the work.
+            <span className="block text-mango">
+              we&apos;ll help with getting paid.
+            </span>
           </>
         }
         copy={
           <>
-            Bagg is an invoicing and payment platform for African freelancers,
-            consultants and studios. We bring quotes, invoices, payment tracking
-            and receipts into one connected workflow.
+            Bagg is an invoicing and payments tool built for African
+            freelancers, consultants and studios. Quotes, invoices, payment
+            tracking and receipts, all in one place.
           </>
         }
         visual={
@@ -109,10 +111,10 @@ export default function AboutPage() {
             <div className="relative border-brut border-ink bg-surface shadow-brut-lg">
               <div className="border-b-2 border-ink bg-mango p-5 text-on-mango">
                 <p className="text-caption font-extrabold uppercase tracking-[0.14em]">
-                  The Bagg approach
+                  how Bagg works
                 </p>
                 <h2 className="mt-2 text-heading font-extrabold">
-                  From agreement to payment
+                  from &quot;yes&quot; to paid
                 </h2>
               </div>
               <div className="space-y-3 p-5">
@@ -143,7 +145,7 @@ export default function AboutPage() {
               </div>
               <div className="border-t-2 border-ink bg-surface-tint px-5 py-3">
                 <p className="text-caption font-bold text-text-soft">
-                  One connected get-paid workflow.
+                  One flow, start to finish.
                 </p>
               </div>
             </div>
@@ -158,7 +160,7 @@ export default function AboutPage() {
           </Link>
 
           <Link href="/features" className={buttonStyles({ variant: "link" })}>
-            Explore the product
+            See what it does
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
@@ -169,32 +171,31 @@ export default function AboutPage() {
         <Container className="grid gap-8 py-20 sm:py-28 lg:grid-cols-[0.8fr_1.2fr] lg:py-32">
           <div>
             <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-link">
-              The problem we care about
+              the problem
             </p>
 
             <h2 className="mt-3 max-w-lg text-[2.3rem] font-extrabold leading-[1.02] tracking-[-0.055em] text-ink sm:text-4xl">
-              Independent work is already a full-time job.
+              working for yourself is already a full-time job.
             </h2>
           </div>
 
           <div className="max-w-3xl space-y-5 text-body-l leading-relaxed text-text-soft">
             <p>
-              Independent work asks you to be the maker, the salesperson, the
-              project manager and the finance team. You deliver the work, then
-              still have to prepare the invoice, explain how to pay, check
-              whether it was opened, follow up when it is late and keep the
-              records straight.
+              You&apos;re the maker, the salesperson, the project manager and
+              the finance department. You deliver the work, and then you still
+              have to write the invoice, explain how to pay, check whether it
+              was opened, chase it when it&apos;s late and keep the records
+              straight.
             </p>
 
             <p>
-              Those small administrative tasks add up. They take attention away
-              from the work clients hired you to do, and they can make
-              conversations about money more awkward than they need to be.
+              None of that is why a client hired you. And it makes talking about
+              money harder than it needs to be.
             </p>
 
             <p className="font-bold text-ink">
-              Bagg exists to make the commercial side of independent work more
-              organised, visible and easier to follow through.
+              Bagg exists to take the admin out of getting paid, so you can ask
+              for your money without the awkwardness.
             </p>
           </div>
         </Container>
@@ -204,12 +205,11 @@ export default function AboutPage() {
       <MarketingSection spacing="large" border="bottom" className="bg-cream">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <SectionHeading
-            eyebrow="What guides the product"
-            title="A few rules we build by."
+            eyebrow="how we build"
+            title="a few rules we build by."
           />
           <p className="max-w-sm text-body text-text-soft">
-            The product should feel straightforward when the work gets
-            complicated.
+            When the work gets complicated, the product shouldn&apos;t.
           </p>
         </div>
 
@@ -248,26 +248,26 @@ export default function AboutPage() {
         <Container className="grid gap-8 py-20 sm:py-28 lg:grid-cols-2 lg:items-center lg:py-32">
           <div>
             <p className="text-caption font-extrabold uppercase tracking-[0.16em] text-on-sun">
-              Built with context
+              built with context
             </p>
 
             <h2 className="mt-3 max-w-xl text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] text-on-sun sm:text-5xl">
-              Made for the realities of independent work in Africa.
+              made for how independent work really runs in Africa.
             </h2>
           </div>
 
           <div className="max-w-2xl space-y-4 text-body-l leading-relaxed text-on-sun/80">
             <p>
-              Independent professionals work across currencies, payment methods,
-              client expectations and communication channels. The tools they use
-              should respect that context rather than force every business into
-              the same template.
+              You might invoice a client in Lagos in naira on Monday and one in
+              London in pounds on Tuesday. Some pay by bank transfer, some by
+              mobile money, some after three follow-ups on WhatsApp. Your tools
+              should get that.
             </p>
 
             <p>
-              We are building Bagg around practical workflows: clear documents,
-              shareable links, payment visibility and records that help you
-              close the loop.
+              So Bagg is built around the real workflow: clear documents, one
+              shareable link, payment status you can trust and a record at the
+              end.
             </p>
           </div>
         </Container>
@@ -278,21 +278,21 @@ export default function AboutPage() {
         <Container>
           <div className="relative border-brut border-ink bg-mango p-7 text-on-mango shadow-brut-lg sm:p-10 lg:p-12">
             <div className="absolute -right-2 -top-3 rotate-3 border-brut border-ink bg-pink px-3 py-2 text-caption font-extrabold uppercase text-on-pink shadow-brut">
-              Your next invoice
+              your next invoice
             </div>
 
             <div className="max-w-2xl">
               <p className="text-caption font-extrabold uppercase tracking-[0.16em]">
-                Make the next step simpler
+                make the next step simpler
               </p>
 
               <h2 className="mt-3 text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] sm:text-5xl">
-                Spend less time chasing. Spend more time building.
+                spend less time chasing. spend more time building.
               </h2>
 
               <p className="mt-4 max-w-xl text-body-l text-on-mango/80">
-                Start with your next invoice and keep every step connected
-                through to the final receipt.
+                Start with your next invoice. Bagg takes it from sent to
+                receipted.
               </p>
 
               <Link
