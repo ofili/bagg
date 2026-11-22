@@ -864,7 +864,7 @@ export default function InvoicesPage() {
 
               {/* Action error */}
               {actionError && (
-                <Alert variant="error" role="alert">
+                <Alert variant="error">
                   {actionError}
                 </Alert>
               )}
