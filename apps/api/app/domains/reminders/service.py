@@ -60,17 +60,24 @@ async def schedule_invoice_reminders(
     db: AsyncSession,
     *,
     commit: bool = False,
+    cycle: int = 0,
+    future_only: bool = False,
 ) -> List[ReminderJob]:
-    """Create the standard reminder cadence without owning the caller's commit.
+    """Schedule an invoice's reminder cadence for a specific cycle.
 
-    Idempotency is enforced by reminder_jobs.idempotency_key. The invoice
-    sender should call this before committing the dispatch transaction.
+    Cycle zero retains the original idempotency key format. Later cycles
+    use distinct keys so cancelled jobs from an earlier cycle cannot
+    prevent reminders from being scheduled again.
     """
 
     if not invoice.due_date:
         return []
 
+    if invoice.status == "draft" or invoice.sent_at is None:
+        return []
+
     repository = ReminderRepository(db)
+    now = datetime.now(timezone.utc)
 
     cadence = [
         ("upcoming_3d", invoice.due_date - timedelta(days=3)),
@@ -80,23 +87,22 @@ async def schedule_invoice_reminders(
     ]
 
     jobs: list[ReminderJob] = []
-
     generation = invoice.issuance_generation or 0
 
-    # Legacy invoices were never assigned a generation. Keep their ``:0:``
-    # idempotency keys, but only schedule once the invoice has actually been
-    # dispatched. Recall returns the invoice to draft and clears sent_at.
-    if invoice.status == "draft" or invoice.sent_at is None:
-        return []
-
     for reminder_type, target_date in cadence:
-        idempotency_key = (
-            f"{invoice.id}:{generation}:{reminder_type}"
-        )
+        due_at = calculate_schedule_datetime(target_date)
 
-        existing = await repository.get_by_idempotency_key(
-            idempotency_key
-        )
+        # Resumed cycles must not recreate reminders whose scheduled
+        # dates have already passed. No catch-up burst is permitted.
+        if future_only and due_at <= now:
+            continue
+
+        if cycle == 0:
+            idempotency_key = f"{invoice.id}:{generation}:{reminder_type}"
+        else:
+            idempotency_key = f"{invoice.id}:{generation}:{cycle}:{reminder_type}"
+
+        existing = await repository.get_by_idempotency_key(idempotency_key)
 
         if existing is not None:
             jobs.append(existing)
@@ -105,9 +111,10 @@ async def schedule_invoice_reminders(
         job = ReminderJob(
             invoice_id=invoice.id,
             reminder_type=reminder_type,
-            due_at=calculate_schedule_datetime(target_date),
+            due_at=due_at,
             status="pending",
             idempotency_key=idempotency_key,
+            cycle=cycle,
             attempts=0,
             max_attempts=3,
         )
@@ -121,6 +128,57 @@ async def schedule_invoice_reminders(
         await db.commit()
 
     return jobs
+
+
+async def resume_invoice_reminders(
+    invoice: Invoice,
+    db: AsyncSession,
+    *,
+    commit: bool = False,
+) -> List[ReminderJob]:
+    """Start a fresh, future-only reminder cycle after claim resolution.
+
+    The caller is responsible for changing the claim out of pending state
+    before calling this function. The caller also owns the transaction.
+    """
+
+    if invoice.status not in ACTIVE_INVOICE_STATUSES:
+        return []
+
+    payable_minor = (
+        invoice.net_payable_minor
+        if invoice.net_payable_minor is not None
+        else invoice.total_minor
+    )
+    outstanding_minor = max(
+        0,
+        payable_minor - (invoice.amount_paid_minor or 0),
+    )
+
+    if outstanding_minor <= 0:
+        return []
+
+    if not invoice.sent_at or not invoice.due_date:
+        return []
+
+    repository = ReminderRepository(db)
+
+    # This is a defensive guard. The claim-resolution caller must already
+    # have transitioned the claim, but never schedule while another claim
+    # is pending.
+    if await repository.has_pending_claim(invoice.id):
+        return []
+
+    latest_cycle = await repository.get_latest_cycle(invoice.id)
+    next_cycle = latest_cycle + 1
+
+    return await schedule_invoice_reminders(
+        invoice,
+        db,
+        commit=commit,
+        cycle=next_cycle,
+        future_only=True,
+    )
 
 
 async def cancel_invoice_reminders(
@@ -309,6 +367,13 @@ async def process_due_reminders(
                 job.status = "failed"
                 job.error_message = (
                     "Maximum reminder enqueue attempts exceeded"
+                )
+                continue
+
+            if await repository.has_pending_claim(invoice.id):
+                job.status = "cancelled"
+                job.error_message = (
+                    "Invoice has a payment claim awaiting review"
                 )
                 continue
 

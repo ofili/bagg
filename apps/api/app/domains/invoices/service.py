@@ -25,7 +25,10 @@ from app.domains.lifecycle.service import list_status_events, record_status_even
 from app.domains.payments.models import PaymentClaim
 from app.domains.quotes.models import Quote
 from app.domains.receipts.service import confirm_payment
-from app.domains.reminders.service import schedule_invoice_reminders
+from app.domains.reminders.service import (
+    resume_invoice_reminders,
+    schedule_invoice_reminders,
+)
 from app.domains.workspaces.models import Workspace
 from app.integrations.email import build_invoice_email_payload
 from app.integrations.email_outbox import (
@@ -1108,7 +1111,19 @@ async def confirm_payment_claim(
     claim.confirmed_amount_minor = confirmed_amount
     claim.confirmed_by_user_id = confirmed_by_user_id
 
-    # The receipt, invoice, claim and audit event remain in one transaction.
+    # The claim is no longer pending. A partial payment resumes reminders
+    # in a new cycle; a fully paid invoice remains ineligible.
+    await db.flush()
+
+    if invoice.status == "partially_paid":
+        await resume_invoice_reminders(
+            invoice,
+            db,
+            commit=False,
+        )
+
+    # Receipt, invoice, claim, reminder jobs and audit event are committed
+    # in one transaction.
     await db.commit()
     await repository.refresh(claim)
 
@@ -1163,9 +1178,15 @@ async def reject_payment_claim(
     claim.rejected_at = datetime.now(timezone.utc)
     claim.rejected_by_user_id = rejected_by_user_id
 
-    # Restore the invoice's financial status without changing its balance.
+    # Restore the exact status captured when the claim was submitted.
+    # Historical claims have no captured status, so use a conservative
+    # fallback rather than inventing an overdue lifecycle state.
+    previous_status = claim.previous_invoice_status
+
     if (invoice.amount_paid_minor or 0) > 0:
         invoice.status = "partially_paid"
+    elif previous_status and previous_status != "payment_claimed":
+        invoice.status = previous_status
     elif invoice.viewed_at:
         invoice.status = "viewed"
     else:
@@ -1185,7 +1206,18 @@ async def reject_payment_claim(
             "claim_id": claim.id,
             "reason": rejection_reason,
             "reviewer_user_id": rejected_by_user_id,
+            "restored_status": invoice.status,
         },
+    )
+
+    # Make the claim transition visible to the pending-claim guard before
+    # attempting to create the next reminder cycle.
+    await db.flush()
+
+    await resume_invoice_reminders(
+        invoice,
+        db,
+        commit=False,
     )
 
     await db.commit()

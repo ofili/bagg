@@ -40,6 +40,26 @@ from app.domains.sharing.schemas import (
 logger = logging.getLogger(__name__)
 
 
+def _is_pending_claim_unique_violation(exc: IntegrityError) -> bool:
+    """Identify only the partial unique index for pending invoice claims."""
+
+    original = exc.orig
+    diagnostic = getattr(original, "diag", None)
+    constraint_name = getattr(diagnostic, "constraint_name", None)
+
+    if constraint_name == "uq_payment_claims_one_pending_per_invoice":
+        return True
+
+    message = str(original).lower()
+
+    # SQLite test environments report the affected columns rather than
+    # the PostgreSQL partial-index name.
+    return (
+        "uq_payment_claims_one_pending_per_invoice" in message
+        or "unique constraint failed: payment_claims.invoice_id" in message
+    )
+
+
 class SharingService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -251,6 +271,8 @@ class SharingService:
                     ),
                 )
 
+            previous_invoice_status = invoice.status
+
             claim = PaymentClaim(
                 invoice_id=invoice.id,
                 amount_minor=payload.amount_minor,
@@ -258,6 +280,7 @@ class SharingService:
                 reference=payload.reference,
                 proof_file_url=payload.proof_file_url,
                 status="pending",
+                previous_invoice_status=previous_invoice_status,
             )
 
             await self.repo.add_claim(claim)
@@ -321,15 +344,16 @@ class SharingService:
         except IntegrityError as exc:
             await self.repo.rollback()
 
-            # The partial unique index is the final protection against
-            # concurrent pending-claim submissions.
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "A payment claim is already awaiting review. "
-                    "Please wait for the existing claim to be resolved."
-                ),
-            ) from exc
+            if _is_pending_claim_unique_violation(exc):
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "A payment claim is already awaiting review. "
+                        "Please wait for the existing claim to be resolved."
+                    ),
+                ) from exc
+
+            raise
 
         except Exception:
             await self.repo.rollback()

@@ -107,7 +107,7 @@ class PaymentSetupResponse(BaseModel):
 class PaymentClaimCreate(BaseModel):
     invoice_id: Optional[str] = None
 
-    amount_minor: int = Field(..., gt=0)
+    amount_minor: int
 
     payment_date: Optional[date] = None
 

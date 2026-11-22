@@ -94,6 +94,9 @@ class PaymentClaim(Base):
     )
 
     rejection_reason = Column(Text, nullable=True)
+    # Invoice lifecycle state immediately before this claim changed it
+    # to payment_claimed. Nullable for historical claims.
+    previous_invoice_status = Column(String(32), nullable=True)
 
     confirmed_at = Column(DateTime(timezone=True), nullable=True)
     confirmed_amount_minor = Column(BigInteger, nullable=True)

@@ -29,6 +29,9 @@ class ReminderJob(Base):
     status = Column(String, nullable=False, default="pending", index=True)
     idempotency_key = Column(String, nullable=False, unique=True, index=True)
     attempts = Column(Integer, nullable=False, default=0)
+    # A new cycle is created when a pending claim is resolved.
+    # Cycle zero preserves the original reminder idempotency keys.
+    cycle = Column(Integer, nullable=False, default=0, server_default="0")
     max_attempts = Column(Integer, nullable=False, default=3)
     last_attempt_at = Column(DateTime(timezone=True), nullable=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)

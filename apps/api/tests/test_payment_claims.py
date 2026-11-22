@@ -1,9 +1,12 @@
 import uuid
 import pytest
+from sqlalchemy import select
+
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 from tests.helpers import create_sent_invoice, login_code_for
 
+from app.domains.reminders.models import ReminderJob
 
 async def setup_claimable_invoice(amount_minor: int = 50_000_00):
     transport = ASGITransport(app=app)
@@ -389,7 +392,7 @@ async def test_rejected_claim_records_reviewer_and_reason():
         current_user = await client.get("/auth/me")
         assert current_user.status_code == 200
 
-        reviewer_id = current_user.json()["id"]
+        reviewer_id = current_user.json()["user"]["id"]
 
         response = await client.post(
             f"/invoices/{invoice['id']}/claims/{claim_id}/reject",
@@ -404,6 +407,120 @@ async def test_rejected_claim_records_reviewer_and_reason():
         assert result["rejection_reason"] == ("The transfer could not be verified.")
         assert result["rejected_by_user_id"] == reviewer_id
         assert result["rejected_at"] is not None
+
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_rejected_claim_restores_invoice_status_and_starts_new_reminder_cycle(
+    db_session,
+):
+    client, invoice = await setup_claimable_invoice()
+
+    try:
+        initial_result = await db_session.execute(
+            select(ReminderJob).where(
+                ReminderJob.invoice_id == invoice["id"],
+            )
+        )
+        initial_jobs = list(initial_result.scalars().all())
+
+        assert initial_jobs
+        assert all(job.cycle == 0 for job in initial_jobs)
+
+        claim_response = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={
+                "amount_minor": 10_000_00,
+                "reference": "NIP/REJECT-RESUME",
+            },
+        )
+        assert claim_response.status_code == 201
+
+        claim_id = claim_response.json()["id"]
+
+        rejected = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/reject",
+            json={"rejection_reason": "Transfer not received."},
+        )
+        assert rejected.status_code == 200
+
+        current_invoice = await client.get(f"/invoices/{invoice['id']}")
+        assert current_invoice.status_code == 200
+        assert current_invoice.json()["status"] == "sent"
+
+        db_session.expire_all()
+
+        jobs_result = await db_session.execute(
+            select(ReminderJob)
+            .where(ReminderJob.invoice_id == invoice["id"])
+            .order_by(ReminderJob.cycle.asc(), ReminderJob.due_at.asc())
+        )
+        jobs = list(jobs_result.scalars().all())
+
+        old_jobs = [job for job in jobs if job.cycle == 0]
+        resumed_jobs = [job for job in jobs if job.cycle == 1]
+
+        assert old_jobs
+        assert all(job.status == "cancelled" for job in old_jobs)
+        assert resumed_jobs
+        assert all(job.status == "pending" for job in resumed_jobs)
+
+        old_keys = {job.idempotency_key for job in old_jobs}
+        new_keys = {job.idempotency_key for job in resumed_jobs}
+
+        assert old_keys.isdisjoint(new_keys)
+
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_partial_claim_confirmation_resumes_reminders_for_remaining_balance(
+    db_session,
+):
+    client, invoice = await setup_claimable_invoice()
+
+    try:
+        claim_response = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={
+                "amount_minor": 20_000_00,
+                "reference": "NIP/PARTIAL-RESUME",
+            },
+        )
+        assert claim_response.status_code == 201
+
+        claim_id = claim_response.json()["id"]
+
+        confirmed = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/confirm",
+            json={"amount_paid_minor": 15_000_00},
+        )
+        assert confirmed.status_code == 200
+
+        current_invoice = await client.get(f"/invoices/{invoice['id']}")
+        assert current_invoice.status_code == 200
+        assert current_invoice.json()["status"] == "partially_paid"
+        assert current_invoice.json()["amount_paid_minor"] == 15_000_00
+
+        db_session.expire_all()
+
+        jobs_result = await db_session.execute(
+            select(ReminderJob).where(
+                ReminderJob.invoice_id == invoice["id"],
+            )
+        )
+        jobs = list(jobs_result.scalars().all())
+
+        old_jobs = [job for job in jobs if job.cycle == 0]
+        resumed_jobs = [job for job in jobs if job.cycle == 1]
+
+        assert old_jobs
+        assert all(job.status == "cancelled" for job in old_jobs)
+        assert resumed_jobs
+        assert all(job.status == "pending" for job in resumed_jobs)
 
     finally:
         await client.aclose()

@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import cast
 
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import selectinload
 
 from app.domains.invoices.models import Invoice
 from app.domains.reminders.models import ReminderJob
+from app.domains.payments.models import PaymentClaim
 from app.integrations.email_models import EmailOutbox
 
 
@@ -117,7 +120,7 @@ class ReminderRepository:
                 updated_at=func.now(),
             )
         )
-        return result.rowcount or 0
+        return cast(CursorResult, result).rowcount or 0
 
     async def cancel_queued_outbox_messages(
         self,
@@ -151,7 +154,7 @@ class ReminderRepository:
                 updated_at=func.now(),
             )
         )
-        return result.rowcount or 0
+        return cast(CursorResult, result).rowcount or 0
 
 
     async def get_invoice_for_workspace(
@@ -179,10 +182,7 @@ class ReminderRepository:
             workspace_id,
         )
 
-        if not belongs:
-            return []
-
-        return await self.list_for_invoice(invoice_id)
+        return await self.list_for_invoice(invoice_id) if belongs else []
 
     async def invoice_belongs_to_workspace(
         self,
@@ -197,17 +197,22 @@ class ReminderRepository:
         )
         return result.scalar_one_or_none() is not None
 
-    async def get_invoice_for_workspace(
-        self,
-        invoice_id: str,
-        workspace_id: str,
-    ) -> Invoice | None:
+    async def get_latest_cycle(self, invoice_id: str) -> int:
         result = await self.db.execute(
-            select(Invoice)
-            .options(selectinload(Invoice.client))
-            .where(
-                Invoice.id == invoice_id,
-                Invoice.workspace_id == workspace_id,
+            select(func.max(ReminderJob.cycle)).where(
+                ReminderJob.invoice_id == invoice_id,
             )
         )
-        return result.scalar_one_or_none()
+        value = result.scalar_one_or_none()
+        return int(value or 0)
+
+    async def has_pending_claim(self, invoice_id: str) -> bool:
+        result = await self.db.execute(
+            select(PaymentClaim.id)
+            .where(
+                PaymentClaim.invoice_id == invoice_id,
+                PaymentClaim.status == "pending",
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none() is not None
