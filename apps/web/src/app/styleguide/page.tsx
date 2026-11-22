@@ -55,6 +55,7 @@ const MOOD_MOMENTS: Record<BagMood, { moment: string; note?: string }> = {
   thinking: { moment: 'Payment pending verification, loading/generating PDF' },
   locked: { moment: 'Protected files locked until conditions are met' },
   celebrating: { moment: 'Big milestones (first payment received)' },
+  skeptical: { moment: 'Overdue invoices, payment claim that does not match' },
 };
 
 type DemoInvoice = {

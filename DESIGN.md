@@ -2092,4 +2092,124 @@ This map should be updated whenever shared implementation locations change.
 
 ---
 
+20. Sisi (the Bagg mascot)
+
+Sisi is the bag. She replaces the coin as Bagg's character. The `BagMark` stays as the fixed logo mark; `BagCharacter` is Sisi.
+
+20.1 Who she is
+
+Calm, switched-on, a little bossy in a loving way. The big sister who has her life together and has your back. Pidgin for "sis".
+
+Steady in hard moments. On a failed payment, an overdue invoice or a locked file she stays calm and says what to do next. She never panics.
+
+Small celebrations. Only the first payment gets full confetti. Everything else is a quiet "see? told you."
+
+Never blames the user. Teasing is aimed at the situation ("mm, that one's still open"), never at the person.
+
+Lowercase in headlines, sentence case everywhere else.
+
+20.2 Signature trait
+
+The pink handle is her eyebrow. It lifts, droops and bounces with her mood. If a Sisi drawing has no handle behaviour, it is not Sisi.
+
+Mood           | Handle position                        | Used for
+-------------- | -------------------------------------- | --------
+happy          | resting                                | default, empty states, onboarding
+sleepy         | tucked low                             | nothing happening, idle
+excited        | lifted slightly                        | first document created, first send
+superExcited   | bouncing up                            | milestones
+celebrating    | up and tilted, confetti                | first payment received
+thinking       | right side lifted                      | loading, checking a code, working
+confused       | right side lifted high                 | 404, search with no results
+worried        | left side lifted                       | a payment claim needs review
+skeptical      | right side lifted high, one eye half-lidded | overdue invoices, a claim that doesn't match
+sad            | sagging                                | failed send, failed payment, failed payout
+locked         | resting, eyes closed, padlock          | private or locked files
+
+20.3 Mood-to-screen map (app)
+
+Screen                              | Mood
+----------------------------------- | ----------
+Sign-up side panel                  | happy
+Sign-in side panel                  | happy
+Auth code step (check your email)   | thinking
+Invalid or expired code             | confused
+Auth error                          | sad
+Onboarding, business name step      | happy
+Onboarding, saving                  | thinking
+Setup checklist (< 3 of 4 done)     | happy
+Setup checklist (3–4 of 4 done)     | excited
+First payment received              | celebrating
+All caught up / nothing to do       | sleepy
+404 page                            | confused
+Empty state: invoices               | happy
+Empty state: quotes                 | happy
+Empty state: clients                | happy
+Empty state: search / filter        | confused
+Overdue banner above invoice list   | skeptical
+Payment claim awaiting review       | worried
+Private or locked document          | locked
+
+20.4 Mood-to-placement map (marketing site)
+
+Placement                                            | Mood         | Size
+---------------------------------------------------- | ------------ | -----
+Home hero: peeking over dashboard image top-right    | happy        | 140–180 px
+How it works: Create card                            | happy        | 72–96 px
+How it works: Share card                             | excited      | 72–96 px
+How it works: Collect card                           | celebrating  | 72–96 px
+Features hub: Agree card                             | thinking     | 72–96 px
+Features hub: Ask card                               | happy        | 72–96 px
+Features hub: Follow up card                         | skeptical    | 72–96 px
+Features hub: Close card                             | celebrating  | 72–96 px
+Invoicing: "late invoices don't hide" box            | skeptical    | 72–96 px
+Payments: "you're in control" card                   | thinking     | 72–96 px
+Pricing: "no sneaky changes" promise card            | skeptical    | 72–96 px
+About: problem section                               | worried      | 72–96 px
+About: final CTA                                     | superExcited | 140–180 px
+
+20.5 Placement rules
+
+- Maximum one Sisi per viewport at any scroll position.
+- Maximum three to four Sisi instances per full page.
+- Sizes: hero 140–180 px, section 72–96 px, inline 48 px.
+- Pass `decorative` whenever the status word or message already sits beside her so screen readers skip the duplicate.
+- Never put her next to a monetary amount, a due date or a balance. Money stays plain.
+
+20.6 Where she never appears
+
+- The client payment page and any screen where the client is looking at the amount.
+- Security, billing and legal pages.
+- Next to an amount, a due date or a balance.
+
+20.7 Voice samples
+
+Moment                | Copy
+--------------------- | -----
+Empty state           | no invoices yet. let's fix that.
+First payment (loud)  | your first payment landed!
+All caught up         | all caught up. nothing needs you right now. go enjoy it.
+Overdue               | mm. that one's still open.
+Failed send           | that didn't go through. try again in a moment.
+404                   | this page took the day off.
+Auth code step        | We sent a 6-digit code to {email}. It can take a minute. Check spam if it's being shy.
+Paid (quiet)          | see? told you.
+
+20.8 Drawing rules
+
+- One body, one handle, two pink cheeks. The face changes; the body does not.
+- Palette is fixed: mango body `#FF7A1A`, pink handle and cheeks `#FF4F8B`, ink outline `#3A1F0A`, yellow `#FFC933` and green `#1FA971` for accents only.
+- Tilt pivots at the bottom centre so she always stays planted.
+- No coin, no extra limbs, no accessories except mood props (tears, sparkles, confetti, padlock, thinking dots, question mark).
+- Simple enough to work as a one-colour icon and to be recognisable at 48 px.
+
+20.9 Accessibility
+
+- Every Sisi instance must have an `aria-label` that names the mood (e.g. "Confused Sisi, the bagg character").
+- Pass `decorative` when she repeats nearby text so screen readers skip her.
+- Any wobble or bounce animation must respect `prefers-reduced-motion`.
+- She never carries information alone. The status word or message always sits beside her.
+
+---
+
 Final rule: Bagg should be recognisable at a glance, easy to operate on a phone, and trustworthy wherever money or client commitments are involved. Every component and page should reinforce those outcomes.
