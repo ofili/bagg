@@ -1332,14 +1332,15 @@ Do not put a complex workflow inside a modal simply to avoid creating a route.
 
 The current navigation direction is a four-item bottom navigation.
 
-The intended eventual structure is:
+The primary navigation structure is:
 
 - Home.
-- Documents.
+- Invoices.
+- Quotes.
+- Receipts.
 - Clients.
-- Balance.
 
-Until the combined Documents and Balance destinations exist, use the implemented destinations rather than exposing dead navigation items.
+Bagg never holds client funds. All payments settle directly to the freelancer's bank account or payment processor. Navigation and metrics reflect document lifecycles and direct settlement rather than custodial balances.
 
 Settings should remain accessible from the account or avatar menu.
 

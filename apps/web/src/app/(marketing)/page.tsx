@@ -37,7 +37,7 @@ export default function MarketingPage() {
         <Container className="grid items-center gap-12 py-14 sm:py-20 lg:grid-cols-[1fr_1fr] lg:gap-10 lg:py-24">
           <div className="relative z-10">
             <MarketingSticker tone="pink" tilt="left">
-              Built for independent work
+              Built for African freelancers &amp; studios
             </MarketingSticker>
 
             <h1 className="mt-6 max-w-2xl text-[clamp(3rem,7vw,5.5rem)] font-extrabold leading-[0.96] tracking-[-0.055em] text-ink">
@@ -48,9 +48,10 @@ export default function MarketingPage() {
             </h1>
 
             <p className="mt-6 max-w-xl text-body-l text-text-soft sm:text-[1.1rem] sm:leading-8">
-              Create professional invoices, send one simple link, track payments
-              and let reminders do the chasing. Keep the business side moving
-              while you focus on the work.
+              Create professional invoices, bill local clients in Naira and
+              international clients in USD, send one simple link, and let
+              reminders do the chasing. Keep your cash moving while you focus on
+              the work.
             </p>
 
             <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
@@ -84,7 +85,7 @@ export default function MarketingPage() {
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                Three free sends
+                Three free sends every month
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Check className="h-3.5 w-3.5" aria-hidden="true" />
@@ -342,11 +343,131 @@ export default function MarketingPage() {
           </div>
 
           <MarketingGrid columns={3} gap="md" className="mt-10">
-            {["Freelancers", "Consultants", "Creative studios"].map((role) => (
-              <MarketingCard key={role} tone="surface">
-                <p className="text-title text-ink">{role}</p>
-              </MarketingCard>
-            ))}
+            <MarketingCard
+              tone="surface"
+              className="flex flex-col justify-between"
+            >
+              <div>
+                <MarketingSticker tone="pink" className="mb-4">
+                  Freelancers &amp; Creators
+                </MarketingSticker>
+                <h3 className="text-title font-extrabold text-ink">
+                  Do the work. Skip the chasing.
+                </h3>
+                <p className="mt-2 text-body text-text-soft">
+                  Find clients, agree fees, and bill in Naira or foreign
+                  currencies. Send one link, track when it’s opened, and let
+                  automated reminders handle the follow-up.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {["Developers", "Designers", "Writers", "Photographers"].map(
+                    (tag) => (
+                      <span
+                        key={tag}
+                        className="border-brut-thin border-ink bg-cream px-2 py-0.5 text-caption font-bold text-text-muted"
+                      >
+                        {tag}
+                      </span>
+                    ),
+                  )}
+                </div>
+              </div>
+              <div className="mt-6 border-t border-line pt-4">
+                <Link
+                  href="/audiences#independent-professionals"
+                  className="inline-flex items-center gap-1.5 text-label font-bold text-ink hover:underline"
+                >
+                  Bagg for freelancers
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
+              </div>
+            </MarketingCard>
+
+            <MarketingCard
+              tone="mango"
+              className="flex flex-col justify-between"
+            >
+              <div>
+                <MarketingSticker tone="sun" className="mb-4">
+                  Consultants &amp; Advisers
+                </MarketingSticker>
+                <h3 className="text-title font-extrabold text-ink">
+                  Formalise your expertise.
+                </h3>
+                <p className="mt-2 text-body text-text-soft">
+                  Prepare clear commercial quotes, convert accepted quotes into
+                  invoices, and maintain dependable payment records for local
+                  and international retainers.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {[
+                    "Strategy",
+                    "Legal & Finance",
+                    "Tech Advisors",
+                    "Specialists",
+                  ].map((tag) => (
+                    <span
+                      key={tag}
+                      className="border-brut-thin border-ink bg-surface px-2 py-0.5 text-caption font-bold text-text-muted"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-6 border-t border-ink/20 pt-4">
+                <Link
+                  href="/audiences#consultants"
+                  className="inline-flex items-center gap-1.5 text-label font-bold text-ink hover:underline"
+                >
+                  Bagg for consultants
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
+              </div>
+            </MarketingCard>
+
+            <MarketingCard
+              tone="surface"
+              className="flex flex-col justify-between"
+            >
+              <div>
+                <MarketingSticker tone="mango" className="mb-4">
+                  Creative Studios
+                </MarketingSticker>
+                <h3 className="text-title font-extrabold text-ink">
+                  Control project cash flow.
+                </h3>
+                <p className="mt-2 text-body text-text-soft">
+                  Collect upfront deposits, bill project milestones, and issue
+                  confirmed receipts without the overhead of enterprise
+                  accounting suites.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {[
+                    "Design Studios",
+                    "Production Teams",
+                    "Web Agencies",
+                    "Boutiques",
+                  ].map((tag) => (
+                    <span
+                      key={tag}
+                      className="border-brut-thin border-ink bg-cream px-2 py-0.5 text-caption font-bold text-text-muted"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-6 border-t border-line pt-4">
+                <Link
+                  href="/audiences#creative-studios"
+                  className="inline-flex items-center gap-1.5 text-label font-bold text-ink hover:underline"
+                >
+                  Bagg for studios
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
+              </div>
+            </MarketingCard>
           </MarketingGrid>
         </Container>
       </section>
