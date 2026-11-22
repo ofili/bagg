@@ -6,7 +6,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 
-import { BagCharacter, BagMark, Wordmark } from "@/components/brand";
+import {
+  BagCharacter,
+  BagMark,
+  Wordmark,
+  type BagMood,
+} from "@/components/brand";
 import {
   Alert,
   Button,
@@ -226,6 +231,12 @@ export function AuthFlow({ mode }: Props) {
     void verify(code.trim());
   }
 
+  const sisiMood: BagMood = error
+    ? "confused"
+    : step === "code"
+      ? "thinking"
+      : "happy";
+
   const heading =
     step === "code"
       ? "check your email"
@@ -249,7 +260,7 @@ export function AuthFlow({ mode }: Props) {
           href="/i/token_demo_sample_ngn"
           className="inline-flex min-h-11 items-center text-label font-bold text-link hover:underline"
         >
-          See a client invoice
+          See what your client sees
         </Link>
       </header>
 
@@ -257,7 +268,7 @@ export function AuthFlow({ mode }: Props) {
         <section className="hidden md:block">
           <BagCharacter
             size={104}
-            mood={step === "code" ? "thinking" : "happy"}
+            mood={sisiMood}
             className="mb-6"
             decorative
           />
@@ -285,11 +296,7 @@ export function AuthFlow({ mode }: Props) {
           />
 
           <div className="flex items-center gap-3 md:hidden">
-            <BagCharacter
-              size={64}
-              mood={step === "code" ? "thinking" : "happy"}
-              decorative
-            />
+            <BagCharacter size={64} mood={sisiMood} decorative />
           </div>
 
           <div>

@@ -107,8 +107,8 @@ export default function MarketingPage() {
             {/* Sisi peeks over the top-right of the dashboard image */}
             <BagCharacter
               mood="happy"
-              size={80}
-              className="absolute -top-12 right-4 z-10 lg:-right-6 lg:-top-14 lg:size-[96px]"
+              size={128}
+              className="absolute -top-16 right-4 z-10 lg:-right-8 lg:-top-20"
               decorative
             />
 
@@ -359,12 +359,10 @@ export default function MarketingPage() {
                   Freelancers &amp; Creators
                 </MarketingSticker>
                 <h3 className="text-title font-extrabold text-ink">
-                  Do the work. Skip the chasing.
+                  do the work. skip the chasing.
                 </h3>
                 <p className="mt-2 text-body text-text-soft">
-                  Find clients, agree fees, and bill in Naira or foreign
-                  currencies. Send one link, track when it’s opened, and let
-                  automated reminders handle the follow-up.
+                  You do the work and the admin. Let Bagg take the admin.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {["Developers", "Designers", "Writers", "Photographers"].map(
@@ -399,12 +397,10 @@ export default function MarketingPage() {
                   Consultants &amp; Advisers
                 </MarketingSticker>
                 <h3 className="text-title font-extrabold text-ink">
-                  Formalise your expertise.
+                  formalise your expertise.
                 </h3>
                 <p className="mt-2 text-body text-text-soft">
-                  Prepare clear commercial quotes, convert accepted quotes into
-                  invoices, and maintain dependable payment records for local
-                  and international retainers.
+                  Your expertise is the product. Get paid like it.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {[
@@ -442,12 +438,10 @@ export default function MarketingPage() {
                   Creative Studios
                 </MarketingSticker>
                 <h3 className="text-title font-extrabold text-ink">
-                  Control project cash flow.
+                  control project cash flow.
                 </h3>
                 <p className="mt-2 text-body text-text-soft">
-                  Collect upfront deposits, bill project milestones, and issue
-                  confirmed receipts without the overhead of enterprise
-                  accounting suites.
+                  Deposits, part payments, final invoices. All in one place.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {[

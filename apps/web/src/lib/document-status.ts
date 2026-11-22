@@ -93,7 +93,7 @@ export function documentStatus({
           label:
             days === 0
               ? "part paid · due today"
-              : `part paid · due in ${days} days`,
+              : `part paid · due in ${days} ${days === 1 ? "day" : "days"}`,
         };
       }
       return { status: "pending", label: "part paid" };
@@ -108,7 +108,10 @@ export function documentStatus({
       if (days !== null && days === 0)
         return { status: "due-soon", label: "due today" };
       if (days !== null && days <= 7)
-        return { status: "due-soon", label: `due in ${days} days` };
+        return {
+          status: "due-soon",
+          label: `due in ${days} ${days === 1 ? "day" : "days"}`,
+        };
       return { status: "upcoming", label: raw === "issued" ? "sent" : raw };
     }
     default:

@@ -142,7 +142,7 @@ const TILT: Record<BagMood, number> = {
  * The handle is drawn behind the body, so a lowered handle simply tucks in.
  */
 const HANDLE: Record<BagMood, string | undefined> = {
-  happy: undefined,
+  happy: "rotate(-5 13 13)",
   sleepy: "translate(0 1.5)",
   excited: "translate(0 -1.5)",
   superExcited: "translate(0 -2.5)",
