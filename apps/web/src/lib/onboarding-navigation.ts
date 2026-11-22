@@ -116,12 +116,18 @@ export function getPostAuthDestination(
   return continuation.next ?? '/dashboard';
 }
 
+
 export function getPostSetupDestination(
   continuation: OnboardingContinuation,
 ): string {
   const query = buildContinuationQuery(continuation);
 
-  // After workspace profile setup (Step 1), route user to Step 2 (Choose a plan).
-  // From there, they can select a paid plan or click "Continue with Free" to reach the dashboard.
-  return `/onboarding/plan${query ? `?${query}` : ''}`;
+  // A paid plan selection is an explicit purchase intention.
+  // Preserve it and continue to the plan/checkout experience.
+  if (continuation.plan) {
+    return `/onboarding/plan${query ? `?${query}` : ''}`;
+  }
+
+  // No paid-plan intent: complete onboarding and enter the workspace.
+  return continuation.next ?? '/dashboard';
 }

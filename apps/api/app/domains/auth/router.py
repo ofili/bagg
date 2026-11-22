@@ -133,6 +133,8 @@ async def verify_code(
     user, workspace, session_token, is_new_user = await service.verify_login(
         str(payload.email),
         payload.code,
+        full_name=payload.full_name,
+        intent=payload.intent,
         attribution=(
             payload.attribution.model_dump(exclude_none=True)
             if payload.attribution

@@ -15,6 +15,7 @@ from app.domains.activation.schemas import (
 )
 from app.domains.invoices.models import Invoice
 from app.domains.quotes.models import Quote
+from app.domains.receipts.models import Receipt
 from app.domains.workspaces.models import Workspace
 
 MILESTONE_DEFINITIONS = (
@@ -336,6 +337,7 @@ async def get_activation(
     db: AsyncSession,
     workspace: Workspace,
 ) -> ActivationResponse:
+    # Existing event records remain the first source of milestone data.
     result = await db.execute(
         select(ProductEvent).where(
             ProductEvent.workspace_id == workspace.id,
@@ -345,21 +347,91 @@ async def get_activation(
 
     events = {event.milestone_key: event for event in result.scalars().all()}
 
+    # Reconcile historical invoice creation.
+    first_invoice_created_at = await db.scalar(
+        select(func.min(Invoice.created_at)).where(
+            Invoice.workspace_id == workspace.id,
+        )
+    )
+
+    # Reconcile historical quote creation.
+    first_quote_created_at = await db.scalar(
+        select(func.min(Quote.created_at)).where(
+            Quote.workspace_id == workspace.id,
+        )
+    )
+
+    # Reconcile historical document dispatch.
+    # sent_at is the persisted dispatch timestamp, not merely an issued status.
+    first_invoice_dispatched_at = await db.scalar(
+        select(func.min(Invoice.sent_at)).where(
+            Invoice.workspace_id == workspace.id,
+            Invoice.sent_at.is_not(None),
+        )
+    )
+
+    first_quote_dispatched_at = await db.scalar(
+        select(func.min(Quote.sent_at)).where(
+            Quote.workspace_id == workspace.id,
+            Quote.sent_at.is_not(None),
+        )
+    )
+
+    dispatch_dates = [
+        value
+        for value in (
+            first_invoice_dispatched_at,
+            first_quote_dispatched_at,
+        )
+        if value is not None
+    ]
+
+    first_dispatched_at = min(dispatch_dates) if dispatch_dates else None
+
+    # Receipts are the authoritative record of confirmed payments.
+    # Payment claims and invoice status alone are deliberately insufficient.
+    first_payment_received_at = await db.scalar(
+        select(func.min(Receipt.created_at)).where(
+            Receipt.workspace_id == workspace.id,
+        )
+    )
+
+    # Prefer recorded milestone timestamps. Fall back to historical
+    # business records when the milestone predates activation tracking.
+    completed_at_by_key = {
+        key: (events[key].occurred_at if key in events else fallback)
+        for key, fallback in (
+            ("first_invoice_created", first_invoice_created_at),
+            ("first_quote_created", first_quote_created_at),
+            ("first_document_dispatched", first_dispatched_at),
+            ("first_payment_confirmed", first_payment_received_at),
+            ("first_receipt_issued", first_payment_received_at),
+        )
+    }
+
+    # Preserve existing event-based milestones that do not have a
+    # corresponding historical business-record reconciliation.
+    for key, _ in MILESTONE_DEFINITIONS:
+        if key in events and key not in completed_at_by_key:
+            completed_at_by_key[key] = events[key].occurred_at
+
     milestones = [
         ActivationMilestoneResponse(
             key=key,
-            completed=key in events,
-            completed_at=(events[key].occurred_at if key in events else None),
+            completed=completed_at_by_key.get(key) is not None,
+            completed_at=completed_at_by_key.get(key),
         )
         for key, _ in MILESTONE_DEFINITIONS
     ]
 
     first_document_created = (
-        "first_invoice_created" in events or "first_quote_created" in events
+        completed_at_by_key.get("first_invoice_created") is not None
+        or completed_at_by_key.get("first_quote_created") is not None
     )
 
-    first_dispatched = "first_document_dispatched" in events
-    first_payment = "first_payment_confirmed" in events
+    first_dispatched = completed_at_by_key.get("first_document_dispatched") is not None
+
+    first_payment = completed_at_by_key.get("first_payment_confirmed") is not None
 
     if first_payment:
         activation_status = "commercially_activated"
@@ -389,8 +461,8 @@ async def get_activation(
             href="/invoices/new",
         )
 
-    # Dismissal is a reversible presentation preference, not a
-    # business milestone. The latest event wins.
+    # Dismissal is a reversible presentation preference.
+    # The latest event wins.
     checklist_result = await db.execute(
         select(ProductEvent)
         .where(

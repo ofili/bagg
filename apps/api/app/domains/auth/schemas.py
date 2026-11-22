@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from typing import Literal
+
 from app.domains.workspaces.schemas import WorkspaceResponse
 
 
@@ -37,7 +39,21 @@ class VerifyCodeRequest(BaseModel):
         max_length=6,
         pattern=r"^[0-9]{6}$",
     )
+    full_name: str | None = Field(default=None, min_length=1, max_length=120)
     attribution: AttributionPayload | None = None
+    intent: Literal["signup", "login"] = "login"
+
+    @field_validator("full_name")
+    @classmethod
+    def normalize_full_name(cls, value):
+        if value is None:
+            return None
+
+        value = value.strip()
+        if value is None or len(value) == 0:
+            raise ValueError("Full name cannot be blank.")
+
+        return value
 
 
 class UserResponse(BaseModel):

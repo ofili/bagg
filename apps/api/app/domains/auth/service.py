@@ -133,6 +133,8 @@ class AuthService:
         self,
         email: str,
         code: str,
+        full_name: str | None = None,
+        intent: str = "login",
         attribution: dict | None = None,
     ) -> tuple[User, Workspace, str, bool]:
 
@@ -174,6 +176,16 @@ class AuthService:
 
             user = user_result.scalars().first()
 
+            if user is None and intent == "login":
+                # A login request must not silently register a new account.
+                # Consume the verified challenge before returning the error.
+                entry.used_at = now
+                await self.db.commit()
+
+                raise BadRequestException(
+                    "No account was found for this email. Create an account to get started."
+                )
+
             if user and not user.is_active:
                 await self.db.commit()
 
@@ -184,6 +196,7 @@ class AuthService:
             if user is None:
                 user = User(
                     email=clean_email,
+                    full_name=full_name.strip() if full_name else None,
                     is_active=True,
                 )
 

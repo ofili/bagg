@@ -1,35 +1,35 @@
-import { redirect } from 'next/navigation';
 
-type SignupSearchParams = {
-  next?: string | string[];
-  plan?: string | string[];
-  billing_interval?: string | string[];
-};
+'use client';
 
-function firstValue(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) return value[0] ?? null;
-  return value ?? null;
+import { Suspense } from 'react';
+import { Loader2 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+
+import { AuthFlow } from '@/components/auth/AuthFlow';
+
+function SignupPageContent() {
+  const searchParams = useSearchParams();
+
+  // AuthFlow reads the same continuation parameters. This component exists
+  // separately so signup remains a first-class route rather than a login alias.
+  void searchParams;
+
+  return <AuthFlow mode="signup" />;
 }
 
-export default async function SignupPage({
-  searchParams,
-}: {
-  searchParams: Promise<SignupSearchParams>;
-}) {
-  const query = await searchParams;
-  const params = new URLSearchParams();
-
-  params.set('intent', 'signup');
-
-  const next = firstValue(query.next);
-  const plan = firstValue(query.plan);
-  const billingInterval = firstValue(query.billing_interval);
-
-  if (next) params.set('next', next);
-  if (plan) params.set('plan', plan);
-  if (billingInterval) {
-    params.set('billing_interval', billingInterval);
-  }
-
-  redirect(`/login?${params.toString()}`);
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center bg-cream">
+          <Loader2
+            className="h-6 w-6 animate-spin text-text-muted"
+            aria-label="Loading signup"
+          />
+        </div>
+      }
+    >
+      <SignupPageContent />
+    </Suspense>
+  );
 }

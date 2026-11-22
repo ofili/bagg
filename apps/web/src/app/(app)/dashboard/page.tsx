@@ -212,8 +212,9 @@ export default function DashboardPage() {
   );
 
   const isTeachingMode =
-    hasDispatchedDocument === false ||
-    (hasDispatchedDocument === null && !loading && !hasMetricActivity);
+    !loading &&
+    !hasMetricActivity &&
+    hasDispatchedDocument !== true;
 
   const handleMilestonesLoaded = useCallback((dispatched: boolean) => {
     setHasDispatchedDocument(dispatched);
