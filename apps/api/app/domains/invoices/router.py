@@ -24,6 +24,7 @@ from app.domains.invoices.schemas import (
     CurrencyMonthMetricsResponse,
     DocumentStatusEventResponse,
     InvoiceCreate,
+    InvoiceDocumentVersionResponse,
     InvoiceResponse,
     InvoiceReviseRequest,
     InvoiceRecallRequest,
@@ -428,4 +429,20 @@ async def get_public_invoice_pdf(
         db,
         token=token,
         document_type="invoice",
+    )
+
+
+@router.get(
+    "/{invoice_id}/document-versions",
+    response_model=List[InvoiceDocumentVersionResponse],
+)
+async def list_invoice_document_versions(
+    invoice_id: str,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    return await service.list_invoice_document_versions(
+        db,
+        workspace,
+        invoice_id,
     )

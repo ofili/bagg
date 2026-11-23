@@ -180,6 +180,7 @@ class InvoiceResponse(BaseModel):
     email_delivery_status: Optional[str] = None
     pdf_url: Optional[str] = None
     version: int = 1
+    issuance_generation: int = 0
     last_revised_at: Optional[datetime] = None
     whatsapp_share_url: Optional[str] = None
     comment_count: int = 0
@@ -201,6 +202,21 @@ class InvoiceSendResponse(BaseModel):
     recipient_email: Optional[str] = None
     share_url: str
     message: str
+
+
+class InvoiceDocumentVersionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    invoice_id: str
+    document_number: str
+    revision_number: int
+    issuance_generation: int
+    snapshot: Any
+    issued_at: datetime
+    recalled_at: Optional[datetime] = None
+    recalled_by_user_id: Optional[str] = None
+    recall_reason: Optional[str] = None
 
 
 class CurrencyMetricsResponse(BaseModel):

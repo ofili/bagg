@@ -93,10 +93,13 @@ async def test_recall_ignores_stale_direct_payment_reference():
         direct_payment_reference="bagg_pay_existing",
     )
 
-    db = FakeDB([
-        None,
-        None,
-    ])
+    db = FakeDB(
+        [
+            None,  # No confirmed receipt
+            None,  # No pending claim
+            None,  # No processing payment attempt
+        ]
+    )
 
     await InvoiceRecallService.validate_recall_eligibility(
         db,
@@ -108,10 +111,13 @@ async def test_recall_ignores_stale_direct_payment_reference():
 async def test_recall_allows_unpaid_resolved_invoice():
     invoice = make_invoice()
 
-    db = FakeDB([
-        None,  # No confirmed receipt
-        None,  # No pending claim
-    ])
+    db = FakeDB(
+        [
+            None,  # No confirmed receipt
+            None,  # No pending claim
+            None,  # No processing payment attempt
+        ]
+    )
 
     await InvoiceRecallService.validate_recall_eligibility(
         db,
@@ -323,6 +329,23 @@ async def test_recall_blocks_processing_attempt_without_invoice_processing_field
     with pytest.raises(
         BadRequestException,
         match="payment transaction is still processing",
+    ):
+        await InvoiceRecallService.validate_recall_eligibility(
+            db,
+            invoice,
+        )
+
+@pytest.mark.asyncio
+async def test_recall_blocks_confirmed_receipt_even_if_invoice_aggregate_is_zero():
+    invoice = make_invoice(amount_paid_minor=0)
+
+    db = FakeDB([
+        "receipt_123",
+    ])
+
+    with pytest.raises(
+        BadRequestException,
+        match="confirmed payment receipt exists",
     ):
         await InvoiceRecallService.validate_recall_eligibility(
             db,

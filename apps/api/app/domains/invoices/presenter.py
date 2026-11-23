@@ -149,9 +149,12 @@ def map_invoice_to_response(
         email_delivery_status=inv.email_delivery_status,
         pdf_url=inv.pdf_url,
         version=inv.version,
+        issuance_generation=inv.issuance_generation or 0,
         last_revised_at=inv.last_revised_at,
         whatsapp_share_url=wa_url,
-        comment_count=len(inv.comments) if ("comments" in inv.__dict__ and inv.comments) else 0,
+        comment_count=(
+            len(inv.comments) if ("comments" in inv.__dict__ and inv.comments) else 0
+        ),
         latest_claim=latest_claim,
         latest_receipt=latest_receipt,
         created_at=inv.created_at,

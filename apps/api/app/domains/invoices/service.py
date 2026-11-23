@@ -1354,6 +1354,16 @@ async def recall_invoice(
         actor_user_id=actor_user_id, reason=reason,
     )
 
+from app.domains.invoices.recall_models import InvoiceDocumentVersion
+
+async def list_invoice_document_versions(
+    db: AsyncSession,
+    workspace: Workspace,
+    invoice_id: str,
+) -> list[InvoiceDocumentVersion]:
+    invoice = await _get_invoice_or_404(db, workspace, invoice_id)
+    return await InvoiceRepository(db).list_document_versions(invoice.id)
+
 
 from app.domains.payments.profile_rules import (
     payment_profile_methods,

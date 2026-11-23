@@ -351,6 +351,17 @@ class InvoiceRepository:
         )
         return list(result.scalars().all())
 
+    async def list_document_versions(
+        self,
+        invoice_id: str,
+    ) -> list[InvoiceDocumentVersion]:
+        result = await self.db.execute(
+            select(InvoiceDocumentVersion)
+            .where(InvoiceDocumentVersion.invoice_id == invoice_id)
+            .order_by(InvoiceDocumentVersion.issuance_generation.asc())
+        )
+        return list(result.scalars().all())
+
     async def get_by_quote(self, workspace_id: str, quote_id: str) -> Invoice | None:
         result = await self.db.execute(
             select(Invoice).where(
