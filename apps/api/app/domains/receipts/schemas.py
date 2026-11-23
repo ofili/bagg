@@ -32,6 +32,15 @@ class ReceiptCreate(BaseModel):
         return normalized
 
 
+class ReceiptReversalSummary(BaseModel):
+    amount_minor: int
+    reversal_type: str
+    status: str
+    reason: str
+    created_at: datetime
+    posted_at: Optional[datetime] = None
+
+
 class ReceiptResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -50,6 +59,8 @@ class ReceiptResponse(BaseModel):
     balance_remaining_minor: int
     payment_date: date
     payment_method: str
+    evidence_classification: str = "legacy_unclassified"
+    reversals: List[ReceiptReversalResponse] = Field(default_factory=list)
     reference: Optional[str] = None
     payer_name: Optional[str] = None
     notes: Optional[str] = None
@@ -85,6 +96,8 @@ class PublicReceiptView(BaseModel):
     verification_code: str
     confirmation_source: str = "legacy"
     provider: Optional[str] = None
+    evidence_classification: str = "legacy_unclassified"
+    reversals: List[ReceiptReversalSummary] = Field(default_factory=list)
     notes: Optional[str] = None
     business_name: str
     business_logo_url: Optional[str] = None

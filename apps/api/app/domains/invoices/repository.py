@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from sqlalchemy import Date, and_, asc, cast, desc, func, or_, select
+from sqlalchemy import Date, and_, asc, case, cast, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.clients.models import Client
@@ -235,9 +235,9 @@ class InvoiceRepository:
     ) -> dict[tuple[str, str], int]:
         issued_on = func.coalesce(Invoice.issue_date, cast(Invoice.created_at, Date))
         month_expr = func.date_trunc("month", issued_on)
-        target_payable = func.coalesce(
-            func.nullif(Invoice.net_payable_minor, 0),
-            Invoice.total_minor,
+        target_payable = case(
+            (Invoice.net_payable_minor > 0, Invoice.net_payable_minor),
+            else_=Invoice.total_minor,
         )
         result = await self.db.execute(
             select(

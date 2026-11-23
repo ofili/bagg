@@ -31,11 +31,10 @@ from app.domains.receipts.schemas import (
     ReceiptResponse,
     PublicReceiptView,
     ClientStatementResponse,
-)
-from app.domains.receipts.schemas import (
     ReceiptReversalCreate,
     ReceiptReversalPost,
     ReceiptReversalResponse,
+    ReceiptReversalSummary,
 )
 from app.domains.receipts.reversal_service import (
     create_reversal,
@@ -102,6 +101,11 @@ def map_receipt_to_response(
         payment_method=rcp.payment_method,
         reference=rcp.reference,
         payer_name=rcp.payer_name,
+        evidence_classification=rcp.evidence_classification,
+        reversals=[
+            ReceiptReversalResponse.model_validate(reversal)
+            for reversal in (rcp.reversals or [])
+        ],
         notes=rcp.notes,
         is_verified=rcp.is_verified,
         verified_at=rcp.verified_at,
@@ -273,6 +277,19 @@ async def get_public_receipt_endpoint(token: str, db: AsyncSession = Depends(get
         verification_code=rcp.verification_code,
         confirmation_source=rcp.confirmation_source,
         provider=rcp.provider,
+        evidence_classification=rcp.evidence_classification,
+        reversals=[
+            ReceiptReversalSummary(
+                amount_minor=reversal.amount_minor,
+                reversal_type=reversal.reversal_type,
+                status=reversal.status,
+                reason=reversal.reason,
+                created_at=reversal.created_at,
+                posted_at=reversal.posted_at,
+            )
+            for reversal in (rcp.reversals or [])
+            if reversal.status == "posted"
+        ],
         notes=rcp.notes,
         business_name=workspace.business_name,
         business_logo_url=workspace.logo_url,

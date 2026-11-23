@@ -323,6 +323,8 @@ async def post_pending_reversal(
             f"Only pending reversals can be posted. Current status: {reversal.status}."
         )
 
+    reversal.reversed_by_user_id = actor_user_id
+
     confirmed_evidence = (
         evidence_reference or reversal.evidence_reference or ""
     ).strip()

@@ -357,7 +357,7 @@ export function PerformanceCard({
                     aria-hidden
                     className="h-2.5 w-2.5 border-brut-thin border-ink bg-ink"
                   />
-                  Invoiced
+                  Billed
                 </span>
                 {hasCurrentMonth && (
                   <span className="text-[11px] text-text-muted">
@@ -366,31 +366,33 @@ export function PerformanceCard({
                 )}
               </div>
 
-              <table className="sr-only">
-                <caption>
-                  Billed and collected by month in {currency}, last{' '}
-                  {rows.length} months
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Month</th>
-                    <th scope="col">Billed</th>
-                    <th scope="col">Collected</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.month}>
-                      <th scope="row">
-                        {fullMonthLabel(row.month)}
-                        {row.month === activeMonth ? ' (to date)' : ''}
-                      </th>
-                      <td>{formatMoney(row.invoiced_minor, currency)}</td>
-                      <td>{formatMoney(row.collected_minor, currency)}</td>
+              <div className="sr-only">
+                <table>
+                  <caption>
+                    Billed and collected by month in {currency}, last{' '}
+                    {rows.length} months
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Month</th>
+                      <th scope="col">Billed</th>
+                      <th scope="col">Collected</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr key={row.month}>
+                        <th scope="row">
+                          {fullMonthLabel(row.month)}
+                          {row.month === activeMonth ? ' (to date)' : ''}
+                        </th>
+                        <td>{formatMoney(row.invoiced_minor, currency)}</td>
+                        <td>{formatMoney(row.collected_minor, currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
         </div>

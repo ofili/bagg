@@ -349,25 +349,21 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-6">
-              <div className="lg:col-span-8 lg:col-start-1 lg:row-start-1">
+              <div className="space-y-5 lg:col-span-8 lg:space-y-6">
                 <HeroOwedCard
                   metric={metric}
                   metrics={metrics}
                   selectedCurrency={selected}
                   onCurrencyChange={setSelected}
                 />
-              </div>
 
-              <div className="lg:col-span-8 lg:col-start-1 lg:row-start-2">
                 <NeedsAttentionStrip
                   overdueCount={metric?.overdue_count ?? 0}
                   claimsCount={metric?.claimed_count ?? 0}
                   viewedCount={metric?.viewed_count ?? 0}
                   currency={metric?.currency ?? selected ?? "NGN"}
                 />
-              </div>
 
-              <div className="lg:col-span-8 lg:col-start-1 lg:row-start-3">
                 <PerformanceCard
                   paidMinor={metric?.paid_this_month_minor ?? 0}
                   sentCount={metric?.sent_count ?? 0}
@@ -380,7 +376,7 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div className="lg:col-span-4 lg:col-start-9 lg:row-start-1">
+              <div className="space-y-5 lg:col-span-4 lg:space-y-6">
                 {setupPreferenceReady && (
                   <SetupChecklistCard
                     mode="slim"
@@ -389,9 +385,7 @@ export default function DashboardPage() {
                     onMilestonesLoaded={handleMilestonesLoaded}
                   />
                 )}
-              </div>
 
-              <div className="lg:col-span-4 lg:col-start-9 lg:row-start-2">
                 <RecentActivityFeed />
               </div>
             </div>

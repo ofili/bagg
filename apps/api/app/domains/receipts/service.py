@@ -33,25 +33,6 @@ def classify_payment_evidence(
     confirmation_source: str,
     payment_method: str,
 ) -> str:
-    source = (confirmation_source or "").lower()
-    method = (payment_method or "").lower()
-
-    if source.startswith("webhook_paystack"):
-        return "provider_verified"
-
-    if method == "cash":
-        return "cash_attested"
-
-    if source in {"issuer_manual", "issuer_claim_confirmed"}:
-        return "issuer_attested"
-
-    return "legacy_unclassified"
-
-
-def classify_payment_evidence(
-    confirmation_source: str,
-    payment_method: str,
-) -> str:
     source = (confirmation_source or "").strip().lower()
     method = (payment_method or "").strip().lower()
 
@@ -88,10 +69,10 @@ async def confirm_payment(
     locked_invoice = await repo.lock_invoice(workspace.id, invoice.id)
     if locked_invoice is None:
         raise BadRequestException("Invoice no longer exists.")
-    invoice = locked_invoice
     locked_workspace = await repo.lock_workspace(workspace.id)
     if locked_workspace is None:
         raise BadRequestException("Workspace no longer exists.")
+    invoice = locked_invoice
     workspace = locked_workspace
     if amount_paid_minor <= 0:
         raise BadRequestException("Confirmed payment amount must be greater than zero.")
