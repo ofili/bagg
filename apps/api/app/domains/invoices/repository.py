@@ -384,14 +384,20 @@ class InvoiceRepository:
         return result.scalar_one_or_none() is not None
 
     async def get_document_version(
-        self, invoice_id: str, revision_number: int, *, for_update: bool = False
+        self,
+        invoice_id: str,
+        issuance_generation: int,
+        *,
+        for_update: bool = False,
     ) -> InvoiceDocumentVersion | None:
         statement = select(InvoiceDocumentVersion).where(
             InvoiceDocumentVersion.invoice_id == invoice_id,
-            InvoiceDocumentVersion.revision_number == revision_number,
+            InvoiceDocumentVersion.issuance_generation == issuance_generation,
         )
+
         if for_update:
             statement = statement.with_for_update()
+
         result = await self.db.execute(statement)
         return result.scalar_one_or_none()
 

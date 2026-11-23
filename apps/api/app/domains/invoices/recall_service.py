@@ -96,13 +96,24 @@ class InvoiceRecallService:
         db: AsyncSession,
         invoice: Invoice,
     ) -> InvoiceDocumentVersion:
-
         repository = InvoiceRepository(db)
+
+        # Older invoices may predate the issuance-generation counter.
+        # Preserve their existing document as generation 1.
+        generation = int(invoice.issuance_generation or 0)
+
+        if generation < 1:
+            generation = 1
+            invoice.issuance_generation = generation
+
         existing = await repository.get_document_version(
-            invoice.id, invoice.version, for_update=True
+            invoice.id,
+            generation,
+            for_update=True,
         )
 
-        if existing:
+        # Idempotent for repeated calls within the same issuance.
+        if existing is not None:
             return existing
 
         items = await repository.list_items(invoice.id)
@@ -111,6 +122,7 @@ class InvoiceRecallService:
             "invoice_id": invoice.id,
             "document_number": invoice.invoice_number,
             "revision_number": invoice.version,
+            "issuance_generation": generation,
             "workspace_id": invoice.workspace_id,
             "client_id": invoice.client_id,
             "currency": invoice.currency,
@@ -135,6 +147,7 @@ class InvoiceRecallService:
                 else None
             ),
             "direct_checkout_enabled": invoice.direct_checkout_enabled,
+            "payment_profile_snapshot": invoice.payment_profile_snapshot,
             "notes": invoice.notes,
             "items": [
                 {
@@ -148,19 +161,20 @@ class InvoiceRecallService:
             ],
         }
 
-        version = InvoiceDocumentVersion(
+        document_version = InvoiceDocumentVersion(
             invoice_id=invoice.id,
             document_number=invoice.invoice_number,
             revision_number=invoice.version,
+            issuance_generation=generation,
             snapshot=snapshot,
             share_token_hash=invoice.share_token_hash,
             issued_at=datetime.now(timezone.utc),
         )
 
-        repository.add_document_version(version)
+        repository.add_document_version(document_version)
         await repository.flush()
 
-        return version
+        return document_version
 
     @classmethod
     async def recall(
@@ -190,7 +204,9 @@ class InvoiceRecallService:
 
         # Find and mark the current issued snapshot as recalled.
         version = await InvoiceRepository(db).get_document_version(
-            invoice.id, invoice.version, for_update=True
+            invoice.id,
+            invoice.issuance_generation or 1,
+            for_update=True,
         )
         if version is None:
             # Backfill the immutable snapshot for invoices issued before the

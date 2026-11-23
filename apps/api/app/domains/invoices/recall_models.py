@@ -24,8 +24,9 @@ class InvoiceDocumentVersion(Base):
     """
     Immutable issued invoice snapshot.
 
-    Each issued revision is preserved independently of the mutable
-    Invoice aggregate.
+    Each issuance generation is preserved independently of the mutable
+    Invoice aggregate. Commercial revision and issuance generation are
+    separate dimensions.
 
     Never update the commercial snapshot after insertion.
     Recall metadata is maintained separately.
@@ -47,9 +48,13 @@ class InvoiceDocumentVersion(Base):
     )
 
     document_number = Column(String, nullable=False)
+
+    # Commercial content revision represented by this issuance.
     revision_number = Column(Integer, nullable=False)
 
-    # Complete serialized representation at the time of issue.
+    # Unique issuance event for this invoice.
+    issuance_generation = Column(Integer, nullable=False)
+
     snapshot = Column(JSON, nullable=False)
 
     # Store only the hash, never the raw public token.
@@ -79,7 +84,7 @@ class InvoiceDocumentVersion(Base):
     __table_args__ = (
         UniqueConstraint(
             "invoice_id",
-            "revision_number",
-            name="uq_invoice_document_versions_revision",
+            "issuance_generation",
+            name="uq_invoice_document_versions_generation",
         ),
     )
