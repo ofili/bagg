@@ -1,3 +1,5 @@
+import asyncio
+
 import uuid
 import pytest
 from datetime import date, timedelta
@@ -55,8 +57,8 @@ async def test_invoice_drafting_and_sequential_numbering_lifecycle():
         )
         assert inv1_res.status_code == 201
         inv1 = inv1_res.json()
-        assert inv1["invoice_number"] == "INV-0001"
-        assert inv1["sequence_number"] == 1
+        assert inv1["invoice_number"] is None
+        assert inv1["sequence_number"] is None
         assert inv1["status"] == "draft"
         assert inv1["subtotal_minor"] == 40000000
         assert inv1["discount_minor"] == 2000000
@@ -83,8 +85,8 @@ async def test_invoice_drafting_and_sequential_numbering_lifecycle():
         )
         assert inv2_res.status_code == 201
         inv2 = inv2_res.json()
-        assert inv2["invoice_number"] == "INV-0002"
-        assert inv2["sequence_number"] == 2
+        assert inv2["invoice_number"] is None
+        assert inv2["sequence_number"] is None
         assert inv2["total_minor"] == 15000000
 
         # 3. Auto-Save / Draft Updates (US-INV-03)
@@ -109,7 +111,26 @@ async def test_invoice_drafting_and_sequential_numbering_lifecycle():
         assert updated_inv1["total_minor"] == 26875000
         assert updated_inv1["notes"] == "Updated scope and deliverables"
 
-        # 4. List and filter invoices
+        # 4. Concurrent issuance must allocate distinct sequential numbers.
+        finalize_responses = await asyncio.gather(
+            client.post(f"/invoices/{inv1_id}/finalize"),
+            client.post(f"/invoices/{inv2['id']}/finalize"),
+        )
+
+        assert all(response.status_code == 200 for response in finalize_responses)
+
+        finalized = [response.json() for response in finalize_responses]
+
+        assert {invoice["invoice_number"] for invoice in finalized} == {
+            "INV-0001",
+            "INV-0002",
+        }
+
+        assert {invoice["sequence_number"] for invoice in finalized} == {1, 2}
+
+        assert all(invoice["issuance_generation"] == 1 for invoice in finalized)
+
+        # 5. List and filter invoices
         list_res = await client.get("/invoices")
         assert list_res.status_code == 200
         all_invoices = list_res.json()["items"]
@@ -120,7 +141,7 @@ async def test_invoice_drafting_and_sequential_numbering_lifecycle():
         assert filter_client.status_code == 200
         assert len(filter_client.json()["items"]) == 2
 
-        # 5. Delete draft invoice
+        # 6. Delete draft invoice
         del_res = await client.delete(f"/invoices/{inv2['id']}")
         assert del_res.status_code == 204
 
