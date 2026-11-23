@@ -82,9 +82,13 @@ class InvoiceRecallService:
                 "An unresolved payment claim exists. Resolve the claim before recalling."
             )
 
+            # Check the durable provider-attempt record before changing any
+        # document or invoice state. Invoice-level processing fields are
+        # retained as an additional guard for older/incomplete attempts.
         if (
             invoice.payment_processing_at is not None
             or invoice.payment_processing_reference is not None
+            or await repository.has_processing_attempt(invoice.id)
         ):
             raise BadRequestException(
                 "A payment transaction is still processing. "

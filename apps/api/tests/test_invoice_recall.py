@@ -303,3 +303,28 @@ async def test_snapshot_creation_is_idempotent_for_same_generation(monkeypatch):
 
     assert snapshot is existing
     assert repository.added == []
+
+
+@pytest.mark.asyncio
+async def test_recall_blocks_processing_attempt_without_invoice_processing_fields():
+    invoice = make_invoice(
+        payment_processing_at=None,
+        payment_processing_reference=None,
+    )
+
+    db = FakeDB(
+        [
+            None,  # No confirmed receipt
+            None,  # No pending claim
+            "attempt_123",  # Durable processing attempt exists
+        ]
+    )
+
+    with pytest.raises(
+        BadRequestException,
+        match="payment transaction is still processing",
+    ):
+        await InvoiceRecallService.validate_recall_eligibility(
+            db,
+            invoice,
+        )
