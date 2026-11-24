@@ -909,12 +909,10 @@ async def accept_public_quote(
         raise BadRequestException(
             "This quote has expired. Please contact the freelancer for an updated quote."
         )
-
     if quote_obj.status not in {"issued", "sent", "viewed", "accepted"}:
         raise BadRequestException(
             f"Cannot accept a quote in '{quote_obj.status}' status."
         )
-
     if payload.version != quote_obj.version:
         raise BadRequestException(
             f"This quote has been revised to v{quote_obj.version}; you are accepting "
@@ -927,11 +925,13 @@ async def accept_public_quote(
 
     changed = False
     accepted_now = quote_obj.status != "accepted"
+
     if accepted_now:
         old_status = quote_obj.status
         quote_obj.status = "accepted"
         quote_obj.accepted_at = datetime.now(timezone.utc)
         quote_obj.accepted_by_name = accepted_by_name
+
         record_status_event(
             db=db,
             workspace_id=quote_obj.workspace_id,
@@ -950,16 +950,10 @@ async def accept_public_quote(
     )
     if invoice is None:
         invoice = await invoices_service.create_draft_invoice_from_quote(
-            db, workspace, quote_obj
+            db, workspace, quote_obj, commit=False
         )
         quote_obj.invoice_id = invoice.id
         changed = True
-
-    if changed:
-        await db.commit()
-        await QuoteRepository(db).refresh(quote_obj)
-        if invoice is not None:
-            await QuoteRepository(db).refresh(invoice)
 
     if accepted_now:
         await _notify_workspace_owner(
@@ -967,9 +961,15 @@ async def accept_public_quote(
             workspace,
             notification_type="quote_accepted",
             title=f"Quote {quote_obj.quote_number} was accepted!",
-            body=f"{payload.accepted_by_name} accepted the quote.",
+            body=f"{accepted_by_name} accepted the quote.",
             quote_obj=quote_obj,
         )
+
+    if changed:
+        await db.commit()
+        await QuoteRepository(db).refresh(quote_obj)
+        if invoice is not None:
+            await QuoteRepository(db).refresh(invoice)
 
     return quote_obj, client_name, workspace
 
@@ -1008,6 +1008,7 @@ async def decline_public_quote(
     old_status = quote_obj.status
     quote_obj.status = "declined"
     quote_obj.declined_at = datetime.now(timezone.utc)
+
     if payload.reason:
         quote_obj.decline_reason = payload.reason.strip()
 
@@ -1023,9 +1024,10 @@ async def decline_public_quote(
         metadata={"reason": quote_obj.decline_reason},
     )
 
-    await db.commit()
-    await QuoteRepository(db).refresh(quote_obj)
-    reason_suffix = f': "{payload.reason}"' if payload.reason else "."
+    reason_suffix = (
+        f': "{quote_obj.decline_reason}"' if quote_obj.decline_reason else "."
+    )
+
     await _notify_workspace_owner(
         db,
         workspace,
@@ -1034,6 +1036,10 @@ async def decline_public_quote(
         body=f"{client_name or 'Client'} declined the quote{reason_suffix}",
         quote_obj=quote_obj,
     )
+
+    await db.commit()
+    await QuoteRepository(db).refresh(quote_obj)
+
     return quote_obj, client_name, workspace
 
 
@@ -1080,16 +1086,20 @@ async def request_quote_review(
         metadata={"reason": quote_obj.review_reason},
     )
 
-    await db.commit()
-    await QuoteRepository(db).refresh(quote_obj)
+    reason_text = f' "{quote_obj.review_reason}"' if quote_obj.review_reason else ""
+
     await _notify_workspace_owner(
         db,
         workspace,
         notification_type="quote_review_requested",
         title=f"Changes requested on quote {quote_obj.quote_number}",
-        body=(f"{client_name or 'Client'} requested review: " f'"{payload.reason}"'),
+        body=f"{client_name or 'Client'} requested review:{reason_text}",
         quote_obj=quote_obj,
     )
+
+    await db.commit()
+    await QuoteRepository(db).refresh(quote_obj)
+
     return quote_obj, client_name, workspace
 
 
@@ -1129,6 +1139,7 @@ async def post_public_quote_comment(
 
     author_name = payload.author_name.strip()
     message = payload.message.strip()
+
     if not author_name or not message:
         raise BadRequestException("A comment author and message are required.")
 
@@ -1139,10 +1150,13 @@ async def post_public_quote_comment(
         message=message,
         is_from_client=True,
     )
+
     repository = QuoteRepository(db)
     repository.add(comment)
-    await db.commit()
-    await repository.refresh(comment)
+
+    # Generate the comment ID before using it in the notification.
+    await db.flush()
+
     await _notify_workspace_owner(
         db,
         workspace,
@@ -1152,7 +1166,12 @@ async def post_public_quote_comment(
         quote_obj=quote_obj,
         comment_id=comment.id,
     )
+
+    await db.commit()
+    await repository.refresh(comment)
+
     owner_email = await repository.get_owner_email(workspace)
+
     return comment, quote_obj, workspace, item_description, owner_email
 
 

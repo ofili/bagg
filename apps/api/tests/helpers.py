@@ -126,3 +126,35 @@ async def create_sent_quote(
     assert detail_res.status_code == 200, detail_res.text
 
     return detail_res.json()
+
+
+async def authenticate_test_user(
+    client: AsyncClient,
+    email: str,
+    full_name: str = "Bagg Test User",
+) -> Dict[str, Any]:
+    """Register a new test user and authenticate the client."""
+
+    request = await client.post(
+        "/auth/magic-link",
+        json={"email": email},
+    )
+    assert request.status_code == 200, request.text
+
+    verification = await client.post(
+        "/auth/verify",
+        json={
+            "email": email,
+            "code": login_code_for(email),
+            "intent": "signup",
+            "full_name": full_name,
+        },
+    )
+    assert verification.status_code == 200, verification.text
+
+    session_token = verification.cookies.get("bagg_session")
+    assert session_token, "Successful signup did not return a session cookie"
+
+    client.cookies.set("bagg_session", session_token)
+
+    return verification.json()

@@ -13,6 +13,12 @@ from tests.helpers import create_sent_quote, login_code_for
 from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
+from tests.helpers import (
+    authenticate_test_user,
+    create_sent_quote,
+    login_code_for,
+)
+from app.domains.notifications.models import Notification
 from app.domains.quotes.models import Quote
 
 @pytest.mark.asyncio
@@ -21,10 +27,7 @@ async def test_quotes_full_lifecycle():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # --- 1. Authenticate Freelancer ---
         test_email = f"quotes-{uuid.uuid4().hex[:6]}@studio.ng"
-        req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = login_code_for(test_email)
-        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
-        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+        await authenticate_test_user(client, test_email)
 
         # --- 2. Setup Client ---
         cl_res = await client.post("/clients", json={
@@ -149,6 +152,19 @@ async def test_quotes_full_lifecycle():
             assert accepted_data["accepted_by_name"] == "Amara Okonkwo"
             assert accepted_data["accepted_at"] is not None
 
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(Notification).where(
+                        Notification.document_id == q1["id"],
+                        Notification.type == "quote_accepted",
+                    )
+                )
+                notifications = list(result.scalars().all())
+
+            assert len(notifications) == 1
+            assert notifications[0].recipient_user_id is not None
+            assert notifications[0].document_type == "quote"
+
         # --- 10. Check Quote Status on Freelancer Side ---
         q1_check = await client.get(f"/quotes/{q1['id']}")
         assert q1_check.status_code == 200
@@ -203,10 +219,7 @@ async def test_quote_decline_and_expiration():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Auth
         test_email = f"quotes2-{uuid.uuid4().hex[:6]}@studio.ng"
-        req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = login_code_for(test_email)
-        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
-        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+        await authenticate_test_user(client, test_email)
 
         # Setup Client
         cl_res = await client.post("/clients", json={"name": "Kano Traders Ltd"})
@@ -309,10 +322,7 @@ async def test_invoice_send_requires_finalize():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         test_email = f"invguard-{uuid.uuid4().hex[:6]}@studio.ng"
-        req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = login_code_for(test_email)
-        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
-        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+        await authenticate_test_user(client, test_email)
 
         cl_res = await client.post("/clients", json={"name": "Guard Client Ltd", "preferred_currency": "NGN"})
         client_id = cl_res.json()["id"]
@@ -350,10 +360,7 @@ async def test_quote_send_requires_finalize():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         test_email = f"qguard-{uuid.uuid4().hex[:6]}@studio.ng"
-        req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = login_code_for(test_email)
-        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
-        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+        await authenticate_test_user(client, test_email)
 
         cl_res = await client.post("/clients", json={"name": "QGuard Client Ltd", "preferred_currency": "NGN"})
         client_id = cl_res.json()["id"]
@@ -386,10 +393,7 @@ async def test_accept_version_mismatch_rejected():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         test_email = f"ver-{uuid.uuid4().hex[:6]}@studio.ng"
-        req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = login_code_for(test_email)
-        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
-        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+        await authenticate_test_user(client, test_email)
 
         cl_res = await client.post("/clients", json={"name": "Version Client Ltd", "preferred_currency": "NGN"})
         client_id = cl_res.json()["id"]
@@ -427,10 +431,7 @@ async def test_accept_idempotent_one_invoice():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         test_email = f"idem-{uuid.uuid4().hex[:6]}@studio.ng"
-        req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = login_code_for(test_email)
-        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
-        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+        await authenticate_test_user(client, test_email)
 
         cl_res = await client.post("/clients", json={"name": "Idem Client Ltd", "preferred_currency": "NGN"})
         client_id = cl_res.json()["id"]
@@ -469,10 +470,7 @@ async def test_quote_revise_bumps_version():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         test_email = f"rev-{uuid.uuid4().hex[:6]}@studio.ng"
-        req_res = await client.post("/auth/magic-link", json={"email": test_email})
-        code = login_code_for(test_email)
-        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
-        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+        await authenticate_test_user(client, test_email)
 
         cl_res = await client.post("/clients", json={"name": "Revise Client Ltd", "preferred_currency": "NGN"})
         client_id = cl_res.json()["id"]
@@ -542,24 +540,7 @@ async def test_quote_revision_preserves_terms_and_accepts_only_current_version()
     ) as client:
         email = f"revision-audit-{uuid.uuid4().hex[:8]}@studio.ng"
 
-        request = await client.post(
-            "/auth/magic-link",
-            json={"email": email},
-        )
-        assert request.status_code == 200
-
-        verification = await client.post(
-            "/auth/verify",
-            json={
-                "email": email,
-                "code": login_code_for(email),
-            },
-        )
-        assert verification.status_code == 200
-        client.cookies.set(
-            "bagg_session",
-            verification.cookies["bagg_session"],
-        )
+        await authenticate_test_user(client, email)
 
         client_response = await client.post(
             "/clients",
@@ -676,3 +657,167 @@ async def test_quote_revision_preserves_terms_and_accepts_only_current_version()
             json={"notes": "Attempted silent change"},
         )
         assert locked.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_public_quote_events_persist_owner_notifications(monkeypatch):
+    """Public decline, review request and comment notifications commit atomically."""
+
+    # The public comment endpoint also schedules an issuer email.
+    # Keep this test focused on the database notification transaction.
+    async def noop_issuer_email(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(
+        "app.domains.quotes.router.EmailSender.send_issuer_question_email",
+        noop_issuer_email,
+    )
+
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        # Authenticate the quote owner.
+        email = f"quote-notifications-{uuid.uuid4().hex[:8]}@studio.ng"
+
+        await authenticate_test_user(client, email)
+
+        # Create a client shared by the three quote scenarios.
+        client_response = await client.post(
+            "/clients",
+            json={
+                "name": "Notification Test Client Ltd",
+                "email": "notifications@example.com",
+                "preferred_currency": "NGN",
+            },
+        )
+        assert client_response.status_code == 201
+        client_id = client_response.json()["id"]
+
+        async def assert_notification(quote_id: str, notification_type: str):
+            # Use a fresh session to verify committed database state.
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(Notification).where(
+                        Notification.document_id == quote_id,
+                        Notification.document_type == "quote",
+                        Notification.type == notification_type,
+                    )
+                )
+                notifications = list(result.scalars().all())
+
+            assert len(notifications) == 1
+            assert notifications[0].recipient_user_id is not None
+            assert notifications[0].workspace_id is not None
+            assert notifications[0].link_url.startswith(
+                f"/quotes/{quote_id}"
+            )
+
+        quote_payload = {
+            "client_id": client_id,
+            "currency": "NGN",
+            "items": [
+                {
+                    "description": "Consulting services",
+                    "quantity": 1,
+                    "unit_price_minor": 100_000_00,
+                }
+            ],
+        }
+
+        # ---------------------------------------------------------
+        # 1. Client declines a quote.
+        # ---------------------------------------------------------
+        declined_quote = await create_sent_quote(client, quote_payload)
+        decline_token = declined_quote["share_token"]
+
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as public_client:
+            decline = await public_client.post(
+                f"/quotes/share/{decline_token}/decline",
+                json={"reason": "Budget constraints."},
+            )
+
+            assert decline.status_code == 200, decline.text
+            assert decline.json()["status"] == "declined"
+
+            # A second decline must not create another notification.
+            duplicate_decline = await public_client.post(
+                f"/quotes/share/{decline_token}/decline",
+                json={"reason": "Another reason."},
+            )
+            assert duplicate_decline.status_code == 400
+
+        await assert_notification(
+            declined_quote["id"],
+            "quote_declined",
+        )
+
+        # ---------------------------------------------------------
+        # 2. Client requests changes to a quote.
+        # ---------------------------------------------------------
+        review_quote = await create_sent_quote(client, quote_payload)
+        review_token = review_quote["share_token"]
+
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as public_client:
+            review = await public_client.post(
+                f"/quotes/share/{review_token}/request-review",
+                json={"reason": "Please revise the project scope."},
+            )
+
+            assert review.status_code == 200, review.text
+            assert review.json()["status"] == "review_requested"
+
+            # Repeating the same request is idempotent.
+            duplicate_review = await public_client.post(
+                f"/quotes/share/{review_token}/request-review",
+                json={"reason": "Please revise the project scope."},
+            )
+
+            assert duplicate_review.status_code == 200
+            assert duplicate_review.json()["status"] == "review_requested"
+
+        await assert_notification(
+            review_quote["id"],
+            "quote_review_requested",
+        )
+
+        # ---------------------------------------------------------
+        # 3. Client posts a public quote comment.
+        # ---------------------------------------------------------
+        comment_quote = await create_sent_quote(client, quote_payload)
+        comment_token = comment_quote["share_token"]
+
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as public_client:
+            comment = await public_client.post(
+                f"/quotes/share/{comment_token}/comments",
+                json={
+                    "author_name": "Client Representative",
+                    "message": "Could you clarify the delivery timeline?",
+                },
+            )
+
+            assert comment.status_code == 201, comment.text
+            comment_data = comment.json()
+
+            assert comment_data["quote_id"] == comment_quote["id"]
+            assert comment_data["author_name"] == "Client Representative"
+            assert comment_data["message"] == (
+                "Could you clarify the delivery timeline?"
+            )
+            assert comment_data["is_from_client"] is True
+
+        await assert_notification(
+            comment_quote["id"],
+            "client_comment",
+        )
