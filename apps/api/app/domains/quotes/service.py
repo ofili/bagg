@@ -833,48 +833,64 @@ async def convert_quote_to_invoice(
 
 
 async def view_public_quote(
-    db: AsyncSession, token: str
+    db: AsyncSession,
+    token: str,
 ) -> tuple[Quote, Optional[str], Workspace]:
     row = await QuoteRepository(db).get_public_for_update(token)
+
     if row is None:
         raise NotFoundException("Quote not found or invalid link")
+
     quote_obj, client_name, workspace = row
 
     if quote_obj.status == "draft":
         raise NotFoundException("Quote not found or invalid link")
 
-    if quote_obj.status == "sent":
-        quote_obj.status = "viewed"
+    # viewed_at is the idempotency boundary for first-view processing.
+    # The repository lookup locks the quote row, preventing concurrent
+    # requests from creating duplicate events or notifications.
+    if quote_obj.viewed_at is None:
+        old_status = quote_obj.status
+        new_status = old_status
+
+        if old_status in {"issued", "sent"}:
+            new_status = "viewed"
+            quote_obj.status = new_status
+
         quote_obj.viewed_at = datetime.now(timezone.utc)
+
+        # Record the first view even when the quote's commercial state
+        # must remain unchanged (e.g. accepted or review_requested).
         record_status_event(
             db=db,
             workspace_id=quote_obj.workspace_id,
             document_type="quote",
             document_id=quote_obj.id,
-            from_status="sent",
-            to_status="viewed",
+            from_status=old_status,
+            to_status=new_status,
             actor_type="client",
             source="client_view",
         )
-        if workspace and workspace.owner_id:
-            try:
-                from app.domains.notifications.service import NotificationService
 
-                await NotificationService.create_notification(
-                    db,
-                    workspace_id=workspace.id,
-                    recipient_user_id=workspace.owner_id,
-                    type="quote_viewed",
-                    title=f"Quote {quote_obj.quote_number} was viewed",
-                    body=f"{client_name or 'Client'} opened and viewed the quote.",
-                    document_type="quote",
-                    document_id=quote_obj.id,
-                    document_number=quote_obj.quote_number,
-                    link_url=f"/quotes/{quote_obj.id}",
-                    commit=False,
-                )
-            except Exception as e:
-                logger.warning(f"Failed to create quote viewed notification: {e}")
+        if workspace and workspace.owner_id:
+            from app.domains.notifications.service import NotificationService
+
+            await NotificationService.create_notification(
+                db,
+                workspace_id=workspace.id,
+                recipient_user_id=workspace.owner_id,
+                type="quote_viewed",
+                title=f"Quote {quote_obj.quote_number} was viewed",
+                body=f"{client_name or 'Client'} opened and viewed the quote.",
+                document_type="quote",
+                document_id=quote_obj.id,
+                document_number=quote_obj.quote_number,
+                link_url=f"/quotes/{quote_obj.id}",
+                commit=False,
+            )
+
+        # Persist view timestamp, lifecycle event and notification together.
+        # Notification failures must roll back the first-view operation.
         await db.commit()
         await QuoteRepository(db).refresh(quote_obj)
 

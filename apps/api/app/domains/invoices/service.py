@@ -887,7 +887,6 @@ async def regenerate_share_link(
     return invoice
 
 
-
 async def revise_invoice(
     db: AsyncSession,
     workspace: Workspace,
@@ -1007,7 +1006,6 @@ async def revise_invoice(
     await db.commit()
     await InvoiceRepository(db).refresh(invoice)
     return invoice
-
 
 
 async def list_invoice_revisions(
@@ -1401,6 +1399,7 @@ def _build_payment_profile_snapshot(profile) -> dict:
         "created_at": profile.created_at.isoformat(),
     }
 
+
 async def view_public_invoice(
     db: AsyncSession,
     token: str,
@@ -1438,23 +1437,27 @@ async def view_public_invoice(
     # A first successful view is recorded once. Subsequent requests do
     # not repeatedly change the document lifecycle or create notifications.
     if invoice.viewed_at is None:
-        now = datetime.now(timezone.utc)
-        invoice.viewed_at = now
+        old_status = invoice.status
+        new_status = old_status
 
-        if invoice.status in {"issued", "sent"}:
-            old_status = invoice.status
-            invoice.status = "viewed"
+        if old_status in {"issued", "sent"}:
+            new_status = "viewed"
+            invoice.status = new_status
 
-            record_status_event(
-                db=db,
-                workspace_id=invoice.workspace_id,
-                document_type="invoice",
-                document_id=invoice.id,
-                from_status=old_status,
-                to_status="viewed",
-                actor_type="client",
-                source="client_view",
-            )
+        invoice.viewed_at = datetime.now(timezone.utc)
+
+        # Record every document's first successful view, including views
+        # that must preserve a financial state such as paid or partially_paid.
+        record_status_event(
+            db=db,
+            workspace_id=invoice.workspace_id,
+            document_type="invoice",
+            document_id=invoice.id,
+            from_status=old_status,
+            to_status=new_status,
+            actor_type="client",
+            source="client_view",
+        )
 
         if workspace.owner_id:
             from app.domains.notifications.service import NotificationService
@@ -1463,7 +1466,7 @@ async def view_public_invoice(
                 db,
                 workspace_id=workspace.id,
                 recipient_user_id=workspace.owner_id,
-                type="document_viewed",
+                type="invoice_viewed",
                 title=f"Invoice {invoice.invoice_number} was viewed",
                 body=f"{client_name or 'Client'} opened and viewed the invoice.",
                 document_type="invoice",
@@ -1473,8 +1476,7 @@ async def view_public_invoice(
                 commit=False,
             )
 
-        # The view timestamp, lifecycle event and notification are one
-        # transaction. Do not swallow notification failures.
         await db.commit()
+        await repository.refresh(invoice)
 
     return invoice, client_name, workspace
