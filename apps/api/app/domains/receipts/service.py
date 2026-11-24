@@ -1,7 +1,7 @@
 """Authoritative payment-confirmation use case.
 
-A confirmed payment, invoice balance/status update, receipt, lifecycle event and
-payment-attempt hand-off are committed by the caller in one DB transaction.
+A confirmed payment, invoice balance/status update, receipt, and lifecycle event
+are committed by the caller in one DB transaction.
 """
 
 from __future__ import annotations
@@ -29,6 +29,8 @@ from app.domains.lifecycle.service import (
 
 logger = logging.getLogger(__name__)
 
+LATE_PAYMENT_SOURCE = "webhook_paystack_late"
+
 
 def classify_payment_evidence(
     confirmation_source: str,
@@ -47,10 +49,6 @@ def classify_payment_evidence(
         return "issuer_attested"
 
     return "legacy_unclassified"
-
-
-
-LATE_PAYMENT_SOURCE = "webhook_paystack_late"
 
 
 @dataclass(frozen=True)
@@ -401,22 +399,23 @@ async def _notify_owner(
         return
 
     try:
-        from app.domains.notifications.service import NotificationService
+        async with db.begin_nested():
+            from app.domains.notifications.service import NotificationService
 
-        content = _payment_notification_content(invoice, receipt, pay)
-        await NotificationService.create_notification(
-            db,
-            workspace_id=workspace.id,
-            recipient_user_id=workspace.owner_id,
-            type=content.type,
-            title=content.title,
-            body=content.body,
-            document_type="invoice",
-            document_id=invoice.id,
-            document_number=invoice.invoice_number,
-            link_url=f"/invoices/{invoice.id}",
-            commit=False,
-        )
+            content = _payment_notification_content(invoice, receipt, pay)
+            await NotificationService.create_notification(
+                db,
+                workspace_id=workspace.id,
+                recipient_user_id=workspace.owner_id,
+                type=content.type,
+                title=content.title,
+                body=content.body,
+                document_type="invoice",
+                document_id=invoice.id,
+                document_number=invoice.invoice_number,
+                link_url=f"/invoices/{invoice.id}",
+                commit=False,
+            )
     except Exception:
         logger.exception(
             "Payment notification creation failed for receipt %s", receipt.id
@@ -442,41 +441,6 @@ async def _enqueue_receipt_document(
         payer_address=client.address if client else None,
     )
     await enqueue_document_generation(db, document, issuance_generation=1)
-
-
-async def create_receipt(
-    db: AsyncSession,
-    workspace: Workspace,
-    invoice: Invoice,
-    amount_paid_minor: int,
-    payment_method: str = "bank_transfer",
-    reference: Optional[str] = None,
-    payer_name: Optional[str] = None,
-    payment_date: Optional[date] = None,
-    payment_claim_id: Optional[str] = None,
-    notes: Optional[str] = None,
-    confirmation_source: str = "issuer_manual",
-    confirmed_by_user_id: Optional[str] = None,
-    provider: Optional[str] = None,
-    provider_reference: Optional[str] = None,
-) -> Receipt:
-    """Compatibility wrapper; all callers use the authoritative confirmation gate."""
-    return await confirm_payment(
-        db,
-        workspace,
-        invoice,
-        amount_paid_minor,
-        payment_method,
-        reference,
-        payer_name,
-        payment_date,
-        payment_claim_id,
-        notes,
-        confirmation_source,
-        confirmed_by_user_id,
-        provider,
-        provider_reference,
-    )
 
 
 async def record_manual_payment(
