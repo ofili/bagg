@@ -9,14 +9,12 @@ import pytest
 from datetime import date, timedelta
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from tests.helpers import create_sent_quote, login_code_for
 from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
 from tests.helpers import (
     authenticate_test_user,
     create_sent_quote,
-    login_code_for,
 )
 from app.domains.notifications.models import Notification
 from app.domains.quotes.models import Quote
