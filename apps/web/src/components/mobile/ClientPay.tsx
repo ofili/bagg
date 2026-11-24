@@ -84,13 +84,6 @@ export function ClientPayView(p: ClientPayProps) {
         <section aria-label="Payment received" className="space-y-4 text-center">
           <BagCharacter size={112} mood="celebrating" className="mx-auto" decorative />
           <h1 className="text-title-l">paid. thank you!</h1>
-          <Money
-            amountMinor={p.receipt?.amount_paid_minor ?? p.paidMinor}
-            currency={p.currency}
-            variant="paid"
-            className="block text-amount-l"
-            hideCurrencyCode
-          />
           {p.receipt && (
             <Card zone="calm" className="space-y-0 p-4 text-left">
               <p className="pb-2 font-extrabold">Receipt {p.receipt.receipt_number}</p>
@@ -98,6 +91,15 @@ export function ClientPayView(p: ClientPayProps) {
               {row('Method', p.receipt.payment_method.replaceAll('_', ' '))}
               {p.receipt.reference ? row('Reference', p.receipt.reference) : null}
             </Card>
+          )}
+          {!p.receipt && (
+            <Money
+              amountMinor={p.paidMinor}
+              currency={p.currency}
+              variant="paid"
+              className="block text-amount-l"
+              hideCurrencyCode
+            />
           )}
         </section>
       ) : (
@@ -127,15 +129,12 @@ export function ClientPayView(p: ClientPayProps) {
 
           {pending && (
             <Card zone="calm" tone="peach" className="space-y-3 p-4">
-              <div className="flex items-center gap-3">
-                <BagCharacter size={64} mood="thinking" decorative />
-                <div>
-                  <h2 className="text-heading">thanks, we&rsquo;ve told them</h2>
-                  <p className="text-body text-text-soft">
-                    You said you paid <Money amountMinor={p.claim!.amount_minor} currency={p.currency} variant="inherit" hideCurrencyCode />.
-                    You&rsquo;ll get a receipt once it is confirmed.
-                  </p>
-                </div>
+              <div className="space-y-1">
+                <h2 className="text-heading">thanks, we&rsquo;ve told them</h2>
+                <p className="text-body text-text-soft">
+                  You said you paid <Money amountMinor={p.claim!.amount_minor} currency={p.currency} variant="inherit" hideCurrencyCode />.
+                  You&rsquo;ll get a receipt once it is confirmed.
+                </p>
               </div>
               <ol className="space-y-2 text-body">
                 <li className="flex items-center gap-2">

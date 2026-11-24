@@ -1134,7 +1134,7 @@ export default function InvoicesPage() {
                                         currency={reviewingInvoice.currency}
                                       />
 
-                                      <div className="rounded-md bg-surface-sunken p-3">
+                                      <div className="bg-surface-sunken p-3">
                                         <div className="flex items-center justify-between gap-3 text-caption">
                                           <span className="text-text-muted">
                                             Outstanding balance

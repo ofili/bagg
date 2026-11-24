@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/marketing/container';
+import { Doodle } from '@/components/marketing/doodle';
 import { buttonStyles } from '@/components/ui/button';
 
 export function CtaBand({
@@ -9,16 +10,25 @@ export function CtaBand({
   copy,
   href,
   label,
+  doodle = false,
 }: {
   title: string;
   copy: string;
   href: string;
   label: string;
+  /** Render the milestone-star doodle mark. Home page only. */
+  doodle?: boolean;
 }) {
   return (
     <section className="py-12 sm:py-16 lg:py-20">
       <Container>
-        <div className="overflow-hidden border-brut border-ink bg-mango p-6 text-on-mango shadow-brut sm:p-10 lg:p-12">
+        <div className="relative overflow-hidden border-brut border-ink bg-mango p-6 text-on-mango shadow-brut sm:p-10 lg:p-12">
+          {doodle && (
+            <Doodle
+              variant="milestone-star"
+              className="absolute right-6 top-6 opacity-70 sm:right-10 sm:top-10"
+            />
+          )}
           <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-end sm:justify-between">
             <div className="max-w-xl">
               <h2 className="text-title-l font-extrabold tracking-tight sm:text-[2rem] sm:leading-tight">

@@ -17,6 +17,7 @@ import { buttonStyles } from "@/components/ui/button";
 import { marketingMetadata } from "@/lib/metadata";
 import type { Metadata } from "next";
 import { MarketingBreadcrumbStructuredData } from "@/components/marketing/marketing-structured-data";
+import { BagCharacter } from "@/components/brand";
 
 export const metadata: Metadata = marketingMetadata({
   title: "Payments Tracking and Reminders for Freelancers",
@@ -236,14 +237,25 @@ export default function PaymentsFeaturePage() {
                 before it counts.
               </p>
               <div className="mt-7 border-brut border-ink bg-pink p-5 shadow-brut">
-                <ShieldCheck aria-hidden className="h-7 w-7 text-on-pink" />
-                <p className="mt-4 text-heading font-extrabold text-on-pink">
-                  you&apos;re in control.
-                </p>
-                <p className="mt-2 text-body text-on-pink">
-                  Check the money in your bank or payment provider before you
-                  confirm anything.
-                </p>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <ShieldCheck aria-hidden className="h-7 w-7 text-on-pink" />
+                    <p className="mt-4 text-heading font-extrabold text-on-pink">
+                      you&apos;re in control.
+                    </p>
+                    <p className="mt-2 text-body text-on-pink">
+                      Check the money in your bank or payment provider before you
+                      confirm anything.
+                    </p>
+                  </div>
+                  {/* §20.4 — Payments: "you're in control" card | thinking | 72–96 px */}
+                  <BagCharacter
+                    mood="thinking"
+                    size={80}
+                    className="hidden shrink-0 sm:block"
+                    decorative
+                  />
+                </div>
               </div>
             </div>
 

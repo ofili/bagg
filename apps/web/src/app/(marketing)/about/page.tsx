@@ -17,6 +17,7 @@ import { marketingMetadata } from "@/lib/metadata";
 import { Metadata } from "next";
 import { SectionHeading } from "@/components/marketing/section-heading";
 import { MarketingCard } from "@/components/marketing/marketing-card";
+import { BagCharacter } from "@/components/brand";
 
 export const metadata: Metadata = marketingMetadata({
   title: "About Bagg",
@@ -177,6 +178,14 @@ export default function AboutPage() {
             <h2 className="mt-3 max-w-lg text-[2.3rem] font-extrabold leading-[1.02] tracking-[-0.055em] text-ink sm:text-4xl">
               working for yourself is already a full-time job.
             </h2>
+
+            {/* §20.4 — About: problem section | worried | 72–96 px */}
+            <BagCharacter
+              mood="worried"
+              size={88}
+              className="mt-8 hidden lg:block"
+              decorative
+            />
           </div>
 
           <div className="max-w-3xl space-y-5 text-body-l leading-relaxed text-text-soft">
@@ -281,27 +290,37 @@ export default function AboutPage() {
               your next invoice
             </div>
 
-            <div className="max-w-2xl">
-              <p className="text-caption font-extrabold uppercase tracking-[0.16em]">
-                make the next step simpler
-              </p>
+            <div className="flex items-end justify-between gap-8">
+              <div className="max-w-2xl">
+                <p className="text-caption font-extrabold uppercase tracking-[0.16em]">
+                  make the next step simpler
+                </p>
 
-              <h2 className="mt-3 text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] sm:text-5xl">
-                spend less time chasing. spend more time building.
-              </h2>
+                <h2 className="mt-3 text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] sm:text-5xl">
+                  spend less time chasing. spend more time building.
+                </h2>
 
-              <p className="mt-4 max-w-xl text-body-l text-on-mango/80">
-                Start with your next invoice. Bagg takes it from sent to
-                receipted.
-              </p>
+                <p className="mt-4 max-w-xl text-body-l text-on-mango/80">
+                  Start with your next invoice. Bagg takes it from sent to
+                  receipted.
+                </p>
 
-              <Link
-                href="/signup"
-                className={`${buttonStyles({ variant: "ink", size: "lg" })} mt-7`}
-              >
-                Start free
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+                <Link
+                  href="/signup"
+                  className={`${buttonStyles({ variant: "ink", size: "lg" })} mt-7`}
+                >
+                  Start free
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </div>
+
+              {/* §20.4 — About: final CTA | superExcited | 140–180 px */}
+              <BagCharacter
+                mood="superExcited"
+                size={140}
+                className="hidden shrink-0 self-end lg:block"
+                aria-label="Super excited Sisi, the bagg character"
+              />
             </div>
           </div>
         </Container>

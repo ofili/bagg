@@ -20,6 +20,7 @@ import { buttonStyles } from "@/components/ui/button";
 import { marketingMetadata } from "@/lib/metadata";
 import { demoInvoiceHref } from "@/lib/site";
 import { Metadata } from "next";
+import { BagCharacter } from "@/components/brand";
 
 export const metadata: Metadata = marketingMetadata({
   title: "Invoice Software for Freelancers",
@@ -287,9 +288,18 @@ export default function InvoicingPage() {
                 you can&apos;t miss it.
               </p>
             </div>
-            <span className="mt-4 inline-flex border-brut border-ink bg-status-late px-3 py-2 text-caption font-extrabold uppercase text-status-late-fg shadow-brut sm:mt-0">
-              Late
-            </span>
+            <div className="mt-4 flex items-center gap-4 sm:mt-0">
+              {/* §20.4 — Invoicing: "late invoices don't hide" box | skeptical | 72–96 px */}
+              <BagCharacter
+                mood="skeptical"
+                size={80}
+                className="hidden shrink-0 sm:block"
+                decorative
+              />
+              <span className="inline-flex border-brut border-ink bg-status-late px-3 py-2 text-caption font-extrabold uppercase text-status-late-fg shadow-brut">
+                Late
+              </span>
+            </div>
           </div>
         </MarketingSection>
 

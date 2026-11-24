@@ -15,6 +15,7 @@ import { PageHero } from "@/components/marketing/page-hero";
 import { SectionHeading } from "@/components/marketing/section-heading";
 import { buttonStyles } from "@/components/ui/button";
 import { marketingMetadata } from "@/lib/metadata";
+import { BagCharacter } from "@/components/brand";
 import React from "react";
 import { Metadata } from "next";
 
@@ -255,6 +256,7 @@ export default function PricingPage() {
               icon={<Clock className="h-5 w-5" aria-hidden="true" />}
               title="No sneaky changes"
               copy="If prices or plans change in a way that matters, we'll tell you before it takes effect."
+              sisiMood="skeptical"
             />
           </div>
         </Container>
@@ -481,18 +483,32 @@ function PricePromise({
   icon,
   title,
   copy,
+  sisiMood,
 }: {
   icon: React.ReactNode;
   title: string;
   copy: string;
+  sisiMood?: "skeptical";
 }) {
   return (
-    <div className="border-brut border-ink bg-surface p-5 shadow-brut-sm">
-      <span className="flex h-10 w-10 items-center justify-center border-brut border-ink bg-peach text-ink">
-        {icon}
-      </span>
-      <h3 className="mt-4 text-heading font-extrabold text-ink">{title}</h3>
-      <p className="mt-2 text-body text-text-soft">{copy}</p>
+    <div className="border-brut border-ink bg-surface p-5 shadow-brut-sm flex flex-col justify-between">
+      <div>
+        <div className="flex items-start justify-between">
+          <span className="flex h-10 w-10 items-center justify-center border-brut border-ink bg-peach text-ink">
+            {icon}
+          </span>
+          {sisiMood && (
+            <BagCharacter
+              mood={sisiMood}
+              size={72}
+              className="hidden shrink-0 sm:block -mt-1 -mr-1"
+              decorative
+            />
+          )}
+        </div>
+        <h3 className="mt-4 text-heading font-extrabold text-ink">{title}</h3>
+        <p className="mt-2 text-body text-text-soft">{copy}</p>
+      </div>
     </div>
   );
 }

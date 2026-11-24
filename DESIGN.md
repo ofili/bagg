@@ -118,7 +118,7 @@ The brand asset family includes:
 - Bag mark.
 - Wordmark.
 - Squiggle.
-- Bag character, where distinct from the Bag mark.
+- Sisi (`BagCharacter`), where distinct from the Bag mark.
 - Paid stamp.
 - Milestone star.
 - Empty-state illustrations.
@@ -283,7 +283,7 @@ The existing Tailwind configuration includes the amount scale.
 - Screen titles and brand headlines use lowercase where appropriate.
 - Buttons, field labels and body copy use sentence case.
 - No all-caps labels.
-- No tracked-out eyebrow headings.
+- No tracked-out eyebrow headings. *(Exception: marketing stickers and section eyebrows may use uppercase and wide tracking — see §22.5.)*
 - Body lines should generally remain below 70 characters on wide screens.
 - Use tabular numerals for financial tables.
 - Amounts align to the right in financial lists and tables.
@@ -414,12 +414,13 @@ Icon guidelines:
 
 Approved illustration types:
 
-- Bag character.
+- Sisi (`BagCharacter`).
 - Paid stamp.
 - Milestone star.
 - Squiggle.
 - Empty-state illustrations.
 - Onboarding illustrations.
+- Doodles (approved set, home page only — see below).
 
 Rules:
 
@@ -429,6 +430,25 @@ Rules:
 - Never use more than one major celebratory illustration on a screen.
 - Do not put playful stickers on client invoices or quotes.
 - A small paid stamp is acceptable on receipts and payment success pages.
+
+Doodle kit rules:
+
+Doodles are a small set of 2 px ink-line SVG marks with round caps and one accent fill drawn from the brand palette. Approved variants are defined in the `Doodle` component:
+
+| Variant | Description | Placement |
+| -------------- | ------------------------------------------------------------------ | ------------------------------ |
+| `flow-path` | Dashed arc linking the three How it Works cards | Home page, desktop only |
+| `curl-arrow` | Hand-drawn curl arrow | Pointing toward the secondary CTA |
+| `milestone-star` | Sparkle / milestone star | CtaBand closing mark |
+| `currency-glyphs` | Tilted ₦ $ £ € characters | Beside the currency frame |
+
+Constraints:
+- Maximum 3–4 doodles per page.
+- `aria-hidden="true"` and `pointer-events-none` on every instance.
+- Hide below the `sm` breakpoint.
+- Never on pricing, security, legal or checkout pages.
+- Never behind text. Margins and gutters only.
+- No animation (Sisi's handle animation is a separate allowance).
 
 7.3 Photography
 

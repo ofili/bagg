@@ -130,7 +130,7 @@ const visibleItems = items.filter((item) => item.count > 0);
               >
                 <span
                   className={cn(
-                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
+                    'flex h-10 w-10 shrink-0 items-center justify-center',
                     styles.icon,
                   )}
                   aria-hidden
@@ -167,7 +167,7 @@ const visibleItems = items.filter((item) => item.count > 0);
         </div>
       ) : (
         <div className="flex items-center gap-3 border-brut border-ink bg-surface p-4 shadow-brut-sm sm:p-5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-status-paid text-status-paid-fg">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-status-paid text-status-paid-fg">
             <CheckCircle weight="fill" className="h-5 w-5" />
           </span>
           <div>

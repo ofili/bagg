@@ -12,6 +12,7 @@ import {
 
 import { Container } from "@/components/marketing/container";
 import { CtaBand } from "@/components/marketing/cta-band";
+import { Doodle } from "@/components/marketing/doodle";
 import { MarketingSection } from "@/components/marketing/marketing-section";
 import { FaqList } from "@/components/marketing/faq-list";
 import { MarketingCard } from "@/components/marketing/marketing-card";
@@ -107,7 +108,7 @@ export default function MarketingPage() {
             {/* Sisi peeks over the top-right of the dashboard image */}
             <BagCharacter
               mood="happy"
-              size={128}
+              size={140}
               className="absolute -top-16 right-4 z-10 lg:-right-8 lg:-top-20"
               decorative
             />
@@ -135,22 +136,19 @@ export default function MarketingPage() {
         </Container>
 
         <div className="border-t border-line bg-surface">
-          <Container className="flex flex-wrap items-center justify-between gap-4 py-4">
-            <p className="text-caption font-extrabold uppercase tracking-wide text-text-muted">
-              for freelancers, consultants, creators and small studios
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {["Freelancers", "Consultants", "Creators", "Small studios"].map(
-                (item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border-brut-thin border-ink bg-cream px-3 py-1.5 text-caption font-bold text-text-soft"
-                  >
-                    {item}
-                  </span>
-                ),
-              )}
-            </div>
+          <Container className="flex flex-wrap items-center gap-x-8 gap-y-2 py-4">
+            {[
+              "Client needs no account",
+              "NGN · USD · GBP · EUR · CAD supported",
+              "Receipts sent automatically",
+            ].map((fact) => (
+              <span
+                key={fact}
+                className="text-caption font-bold text-text-muted"
+              >
+                {fact}
+              </span>
+            ))}
           </Container>
         </div>
       </section>
@@ -169,6 +167,7 @@ export default function MarketingPage() {
               title="make it look like you."
               copy="Add your business, your client, what you're charging and how to pay you. Pick the currency and Bagg does the rest."
               tone="surface"
+              sisiMood="happy"
             />
             <WorkflowCard
               label="Share"
@@ -176,23 +175,35 @@ export default function MarketingPage() {
               copy="Drop it into WhatsApp, email, anywhere. Your client opens it and sees exactly what to pay. No sign-up, no download."
               tone="mango"
               featured
+              sisiMood="excited"
             />
             <WorkflowCard
               label="Collect"
               title="watch it land."
               copy="See when it's opened, record the payment and send a receipt. Reminders stop the second you're paid."
               tone="surface"
+              sisiMood="celebrating"
             />
           </MarketingGrid>
 
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Link
-              href={demoInvoiceHref}
-              className={buttonStyles({ variant: "link" })}
-            >
-              See what your client sees
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
+          {/* flow-path doodle — desktop only, links the three cards visually */}
+          <Doodle variant="flow-path" className="mt-2 opacity-40" />
+
+          <div className="mt-6 flex flex-wrap items-center gap-4">
+            <div className="relative">
+              {/* curl-arrow doodle points toward the secondary CTA */}
+              <Doodle
+                variant="curl-arrow"
+                className="absolute -left-10 -top-8 -rotate-90 opacity-60"
+              />
+              <Link
+                href={demoInvoiceHref}
+                className={buttonStyles({ variant: "link" })}
+              >
+                See what your client sees
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
             <span className="text-caption text-text-muted">
               No app. No password. Just a link.
             </span>
@@ -286,6 +297,9 @@ export default function MarketingPage() {
                 </span>
               ))}
             </div>
+
+            {/* currency-glyphs doodle — desktop only, sits beneath the pill row */}
+            <Doodle variant="currency-glyphs" className="mt-4 opacity-70" />
           </div>
 
           <MarketingFrame
@@ -502,6 +516,7 @@ export default function MarketingPage() {
         copy="Set up in a few minutes, make an invoice, send one link, and get back to your actual work."
         href="/signup"
         label="Start free"
+        doodle
       />
     </>
   );
@@ -513,20 +528,27 @@ function WorkflowCard({
   copy,
   tone,
   featured = false,
+  sisiMood,
 }: {
   label: string;
   title: string;
   copy: string;
   tone: "surface" | "mango";
   featured?: boolean;
+  sisiMood?: "happy" | "excited" | "celebrating";
 }) {
   return (
-    <MarketingCard tone={tone} featured={featured}>
+    <MarketingCard tone={tone} featured={featured} className="flex flex-col">
       <p className="text-caption font-extrabold uppercase tracking-widest opacity-70">
         {label}
       </p>
       <h3 className="mt-2 text-title text-current">{title}</h3>
       <p className="mt-3 text-body text-current opacity-80">{copy}</p>
+      {sisiMood && (
+        <div className="mt-6 flex justify-end">
+          <BagCharacter mood={sisiMood} size={80} decorative />
+        </div>
+      )}
     </MarketingCard>
   );
 }

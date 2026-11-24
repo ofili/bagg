@@ -19,6 +19,7 @@ import { Metadata } from "next";
 import { MarketingBreadcrumbStructuredData } from "@/components/marketing/marketing-structured-data";
 import { MarketingSection } from "@/components/marketing/marketing-section";
 import { SectionHeading } from "@/components/marketing/section-heading";
+import { BagCharacter, type BagMood } from "@/components/brand";
 
 export const metadata: Metadata = marketingMetadata({
   title: "Invoicing, Quotes and Payment Tracking Features",
@@ -36,6 +37,7 @@ const capabilities = [
     link: "See quotes",
     tone: "bg-pink text-on-pink",
     icon: FileText,
+    sisiMood: "thinking" as BagMood,
   },
   {
     label: "ASK",
@@ -45,6 +47,7 @@ const capabilities = [
     link: "See invoicing",
     tone: "bg-mango text-on-mango",
     icon: FileText,
+    sisiMood: "happy" as BagMood,
   },
   {
     label: "FOLLOW UP",
@@ -54,6 +57,7 @@ const capabilities = [
     link: "See payments",
     tone: "bg-sun text-on-sun",
     icon: Wallet,
+    sisiMood: "skeptical" as BagMood,
   },
   {
     label: "CLOSE",
@@ -63,6 +67,7 @@ const capabilities = [
     link: "See receipts",
     tone: "bg-surface-tint text-text",
     icon: ReceiptText,
+    sisiMood: "celebrating" as BagMood,
   },
 ];
 
@@ -202,13 +207,23 @@ export default function FeaturesPage() {
                     {item.copy}
                   </p>
 
-                  <Link
-                    href={item.href}
-                    className="mt-auto inline-flex min-h-11 items-center gap-2 pt-5 text-body font-extrabold text-link underline decoration-2 underline-offset-4 group-hover:gap-3"
-                  >
-                    {item.link}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
+                  <div className="mt-auto flex items-end justify-between pt-5">
+                    <Link
+                      href={item.href}
+                      className="inline-flex min-h-11 items-center gap-2 text-body font-extrabold text-link underline decoration-2 underline-offset-4 group-hover:gap-3"
+                    >
+                      {item.link}
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+
+                    {/* §20.4 — Features hub mood placements | 80 px | desktop only */}
+                    <BagCharacter
+                      mood={item.sisiMood}
+                      size={80}
+                      className="hidden shrink-0 lg:block"
+                      decorative
+                    />
+                  </div>
                 </article>
               );
             })}

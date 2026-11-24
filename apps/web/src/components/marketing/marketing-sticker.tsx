@@ -38,7 +38,7 @@ export function MarketingSticker({
                 'border-brut border-ink font-extrabold uppercase tracking-wide',
                 'shadow-brut-sm',
                 size === 'sm'
-                    ? 'px-2 py-1 text-[10px]'
+                    ? 'px-2 py-1 text-caption'
                     : 'px-3 py-1.5 text-caption',
                 toneClasses[tone],
                 tiltClasses[tilt],
