@@ -887,33 +887,36 @@ async def regenerate_share_link(
     return invoice
 
 
+
 async def revise_invoice(
     db: AsyncSession,
     workspace: Workspace,
     invoice_id: str,
     payload: InvoiceReviseRequest,
+    *,
+    actor_user_id: str,
 ) -> Invoice:
     invoice = await InvoiceRepository(db).get_for_update(workspace.id, invoice_id)
     if invoice is None:
         raise NotFoundException(f"Invoice '{invoice_id}' not found")
+
     if invoice.status == "draft":
         raise BadRequestException(
             "Draft invoices should be edited directly. Use PATCH /invoices/{id}."
         )
-    if invoice.status not in {"issued", "sent", "viewed"}:
+
+    if invoice.status not in {"issued", "sent", "viewed", "overdue"}:
         raise BadRequestException(
             f"Invoice '{invoice.invoice_number or invoice_id}' cannot be revised "
             f"while it is '{invoice.status}'. Resolve payment or lifecycle state first."
         )
 
-    # A revision is a recall-and-reissue workflow, not an in-place mutation of
-    # an already issued financial document. Recall enforces the confirmed-
-    # payment, pending-claim and provider-processing invariants and invalidates
-    # open checkout attempts. It remains in this transaction so the revision
-    # and recall either commit together or roll back together.
+    # Recall and revision remain in one transaction.
     invoice = await InvoiceRecallService.recall(
-        db, workspace.id, invoice.id,
-        actor_user_id=workspace.owner_id or "system",
+        db,
+        workspace.id,
+        invoice.id,
+        actor_user_id=actor_user_id,
         reason=payload.reason,
         commit=False,
     )
@@ -977,7 +980,10 @@ async def revise_invoice(
 
     totals = calculate_invoice_totals(
         items=[
-            {"quantity": it.quantity, "unit_price_minor": it.unit_price_minor}
+            {
+                "quantity": it.quantity,
+                "unit_price_minor": it.unit_price_minor,
+            }
             for it in payload.items
         ],
         discount_minor=discount,
@@ -994,12 +1000,14 @@ async def revise_invoice(
         wht_rate=wht_rate,
         deposit_pct=deposit_pct,
     )
+
     if payload.notes is not None:
         invoice.notes = payload.notes
 
     await db.commit()
     await InvoiceRepository(db).refresh(invoice)
     return invoice
+
 
 
 async def list_invoice_revisions(

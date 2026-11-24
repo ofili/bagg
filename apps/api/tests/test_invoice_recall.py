@@ -351,3 +351,150 @@ async def test_recall_blocks_confirmed_receipt_even_if_invoice_aggregate_is_zero
             db,
             invoice,
         )
+
+
+
+import uuid
+
+from httpx import ASGITransport, AsyncClient
+
+from app.main import app
+from tests.helpers import login_code_for
+
+
+@pytest.mark.asyncio
+async def test_invoice_revision_reissue_preserves_document_generations():
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        email = f"revision-{uuid.uuid4().hex[:8]}@lagos.agency"
+
+        await client.post(
+            "/auth/magic-link",
+            json={"email": email},
+        )
+        code = login_code_for(email)
+
+        auth_response = await client.post(
+            "/auth/verify",
+            json={
+                "email": email,
+                "code": code,
+                "intent": "signup",
+                "full_name": "Invoice Revision Test",
+            },
+        )
+
+        assert auth_response.status_code == 200, auth_response.text
+        client.cookies.set(
+            "bagg_session",
+            auth_response.cookies["bagg_session"],
+        )
+        actor_user_id = auth_response.json()["user"]["id"]
+
+        client_response = await client.post(
+            "/clients",
+            json={
+                "name": "Revision Test Client",
+                "email": f"billing-{uuid.uuid4().hex[:6]}@example.com",
+                "preferred_currency": "NGN",
+                "default_payment_terms_days": 14,
+            },
+        )
+        assert client_response.status_code == 201, client_response.text
+        client_id = client_response.json()["id"]
+
+        invoice_response = await client.post(
+            "/invoices",
+            json={
+                "client_id": client_id,
+                "currency": "NGN",
+                "items": [
+                    {
+                        "description": "Initial service",
+                        "quantity": 1,
+                        "unit_price_minor": 500000,
+                    }
+                ],
+                "discount_minor": 0,
+                "tax_rate_percent": 0,
+            },
+        )
+        assert invoice_response.status_code == 201, invoice_response.text
+        invoice = invoice_response.json()
+        invoice_id = invoice["id"]
+
+        first_issue = await client.post(
+            f"/invoices/{invoice_id}/finalize"
+        )
+        assert first_issue.status_code == 200, first_issue.text
+
+        first = first_issue.json()
+        original_number = first["invoice_number"]
+        original_sequence = first["sequence_number"]
+
+        assert first["issuance_generation"] == 1
+        assert first["version"] == 1
+        assert first["share_token"]
+
+        # Revise the issued invoice directly. The revise operation performs
+        # the recall and commercial revision in one transaction.
+        revision_response = await client.post(
+            f"/invoices/{invoice_id}/revise",
+            json={
+                "items": [
+                    {
+                        "description": "Revised service",
+                        "quantity": 1,
+                        "unit_price_minor": 750000,
+                    }
+                ],
+                "reason": "Agreed scope adjustment",
+                "notes": "Revised scope",
+            },
+        )
+        assert revision_response.status_code == 200, revision_response.text
+
+        revised = revision_response.json()
+        assert revised["status"] == "draft"
+        assert revised["invoice_number"] == original_number
+        assert revised["sequence_number"] == original_sequence
+        assert revised["version"] == 2
+        assert revised["issuance_generation"] == 1
+        assert revised["share_token"] is None
+        assert revised["total_minor"] == 750000
+
+        second_issue = await client.post(
+            f"/invoices/{invoice_id}/finalize"
+        )
+        assert second_issue.status_code == 200, second_issue.text
+
+        second = second_issue.json()
+        assert second["invoice_number"] == original_number
+        assert second["sequence_number"] == original_sequence
+        assert second["version"] == 2
+        assert second["issuance_generation"] == 2
+
+        versions_response = await client.get(
+            f"/invoices/{invoice_id}/document-versions"
+        )
+        assert versions_response.status_code == 200, versions_response.text
+
+        versions = versions_response.json()
+        assert len(versions) == 2
+
+        first_version, second_version = versions
+
+        assert first_version["revision_number"] == 1
+        assert first_version["issuance_generation"] == 1
+        assert first_version["document_number"] == original_number
+        assert first_version["recalled_at"] is not None
+        assert first_version["recalled_by_user_id"] == actor_user_id
+
+        assert second_version["revision_number"] == 2
+        assert second_version["issuance_generation"] == 2
+        assert second_version["document_number"] == original_number
+        assert second_version["recalled_at"] is None

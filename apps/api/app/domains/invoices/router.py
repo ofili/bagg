@@ -250,15 +250,26 @@ async def recall_invoice(
     return map_invoice_to_response(invoice, business_name=workspace.business_name)
 
 
+
 @router.post("/{invoice_id}/revise", response_model=InvoiceResponse)
 async def revise_invoice(
     invoice_id: str,
     payload: InvoiceReviseRequest,
     workspace: Workspace = Depends(resolve_active_workspace),
+    auth_data=Depends(get_current_user_and_workspace),
     db: AsyncSession = Depends(get_db),
 ):
-    invoice = await service.revise_invoice(db, workspace, invoice_id, payload)
-    return map_invoice_to_response(invoice, business_name=workspace.business_name)
+    invoice = await service.revise_invoice(
+        db,
+        workspace,
+        invoice_id,
+        payload,
+        actor_user_id=auth_data[0].id,
+    )
+    return map_invoice_to_response(
+        invoice,
+        business_name=workspace.business_name,
+    )
 
 
 @router.get("/{invoice_id}/revisions", response_model=List[InvoiceRevisionResponse])
