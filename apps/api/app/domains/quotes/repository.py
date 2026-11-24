@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import and_, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import hash_token
 from app.domains.clients.models import Client
 from app.domains.quotes.models import Quote, QuoteComment, QuoteLineItem, QuoteRevision
 from app.domains.workspaces.models import Workspace
@@ -117,7 +118,12 @@ class QuoteRepository:
             select(Quote, Client.name.label("client_name"), Workspace)
             .join(Client, Quote.client_id == Client.id, isouter=True)
             .join(Workspace, Quote.workspace_id == Workspace.id)
-            .where(Quote.share_token == token)
+            .where(
+    or_(
+        Quote.share_token_hash == hash_token(token),
+        Quote.share_token == token,
+    )
+)
             .with_for_update(of=Quote)
             .execution_options(populate_existing=True)
         )
@@ -131,7 +137,12 @@ class QuoteRepository:
             select(Quote, Client.name.label("client_name"), Workspace)
             .join(Client, Quote.client_id == Client.id, isouter=True)
             .join(Workspace, Quote.workspace_id == Workspace.id)
-            .where(Quote.share_token == token)
+            .where(
+    or_(
+        Quote.share_token_hash == hash_token(token),
+        Quote.share_token == token,
+    )
+)
         )
         row = result.first()
         return (row[0], row[1], row[2]) if row else None
@@ -142,7 +153,12 @@ class QuoteRepository:
         result = await self.db.execute(
             select(Quote, Workspace)
             .join(Workspace, Quote.workspace_id == Workspace.id)
-            .where(Quote.share_token == token)
+            .where(
+    or_(
+        Quote.share_token_hash == hash_token(token),
+        Quote.share_token == token,
+    )
+)
         )
         row = result.first()
         return (row[0], row[1]) if row else None

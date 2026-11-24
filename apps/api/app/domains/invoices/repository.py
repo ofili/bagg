@@ -12,7 +12,9 @@ from typing import Any
 
 from sqlalchemy import Date, and_, asc, case, cast, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
+from app.core.security import hash_token
 from app.domains.clients.models import Client
 from app.domains.invoices.recall_models import InvoiceDocumentVersion
 from app.domains.payments.models import InvoicePaymentAttempt
@@ -177,7 +179,9 @@ class InvoiceRepository:
         )
         total = (await self.db.execute(count)).scalar_one()
         sort_column = self.SORT_COLUMNS.get(sort_by, Invoice.sequence_number)
-        ordering = [asc(sort_column) if sort_order == "asc" else desc(sort_column)]
+        ordering: list[ColumnElement[Any]] = [
+            asc(sort_column) if sort_order == "asc" else desc(sort_column)
+        ]
         if sort_by != "created_at":
             ordering.append(desc(Invoice.created_at))
         result = await self.db.execute(
@@ -478,6 +482,31 @@ class InvoiceRepository:
             .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
+
+    async def get_public_for_update(
+        self,
+        token_hash: str,
+        raw_token: str,
+    ) -> tuple[Invoice, str | None, Workspace] | None:
+        result = await self.db.execute(
+            select(
+                Invoice,
+                Client.name.label("client_name"),
+                Workspace,
+            )
+            .join(Client, Invoice.client_id == Client.id)
+            .join(Workspace, Invoice.workspace_id == Workspace.id)
+            .where(
+                or_(
+                    Invoice.share_token_hash == token_hash,
+                    Invoice.share_token == raw_token,
+                )
+            )
+            .with_for_update(of=Invoice)
+            .execution_options(populate_existing=True)
+        )
+        row = result.first()
+        return (row[0], row[1], row[2]) if row else None
 
     def add(self, instance: Any) -> None:
         self.db.add(instance)

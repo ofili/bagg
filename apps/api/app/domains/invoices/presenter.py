@@ -8,9 +8,13 @@ from app.domains.invoices.schemas import (
     InvoiceReceiptSummary,
     InvoiceResponse,
     LineItemSchema,
+    PublicInvoiceLineItem,
+    PublicInvoiceView,
+    PublicPaymentInstructions,
 )
 from app.domains.lifecycle.service import (
     effective_invoice_status,
+    invoice_balance_minor,
     invoice_days_overdue,
     invoice_is_overdue,
     invoice_payment_state,
@@ -159,4 +163,74 @@ def map_invoice_to_response(
         latest_receipt=latest_receipt,
         created_at=inv.created_at,
         updated_at=inv.updated_at,
+    )
+
+
+def map_public_invoice_view(
+    invoice: Invoice,
+    client_name: Optional[str],
+    workspace,
+) -> PublicInvoiceView:
+    items_out = [
+        PublicInvoiceLineItem(
+            id=item.id,
+            position=item.position,
+            description=item.description,
+            quantity=item.quantity,
+            unit_price_minor=item.unit_price_minor,
+            total_minor=item.total_minor,
+        )
+        for item in (invoice.items or [])
+    ]
+
+    snapshot = invoice.payment_profile_snapshot or {}
+    payment_fields = {
+        "bank_name",
+        "account_name",
+        "account_number",
+        "routing_number",
+        "payment_link",
+        "mobile_money_number",
+        "instructions",
+    }
+    payment_data = {
+        key: snapshot[key] for key in payment_fields if snapshot.get(key) is not None
+    }
+
+    payment_instructions = (
+        PublicPaymentInstructions.model_validate(payment_data) if payment_data else None
+    )
+
+    net_payable = (
+        invoice.net_payable_minor
+        if invoice.net_payable_minor and invoice.net_payable_minor > 0
+        else invoice.total_minor
+    )
+
+    return PublicInvoiceView(
+        id=invoice.id,
+        invoice_number=invoice.invoice_number,
+        currency=invoice.currency,
+        status=invoice.status,
+        effective_status=effective_invoice_status(invoice),
+        issue_date=invoice.issue_date,
+        due_date=invoice.due_date,
+        items=items_out,
+        subtotal_minor=invoice.subtotal_minor,
+        discount_minor=invoice.discount_minor,
+        tax_rate_percent=invoice.tax_rate_percent,
+        tax_minor=invoice.tax_minor,
+        total_minor=invoice.total_minor,
+        wht_rate_percent=invoice.wht_rate_percent or 0.0,
+        wht_minor=invoice.wht_minor or 0,
+        net_payable_minor=net_payable,
+        amount_paid_minor=invoice.amount_paid_minor or 0,
+        balance_due_minor=invoice_balance_minor(invoice),
+        notes=invoice.notes,
+        business_name=workspace.business_name,
+        business_logo_url=workspace.logo_url,
+        business_brand_color=workspace.brand_color,
+        client_name=client_name,
+        viewed_at=invoice.viewed_at,
+        payment_instructions=payment_instructions,
     )

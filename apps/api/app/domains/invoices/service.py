@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals
-from app.core.security import generate_share_token
+from app.core.security import generate_share_token, hash_token
 from app.domains.activation.service import (record_invoice_created, record_document_dispatched)
 from app.domains.billing.service import (
     check_delivery_quota,
@@ -1400,3 +1400,81 @@ def _build_payment_profile_snapshot(profile) -> dict:
         "is_default": profile.is_default,
         "created_at": profile.created_at.isoformat(),
     }
+
+async def view_public_invoice(
+    db: AsyncSession,
+    token: str,
+) -> tuple[Invoice, str | None, Workspace]:
+    if not token:
+        raise NotFoundException("Invoice not found or invalid link")
+
+    repository = InvoiceRepository(db)
+
+    row = await repository.get_public_for_update(
+        token_hash=hash_token(token),
+        raw_token=token,
+    )
+
+    if row is None:
+        raise NotFoundException("Invoice not found or invalid link")
+
+    invoice, client_name, workspace = row
+
+    publicly_accessible_statuses = {
+        "issued",
+        "sent",
+        "viewed",
+        "payment_claimed",
+        "partially_paid",
+        "paid",
+    }
+
+    if (
+        invoice.status not in publicly_accessible_statuses
+        or invoice.voided_at is not None
+    ):
+        raise NotFoundException("Invoice not found or invalid link")
+
+    # A first successful view is recorded once. Subsequent requests do
+    # not repeatedly change the document lifecycle or create notifications.
+    if invoice.viewed_at is None:
+        now = datetime.now(timezone.utc)
+        invoice.viewed_at = now
+
+        if invoice.status in {"issued", "sent"}:
+            old_status = invoice.status
+            invoice.status = "viewed"
+
+            record_status_event(
+                db=db,
+                workspace_id=invoice.workspace_id,
+                document_type="invoice",
+                document_id=invoice.id,
+                from_status=old_status,
+                to_status="viewed",
+                actor_type="client",
+                source="client_view",
+            )
+
+        if workspace.owner_id:
+            from app.domains.notifications.service import NotificationService
+
+            await NotificationService.create_notification(
+                db,
+                workspace_id=workspace.id,
+                recipient_user_id=workspace.owner_id,
+                type="document_viewed",
+                title=f"Invoice {invoice.invoice_number} was viewed",
+                body=f"{client_name or 'Client'} opened and viewed the invoice.",
+                document_type="invoice",
+                document_id=invoice.id,
+                document_number=invoice.invoice_number,
+                link_url=f"/invoices/{invoice.id}",
+                commit=False,
+            )
+
+        # The view timestamp, lifecycle event and notification are one
+        # transaction. Do not swallow notification failures.
+        await db.commit()
+
+    return invoice, client_name, workspace

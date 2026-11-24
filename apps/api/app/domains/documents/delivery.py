@@ -75,27 +75,31 @@ async def deliver_public_document(
     result = await db.execute(statement)
     document = result.scalar_one_or_none()
 
-    if document is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found or invalid link",
-        )
+    if document_type == "invoice":
+        publicly_accessible_statuses = {
+            "issued",
+            "sent",
+            "viewed",
+            "payment_claimed",
+            "partially_paid",
+            "paid",
+        }
 
-    # A draft must never become publicly accessible merely because a token
-    # was accidentally retained or exposed.
-    if document_type in {"invoice", "quote"}:
-        if document.status == "draft":
+        if (
+            document.status not in publicly_accessible_statuses
+            or document.voided_at is not None
+        ):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document not found or invalid link",
             )
 
-    # Receipts are public only after verified payment confirmation.
-    if document_type == "receipt" and not document.is_verified:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found or invalid link",
-        )
+    elif document_type == "quote":
+        if document.status == "draft":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found or invalid link",
+            )
 
     if not document.workspace_id or not document.id:
         logger.error(

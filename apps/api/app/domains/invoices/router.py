@@ -13,6 +13,7 @@ from app.domains.auth.dependencies import get_current_user_and_workspace, requir
 from app.domains.invoices.presenter import (
     generate_whatsapp_share_url,
     map_invoice_to_response,
+    map_public_invoice_view,
 )
 from app.domains.documents.delivery import (
     deliver_issued_document,
@@ -32,6 +33,7 @@ from app.domains.invoices.schemas import (
     InvoiceSendRequest,
     InvoiceSendResponse,
     InvoiceUpdate,
+    PublicInvoiceView,
     WHTCreditNoteUpdate,
 )
 from app.domains.payments.schemas import (
@@ -250,7 +252,6 @@ async def recall_invoice(
     return map_invoice_to_response(invoice, business_name=workspace.business_name)
 
 
-
 @router.post("/{invoice_id}/revise", response_model=InvoiceResponse)
 async def revise_invoice(
     invoice_id: str,
@@ -440,6 +441,25 @@ async def get_public_invoice_pdf(
         db,
         token=token,
         document_type="invoice",
+    )
+
+
+@router.get(
+    "/share/{token}",
+    response_model=PublicInvoiceView,
+)
+async def get_public_invoice(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    invoice, client_name, workspace = await service.view_public_invoice(
+        db,
+        token,
+    )
+    return map_public_invoice_view(
+        invoice,
+        client_name,
+        workspace,
     )
 
 

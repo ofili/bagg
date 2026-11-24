@@ -190,6 +190,56 @@ class InvoiceResponse(BaseModel):
     updated_at: datetime
 
 
+class PublicInvoiceLineItem(BaseModel):
+    id: str
+    position: int
+    description: str
+    quantity: int
+    unit_price_minor: int
+    total_minor: int
+
+
+class PublicPaymentInstructions(BaseModel):
+    bank_name: Optional[str] = None
+    account_name: Optional[str] = None
+    account_number: Optional[str] = None
+    routing_number: Optional[str] = None
+    payment_link: Optional[str] = None
+    mobile_money_number: Optional[str] = None
+    instructions: Optional[str] = None
+
+
+class PublicInvoiceView(BaseModel):
+    id: str
+    invoice_number: str
+    currency: str
+    status: str
+    effective_status: str
+    issue_date: date
+    due_date: Optional[date] = None
+
+    items: List[PublicInvoiceLineItem]
+    subtotal_minor: int
+    discount_minor: int
+    tax_rate_percent: float
+    tax_minor: int
+    total_minor: int
+    wht_rate_percent: float
+    wht_minor: int
+    net_payable_minor: int
+    amount_paid_minor: int
+    balance_due_minor: int
+
+    notes: Optional[str] = None
+    business_name: str
+    business_logo_url: Optional[str] = None
+    business_brand_color: Optional[str] = None
+    client_name: Optional[str] = None
+    viewed_at: Optional[datetime] = None
+
+    payment_instructions: Optional[PublicPaymentInstructions] = None
+
+
 class InvoiceSendRequest(BaseModel):
     send_email: bool = True
 
