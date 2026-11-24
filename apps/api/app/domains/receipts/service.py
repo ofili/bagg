@@ -5,11 +5,14 @@ are committed by the caller in one DB transaction.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
 import logging
 from datetime import date, datetime, timezone
 from typing import NamedTuple, Optional
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.errors import BadRequestException
 from app.core.money import format_money
 from app.core.security import generate_share_token
@@ -25,6 +28,7 @@ from app.domains.lifecycle.service import (
     invoice_balance_minor,
     invoice_target_payable,
     record_status_event,
+    transition_document,
 )
 
 logger = logging.getLogger(__name__)
@@ -126,7 +130,7 @@ async def confirm_payment(
     now = datetime.now(timezone.utc)
 
     sequence, receipt_number = _allocate_receipt_number(workspace)
-    _apply_payment_to_invoice(invoice, pay, now)
+    new_status = _apply_payment_to_invoice(invoice, pay, now)
 
     receipt = _build_receipt(
         workspace=workspace,
@@ -139,7 +143,15 @@ async def confirm_payment(
     )
     await repo.add(receipt)
 
-    _record_status_change(db, workspace, invoice, receipt, pay, old_status)
+    _record_status_change(
+        db,
+        workspace,
+        invoice,
+        receipt,
+        pay,
+        old_status,
+        new_status,
+    )
 
     if invoice.status == "paid" and not pay.late:
         await cancel_invoice_reminders(invoice.id, db, commit=False)
@@ -262,19 +274,32 @@ def _allocate_receipt_number(workspace: Workspace) -> tuple[int, str]:
     return sequence, f"{workspace.receipt_prefix}{sequence:04d}"
 
 
-def _apply_payment_to_invoice(invoice: Invoice, pay: _Payment, now: datetime) -> None:
+def _apply_payment_to_invoice(
+    invoice: Invoice,
+    pay: _Payment,
+    now: datetime,
+) -> str:
+    """
+    Apply payment aggregates and return the target lifecycle status.
+
+    The canonical lifecycle service owns the actual status mutation.
+    Late-payment reconciliation deliberately preserves the existing status.
+    """
     invoice.amount_paid_minor = (invoice.amount_paid_minor or 0) + pay.amount_minor
 
     if pay.late:
         invoice.reconciliation_required = True
+        new_status = invoice.status
     elif invoice.amount_paid_minor >= invoice_target_payable(invoice):
-        invoice.status = "paid"
         invoice.paid_at = now
+        new_status = "paid"
     else:
-        invoice.status = "partially_paid"
+        new_status = "partially_paid"
 
     invoice.payment_processing_at = None
     invoice.payment_processing_reference = None
+
+    return new_status
 
 
 def _build_receipt(
@@ -324,27 +349,45 @@ def _record_status_change(
     receipt: Receipt,
     pay: _Payment,
     old_status: str,
+    new_status: str,
 ) -> None:
     from_webhook = pay.source.startswith("webhook")
-    record_status_event(
-        db=db,
-        workspace_id=workspace.id,
-        document_type="invoice",
-        document_id=invoice.id,
-        from_status=old_status,
-        to_status=invoice.status,
-        actor_type="webhook" if from_webhook else "issuer",
-        actor_id=pay.confirmed_by_user_id,
-        source=pay.source,
-        metadata={
-            "receipt_number": receipt.receipt_number,
-            "amount_paid_minor": pay.amount_minor,
-            "payment_method": pay.method,
-            "reference": pay.reference,
-            "late_payment": pay.late,
-            "reconciliation_required": pay.late,
-        },
-    )
+
+    metadata = {
+        "receipt_number": receipt.receipt_number,
+        "amount_paid_minor": pay.amount_minor,
+        "payment_method": pay.method,
+        "reference": pay.reference,
+        "late_payment": pay.late,
+        "reconciliation_required": pay.late,
+    }
+
+    if old_status != new_status:
+        transition_document(
+            db,
+            document=invoice,
+            document_type="invoice",
+            to_status=new_status,
+            actor_type="webhook" if from_webhook else "issuer",
+            actor_id=pay.confirmed_by_user_id,
+            source=pay.source,
+            metadata=metadata,
+        )
+    else:
+        # Late-payment reconciliation can add financial evidence without
+        # changing the invoice's existing lifecycle status.
+        record_status_event(
+            db=db,
+            workspace_id=workspace.id,
+            document_type="invoice",
+            document_id=invoice.id,
+            from_status=old_status,
+            to_status=new_status,
+            actor_type="webhook" if from_webhook else "issuer",
+            actor_id=pay.confirmed_by_user_id,
+            source=pay.source,
+            metadata=metadata,
+        )
 
 
 # --------------------------------------------------------------------------

@@ -8,7 +8,10 @@ from app.core.config import settings
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals
 from app.core.security import generate_share_token, hash_token
-from app.domains.activation.service import (record_invoice_created, record_document_dispatched)
+from app.domains.activation.service import (
+    record_invoice_created,
+    record_document_dispatched,
+)
 from app.domains.billing.service import (
     check_delivery_quota,
     consume_delivery_send,
@@ -20,8 +23,16 @@ from app.domains.documents.generation import enqueue_document_generation
 from app.domains.invoices.models import Invoice, InvoiceLineItem, InvoiceRevision
 from app.domains.invoices.repository import InvoiceRepository
 from app.domains.invoices.recall_service import InvoiceRecallService
-from app.domains.invoices.schemas import InvoiceCreate, InvoiceReviseRequest, InvoiceUpdate
-from app.domains.lifecycle.service import list_status_events, record_status_event
+from app.domains.invoices.schemas import (
+    InvoiceCreate,
+    InvoiceReviseRequest,
+    InvoiceUpdate,
+)
+from app.domains.lifecycle.service import (
+    list_status_events,
+    record_status_event,
+    transition_document,
+)
 from app.domains.payments.models import PaymentClaim
 from app.domains.quotes.models import Quote
 from app.domains.receipts.service import confirm_payment
@@ -36,6 +47,7 @@ from app.integrations.email_outbox import (
     get_active_document_email,
     should_meter_document_send,
 )
+
 
 @dataclass
 class SendInvoiceOutcome:
@@ -72,7 +84,15 @@ def _ensure_share_token(invoice: Invoice) -> None:
         invoice.share_token_hash = token_hash
 
 
-def _apply_totals(invoice: Invoice, totals: dict, *, discount, tax_rate, wht_rate, deposit_pct) -> None:
+def _apply_totals(
+    invoice: Invoice,
+    totals: dict,
+    *,
+    discount,
+    tax_rate,
+    wht_rate,
+    deposit_pct,
+) -> None:
     invoice.subtotal_minor = totals["subtotal_minor"]
     invoice.discount_minor = discount
     invoice.tax_rate_percent = tax_rate
@@ -88,17 +108,19 @@ def _apply_totals(invoice: Invoice, totals: dict, *, discount, tax_rate, wht_rat
 async def _replace_items(db: AsyncSession, invoice: Invoice, items) -> None:
     repository = InvoiceRepository(db)
     await repository.delete_items(invoice.id)
-    repository.add_all([
-        InvoiceLineItem(
-            invoice_id=invoice.id,
-            position=position,
-            description=item.description,
-            quantity=item.quantity,
-            unit_price_minor=item.unit_price_minor,
-            total_minor=item.quantity * item.unit_price_minor,
-        )
-        for position, item in enumerate(items)
-    ])
+    repository.add_all(
+        [
+            InvoiceLineItem(
+                invoice_id=invoice.id,
+                position=position,
+                description=item.description,
+                quantity=item.quantity,
+                unit_price_minor=item.unit_price_minor,
+                total_minor=item.quantity * item.unit_price_minor,
+            )
+            for position, item in enumerate(items)
+        ]
+    )
 
 
 async def list_invoices(
@@ -115,9 +137,15 @@ async def list_invoices(
     per_page: int = 20,
 ) -> tuple[list[Invoice], int]:
     return await InvoiceRepository(db).list_page(
-        workspace.id, client_id=client_id, status_filter=status_filter,
-        currency=currency, search=search, sort_by=sort_by,
-        sort_order=sort_order, page=page, per_page=per_page,
+        workspace.id,
+        client_id=client_id,
+        status_filter=status_filter,
+        currency=currency,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        per_page=per_page,
     )
 
 
@@ -272,8 +300,7 @@ async def get_currency_metrics_history(
         | set(profile_currencies)
     )
     month_keys = [
-        _shift_month(start_month, offset).strftime("%Y-%m")
-        for offset in range(months)
+        _shift_month(start_month, offset).strftime("%Y-%m") for offset in range(months)
     ]
 
     return [
@@ -319,7 +346,9 @@ async def create_invoice(
         terms_days = client.default_payment_terms_days or 14
         due_date = issue_date + timedelta(days=terms_days)
     if due_date < issue_date:
-        raise BadRequestException("Invoice due date cannot be earlier than its issue date.")
+        raise BadRequestException(
+            "Invoice due date cannot be earlier than its issue date."
+        )
 
     totals = calculate_invoice_totals(
         items=[
@@ -341,48 +370,40 @@ async def create_invoice(
     invoice = Invoice(
         workspace_id=workspace.id,
         client_id=client.id,
-
         # Invoice numbers are allocated only when the invoice is issued.
         invoice_number=None,
         sequence_number=None,
-
         currency=payload.currency,
         status="draft",
         issue_date=issue_date,
         due_date=due_date,
-
         subtotal_minor=totals["subtotal_minor"],
         discount_minor=payload.discount_minor,
         tax_rate_percent=payload.tax_rate_percent,
         tax_minor=totals["tax_minor"],
         total_minor=totals["total_minor"],
-
         wht_rate_percent=payload.wht_rate_percent,
         wht_minor=totals["wht_minor"],
         net_payable_minor=totals["net_payable_minor"],
-
         deposit_percentage=payload.deposit_percentage,
         deposit_amount_minor=totals["deposit_amount_minor"],
         deposit_due_date=payload.deposit_due_date,
-
         # Direct invoice checkout remains disabled until freelancer settlement
         # is implemented and independently verified.
         direct_checkout_enabled=False,
         amount_paid_minor=0,
-
         payment_profile_id=payload.payment_profile_id,
         notes=payload.notes,
-
         share_token=raw_token,
         share_token_hash=token_hash,
-
         version=1,
     )
 
     repository.add(invoice)
     await repository.flush()
 
-    repository.add_all([
+    repository.add_all(
+        [
             InvoiceLineItem(
                 invoice_id=invoice.id,
                 position=position,
@@ -392,7 +413,8 @@ async def create_invoice(
                 total_minor=item.quantity * item.unit_price_minor,
             )
             for position, item in enumerate(payload.items)
-        ])
+        ]
+    )
 
     await record_invoice_created(
         db,
@@ -460,11 +482,7 @@ async def update_draft_invoice(
         await _replace_items(db, invoice, payload.items)
 
     if payload.items is not None or recalc:
-        items = (
-            payload.items
-            if payload.items is not None
-            else (invoice.items or [])
-        )
+        items = payload.items if payload.items is not None else (invoice.items or [])
         totals = calculate_invoice_totals(
             items=[
                 {"quantity": it.quantity, "unit_price_minor": it.unit_price_minor}
@@ -487,7 +505,7 @@ async def update_draft_invoice(
 
     if payload.deposit_due_date is not None:
         invoice.deposit_due_date = payload.deposit_due_date
-    
+
     repository = InvoiceRepository(db)
     if payload.client_id:
         client = await repository.get_client(workspace.id, payload.client_id)
@@ -496,16 +514,25 @@ async def update_draft_invoice(
                 f"Client '{payload.client_id}' not found in this workspace"
             )
         invoice.client_id = client.id
+
     effective_issue_date = payload.issue_date or invoice.issue_date
     effective_due_date = payload.due_date or invoice.due_date
-    if effective_issue_date and effective_due_date and effective_due_date < effective_issue_date:
-        raise BadRequestException("Invoice due date cannot be earlier than its issue date.")
+    if (
+        effective_issue_date
+        and effective_due_date
+        and effective_due_date < effective_issue_date
+    ):
+        raise BadRequestException(
+            "Invoice due date cannot be earlier than its issue date."
+        )
+
     if payload.issue_date:
         invoice.issue_date = payload.issue_date
     if payload.due_date:
         invoice.due_date = payload.due_date
     if payload.notes is not None:
         invoice.notes = payload.notes
+
     if "payment_profile_id" in payload.model_fields_set:
         if payload.payment_profile_id is None:
             invoice.payment_profile_id = None
@@ -622,14 +649,19 @@ async def finalize_invoice(
         sequence_number = invoice.sequence_number
     else:
         sequence_number = locked_workspace.next_invoice_number
-        invoice_number = (
-            f"{locked_workspace.invoice_prefix}{sequence_number:04d}"
-        )
+        invoice_number = f"{locked_workspace.invoice_prefix}{sequence_number:04d}"
         locked_workspace.next_invoice_number = sequence_number + 1
 
-    old_status = invoice.status
+    transition_document(
+        db,
+        document=invoice,
+        document_type="invoice",
+        to_status="issued",
+        actor_type="issuer",
+        actor_id=locked_workspace.owner_id,
+        source="issuer_finalize",
+    )
 
-    invoice.status = "issued"
     invoice.invoice_number = invoice_number
     invoice.sequence_number = sequence_number
 
@@ -640,22 +672,8 @@ async def finalize_invoice(
 
     _ensure_share_token(invoice)
 
-    record_status_event(
-        db=db,
-        workspace_id=locked_workspace.id,
-        document_type="invoice",
-        document_id=invoice.id,
-        from_status=old_status,
-        to_status="issued",
-        actor_type="issuer",
-        actor_id=locked_workspace.owner_id,
-        source="issuer_finalize",
-    )
-
     if invoice.quote_id:
-        quote_obj = await repository.get_quote(
-            locked_workspace.id, invoice.quote_id
-        )
+        quote_obj = await repository.get_quote(locked_workspace.id, invoice.quote_id)
 
         if quote_obj and quote_obj.status == "accepted":
             quote_obj.status = "converted"
@@ -818,27 +836,20 @@ async def send_invoice(
         dispatched = True
         invoice.email_delivery_status = DocumentDeliveryStatus.LINK_SHARED
 
-    old_status = invoice.status
-
     if dispatched:
-        if invoice.status in {"issued", "sent"}:
-            invoice.status = "sent"
+        if invoice.status == "issued":
+            transition_document(
+                db,
+                document=invoice,
+                document_type="invoice",
+                to_status="sent",
+                actor_type="issuer",
+                actor_id=workspace.owner_id,
+                source="issuer_send",
+            )
 
         if invoice.sent_at is None:
             invoice.sent_at = datetime.now(timezone.utc)
-
-    if old_status != invoice.status:
-        record_status_event(
-            db=db,
-            workspace_id=workspace.id,
-            document_type="invoice",
-            document_id=invoice.id,
-            from_status=old_status,
-            to_status=invoice.status,
-            actor_type="issuer",
-            actor_id=workspace.owner_id,
-            source="issuer_send",
-        )
 
     if dispatched:
         await schedule_invoice_reminders(
@@ -1022,7 +1033,9 @@ async def delete_draft_invoice(
     if invoice is None:
         raise NotFoundException(f"Invoice '{invoice_id}' not found")
     if invoice.status != "draft":
-        raise BadRequestException("Cannot delete an invoice that has been sent or finalized.")
+        raise BadRequestException(
+            "Cannot delete an invoice that has been sent or finalized."
+        )
     await InvoiceRepository(db).delete(invoice)
     await db.commit()
 
@@ -1177,8 +1190,6 @@ async def reject_payment_claim(
     if not rejection_reason:
         raise BadRequestException("A rejection reason is required.")
 
-    old_status = invoice.status
-
     claim.status = "rejected"
     claim.rejection_reason = rejection_reason
     claim.rejected_at = datetime.now(timezone.utc)
@@ -1190,21 +1201,19 @@ async def reject_payment_claim(
     previous_status = claim.previous_invoice_status
 
     if (invoice.amount_paid_minor or 0) > 0:
-        invoice.status = "partially_paid"
+        restored_status = "partially_paid"
     elif previous_status and previous_status != "payment_claimed":
-        invoice.status = previous_status
+        restored_status = previous_status
     elif invoice.viewed_at:
-        invoice.status = "viewed"
+        restored_status = "viewed"
     else:
-        invoice.status = "sent"
+        restored_status = "sent"
 
-    record_status_event(
-        db=db,
-        workspace_id=workspace.id,
+    transition_document(
+        db,
+        document=invoice,
         document_type="invoice",
-        document_id=invoice.id,
-        from_status=old_status,
-        to_status=invoice.status,
+        to_status=restored_status,
         actor_type="issuer",
         actor_id=rejected_by_user_id,
         source="issuer_claim_rejected",
@@ -1212,7 +1221,7 @@ async def reject_payment_claim(
             "claim_id": claim.id,
             "reason": rejection_reason,
             "reviewer_user_id": rejected_by_user_id,
-            "restored_status": invoice.status,
+            "restored_status": restored_status,
         },
     )
 
@@ -1290,7 +1299,8 @@ async def create_draft_invoice_from_quote(
     repository.add(invoice)
     await repository.flush()
 
-    repository.add_all([
+    repository.add_all(
+        [
             InvoiceLineItem(
                 invoice_id=invoice.id,
                 position=item.position,
@@ -1300,7 +1310,8 @@ async def create_draft_invoice_from_quote(
                 total_minor=item.total_minor,
             )
             for item in quote_obj.items
-        ])
+        ]
+    )
 
     if commit:
         await db.commit()
@@ -1326,6 +1337,7 @@ async def create_invoice_comment(
         item = await repository.get_line_item(invoice.id, payload.line_item_id)
         if item is None:
             raise BadRequestException("That line item does not belong to this invoice.")
+
     author_name = (
         payload.author_name.strip()
         if payload.author_name and payload.author_name.strip()
@@ -1334,6 +1346,7 @@ async def create_invoice_comment(
     message = payload.message.strip()
     if not message:
         raise BadRequestException("A comment message is required.")
+
     comment = InvoiceComment(
         invoice_id=invoice.id,
         line_item_id=payload.line_item_id,
@@ -1356,11 +1369,16 @@ async def recall_invoice(
     reason: Optional[str] = None,
 ) -> Invoice:
     return await InvoiceRecallService.recall(
-        db, workspace.id, invoice_id,
-        actor_user_id=actor_user_id, reason=reason,
+        db,
+        workspace.id,
+        invoice_id,
+        actor_user_id=actor_user_id,
+        reason=reason,
     )
 
+
 from app.domains.invoices.recall_models import InvoiceDocumentVersion
+
 
 async def list_invoice_document_versions(
     db: AsyncSession,
@@ -1438,26 +1456,31 @@ async def view_public_invoice(
     # not repeatedly change the document lifecycle or create notifications.
     if invoice.viewed_at is None:
         old_status = invoice.status
-        new_status = old_status
 
         if old_status in {"issued", "sent"}:
-            new_status = "viewed"
-            invoice.status = new_status
+            transition_document(
+                db,
+                document=invoice,
+                document_type="invoice",
+                to_status="viewed",
+                actor_type="client",
+                source="client_view",
+            )
+        else:
+            # A view of a payment-state invoice is an observation, not
+            # a lifecycle transition. Preserve its financial status.
+            record_status_event(
+                db=db,
+                workspace_id=invoice.workspace_id,
+                document_type="invoice",
+                document_id=invoice.id,
+                from_status=old_status,
+                to_status=old_status,
+                actor_type="client",
+                source="client_view",
+            )
 
         invoice.viewed_at = datetime.now(timezone.utc)
-
-        # Record every document's first successful view, including views
-        # that must preserve a financial state such as paid or partially_paid.
-        record_status_event(
-            db=db,
-            workspace_id=invoice.workspace_id,
-            document_type="invoice",
-            document_id=invoice.id,
-            from_status=old_status,
-            to_status=new_status,
-            actor_type="client",
-            source="client_view",
-        )
 
         if workspace.owner_id:
             from app.domains.notifications.service import NotificationService

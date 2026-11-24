@@ -11,7 +11,7 @@ from app.domains.invoices.repository import InvoiceRepository
 from app.integrations.email_outbox import supersede_active_document_emails
 
 from app.domains.reminders.service import cancel_invoice_reminders
-from app.domains.lifecycle.service import record_status_event
+from app.domains.lifecycle.service import transition_document
 
 
 class InvoiceRecallService:
@@ -82,7 +82,7 @@ class InvoiceRecallService:
                 "An unresolved payment claim exists. Resolve the claim before recalling."
             )
 
-            # Check the durable provider-attempt record before changing any
+        # Check the durable provider-attempt record before changing any
         # document or invoice state. Invoice-level processing fields are
         # retained as an additional guard for older/incomplete attempts.
         if (
@@ -204,7 +204,6 @@ class InvoiceRecallService:
         )
 
         now = datetime.now(timezone.utc)
-        old_status = invoice.status
 
         # Find and mark the current issued snapshot as recalled.
         version = await InvoiceRepository(db).get_document_version(
@@ -253,14 +252,10 @@ class InvoiceRecallService:
 
         # The invoice becomes an editable working draft.
         # Its permanent invoice number is retained.
-        invoice.status = "draft"
-
-        record_status_event(
-            db=db,
-            workspace_id=workspace_id,
+        transition_document(
+            db,
+            document=invoice,
             document_type="invoice",
-            document_id=invoice.id,
-            from_status=old_status,
             to_status="draft",
             actor_type="issuer",
             actor_id=actor_user_id,
@@ -269,7 +264,7 @@ class InvoiceRecallService:
                 "revision_number": invoice.version,
                 "reason": reason,
                 "recalled_at": now.isoformat(),
-                "document_version_id": (version.id if version else None),
+                "document_version_id": version.id if version else None,
                 "invalidated_payment_attempts": invalidate_attempt_count,
             },
         )
