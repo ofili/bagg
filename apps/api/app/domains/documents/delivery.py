@@ -47,13 +47,7 @@ async def deliver_public_document(
     token: str,
     document_type: str,
 ) -> Response:
-    """Validate a public share token and deliver its immutable PDF.
-
-    A share token is scoped to one document type. A token for an invoice
-    cannot be used to retrieve a quote or receipt.
-
-    Both hashed tokens and legacy raw tokens are supported.
-    """
+    """Validate a public share token and deliver its immutable PDF."""
 
     model = PUBLIC_DOCUMENT_MODELS.get(document_type)
 
@@ -74,6 +68,13 @@ async def deliver_public_document(
 
     result = await db.execute(statement)
     document = result.scalar_one_or_none()
+
+    # Invalid, revoked and unknown tokens all receive the same response.
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found or invalid link",
+        )
 
     if document_type == "invoice":
         publicly_accessible_statuses = {
@@ -96,6 +97,13 @@ async def deliver_public_document(
 
     elif document_type == "quote":
         if document.status == "draft":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found or invalid link",
+            )
+
+    elif document_type == "receipt":
+        if not document.is_verified:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document not found or invalid link",

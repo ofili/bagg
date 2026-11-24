@@ -20,8 +20,22 @@ async def test_receipts_full_lifecycle():
         test_email = f"receipts-{uuid.uuid4().hex[:6]}@studio.ng"
         req_res = await client.post("/auth/magic-link", json={"email": test_email})
         code = login_code_for(test_email)
-        verify_res = await client.post("/auth/verify", json={"email": test_email, "code": code})
-        client.cookies.set("bagg_session", verify_res.cookies["bagg_session"])
+        verify_res = await client.post(
+            "/auth/verify",
+            json={
+                "email": test_email,
+                "code": code,
+                "intent": "signup",
+                "full_name": "Bagg Test User",
+            },
+        )
+
+        assert verify_res.status_code == 200, verify_res.text
+
+        session_token = verify_res.cookies.get("bagg_session")
+        assert session_token, "Successful signup did not return a session cookie"
+
+        client.cookies.set("bagg_session", session_token)
 
         # --- 2. Setup Payment Profile ---
         pp = await client.post("/payments/profiles", json={

@@ -5,6 +5,8 @@ from datetime import date, timedelta, timezone
 from datetime import datetime
 from sqlalchemy import and_, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.security import hash_token
 from app.domains.receipts.models import Receipt, ReceiptReversal
 from app.domains.invoices.models import Invoice
 from app.domains.clients.models import Client
@@ -94,16 +96,24 @@ class ReceiptRepository:
         )
         return list((await self.db.execute(stmt)).all()), total
 
+
     async def get_public(self, token: str):
+        token_hash = hash_token(token)
+
         stmt = (
             select(Receipt, Client.name, Workspace, Invoice.invoice_number)
             .join(Client, Receipt.client_id == Client.id, isouter=True)
             .join(Workspace, Receipt.workspace_id == Workspace.id)
             .join(Invoice, Receipt.invoice_id == Invoice.id)
-            .where(Receipt.share_token == token)
+            .where(
+                or_(
+                    Receipt.share_token_hash == token_hash,
+                    Receipt.share_token == token,
+                )
+            )
         )
         row = (await self.db.execute(stmt)).first()
-        return row if row else None
+        return row or None
 
     async def get_client(self, workspace_id: str, client_id: str):
         return (

@@ -10,6 +10,8 @@ from app.core.pagination import PaginatedResponse
 from app.domains.invoices import service
 from app.domains.sharing.schemas import CommentCreate, CommentResponse
 from app.domains.auth.dependencies import get_current_user_and_workspace, require_auth
+from fastapi import Request, Response
+from app.core.public_access import enforce_public_access
 from app.domains.invoices.presenter import (
     generate_whatsapp_share_url,
     map_invoice_to_response,
@@ -433,9 +435,19 @@ async def post_invoice_comment(
 @router.get("/share/{token}/pdf")
 async def get_public_invoice_pdf(
     token: str,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    """Deliver an invoice PDF through its public share token."""
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="invoice-pdf",
+        ip_limit=30,
+        token_limit=30,
+        window_seconds=60,
+    )
 
     return await deliver_public_document(
         db,
@@ -450,8 +462,20 @@ async def get_public_invoice_pdf(
 )
 async def get_public_invoice(
     token: str,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="invoice-portal",
+        ip_limit=60,
+        token_limit=60,
+        window_seconds=60,
+    )
+
     invoice, client_name, workspace = await service.view_public_invoice(
         db,
         token,

@@ -23,8 +23,10 @@ async def get_receipt(db: AsyncSession, workspace_id: str, receipt_id: str):
 
 async def get_public_receipt(db: AsyncSession, token: str):
     row = await ReceiptRepository(db).get_public(token)
-    if row is None:
+
+    if row is None or not row[0].is_verified:
         raise NotFoundException("Receipt not found or invalid link")
+
     return row
 
 

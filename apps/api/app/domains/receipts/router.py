@@ -26,6 +26,8 @@ from app.domains.receipts.queries import (
     get_public_receipt,
     get_statement,
 )
+from fastapi import Request, Response
+from app.core.public_access import enforce_public_access
 from app.domains.receipts.schemas import (
     ReceiptCreate,
     ReceiptResponse,
@@ -259,8 +261,24 @@ async def record_payment_receipt(
 
 
 @router.get("/share/{token}", response_model=PublicReceiptView)
-async def get_public_receipt_endpoint(token: str, db: AsyncSession = Depends(get_db)):
+async def get_public_receipt_endpoint(
+    token: str,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="receipt-portal",
+        ip_limit=60,
+        token_limit=60,
+        window_seconds=60,
+    )
+
     rcp, client_name, workspace, invoice_number = await get_public_receipt(db, token)
+
     return PublicReceiptView(
         id=rcp.id,
         receipt_number=rcp.receipt_number,
@@ -296,6 +314,30 @@ async def get_public_receipt_endpoint(token: str, db: AsyncSession = Depends(get
         business_brand_color=workspace.brand_color,
         client_name=client_name,
         show_badge=workspace.tier == "free",
+    )
+
+
+@router.get("/share/{token}/pdf")
+async def get_public_receipt_pdf(
+    token: str,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="receipt-pdf",
+        ip_limit=30,
+        token_limit=30,
+        window_seconds=60,
+    )
+
+    return await deliver_public_document(
+        db,
+        token=token,
+        document_type="receipt",
     )
 
 
@@ -342,18 +384,4 @@ async def get_receipt_pdf(
         workspace_id=workspace.id,
         document_type="receipt",
         source_id=receipt_id,
-    )
-
-
-@router.get("/share/{token}/pdf")
-async def get_public_receipt_pdf(
-    token: str,
-    db: AsyncSession = Depends(get_db),
-):
-    """Deliver a verified receipt PDF through its public share token."""
-
-    return await deliver_public_document(
-        db,
-        token=token,
-        document_type="receipt",
     )

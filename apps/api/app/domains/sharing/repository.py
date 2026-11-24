@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.security import hash_token
 from app.domains.clients.models import Client
 from app.domains.compliance.models import AbuseReport
 from app.domains.invoices.models import Invoice, InvoiceLineItem
@@ -22,12 +23,15 @@ class SharingRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+
     async def get_public_invoice_context(
         self,
         token: str,
         *,
         for_update: bool = False,
     ) -> Optional[tuple[Invoice, Optional[str], Workspace]]:
+        token_hash = hash_token(token)
+
         stmt = (
             select(Invoice, Client.name, Workspace)
             .join(Client, Invoice.client_id == Client.id, isouter=True)
@@ -36,7 +40,12 @@ class SharingRepository:
                 selectinload(Invoice.items),
                 selectinload(Invoice.client),
             )
-            .where(Invoice.share_token == token)
+            .where(
+                or_(
+                    Invoice.share_token_hash == token_hash,
+                    Invoice.share_token == token,
+                )
+            )
         )
 
         if for_update:
@@ -47,19 +56,27 @@ class SharingRepository:
 
         return (row[0], row[1], row[2]) if row else None
 
+
     async def get_invoice_by_token(
         self,
         token: str,
         *,
         for_update: bool = False,
     ) -> Optional[Invoice]:
+        token_hash = hash_token(token)
+
         stmt = (
             select(Invoice)
             .options(
                 selectinload(Invoice.items),
                 selectinload(Invoice.client),
             )
-            .where(Invoice.share_token == token)
+            .where(
+                or_(
+                    Invoice.share_token_hash == token_hash,
+                    Invoice.share_token == token,
+                )
+            )
         )
 
         if for_update:

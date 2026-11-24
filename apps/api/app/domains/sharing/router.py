@@ -1,12 +1,11 @@
 """HTTP adapters for public invoice sharing."""
 from typing import List
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.proxy import get_client_ip
-from app.core.rate_limit import enforce_rate_limit
+from app.core.public_access import enforce_public_access
 from app.domains.compliance.schemas import (
     AbuseReportCreate,
     AbuseReportResponse,
@@ -35,8 +34,20 @@ router = APIRouter(prefix="/share", tags=["Sharing"])
 )
 async def get_public_invoice(
     token: str,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="shared-invoice-portal",
+        ip_limit=60,
+        token_limit=60,
+        window_seconds=60,
+    )
+
     return await SharingService(db).get_public_invoice(token)
 
 
@@ -49,12 +60,16 @@ async def submit_payment_claim(
     token: str,
     payload: PaymentClaimCreate,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    await enforce_rate_limit(
-        action="client-claim",
-        identity=get_client_ip(request),
-        limit=5,
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="shared-invoice-claim",
+        ip_limit=5,
+        token_limit=5,
         window_seconds=3600,
     )
 
@@ -73,12 +88,16 @@ async def post_comment(
     token: str,
     payload: CommentCreate,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    await enforce_rate_limit(
-        action="client-comment",
-        identity=get_client_ip(request),
-        limit=20,
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="shared-invoice-comment-create",
+        ip_limit=20,
+        token_limit=10,
         window_seconds=3600,
     )
 
@@ -94,8 +113,20 @@ async def post_comment(
 )
 async def list_comments(
     token: str,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="shared-invoice-comments-list",
+        ip_limit=60,
+        token_limit=60,
+        window_seconds=60,
+    )
+
     return await SharingService(db).list_comments(token)
 
 
@@ -108,12 +139,16 @@ async def initiate_direct_checkout(
     token: str,
     payload: DirectCheckoutRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    await enforce_rate_limit(
-        action="invoice-checkout",
-        identity=get_client_ip(request),
-        limit=5,
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="shared-invoice-checkout",
+        ip_limit=5,
+        token_limit=3,
         window_seconds=3600,
     )
 
@@ -140,12 +175,16 @@ async def verify_direct_payment(
     token: str,
     payload: PaymentVerificationRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    await enforce_rate_limit(
-        action="invoice-payment-verification",
-        identity=get_client_ip(request),
-        limit=10,
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="shared-invoice-payment-verification",
+        ip_limit=10,
+        token_limit=5,
         window_seconds=3600,
     )
 
@@ -162,7 +201,6 @@ async def verify_direct_payment(
     return PaymentVerificationResponse(**result)
 
 
-
 @router.post(
     "/{token}/report-abuse",
     response_model=AbuseReportResponse,
@@ -172,12 +210,16 @@ async def report_abuse(
     token: str,
     payload: AbuseReportCreate,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    await enforce_rate_limit(
-        action="invoice-abuse-report",
-        identity=get_client_ip(request),
-        limit=5,
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="shared-invoice-abuse-report",
+        ip_limit=5,
+        token_limit=3,
         window_seconds=3600,
     )
 

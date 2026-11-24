@@ -1,14 +1,13 @@
 from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.public_access import enforce_public_access
 from app.domains.auth.dependencies import require_auth
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.proxy import get_client_ip
-from app.core.rate_limit import enforce_rate_limit
 from app.core.pagination import PaginatedResponse
 from app.domains.documents.delivery import (
     deliver_issued_document,
@@ -252,8 +251,20 @@ async def convert_quote_to_invoice(
 @router.get("/share/{token}", response_model=PublicQuoteView)
 async def get_public_quote(
     token: str,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="quote-portal",
+        ip_limit=60,
+        token_limit=60,
+        window_seconds=60,
+    )
+
     quote_obj, client_name, workspace = await service.view_public_quote(db, token)
     return map_public_quote_view(quote_obj, client_name, workspace)
 
@@ -263,14 +274,19 @@ async def accept_public_quote(
     token: str,
     payload: QuoteAcceptRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    await enforce_rate_limit(
-        action="client-quote-accept",
-        identity=get_client_ip(request),
-        limit=10,
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="quote-accept",
+        ip_limit=10,
+        token_limit=5,
         window_seconds=3600,
     )
+
     quote_obj, client_name, workspace = await service.accept_public_quote(
         db, token, payload
     )
@@ -289,14 +305,19 @@ async def decline_public_quote(
     token: str,
     payload: QuoteDeclineRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    await enforce_rate_limit(
-        action="client-quote-decline",
-        identity=get_client_ip(request),
-        limit=10,
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="quote-decline",
+        ip_limit=10,
+        token_limit=5,
         window_seconds=3600,
     )
+
     quote_obj, client_name, workspace = await service.decline_public_quote(
         db, token, payload
     )
@@ -314,8 +335,20 @@ async def decline_public_quote(
 async def request_public_quote_review(
     token: str,
     payload: QuoteReviewRequest,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="quote-request-review",
+        ip_limit=10,
+        token_limit=5,
+        window_seconds=3600,
+    )
+
     quote_obj, client_name, workspace = await service.request_quote_review(
         db, token, payload
     )
@@ -332,8 +365,20 @@ async def request_public_quote_review(
 @router.get("/share/{token}/comments", response_model=List[QuoteCommentResponse])
 async def list_public_quote_comments(
     token: str,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="quote-comments-list",
+        ip_limit=60,
+        token_limit=60,
+        window_seconds=60,
+    )
+
     quote_obj, _, _ = await service.view_public_quote(db, token)
     return [
         QuoteCommentResponse.model_validate(comment)
@@ -351,14 +396,19 @@ async def post_public_quote_comment(
     payload: QuoteCommentCreate,
     background_tasks: BackgroundTasks,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    await enforce_rate_limit(
-        action="client-quote-comment",
-        identity=get_client_ip(request),
-        limit=20,
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="quote-comment-create",
+        ip_limit=20,
+        token_limit=10,
         window_seconds=3600,
     )
+
     comment, quote_obj, workspace, item_description, owner_email = (
         await service.post_public_quote_comment(db, token, payload)
     )
@@ -380,9 +430,19 @@ async def post_public_quote_comment(
 @router.get("/share/{token}/pdf")
 async def get_public_quote_pdf(
     token: str,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    """Deliver a quote PDF through its public share token."""
+    await enforce_public_access(
+        request=request,
+        response=response,
+        token=token,
+        action="quote-pdf",
+        ip_limit=30,
+        token_limit=30,
+        window_seconds=60,
+    )
 
     return await deliver_public_document(
         db,
