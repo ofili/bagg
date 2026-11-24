@@ -106,7 +106,7 @@ export default function PricingPage() {
             simple pricing
           </div>
         }
-        title="start free. pay when you outgrow it."
+        title="Start free. Pay when you outgrow it."
         copy="Get your invoices, quotes and payments sorted for free. Move to Creator Pro when you have regular clients, or Professional when you want more control."
       >
         <div className="flex flex-wrap items-center gap-3">
@@ -125,7 +125,7 @@ export default function PricingPage() {
         <Container className="py-14 sm:py-16 lg:py-20">
           <div className="mb-9 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <SectionHeading
-              title="pick your plan."
+              title="Pick your plan."
               copy="Pay monthly, or save about 17% by paying yearly. Both prices are right there."
             />
             <span className="inline-flex w-fit items-center gap-2 border-brut border-ink bg-surface px-3 py-2 text-caption font-extrabold text-ink shadow-brut-sm">
@@ -191,7 +191,7 @@ export default function PricingPage() {
                 pay as you go
               </p>
               <h2 className="mt-3 text-title-l font-extrabold tracking-tight text-ink">
-                need a few more sends? buy credits instead.
+                Need a few more sends? Buy credits instead.
               </h2>
               <p className="mt-3 max-w-xl text-body-l text-text-soft">
                 No subscription needed. Buy a pack and use it whenever you need
@@ -237,7 +237,7 @@ export default function PricingPage() {
       <section className="bg-cream">
         <Container className="py-14 sm:py-16">
           <SectionHeading
-            title="no surprises with your money."
+            title="No surprises with your money."
             copy="Know what you're buying, what it costs and what happens if you change your mind."
           />
 
@@ -267,7 +267,7 @@ export default function PricingPage() {
         <Container className="py-14 sm:py-16">
           <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
             <SectionHeading
-              title="pricing questions."
+              title="Pricing questions."
               copy="The practical stuff about plans, credits and billing."
             />
             <FaqList items={pricingFaqs} />
@@ -276,7 +276,7 @@ export default function PricingPage() {
       </section>
 
       <CtaBand
-        title="get your next invoice moving."
+        title="Get your next invoice moving."
         copy="Start free, get your client payments in order, and upgrade when you need more."
         href="/signup"
         label="Start free"

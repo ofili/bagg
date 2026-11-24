@@ -43,9 +43,9 @@ export default function MarketingPage() {
             </MarketingSticker>
 
             <h1 className="mt-6 max-w-2xl text-[clamp(3rem,7vw,5.5rem)] font-extrabold leading-[0.96] tracking-[-0.055em] text-ink">
-              the work is done.
+              The work is done.
               <span className="block text-ink">
-                getting paid shouldn&apos;t be a second job.
+                Getting paid shouldn&apos;t be a second job.
               </span>
             </h1>
 
@@ -157,21 +157,21 @@ export default function MarketingPage() {
       <section id="how-it-works" className="scroll-mt-24 bg-cream">
         <Container className="py-20 sm:py-28 lg:py-32">
           <SectionHeading
-            title="three steps. zero chasing."
+            title="Three steps. Zero chasing."
             copy="You make it. They get it. You get paid."
           />
 
           <MarketingGrid columns={3} gap="lg" className="mt-10">
             <WorkflowCard
               label="Create"
-              title="make it look like you."
+              title="Make it look like you."
               copy="Add your business, your client, what you're charging and how to pay you. Pick the currency and Bagg does the rest."
               tone="surface"
               sisiMood="happy"
             />
             <WorkflowCard
               label="Share"
-              title="send one link."
+              title="Send one link."
               copy="Drop it into WhatsApp, email, anywhere. Your client opens it and sees exactly what to pay. No sign-up, no download."
               tone="mango"
               featured
@@ -179,7 +179,7 @@ export default function MarketingPage() {
             />
             <WorkflowCard
               label="Collect"
-              title="watch it land."
+              title="Watch it land."
               copy="See when it's opened, record the payment and send a receipt. Reminders stop the second you're paid."
               tone="surface"
               sisiMood="celebrating"
@@ -215,7 +215,7 @@ export default function MarketingPage() {
       <MarketingSection spacing="large" border="both" className="bg-surface">
         <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
           <SectionHeading
-            title="everything you need to get paid. nothing you don't."
+            title="Everything you need to get paid. Nothing you don't."
             copy="Invoices, reminders, payment tracking and receipts. No business-suite clutter."
           />
           <div className="flex justify-start lg:justify-end">
@@ -232,37 +232,37 @@ export default function MarketingPage() {
         <MarketingGrid columns={2} gap="md" className="mt-10">
           <CapabilityCard
             icon={<FileText className="h-5 w-5" />}
-            title="invoices you're proud to send"
+            title="Invoices you're proud to send"
             copy="Line items, due dates, your logo (or your initials) and the right payment details. Looks good with or without a logo."
             tag="Create"
           />
           <CapabilityCard
             icon={<Link2 className="h-5 w-5" />}
-            title="one link, one clear page"
+            title="One link, one clear page"
             copy="Your client sees the amount, how to pay and what happens next. That's it."
             tag="Share"
           />
           <CapabilityCard
             icon={<BellRing className="h-5 w-5" />}
-            title="reminders that do the awkward part"
+            title="Reminders that do the awkward part"
             copy="Friendly nudges before and after the due date, sent for you. They stop the moment you're paid."
             tag="Follow up"
           />
           <CapabilityCard
             icon={<Wallet className="h-5 w-5" />}
-            title="know who has paid"
+            title="Know who has paid"
             copy="See what's been opened, what's part paid and what's late. When a client says they've paid, you check and confirm."
             tag="Track"
           />
           <CapabilityCard
             icon={<ReceiptText className="h-5 w-5" />}
-            title="a receipt for every payment"
+            title="A receipt for every payment"
             copy="Each confirmed payment gets a numbered receipt you can share."
             tag="Record"
           />
           <CapabilityCard
             icon={<Globe2 className="h-5 w-5" />}
-            title="naira, dollars, pounds and more"
+            title="Naira, dollars, pounds and more"
             copy="Invoice local clients in naira and international ones in their own currency, each with the right payment details."
             tag="Local + global"
           />
@@ -278,7 +278,7 @@ export default function MarketingPage() {
             </p>
 
             <h2 className="mt-3 text-title-l text-ink sm:text-[2.5rem] sm:leading-[2.7rem]">
-              invoice in the currency your client pays in.
+              Invoice in the currency your client pays in.
             </h2>
 
             <p className="mt-4 max-w-xl text-body-l text-text-soft">
@@ -312,7 +312,7 @@ export default function MarketingPage() {
                 <p className="text-caption font-extrabold uppercase text-text-muted">
                   your client sees
                 </p>
-                <p className="mt-3 text-title text-ink">one clear amount.</p>
+                <p className="mt-3 text-title text-ink">One clear amount.</p>
                 <p className="mt-2 text-body text-text-soft">
                   The currency, the balance and how to pay.
                 </p>
@@ -328,7 +328,7 @@ export default function MarketingPage() {
                 <p className="text-caption font-extrabold uppercase text-text-muted">
                   you keep
                 </p>
-                <p className="mt-3 text-title text-ink">the full story.</p>
+                <p className="mt-3 text-title text-ink">The full story.</p>
                 <p className="mt-2 text-body text-text-soft">
                   Status, payments, client details and receipts in one place.
                 </p>
@@ -349,7 +349,7 @@ export default function MarketingPage() {
         <Container className="py-20 sm:py-28 lg:py-32">
           <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
             <SectionHeading
-              title="made for people who are their own boss."
+              title="Made for people who are their own boss."
               copy="Freelancers, consultants and small studios."
             />
             <div className="flex justify-start lg:justify-end">
@@ -373,7 +373,7 @@ export default function MarketingPage() {
                   Freelancers &amp; Creators
                 </MarketingSticker>
                 <h3 className="text-title font-extrabold text-ink">
-                  do the work. skip the chasing.
+                  Do the work. Skip the chasing.
                 </h3>
                 <p className="mt-2 text-body text-text-soft">
                   You do the work and the admin. Let Bagg take the admin.
@@ -411,7 +411,7 @@ export default function MarketingPage() {
                   Consultants &amp; Advisers
                 </MarketingSticker>
                 <h3 className="text-title font-extrabold text-ink">
-                  formalise your expertise.
+                  Formalise your expertise.
                 </h3>
                 <p className="mt-2 text-body text-text-soft">
                   Your expertise is the product. Get paid like it.
@@ -452,7 +452,7 @@ export default function MarketingPage() {
                   Creative Studios
                 </MarketingSticker>
                 <h3 className="text-title font-extrabold text-ink">
-                  control project cash flow.
+                  Control project cash flow.
                 </h3>
                 <p className="mt-2 text-body text-text-soft">
                   Deposits, part payments, final invoices. All in one place.
@@ -493,7 +493,7 @@ export default function MarketingPage() {
           <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
             <div>
               <SectionHeading
-                title="good questions. straight answers."
+                title="Good questions. Straight answers."
                 copy="The stuff people ask before they sign up."
               />
               <Link
@@ -512,7 +512,7 @@ export default function MarketingPage() {
 
       {/* FINAL CTA */}
       <CtaBand
-        title="your next invoice can be the easy one."
+        title="Your next invoice can be the easy one."
         copy="Set up in a few minutes, make an invoice, send one link, and get back to your actual work."
         href="/signup"
         label="Start free"

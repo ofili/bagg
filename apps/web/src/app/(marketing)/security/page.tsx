@@ -84,7 +84,7 @@ export default function SecurityPage() {
               </div>
 
               <h1 className="mt-7 max-w-3xl text-[3.2rem] font-extrabold leading-[0.98] tracking-[-0.065em] text-ink sm:text-[4.5rem] lg:text-[5.25rem]">
-                your money details
+                Your money details
                 <span className="block text-mango">are not content.</span>
               </h1>
 
@@ -252,7 +252,7 @@ export default function SecurityPage() {
             </p>
 
             <h2 className="mt-3 max-w-lg text-[2.4rem] font-extrabold leading-[1.02] tracking-[-0.055em] text-on-sun sm:text-4xl">
-              a few habits that protect your business.
+              A few habits that protect your business.
             </h2>
 
             <p className="mt-4 max-w-md text-body-l leading-relaxed text-on-sun/80">
@@ -356,7 +356,7 @@ export default function SecurityPage() {
               </p>
 
               <h2 className="mt-2 text-title-l font-extrabold text-ink">
-                find an answer in the help centre.
+                Find an answer in the Help Centre.
               </h2>
 
               <p className="mt-2 max-w-xl text-body text-text-soft">

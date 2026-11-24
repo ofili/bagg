@@ -31,7 +31,7 @@ export const metadata: Metadata = marketingMetadata({
 const capabilities = [
   {
     label: "AGREE",
-    title: "agree on the work.",
+    title: "Agree on the work.",
     copy: "Put the scope, price and payment terms in a quote before you start.",
     href: "/features/quotes",
     link: "See quotes",
@@ -41,7 +41,7 @@ const capabilities = [
   },
   {
     label: "ASK",
-    title: "make the ask clear.",
+    title: "Make the ask clear.",
     copy: "An invoice with your line items, currency, due date and how to pay.",
     href: "/features/invoicing",
     link: "See invoicing",
@@ -51,7 +51,7 @@ const capabilities = [
   },
   {
     label: "FOLLOW UP",
-    title: "let Bagg do the nudging.",
+    title: "Let Bagg do the nudging.",
     copy: "Share one link, watch payment progress and let reminders cover the awkward bit.",
     href: "/features/payments",
     link: "See payments",
@@ -61,7 +61,7 @@ const capabilities = [
   },
   {
     label: "CLOSE",
-    title: "close the loop.",
+    title: "Close the loop.",
     copy: "Confirm the payment, see the balance and send a receipt.",
     href: "/features/receipts",
     link: "See receipts",
@@ -93,7 +93,7 @@ export default function FeaturesPage() {
           }
           title={
             <>
-              from &quot;yes, let&apos;s do it&quot;
+              From &quot;yes, let&apos;s do it&quot;
               <span className="block text-mango">to paid.</span>
             </>
           }
@@ -174,7 +174,7 @@ export default function FeaturesPage() {
           <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <SectionHeading
               eyebrow="what's in the box"
-              title="everything you need to bill and collect."
+              title="Everything you need to bill and collect."
             />
             <p className="max-w-sm text-body text-text-soft">
               Each part has one job. Together they give you a clean trail from
@@ -239,7 +239,7 @@ export default function FeaturesPage() {
                   work across borders
                 </p>
                 <h2 className="mt-3 text-title-l font-extrabold tracking-tight text-ink sm:text-4xl">
-                  your currency. your payment details.
+                  Your currency. Your payment details.
                 </h2>
                 <p className="mt-4 max-w-lg text-body-l text-text-soft">
                   Save payment details for each currency you work in. Bagg puts
@@ -290,7 +290,7 @@ export default function FeaturesPage() {
                   Your next invoice
                 </p>
                 <h2 className="mt-3 text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] text-on-sun sm:text-5xl">
-                  make getting paid part of the process.
+                  Make getting paid part of the process.
                 </h2>
                 <p className="mt-4 max-w-xl text-body-l text-on-sun/80">
                   Start free. Make your first invoice and give your client one

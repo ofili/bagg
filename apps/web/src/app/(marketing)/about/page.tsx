@@ -28,25 +28,25 @@ export const metadata: Metadata = marketingMetadata({
 
 const workflow = [
   {
-    title: "agree on the work.",
+    title: "Agree on the work.",
     copy: "Put the scope, price and expectations in a quote before you start.",
     icon: FileText,
     tone: "bg-pink text-on-pink",
   },
   {
-    title: "make the ask clear.",
+    title: "Make the ask clear.",
     copy: "Invoice with the right currency, due date and payment details.",
     icon: FileText,
     tone: "bg-mango text-on-mango",
   },
   {
-    title: "keep it moving.",
+    title: "Keep it moving.",
     copy: "Share one link, watch progress and let reminders handle the awkward follow-up.",
     icon: Wallet,
     tone: "bg-sun text-on-sun",
   },
   {
-    title: "close the loop.",
+    title: "Close the loop.",
     copy: "Confirm the payment, keep the record and send a receipt.",
     icon: ReceiptText,
     tone: "bg-surface-tint text-text",
@@ -93,9 +93,9 @@ export default function AboutPage() {
         }
         title={
           <>
-            you do the work.
+            You do the work.
             <span className="block text-mango">
-              we&apos;ll help with getting paid.
+              We&apos;ll help with getting paid.
             </span>
           </>
         }
@@ -115,7 +115,7 @@ export default function AboutPage() {
                   how Bagg works
                 </p>
                 <h2 className="mt-2 text-heading font-extrabold">
-                  from &quot;yes&quot; to paid
+                  From &quot;yes&quot; to paid
                 </h2>
               </div>
               <div className="space-y-3 p-5">
@@ -176,7 +176,7 @@ export default function AboutPage() {
             </p>
 
             <h2 className="mt-3 max-w-lg text-[2.3rem] font-extrabold leading-[1.02] tracking-[-0.055em] text-ink sm:text-4xl">
-              working for yourself is already a full-time job.
+              Working for yourself is already a full-time job.
             </h2>
 
             {/* §20.4 — About: problem section | worried | 72–96 px */}
@@ -215,7 +215,7 @@ export default function AboutPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <SectionHeading
             eyebrow="how we build"
-            title="a few rules we build by."
+            title="A few rules we build by."
           />
           <p className="max-w-sm text-body text-text-soft">
             When the work gets complicated, the product shouldn&apos;t.
@@ -261,7 +261,7 @@ export default function AboutPage() {
             </p>
 
             <h2 className="mt-3 max-w-xl text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] text-on-sun sm:text-5xl">
-              made for how independent work really runs in Africa.
+              Made for how independent work really runs in Africa.
             </h2>
           </div>
 
@@ -297,7 +297,7 @@ export default function AboutPage() {
                 </p>
 
                 <h2 className="mt-3 text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] sm:text-5xl">
-                  spend less time chasing. spend more time building.
+                  Spend less time chasing. Spend more time building.
                 </h2>
 
                 <p className="mt-4 max-w-xl text-body-l text-on-mango/80">

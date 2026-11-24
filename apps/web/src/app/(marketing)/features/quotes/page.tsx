@@ -47,8 +47,8 @@ export default function QuotesPage() {
           }
           title={
             <>
-              agree on the work.
-              <span className="block text-mango">then get started.</span>
+              Agree on the work.
+              <span className="block text-mango">Then get started.</span>
             </>
           }
           titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem]"
@@ -191,7 +191,7 @@ export default function QuotesPage() {
                 your client can reply
               </p>
               <h2 className="mt-3 text-title-l font-extrabold tracking-tight sm:text-4xl">
-                give your client a way to answer.
+                Give your client a way to answer.
               </h2>
               <p className="mt-4 max-w-xl text-body-l text-on-pink/80">
                 They can accept, decline or ask for changes, right on the quote.
@@ -257,7 +257,7 @@ export default function QuotesPage() {
                 from yes to invoice
               </p>
               <h2 className="mt-3 text-title-l font-extrabold tracking-tight sm:text-4xl">
-                accepted? turn it into an invoice.
+                Accepted? Turn it into an invoice.
               </h2>
               <p className="mt-4 max-w-xl text-body-l text-on-mango/80">
                 Once your client accepts, convert the quote into an invoice in
@@ -290,7 +290,7 @@ export default function QuotesPage() {
 
               <div className="mt-5 border-t-2 border-ink pt-4">
                 <p className="font-extrabold text-ink">
-                  accepting doesn&apos;t invoice automatically.
+                  Accepting doesn&apos;t invoice automatically.
                 </p>
                 <p className="mt-1 text-caption text-text-muted">
                   You decide when to convert it.
@@ -312,7 +312,7 @@ export default function QuotesPage() {
                   before the work begins
                 </p>
                 <h2 className="mt-3 text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] text-on-sun sm:text-5xl">
-                  put the agreement in writing.
+                  Put the agreement in writing.
                 </h2>
                 <p className="mt-4 max-w-xl text-body-l text-on-sun/80">
                   Make a quote, share it and keep the price conversation

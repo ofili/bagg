@@ -171,7 +171,7 @@ export default function ContactPage() {
               Help us help you
             </p>
             <h2 className="mt-3 text-title-l text-ink">
-              a little context goes a long way.
+              A little context goes a long way.
             </h2>
             <p className="mt-4 max-w-md text-body-l text-text-soft">
               The clearer you are about what happened, the faster we can fix it.

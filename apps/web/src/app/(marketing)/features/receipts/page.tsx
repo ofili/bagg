@@ -72,8 +72,8 @@ export default function ReceiptsFeaturePage() {
           }
           title={
             <>
-              payment received.
-              <span className="mt-2 block text-pink-ink">proof provided.</span>
+              Payment received.
+              <span className="mt-2 block text-pink-ink">Proof provided.</span>
             </>
           }
           titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem]"
@@ -225,7 +225,7 @@ export default function ReceiptsFeaturePage() {
                 one payment, one record
               </p>
               <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-ink">
-                your receipt belongs to its invoice.
+                Your receipt belongs to its invoice.
               </h2>
               <p className="mt-5 text-body-l leading-relaxed text-text-soft">
                 Confirmed payments stay linked to the invoice they settle, so
@@ -333,7 +333,7 @@ export default function ReceiptsFeaturePage() {
               share it
             </p>
             <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-ink">
-              a receipt your client can find again.
+              A receipt your client can find again.
             </h2>
             <p className="mt-5 text-body-l leading-relaxed text-text-soft">
               Give your client a direct link to their payment record. No Bagg
@@ -378,7 +378,7 @@ export default function ReceiptsFeaturePage() {
                     close the loop
                   </p>
                   <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-on-mango">
-                    from invoice sent to payment recorded.
+                    From invoice sent to payment recorded.
                   </h2>
                   <p className="mt-5 max-w-2xl text-body-l leading-relaxed text-on-mango">
                     Make the invoice, track the payment and give your client a

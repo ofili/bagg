@@ -87,8 +87,8 @@ All three share brand tokens, typography, iconography, accessibility rules and i
 
 The brand name is "bagg".
 
-- Use lowercase in the wordmark and brand headlines.
-- Use normal sentence case in product copy.
+- Use lowercase in the wordmark ("bagg").
+- Use sentence case for brand headlines, page titles, and product copy.
 - Do not use all-uppercase branding.
 
 3.2 Logo system
@@ -280,8 +280,8 @@ The existing Tailwind configuration includes the amount scale.
 
 5.3 Typography rules
 
-- Screen titles and brand headlines use lowercase where appropriate.
-- Buttons, field labels and body copy use sentence case.
+- Screen titles, page headers, and brand headlines use standard sentence case.
+- Buttons, field labels, card titles, and body copy use sentence case.
 - No all-caps labels.
 - No tracked-out eyebrow headings. *(Exception: marketing stickers and section eyebrows may use uppercase and wide tracking — see §22.5.)*
 - Body lines should generally remain below 70 characters on wide screens.
@@ -2126,7 +2126,7 @@ Small celebrations. Only the first payment gets full confetti. Everything else i
 
 Never blames the user. Teasing is aimed at the situation ("mm, that one's still open"), never at the person.
 
-Lowercase in headlines, sentence case everywhere else.
+Sentence case in headlines, screen titles, and body copy. Sisi's direct quips and conversational punchlines may use quiet lowercase ("see? told you.").
 
 20.2 Signature trait
 

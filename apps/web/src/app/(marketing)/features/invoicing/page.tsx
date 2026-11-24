@@ -54,8 +54,8 @@ export default function InvoicingPage() {
           }
           title={
             <>
-              send an invoice.
-              <span className="block text-mango">not a spreadsheet.</span>
+              Send an invoice.
+              <span className="block text-mango">Not a spreadsheet.</span>
             </>
           }
           titleClassName="text-[3.2rem] leading-[0.98] tracking-[-0.065em] sm:text-[4.5rem]"
@@ -184,7 +184,7 @@ export default function InvoicingPage() {
                   one link, every channel
                 </p>
                 <h2 className="mt-3 text-title-l font-extrabold tracking-tight sm:text-4xl">
-                  your client doesn&apos;t need another account.
+                  Your client doesn&apos;t need another account.
                 </h2>
                 <p className="mt-4 max-w-xl text-body-l text-on-pink/80">
                   Send it on WhatsApp, by email or anywhere you already talk to
@@ -244,7 +244,7 @@ export default function InvoicingPage() {
           <div className="mb-9">
             <SectionHeading
               eyebrow="know where things stand"
-              title="from sent to settled. no guessing."
+              title="From sent to settled. No guessing."
               copy="Bagg keeps the status and the balance up to date as your client opens the invoice and payments come in."
               titleClassName="text-title-l tracking-tight sm:text-4xl"
             />
@@ -281,7 +281,7 @@ export default function InvoicingPage() {
           <div className="mt-5 border-brut border-ink bg-surface p-5 shadow-brut sm:flex sm:items-center sm:justify-between sm:gap-6">
             <div>
               <p className="font-extrabold text-ink">
-                late invoices don&apos;t hide.
+                Late invoices don&apos;t hide.
               </p>
               <p className="mt-1 text-body text-text-soft">
                 Past the due date with a balance left? It&apos;s marked late, so
@@ -312,7 +312,7 @@ export default function InvoicingPage() {
                   make the next ask
                 </p>
                 <h2 className="mt-3 text-[2.5rem] font-extrabold leading-[1] tracking-[-0.055em] sm:text-5xl">
-                  your work deserves a proper invoice.
+                  Your work deserves a proper invoice.
                 </h2>
                 <p className="mt-4 max-w-xl text-body-l text-on-mango/80">
                   Make it, send it and track it, all in one place.

@@ -100,9 +100,9 @@ export default function PaymentsFeaturePage() {
           }
           title={
             <>
-              know what came in.
+              Know what came in.
               <span className="mt-2 block text-pink">
-                know what is still owed.
+                Know what is still owed.
               </span>
             </>
           }
@@ -230,7 +230,7 @@ export default function PaymentsFeaturePage() {
                 how confirming works
               </p>
               <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-ink">
-                from &quot;I&apos;ve paid&quot; to verified.
+                From &quot;I&apos;ve paid&quot; to verified.
               </h2>
               <p className="mt-5 text-body leading-relaxed text-text-soft">
                 When a client reports a manual payment, you get a review step
@@ -241,7 +241,7 @@ export default function PaymentsFeaturePage() {
                   <div>
                     <ShieldCheck aria-hidden className="h-7 w-7 text-on-pink" />
                     <p className="mt-4 text-heading font-extrabold text-on-pink">
-                      you&apos;re in control.
+                      You&apos;re in control.
                     </p>
                     <p className="mt-2 text-body text-on-pink">
                       Check the money in your bank or payment provider before you
@@ -290,7 +290,7 @@ export default function PaymentsFeaturePage() {
                 automatic follow-up
               </div>
               <h2 className="mt-6 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-ink">
-                follow up without it becoming a second job.
+                Follow up without it becoming a second job.
               </h2>
               <p className="mt-5 text-body-l leading-relaxed text-text-soft">
                 Bagg sends four email reminders around the due date, so you
@@ -377,7 +377,7 @@ export default function PaymentsFeaturePage() {
                     keep the money trail clear
                   </p>
                   <h2 className="mt-4 text-title-l font-extrabold leading-[1.02] tracking-[-0.05em] text-on-mango">
-                    every confirmed payment deserves a receipt.
+                    Every confirmed payment deserves a receipt.
                   </h2>
                   <p className="mt-5 max-w-2xl text-body-l leading-relaxed text-on-mango">
                     See how a confirmed payment becomes a receipt that stays
