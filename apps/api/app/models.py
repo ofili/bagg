@@ -25,3 +25,5 @@ import app.domains.workspaces.models  # noqa: F401
 import app.integrations.email_models  # noqa: F401
 import app.domains.activation.models  # noqa: F401
 import app.domains.documents.models  # noqa: F401
+import app.domains.engagements.models  # noqa: F401
+import app.domains.expenses.models  # noqa: F401

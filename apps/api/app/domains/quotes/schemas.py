@@ -21,6 +21,15 @@ class QuoteLineItemSchema(BaseModel):
     total_minor: int
 
 
+class ExpensePolicySchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    reimbursable_categories: List[str] = Field(default_factory=list)
+    per_expense_threshold_minor: Optional[int] = Field(default=None, ge=0)
+    total_expense_cap_minor: Optional[int] = Field(default=None, ge=0)
+    client_approval_required: bool = True
+
+
 class QuoteCreate(BaseModel):
     client_id: str
     currency: str = "NGN"
@@ -33,6 +42,8 @@ class QuoteCreate(BaseModel):
     wht_rate_percent: float = Field(default=0.0, ge=0.0, le=100.0)
     deposit_percentage: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     deposit_amount_minor: Optional[int] = Field(default=None, ge=0)
+    has_expense_policy: bool = False
+    expense_policy: Optional[ExpensePolicySchema] = None
     notes: Optional[str] = None
 
     @field_validator("currency")
@@ -55,6 +66,8 @@ class QuoteUpdate(BaseModel):
     wht_rate_percent: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     deposit_percentage: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     deposit_amount_minor: Optional[int] = Field(default=None, ge=0)
+    has_expense_policy: Optional[bool] = None
+    expense_policy: Optional[ExpensePolicySchema] = None
     notes: Optional[str] = None
 
     @field_validator("currency")
@@ -97,6 +110,8 @@ class QuoteResponse(BaseModel):
     net_payable_minor: int
     deposit_percentage: Optional[float] = None
     deposit_amount_minor: Optional[int] = None
+    has_expense_policy: bool = False
+    expense_policy: Optional[ExpensePolicySchema] = None
     notes: Optional[str] = None
     share_token: Optional[str] = None
     share_url: Optional[str] = None
@@ -160,6 +175,8 @@ class PublicQuoteView(BaseModel):
     net_payable_minor: int
     deposit_percentage: Optional[float] = None
     deposit_amount_minor: Optional[int] = None
+    has_expense_policy: bool = False
+    expense_policy: Optional[ExpensePolicySchema] = None
     notes: Optional[str] = None
     business_name: str
     business_logo_url: Optional[str] = None
@@ -205,6 +222,8 @@ class QuoteReviseRequest(BaseModel):
     wht_rate_percent: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     deposit_percentage: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     deposit_amount_minor: Optional[int] = Field(default=None, ge=0)
+    has_expense_policy: Optional[bool] = None
+    expense_policy: Optional[ExpensePolicySchema] = None
     notes: Optional[str] = None
     reason: Optional[str] = Field(default="Scope or pricing adjustment", max_length=500)
 
@@ -276,6 +295,8 @@ class QuoteRevisionResponse(BaseModel):
 
     deposit_percentage: Optional[float] = None
     deposit_amount_minor: Optional[int] = None
+    has_expense_policy: bool = False
+    expense_policy: Optional[ExpensePolicySchema] = None
     notes: Optional[str] = None
 
     items_snapshot: List[dict]

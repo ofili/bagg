@@ -64,6 +64,10 @@ class Quote(Base):
     deposit_percentage = Column(Float, nullable=True)
     deposit_amount_minor = Column(BigInteger, nullable=True)
 
+    # Expense Policy Settings (FR-080)
+    has_expense_policy = Column(Boolean, nullable=False, default=False, server_default="false")
+    expense_policy = Column(JSON, nullable=True)
+
     notes = Column(Text, nullable=True)
 
     # Share token for public client access (US-QOT-02)
@@ -158,6 +162,8 @@ class QuoteRevision(Base):
     client_id = Column(String, nullable=True)
     client_name = Column(String, nullable=True)
     currency = Column(String, nullable=True)
+    has_expense_policy = Column(Boolean, nullable=True)
+    expense_policy = Column(JSON, nullable=True)
     issue_date = Column(Date, nullable=True)
     expires_at = Column(Date, nullable=True)
     notes = Column(Text, nullable=True)

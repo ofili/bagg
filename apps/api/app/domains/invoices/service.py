@@ -676,14 +676,10 @@ async def finalize_invoice(
         quote_obj = await repository.get_quote(locked_workspace.id, invoice.quote_id)
 
         if quote_obj and quote_obj.status == "accepted":
-            quote_obj.status = "converted"
-
-            record_status_event(
-                db=db,
-                workspace_id=locked_workspace.id,
+            transition_document(
+                db,
+                document=quote_obj,
                 document_type="quote",
-                document_id=quote_obj.id,
-                from_status="accepted",
                 to_status="converted",
                 actor_type="issuer",
                 actor_id=locked_workspace.owner_id,
@@ -713,6 +709,8 @@ async def finalize_invoice(
     )
 
     await InvoiceRecallService.create_issued_snapshot(db, invoice)
+    from app.domains.expenses.repository import ExpenseRepository
+    await ExpenseRepository(db).mark_invoiced_by_invoice_id(invoice.id, datetime.now(timezone.utc))
     await db.commit()
     await InvoiceRepository(db).refresh(invoice)
 
@@ -1036,6 +1034,8 @@ async def delete_draft_invoice(
         raise BadRequestException(
             "Cannot delete an invoice that has been sent or finalized."
         )
+    from app.domains.expenses.repository import ExpenseRepository
+    await ExpenseRepository(db).release_by_invoice_id(invoice.id)
     await InvoiceRepository(db).delete(invoice)
     await db.commit()
 

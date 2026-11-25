@@ -1,5 +1,6 @@
 import {
   ArrowsClockwise,
+  Briefcase,
   CheckSquareOffset,
   House,
   Receipt,
@@ -9,6 +10,7 @@ import {
 
 export const NAV_ITEMS = [
   { label: 'Home', href: '/dashboard', icon: House },
+  { label: 'Engagements', href: '/engagements', icon: Briefcase },
   { label: 'Invoices', href: '/invoices', icon: Receipt },
   { label: 'Quotes', href: '/quotes', icon: Scroll },
   { label: 'Receipts', href: '/receipts', icon: CheckSquareOffset },

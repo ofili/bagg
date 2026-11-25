@@ -16,6 +16,8 @@ def generate_bagg_reference(document_type: str) -> str:
         "quote": "BG-QOT",
         "receipt": "BG-RCP",
         "client": "BG-CLI",
+        "engagement": "BG-ENG",
+        "expense": "BG-EXP",
     }
 
     try:

@@ -61,6 +61,13 @@ interface PublicQuoteData {
   net_payable_minor: number;
   deposit_percentage?: number | null;
   deposit_amount_minor?: number | null;
+  has_expense_policy?: boolean;
+  expense_policy?: {
+    reimbursable_categories?: string[];
+    per_expense_threshold_minor?: number | null;
+    total_expense_cap_minor?: number | null;
+    client_approval_required?: boolean;
+  } | null;
   notes?: string | null;
   business_name: string;
   business_logo_url?: string | null;
@@ -561,6 +568,38 @@ export default function PublicQuotePage() {
                   />{" "}
                   is due to start the work.
                 </p>
+              </Card>
+            ) : null}
+
+            {quote.has_expense_policy && quote.expense_policy ? (
+              <Card zone="calm" className="space-y-1.5">
+                <p className="text-body font-extrabold">
+                  Reimbursable expense policy
+                </p>
+                {quote.expense_policy.per_expense_threshold_minor != null && (
+                  <p className="text-body text-text-soft">
+                    Client approval required above{" "}
+                    <Money
+                      amountMinor={quote.expense_policy.per_expense_threshold_minor}
+                      currency={quote.currency}
+                      variant="inherit"
+                      className="font-bold text-text"
+                    />
+                    .
+                  </p>
+                )}
+                {quote.expense_policy.total_expense_cap_minor != null && (
+                  <p className="text-body text-text-soft">
+                    Total reimbursable expense cap:{" "}
+                    <Money
+                      amountMinor={quote.expense_policy.total_expense_cap_minor}
+                      currency={quote.currency}
+                      variant="inherit"
+                      className="font-bold text-text"
+                    />
+                    .
+                  </p>
+                )}
               </Card>
             ) : null}
 

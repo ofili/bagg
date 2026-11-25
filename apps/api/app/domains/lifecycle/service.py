@@ -93,8 +93,10 @@ INVOICE_TRANSITIONS = {
         "viewed",
         "paid",
     },
-    # A confirmed receipt reversal can reopen a paid invoice.
-    "paid": {"issued", "sent", "viewed", "partially_paid"},
+    # Paid invoices are terminal through the generic lifecycle service.
+    # The dedicated receipt-reversal operation is the only permitted
+    # path for reopening an invoice after a posted reversal.
+    "paid": set(),
     "cancelled": set(),
     "voided": set(),
 }
@@ -420,7 +422,6 @@ def transition_document(
         source=source,
         metadata=metadata,
     )
-
 
 
 async def transition_invoice_after_receipt_reversal(

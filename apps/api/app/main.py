@@ -36,6 +36,8 @@ from app.domains.webhooks.invoice_payments import (
 
 from app.domains.compliance.router import router as compliance_router
 from app.domains.quotes.router import router as quotes_router
+from app.domains.engagements.router import router as engagements_router
+from app.domains.expenses.router import router as expenses_router
 from app.domains.receipts.router import router as receipts_router
 from app.domains.notifications.router import router as notifications_router
 from app.domains.security.router import router as security_router
@@ -89,6 +91,8 @@ app.include_router(entitlements_router)
 app.include_router(clients_router)
 app.include_router(invoices_router)
 app.include_router(quotes_router)
+app.include_router(engagements_router)
+app.include_router(expenses_router)
 app.include_router(documents_router)
 app.include_router(payments_router)
 app.include_router(sharing_router)

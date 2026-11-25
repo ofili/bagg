@@ -1,0 +1,414 @@
+'use client';
+
+import { useEffect, useState, useCallback, type FormEvent } from 'react';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { Camera, Plus, Receipt, ArrowLeft } from '@phosphor-icons/react';
+import { PageContainer } from '@/components/ui/PageContainer';
+import { PageHeader } from '@/components/ui/PageHeader';
+import {
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  EmptyState,
+  ErrorState,
+  Field,
+  Input,
+  MoneyField,
+  Skeleton,
+  Toggle,
+} from '@/components/ui';
+import { Money } from '@/components/money/Money';
+import { formatDate } from '@/lib/date';
+import {
+  addExpensesToInvoice,
+  createScopeChange,
+  getEngagement,
+  getReceiptUploadUrl,
+  listEngagementExpenses,
+  recordExpense,
+  type Engagement,
+  type Expense,
+} from '@/lib/expenses-api';
+
+export default function EngagementExpensesPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const engagementId = params.id;
+
+  const [engagement, setEngagement] = useState<Engagement | null>(null);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+
+  // Add expense form state (camera-first on mobile)
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [description, setDescription] = useState('');
+  const [amountMajor, setAmountMajor] = useState('');
+  const [category, setCategory] = useState('general');
+  const [billable, setBillable] = useState(true);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Selection for billing to invoice
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [billingSubmitting, setBillingSubmitting] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [eng, expList] = await Promise.all([
+        getEngagement(engagementId),
+        listEngagementExpenses(engagementId),
+      ]);
+      setEngagement(eng);
+      setExpenses(expList);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load expenses');
+    } finally {
+      setLoading(false);
+    }
+  }, [engagementId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const billableTotalMinor = expenses
+    .filter((e) => e.billable && e.approval_status !== 'declined')
+    .reduce((sum, e) => sum + e.amount_minor, 0);
+
+  const effectiveCapMinor = engagement?.effective_expense_cap_minor ?? null;
+  const remainingCapMinor =
+    effectiveCapMinor != null ? Math.max(0, effectiveCapMinor - billableTotalMinor) : null;
+  const isOverCap = effectiveCapMinor != null && billableTotalMinor > effectiveCapMinor;
+
+  const eligibleExpenses = expenses.filter(
+    (e) =>
+      e.billable &&
+      e.invoicing_status === 'uninvoiced' &&
+      (e.approval_status === 'not_required' || e.approval_status === 'approved'),
+  );
+
+  const selectedTotalMinor = expenses
+    .filter((e) => selectedIds.includes(e.id))
+    .reduce((sum, e) => sum + e.amount_minor, 0);
+
+  async function handleRecordExpense(e: FormEvent) {
+    e.preventDefault();
+    if (!engagement) return;
+
+    const parsed = Math.round(Number(amountMajor.replace(/,/g, '')) * 100);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setNotice({ kind: 'error', text: 'Enter a valid expense amount greater than zero.' });
+      return;
+    }
+
+    setSubmitting(true);
+    setNotice(null);
+    try {
+      let receiptFilename: string | undefined;
+      let receiptStoragePath: string | undefined;
+      let receiptContentType: string | undefined;
+
+      if (receiptFile) {
+        const uploadMeta = await getReceiptUploadUrl(receiptFile.name, engagement.id);
+        receiptFilename = receiptFile.name;
+        receiptStoragePath = uploadMeta.storage_path;
+        receiptContentType = receiptFile.type || 'application/octet-stream';
+      }
+
+      await recordExpense({
+        engagement_id: engagement.id,
+        amount_minor: parsed,
+        currency: engagement.currency,
+        description,
+        category,
+        billable,
+        receipt_filename: receiptFilename,
+        receipt_storage_path: receiptStoragePath,
+        receipt_content_type: receiptContentType,
+      });
+
+      setDescription('');
+      setAmountMajor('');
+      setReceiptFile(null);
+      setShowAddForm(false);
+      setNotice({ kind: 'success', text: 'Expense recorded.' });
+      await load();
+    } catch (err) {
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Failed to save expense' });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleCreateExpensesInvoice() {
+    if (selectedIds.length === 0) return;
+    setBillingSubmitting(true);
+    setNotice(null);
+    try {
+      const res = await addExpensesToInvoice({ expense_ids: selectedIds });
+      setSelectedIds([]);
+      setNotice({ kind: 'success', text: 'Draft expenses invoice created.' });
+      router.push(`/invoices/${res.invoice_id}`);
+    } catch (err) {
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Could not create invoice' });
+    } finally {
+      setBillingSubmitting(false);
+    }
+  }
+
+  async function handleRequestCapIncrease(expense: Expense) {
+    if (!engagement) return;
+    setNotice(null);
+    try {
+      await createScopeChange(engagement.id, { expense_id: expense.id });
+      setNotice({
+        kind: 'success',
+        text: `Scope-change request created for "${expense.description}".`,
+      });
+      await load();
+    } catch (err) {
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Failed to create scope change' });
+    }
+  }
+
+  if (loading) {
+    return (
+      <PageContainer>
+        <Skeleton className="h-12 w-64 mb-4" />
+        <Skeleton className="h-32 w-full" />
+      </PageContainer>
+    );
+  }
+
+  if (error || !engagement) {
+    return (
+      <PageContainer>
+        <ErrorState title="Could not load expenses" description={error || 'Not found'} onRetry={load} />
+      </PageContainer>
+    );
+  }
+
+  return (
+    <PageContainer>
+      <div className="mb-4">
+        <Link
+          href={`/engagements/${engagement.id}`}
+          className="inline-flex items-center gap-1 text-caption font-bold text-text-muted hover:text-text"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to {engagement.title}
+        </Link>
+      </div>
+
+      <PageHeader
+        title="Engagement Expenses"
+        description={
+          remainingCapMinor != null
+            ? `Remaining cap: ${engagement.currency} ${(remainingCapMinor / 100).toLocaleString()}`
+            : `${engagement.bagg_reference} • ${engagement.currency}`
+        }
+        actions={
+          <Button onClick={() => setShowAddForm((prev) => !prev)}>
+            <Plus className="mr-2 h-4 w-4" />
+            {showAddForm ? 'Close Form' : 'Record Expense'}
+          </Button>
+        }
+      />
+
+      {notice && (
+        <div className="mb-4">
+          <Alert variant={notice.kind === 'error' ? 'error' : 'success'} title={notice.text}>
+            {notice.text}
+          </Alert>
+        </div>
+      )}
+
+      {isOverCap && (
+        <div className="mb-4">
+          <Alert variant="warning" title="Billable expenses exceed the current cap">
+            Submit a scope-change request on the flagged expense so the client can approve the cap increase before billing.
+          </Alert>
+        </div>
+      )}
+
+      {showAddForm && (
+        <Card className="mb-6 p-5">
+          <h2 className="text-h3 font-bold text-text">Record Expense</h2>
+          <form onSubmit={handleRecordExpense} className="mt-4 space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Description">
+                {(a11y) => (
+                  <Input
+                    {...a11y}
+                    required
+                    placeholder="e.g. Studio hire or props"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                )}
+              </Field>
+
+              <MoneyField
+                label="Amount"
+                currency={engagement.currency}
+                value={amountMajor}
+                onChange={setAmountMajor}
+                required
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Category" optional>
+                {(a11y) => (
+                  <Input
+                    {...a11y}
+                    placeholder="props, travel, studio_hire"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                  />
+                )}
+              </Field>
+
+              <Field label="Receipt (Camera or File)" optional>
+                {(a11y) => (
+                  <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-btn border-brut-thin border-ink bg-surface px-3 text-body font-medium hover:bg-surface-tint">
+                    <Camera className="h-5 w-5 shrink-0" />
+                    <span className="truncate">
+                      {receiptFile ? receiptFile.name : 'Take photo or attach receipt'}
+                    </span>
+                    <input
+                      id={a11y.id}
+                      type="file"
+                      accept="image/*,application/pdf"
+                      capture="environment"
+                      className="sr-only"
+                      onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                )}
+              </Field>
+            </div>
+
+            <Toggle
+              checked={billable}
+              onChange={setBillable}
+              label="Billable to client"
+              hint="Non-billable costs are tracked for engagement margin only and never shown to the client."
+            />
+
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? 'Saving...' : 'Save Expense'}
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
+
+      {selectedIds.length > 0 && (
+        <Card className="mb-6 flex flex-wrap items-center justify-between gap-4 border-ink bg-mango/20 p-4">
+          <div>
+            <p className="font-bold text-text">
+              {selectedIds.length} expense{selectedIds.length === 1 ? '' : 's'} selected for billing
+            </p>
+            <p className="text-caption text-text-muted">
+              Total to bill: <Money amountMinor={selectedTotalMinor} currency={engagement.currency} />
+            </p>
+          </div>
+          <Button onClick={handleCreateExpensesInvoice} disabled={billingSubmitting}>
+            <Receipt className="mr-2 h-4 w-4" />
+            {billingSubmitting ? 'Creating Draft...' : 'Create Expenses Invoice'}
+          </Button>
+        </Card>
+      )}
+
+      {expenses.length === 0 ? (
+        <EmptyState
+          mood="happy"
+          title="No expenses recorded"
+          body="Record pass-through costs or internal expenses against this engagement."
+        />
+      ) : (
+        <div className="space-y-3">
+          {expenses.map((exp) => {
+            const isEligible = eligibleExpenses.some((e) => e.id === exp.id);
+            const isChecked = selectedIds.includes(exp.id);
+
+            return (
+              <Card key={exp.id} className="p-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    {isEligible && (
+                      <div className="pt-1">
+                        <Checkbox
+                          label=""
+                          checked={isChecked}
+                          onChange={(checked) => {
+                            setSelectedIds((prev) =>
+                              checked ? [...prev, exp.id] : prev.filter((id) => id !== exp.id),
+                            );
+                          }}
+                          aria-label={`Select ${exp.description}`}
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-bold text-text">{exp.description}</h3>
+                        <span className="rounded-full border-brut-thin border-ink px-2 py-0.5 text-caption font-bold">
+                          {exp.billable ? 'Billable' : 'Internal (Non-billable)'}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-caption text-text-muted">
+                        {formatDate(exp.expense_date)}
+                        {exp.category ? ` • ${exp.category}` : ''}
+                        {exp.receipt_filename ? ` • Receipt: ${exp.receipt_filename}` : ''}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-h3 font-extrabold text-text">
+                      <Money amountMinor={exp.amount_minor} currency={exp.currency} />
+                    </p>
+                    {/* Independent state chips (FR-082) */}
+                    <div className="mt-2 flex flex-wrap justify-end gap-1.5 text-caption">
+                      <span className="rounded-full bg-surface-tint px-2 py-0.5 font-semibold">
+                        Approval: {exp.approval_status}
+                      </span>
+                      <span className="rounded-full bg-surface-tint px-2 py-0.5 font-semibold">
+                        Billing: {exp.invoicing_status}
+                      </span>
+                      <span className="rounded-full bg-surface-tint px-2 py-0.5 font-semibold">
+                        Reimbursed: {exp.reimbursement_status}
+                      </span>
+                    </div>
+                    {isOverCap && exp.billable && exp.approval_status === 'pending_approval' && (
+                      <div className="mt-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => handleRequestCapIncrease(exp)}
+                        >
+                          Request Cap Increase
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </PageContainer>
+  );
+}
