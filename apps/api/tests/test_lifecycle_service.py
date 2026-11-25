@@ -135,15 +135,43 @@ def test_invalid_transitions(document_type, source, target):
     assert not can_transition(document_type, source, target)
 
 
-def test_paid_invoice_can_be_reopened_by_receipt_reversal():
-    assert can_transition("invoice", "paid", "partially_paid")
-    assert can_transition("invoice", "paid", "viewed")
-
-
 def test_payment_claim_can_restore_previous_invoice_state():
     assert can_transition("invoice", "payment_claimed", "issued")
     assert can_transition("invoice", "payment_claimed", "sent")
     assert can_transition("invoice", "payment_claimed", "viewed")
+
+
+@pytest.mark.parametrize(
+    "target",
+    ["issued", "sent", "viewed", "partially_paid", "draft"],
+)
+def test_paid_invoice_cannot_be_reopened_by_generic_transition(target):
+    assert not can_transition("invoice", "paid", target)
+
+
+@pytest.mark.parametrize(
+    "target",
+    ["issued", "sent", "viewed", "partially_paid"],
+)
+def test_transition_document_rejects_generic_paid_invoice_reopening(target):
+    db = Mock()
+    invoice = make_document(
+        status="paid",
+        amount_paid_minor=100_000,
+        total_minor=100_000,
+        net_payable_minor=100_000,
+    )
+
+    with pytest.raises(BadRequestException):
+        transition_document(
+            db,
+            document=invoice,
+            document_type="invoice",
+            to_status=target,
+        )
+
+    assert invoice.status == "paid"
+    db.add.assert_not_called()
 
 
 def test_transition_document_mutates_and_records_event_without_commit():

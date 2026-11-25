@@ -1,4 +1,3 @@
-
 import uuid
 from datetime import date, timedelta
 
@@ -6,7 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
-from tests.helpers import create_sent_invoice, login_code_for
+from tests.helpers import authenticate_test_user, create_sent_invoice
 
 
 async def authenticated_client():
@@ -14,15 +13,12 @@ async def authenticated_client():
     client = AsyncClient(transport=transport, base_url="http://test")
 
     email = f"reversal-{uuid.uuid4().hex[:8]}@studio.ng"
-    await client.post("/auth/magic-link", json={"email": email})
 
-    code = login_code_for(email)
-    response = await client.post(
-        "/auth/verify",
-        json={"email": email, "code": code},
+    await authenticate_test_user(
+        client,
+        email,
+        full_name="Reversal Test User",
     )
-    assert response.status_code == 200
-    client.cookies.set("bagg_session", response.cookies["bagg_session"])
 
     client_response = await client.post(
         "/clients",
@@ -31,7 +27,7 @@ async def authenticated_client():
             "preferred_currency": "NGN",
         },
     )
-    assert client_response.status_code == 201
+    assert client_response.status_code == 201, client_response.text
 
     return client, client_response.json()["id"]
 

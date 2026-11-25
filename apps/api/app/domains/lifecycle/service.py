@@ -422,6 +422,172 @@ def transition_document(
     )
 
 
+
+async def transition_invoice_after_receipt_reversal(
+    db: AsyncSession,
+    *,
+    invoice,
+    receipt,
+    reversal,
+    actor_user_id: str,
+) -> DocumentStatusEvent:
+    """
+    Apply the only permitted lifecycle reopening path for a paid invoice.
+
+    This operation is deliberately separate from transition_document().
+    It validates the persisted reversal evidence, derives the resulting
+    status from the invoice's updated financial aggregates, and records
+    the lifecycle event.
+
+    The caller must have already:
+      - locked the invoice and receipt;
+      - posted the reversal;
+      - reduced invoice.amount_paid_minor by the reversal amount.
+
+    The caller owns the transaction and commit.
+    """
+
+    if invoice.status not in {
+        "paid",
+        "partially_paid",
+        "issued",
+        "sent",
+        "viewed",
+        "cancelled",
+        "void",
+        "voided",
+    }:
+        raise BadRequestException(
+            f"Invoice status '{invoice.status}' cannot be changed "
+            "through receipt reversal."
+        )
+
+    if receipt.invoice_id != invoice.id:
+        raise BadRequestException(
+            "Receipt does not belong to this invoice."
+        )
+
+    if receipt.workspace_id != invoice.workspace_id:
+        raise BadRequestException(
+            "Receipt and invoice belong to different workspaces."
+        )
+
+    if reversal.receipt_id != receipt.id:
+        raise BadRequestException(
+            "Reversal does not belong to this receipt."
+        )
+
+    if reversal.invoice_id != invoice.id:
+        raise BadRequestException(
+            "Reversal does not belong to this invoice."
+        )
+
+    if reversal.workspace_id != invoice.workspace_id:
+        raise BadRequestException(
+            "Reversal and invoice belong to different workspaces."
+        )
+
+    if reversal.status != "posted" or reversal.posted_at is None:
+        raise BadRequestException(
+            "Only a posted receipt reversal can change invoice status."
+        )
+
+    if reversal.amount_minor <= 0:
+        raise BadRequestException(
+            "Reversal amount must be greater than zero."
+        )
+
+    old_status = validate_document_status(
+        "invoice",
+        invoice.status,
+    )
+
+    old_paid = int(invoice.amount_paid_minor or 0)
+
+    if old_paid < 0:
+        raise BadRequestException(
+            "Invoice paid amount cannot be negative."
+        )
+
+    # A reversal must already have been reflected in the invoice aggregate.
+    # The receipt/reversal records provide the evidence for this operation.
+    if reversal.amount_minor > receipt.amount_paid_minor:
+        raise BadRequestException(
+            "Reversal amount exceeds the original receipt amount."
+        )
+
+    if old_status in {"cancelled", "voided"}:
+        new_status = old_status
+
+    elif old_paid >= invoice_target_payable(invoice):
+        new_status = "paid"
+
+    elif old_paid > 0:
+        new_status = "partially_paid"
+
+    elif invoice.viewed_at:
+        new_status = "viewed"
+
+    elif invoice.sent_at:
+        new_status = "sent"
+
+    else:
+        new_status = "issued"
+
+    metadata = {
+        "receipt_id": receipt.id,
+        "receipt_number": receipt.receipt_number,
+        "reversal_id": reversal.id,
+        "reversal_type": reversal.reversal_type,
+        "reversal_amount_minor": reversal.amount_minor,
+        "new_amount_paid_minor": old_paid,
+        "new_outstanding_minor": invoice_balance_minor(invoice),
+        "reason": reversal.reason,
+    }
+
+    if old_status == new_status:
+        return record_status_event(
+            db=db,
+            workspace_id=invoice.workspace_id,
+            document_type="invoice",
+            document_id=invoice.id,
+            from_status=old_status,
+            to_status=new_status,
+            actor_type="issuer",
+            actor_id=actor_user_id,
+            source="receipt_reversal_posted",
+            metadata=metadata,
+        )
+
+    if old_status == "paid":
+        # This is the explicit exception to the generic paid-terminal rule.
+        invoice.status = new_status
+
+        return record_status_event(
+            db=db,
+            workspace_id=invoice.workspace_id,
+            document_type="invoice",
+            document_id=invoice.id,
+            from_status=old_status,
+            to_status=new_status,
+            actor_type="issuer",
+            actor_id=actor_user_id,
+            source="receipt_reversal_posted",
+            metadata=metadata,
+        )
+
+    return transition_document(
+        db,
+        document=invoice,
+        document_type="invoice",
+        to_status=new_status,
+        actor_type="issuer",
+        actor_id=actor_user_id,
+        source="receipt_reversal_posted",
+        metadata=metadata,
+    )
+
+
 async def list_status_events(
     db: AsyncSession,
     workspace_id: str,

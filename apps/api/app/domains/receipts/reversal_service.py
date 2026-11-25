@@ -17,7 +17,7 @@ from app.domains.invoices.models import Invoice
 from app.domains.lifecycle.service import (
     invoice_balance_minor,
     invoice_target_payable,
-    record_status_event,
+    transition_invoice_after_receipt_reversal,
 )
 from app.domains.receipts.models import Receipt, ReceiptReversal
 from app.domains.reminders.service import resume_invoice_reminders
@@ -382,56 +382,30 @@ async def apply_posted_reversal(
             "Reversal exceeds the invoice's currently recorded paid amount."
         )
 
+    if reversal.amount_minor > receipt.amount_paid_minor:
+        raise BadRequestException("Reversal exceeds the original receipt amount.")
+
     invoice.amount_paid_minor = old_paid - reversal.amount_minor
 
-    if invoice.status in {"cancelled", "void", "voided"}:
-        # A reversal changes the financial position but does not reinstate
-        # a discontinued invoice.
-        new_status = invoice.status
-    elif invoice.amount_paid_minor >= invoice_target_payable(invoice):
-        new_status = "paid"
-    elif invoice.amount_paid_minor > 0:
-        new_status = "partially_paid"
-    elif invoice.viewed_at:
-        new_status = "viewed"
-    elif invoice.sent_at:
-        new_status = "sent"
-    else:
-        new_status = "issued"
+    if invoice.status not in {"cancelled", "void", "voided"}:
+        invoice.status = old_status
 
-    invoice.status = new_status
-
-    if new_status != "paid":
+    if invoice.amount_paid_minor < invoice_target_payable(invoice):
         invoice.paid_at = None
 
-    record_status_event(
-        db=db,
-        workspace_id=invoice.workspace_id,
-        document_type="invoice",
-        document_id=invoice.id,
-        from_status=old_status,
-        to_status=new_status,
-        actor_type="issuer",
-        actor_id=actor_user_id,
-        source="receipt_reversal_posted",
-        metadata={
-            "receipt_id": receipt.id,
-            "receipt_number": receipt.receipt_number,
-            "reversal_id": reversal.id,
-            "reversal_type": reversal.reversal_type,
-            "reversal_amount_minor": reversal.amount_minor,
-            "previous_amount_paid_minor": old_paid,
-            "new_amount_paid_minor": invoice.amount_paid_minor,
-            "new_outstanding_minor": invoice_balance_minor(invoice),
-            "reason": reversal.reason,
-        },
+    await transition_invoice_after_receipt_reversal(
+        db,
+        invoice=invoice,
+        receipt=receipt,
+        reversal=reversal,
+        actor_user_id=actor_user_id,
     )
 
     await db.flush()
 
-    # A fully paid invoice has had its reminder jobs cancelled. If a
-    # reversal makes it outstanding again, begin a new future-only cycle.
-    if old_status == "paid" and new_status in {
+    # A fully paid invoice has had its reminder jobs cancelled.
+    # If a reversal makes it outstanding again, begin a future-only cycle.
+    if old_status == "paid" and invoice.status in {
         "sent",
         "viewed",
         "partially_paid",
