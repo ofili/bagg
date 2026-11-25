@@ -47,6 +47,12 @@ class Invoice(Base):
         index=True,
         unique=True,
     )  # Parent quote (nullable: standalone invoices are allowed)
+    engagement_id = Column(
+        String,
+        ForeignKey("engagements.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     currency = Column(String, nullable=False, index=True)  # NGN, USD, GBP, EUR, GHS, KES, ZAR
     status = Column(
         String, nullable=False, default="draft", index=True

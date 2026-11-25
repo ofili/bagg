@@ -100,6 +100,17 @@ class ExpenseRepository:
         )
         await self.db.execute(stmt)
 
+    async def mark_unreimbursed_by_invoice_id(self, invoice_id: str) -> None:
+        stmt = (
+            update(Expense)
+            .where(
+                Expense.invoice_id == invoice_id,
+                Expense.reimbursement_status == "reimbursed",
+            )
+            .values(reimbursement_status="unreimbursed", reimbursed_at=None)
+        )
+        await self.db.execute(stmt)
+
     async def release_by_invoice_id(self, invoice_id: str) -> None:
         stmt = (
             update(Expense)

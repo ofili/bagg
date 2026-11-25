@@ -100,6 +100,49 @@ async def create_or_get_engagement_from_quote(
     return engagement
 
 
+async def create_manual_engagement(
+    db: AsyncSession,
+    workspace: Workspace,
+    payload: EngagementCreate,
+) -> Engagement:
+    """Manually creates an engagement for agreed work (BAG-ENG-001)."""
+    policy = payload.expense_policy or {}
+    cap_minor = payload.baseline_expense_cap_minor or policy.get("total_expense_cap_minor")
+    threshold_minor = payload.per_expense_threshold_minor or policy.get("per_expense_threshold_minor")
+
+    commercial_baseline = {
+        "source": "manual_agreement",
+        "currency": payload.currency.upper(),
+        "title": payload.title,
+        "expense_policy": policy,
+        "baseline_expense_cap_minor": cap_minor,
+        "per_expense_threshold_minor": threshold_minor,
+    }
+
+    engagement = Engagement(
+        workspace_id=workspace.id,
+        client_id=payload.client_id,
+        quote_id=payload.quote_id,
+        title=payload.title.strip(),
+        engagement_type=payload.engagement_type,
+        status="active",
+        currency=payload.currency.upper(),
+        start_date=payload.start_date,
+        target_completion_date=payload.target_completion_date,
+        commercial_baseline=commercial_baseline,
+        baseline_expense_cap_minor=cap_minor,
+        effective_expense_cap_minor=cap_minor,
+        per_expense_threshold_minor=threshold_minor,
+        expense_policy_snapshot=policy if policy else None,
+        notes=payload.notes,
+    )
+    repo = EngagementRepository(db)
+    repo.add(engagement)
+    await db.commit()
+    await db.refresh(engagement)
+    return engagement
+
+
 async def create_scope_change_request(
     db: AsyncSession,
     workspace: Workspace,
@@ -275,7 +318,7 @@ async def get_engagement_margin(
     if not engagement:
         raise NotFoundException(f"Engagement '{engagement_id}' not found.")
 
-    # Gather all invoices tied to this engagement (via quote_id or via billed expenses)
+    # Gather all invoices tied to this engagement (via quote_id, engagement_id, or billed expenses)
     exp_invoice_ids_stmt = select(Expense.invoice_id).where(
         Expense.workspace_id == workspace.id,
         Expense.engagement_id == engagement.id,
@@ -284,14 +327,14 @@ async def get_engagement_margin(
     exp_inv_res = await db.execute(exp_invoice_ids_stmt)
     invoice_ids = {row[0] for row in exp_inv_res.all() if row[0]}
 
-    if engagement.quote_id:
-        q_inv_stmt = select(Invoice.id).where(
-            Invoice.workspace_id == workspace.id,
-            Invoice.quote_id == engagement.quote_id,
-        )
-        q_inv_res = await db.execute(q_inv_stmt)
-        for row in q_inv_res.all():
-            invoice_ids.add(row[0])
+    eng_inv_stmt = select(Invoice.id).where(
+        Invoice.workspace_id == workspace.id,
+        (Invoice.engagement_id == engagement.id)
+        | (Invoice.quote_id == engagement.quote_id if engagement.quote_id else False),
+    )
+    eng_inv_res = await db.execute(eng_inv_stmt)
+    for row in eng_inv_res.all():
+        invoice_ids.add(row[0])
 
     confirmed_received_minor = 0
     outstanding_invoiced_minor = 0

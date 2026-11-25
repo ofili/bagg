@@ -68,6 +68,12 @@ async def record_expense(
             f"Expense currency ({payload.currency}) must match engagement currency ({engagement.currency}) in v1."
         )
 
+    # Validate receipt storage path belongs to the workspace and engagement (AC-026)
+    if payload.receipt_storage_path:
+        expected_prefix = f"workspaces/{workspace.id}/engagements/{engagement.id}/"
+        if not payload.receipt_storage_path.startswith(expected_prefix):
+            raise BadRequestException("Invalid receipt storage path for this workspace and engagement.")
+
     exp_repo = ExpenseRepository(db)
 
     # Policy evaluation
@@ -330,6 +336,8 @@ async def approve_public_expense(
     expense.approval_status = "approved"
     expense.approved_at = datetime.now(timezone.utc)
     expense.approved_by_name = actor_name
+    if expense.engagement and expense.engagement.expense_policy_snapshot:
+        expense.policy_snapshot_at_approval = expense.engagement.expense_policy_snapshot
     await db.commit()
     await db.refresh(expense)
     return expense
@@ -415,10 +423,19 @@ async def add_expenses_to_invoice(
     # Check cap exceedance per engagement (AC-019)
     for eng_id, eng in engagements_by_id.items():
         if eng.effective_expense_cap_minor is not None:
-            total_billable = await exp_repo.sum_billable_expenses(workspace.id, eng_id)
-            if total_billable > eng.effective_expense_cap_minor:
+            # Sum current billable expenses already on invoices plus the new expenses to be added
+            billed_stmt = select(func.coalesce(func.sum(Expense.amount_minor), 0)).where(
+                Expense.workspace_id == workspace.id,
+                Expense.engagement_id == eng_id,
+                Expense.billable == True,
+                Expense.invoicing_status.in_(("drafted", "invoiced")),
+                Expense.id.notin_(unique_ids),
+            )
+            already_billed = int((await db.execute(billed_stmt)).scalar_one() or 0)
+            adding_for_eng = sum(e.amount_minor for e in expenses if e.engagement_id == eng_id)
+            if (already_billed + adding_for_eng) > eng.effective_expense_cap_minor:
                 raise BadRequestException(
-                    "Billable expenses exceed the engagement expense cap. "
+                    "Selected expenses exceed the engagement expense cap. "
                     "An accepted scope-change request is required before billing."
                 )
 
@@ -443,6 +460,7 @@ async def add_expenses_to_invoice(
         invoice = Invoice(
             workspace_id=workspace.id,
             client_id=client_id,
+            engagement_id=next(iter(engagement_ids)) if len(engagement_ids) == 1 else None,
             currency=currency,
             status="draft",
             issue_date=date.today(),

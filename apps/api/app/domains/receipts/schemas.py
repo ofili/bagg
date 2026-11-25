@@ -60,7 +60,7 @@ class ReceiptResponse(BaseModel):
     payment_date: date
     payment_method: str
     evidence_classification: str = "legacy_unclassified"
-    reversals: List[ReceiptReversalResponse] = Field(default_factory=list)
+    reversals: List["ReceiptReversalResponse"] = Field(default_factory=list)
     reference: Optional[str] = None
     payer_name: Optional[str] = None
     notes: Optional[str] = None
@@ -170,3 +170,7 @@ class ClientStatementResponse(BaseModel):
     closing_balance_minor: int = 0
     business_name: str
     generated_at: datetime
+
+
+ReceiptResponse.model_rebuild()
+PublicReceiptView.model_rebuild()

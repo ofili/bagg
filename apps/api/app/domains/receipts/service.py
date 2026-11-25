@@ -153,8 +153,9 @@ async def confirm_payment(
         new_status,
     )
 
-    if invoice.status == "paid" and not pay.late:
-        await cancel_invoice_reminders(invoice.id, db, commit=False)
+    if invoice.status == "paid":
+        if not pay.late:
+            await cancel_invoice_reminders(invoice.id, db, commit=False)
         from app.domains.expenses.repository import ExpenseRepository
         await ExpenseRepository(db).mark_reimbursed_by_invoice_id(invoice.id, now)
 

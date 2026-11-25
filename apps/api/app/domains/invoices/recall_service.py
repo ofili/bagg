@@ -275,6 +275,9 @@ class InvoiceRecallService:
             commit=False,
         )
 
+        from app.domains.expenses.repository import ExpenseRepository
+        await ExpenseRepository(db).release_by_invoice_id(invoice.id)
+
         repository = InvoiceRepository(db)
         if commit:
             await db.commit()

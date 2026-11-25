@@ -110,7 +110,7 @@ class QuoteResponse(BaseModel):
     net_payable_minor: int
     deposit_percentage: Optional[float] = None
     deposit_amount_minor: Optional[int] = None
-    has_expense_policy: bool = False
+    has_expense_policy: Optional[bool] = False
     expense_policy: Optional[ExpensePolicySchema] = None
     notes: Optional[str] = None
     share_token: Optional[str] = None
@@ -175,7 +175,7 @@ class PublicQuoteView(BaseModel):
     net_payable_minor: int
     deposit_percentage: Optional[float] = None
     deposit_amount_minor: Optional[int] = None
-    has_expense_policy: bool = False
+    has_expense_policy: Optional[bool] = False
     expense_policy: Optional[ExpensePolicySchema] = None
     notes: Optional[str] = None
     business_name: str
@@ -295,7 +295,7 @@ class QuoteRevisionResponse(BaseModel):
 
     deposit_percentage: Optional[float] = None
     deposit_amount_minor: Optional[int] = None
-    has_expense_policy: bool = False
+    has_expense_policy: Optional[bool] = False
     expense_policy: Optional[ExpensePolicySchema] = None
     notes: Optional[str] = None
 

@@ -20,7 +20,8 @@ from app.domains.invoices.presenter import map_invoice_to_response
 from app.domains.invoices.schemas import InvoiceReceiptSummary
 from app.domains.lifecycle.service import (
     invoice_balance_minor,
-    record_status_event,
+    record_payment_claim_created,
+    transition_document,
 )
 from app.domains.payments.models import PaymentClaim
 from app.domains.payments.profile_rules import is_payment_profile_usable
@@ -285,19 +286,33 @@ class SharingService:
 
             await self.repo.add_claim(claim)
 
-            old_status = invoice.status
-            invoice.status = "payment_claimed"
+            # SQLAlchemy generates the claim ID during flush. Flush is
+            # necessary before recording its lifecycle event, but does
+            # not commit the surrounding transaction.
+            await self.db.flush()
 
-            record_status_event(
-                db=self.db,
+            record_payment_claim_created(
+                self.db,
+                claim=claim,
                 workspace_id=invoice.workspace_id,
+                actor_type="client",
+                source="client_payment_claim",
+                metadata={
+                    "invoice_id": invoice.id,
+                    "amount_minor": payload.amount_minor,
+                    "reference": payload.reference,
+                },
+            )
+
+            transition_document(
+                self.db,
+                document=invoice,
                 document_type="invoice",
-                document_id=invoice.id,
-                from_status=old_status,
                 to_status="payment_claimed",
                 actor_type="client",
                 source="client_payment_claim",
                 metadata={
+                    "claim_id": claim.id,
                     "amount_minor": payload.amount_minor,
                     "reference": payload.reference,
                 },

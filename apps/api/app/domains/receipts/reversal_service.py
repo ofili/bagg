@@ -392,6 +392,8 @@ async def apply_posted_reversal(
 
     if invoice.amount_paid_minor < invoice_target_payable(invoice):
         invoice.paid_at = None
+        from app.domains.expenses.repository import ExpenseRepository
+        await ExpenseRepository(db).mark_unreimbursed_by_invoice_id(invoice.id)
 
     await transition_invoice_after_receipt_reversal(
         db,

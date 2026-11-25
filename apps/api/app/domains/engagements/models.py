@@ -52,6 +52,7 @@ class Engagement(Base):
         ForeignKey("quotes.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
+        unique=True,
     )
 
     title = Column(String(255), nullable=False)

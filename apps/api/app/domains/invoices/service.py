@@ -1294,6 +1294,7 @@ async def create_draft_invoice_from_quote(
         share_token_hash=token_hash,
         version=1,
         quote_id=quote_obj.id,
+        engagement_id=quote_obj.engagement.id if hasattr(quote_obj, "engagement") and quote_obj.engagement else None,
     )
     repository = InvoiceRepository(db)
     repository.add(invoice)

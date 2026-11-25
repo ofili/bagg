@@ -15,6 +15,7 @@ class EngagementCreate(BaseModel):
     per_expense_threshold_minor: Optional[int] = Field(default=None, ge=0)
     expense_policy: Optional[dict[str, Any]] = None
     notes: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class EngagementResponse(BaseModel):

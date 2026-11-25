@@ -6,6 +6,7 @@ from httpx import AsyncClient, ASGITransport
 from app.main import app
 from tests.helpers import create_sent_invoice, login_code_for
 
+from app.domains.lifecycle.models import DocumentStatusEvent
 from app.domains.reminders.models import ReminderJob
 
 async def setup_claimable_invoice(amount_minor: int = 50_000_00):
@@ -521,6 +522,64 @@ async def test_partial_claim_confirmation_resumes_reminders_for_remaining_balanc
         assert all(job.status == "cancelled" for job in old_jobs)
         assert resumed_jobs
         assert all(job.status == "pending" for job in resumed_jobs)
+
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_claim_submission_records_claim_and_invoice_lifecycle_events(
+    db_session,
+):
+    client, invoice = await setup_claimable_invoice()
+
+    try:
+        response = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={
+                "amount_minor": 10_000_00,
+                "reference": "NIP/LIFECYCLE/001",
+            },
+        )
+
+        assert response.status_code == 201, response.text
+        claim_id = response.json()["id"]
+
+        db_session.expire_all()
+
+        claim_result = await db_session.execute(
+            select(DocumentStatusEvent).where(
+                DocumentStatusEvent.document_type == "payment_claim",
+                DocumentStatusEvent.document_id == claim_id,
+            )
+        )
+        claim_events = list(claim_result.scalars().all())
+
+        assert len(claim_events) == 1
+
+        claim_event = claim_events[0]
+        assert claim_event.from_status is None
+        assert claim_event.to_status == "pending"
+        assert claim_event.actor_type == "client"
+        assert claim_event.source == "client_payment_claim"
+        assert claim_event.event_metadata["invoice_id"] == invoice["id"]
+        assert claim_event.event_metadata["amount_minor"] == 10_000_00
+
+        invoice_result = await db_session.execute(
+            select(DocumentStatusEvent).where(
+                DocumentStatusEvent.document_type == "invoice",
+                DocumentStatusEvent.document_id == invoice["id"],
+                DocumentStatusEvent.source == "client_payment_claim",
+                DocumentStatusEvent.to_status == "payment_claimed",
+            )
+        )
+        invoice_events = list(invoice_result.scalars().all())
+
+        assert len(invoice_events) == 1
+
+        invoice_event = invoice_events[0]
+        assert invoice_event.actor_type == "client"
+        assert invoice_event.event_metadata["claim_id"] == claim_id
 
     finally:
         await client.aclose()

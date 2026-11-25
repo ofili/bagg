@@ -6,7 +6,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import BadRequestException
 from app.domains.lifecycle.models import DocumentStatusEvent
 
-INVOICE_STATUSES = frozenset(
+PAYMENT_CLAIM_STATUSES: frozenset[str] = frozenset(
+    {
+        "pending",
+        "confirmed",
+        "rejected",
+    }
+)
+
+PAYMENT_CLAIM_TRANSITIONS: dict[str, set[str]] = {
+    "pending": {"confirmed", "rejected"},
+    "confirmed": set(),
+    "rejected": set(),
+}
+
+INVOICE_STATUSES: frozenset[str] = frozenset(
     {
         "draft",
         "issued",
@@ -20,7 +34,7 @@ INVOICE_STATUSES = frozenset(
     }
 )
 
-QUOTE_STATUSES = frozenset(
+QUOTE_STATUSES: frozenset[str] = frozenset(
     {
         "draft",
         "issued",
@@ -34,9 +48,10 @@ QUOTE_STATUSES = frozenset(
     }
 )
 
-DOCUMENT_STATUSES = {
+DOCUMENT_STATUSES: dict[str, frozenset[str]] = {
     "invoice": INVOICE_STATUSES,
     "quote": QUOTE_STATUSES,
+    "payment_claim": PAYMENT_CLAIM_STATUSES,
 }
 
 # Compatibility for historical invoice records.
@@ -46,6 +61,7 @@ STATUS_ALIASES = {
         "void": "voided",
     },
     "quote": {},
+    "payment_claim": {},
 }
 
 
@@ -138,6 +154,7 @@ QUOTE_TRANSITIONS = {
 DOCUMENT_TRANSITIONS = {
     "invoice": INVOICE_TRANSITIONS,
     "quote": QUOTE_TRANSITIONS,
+    "payment_claim": PAYMENT_CLAIM_TRANSITIONS,
 }
 
 
@@ -383,6 +400,11 @@ def transition_document(
     The caller owns the transaction and commit. This function never
     commits, flushes or refreshes the database session.
     """
+    if document_type == "payment_claim":
+        raise BadRequestException(
+            "Payment claims must use transition_payment_claim()."
+        )
+
     from_status = validate_document_status(
         document_type,
         document.status,
@@ -612,3 +634,101 @@ async def list_status_events(
     result = await db.execute(stmt)
 
     return list(result.scalars().all())
+
+
+def record_payment_claim_created(
+    db: AsyncSession,
+    *,
+    claim,
+    workspace_id: str,
+    actor_type: str = "client",
+    actor_id: Optional[str] = None,
+    source: str = "client_payment_claim",
+    metadata: Optional[dict] = None,
+) -> DocumentStatusEvent:
+    """
+    Record the creation of a pending payment claim.
+
+    The claim must already have been persisted or flushed so its ID exists.
+    The caller owns the transaction.
+    """
+    status = validate_document_status(
+        "payment_claim",
+        claim.status,
+    )
+
+    if status != "pending":
+        raise BadRequestException("A new payment claim must start in 'pending' status.")
+
+    return record_status_event(
+        db=db,
+        workspace_id=workspace_id,
+        document_type="payment_claim",
+        document_id=claim.id,
+        from_status=None,
+        to_status="pending",
+        actor_type=actor_type,
+        actor_id=actor_id,
+        source=source,
+        metadata=metadata,
+    )
+
+
+def transition_payment_claim(
+    db: AsyncSession,
+    *,
+    claim,
+    workspace_id: str,
+    to_status: str,
+    actor_type: str = "system",
+    actor_id: Optional[str] = None,
+    source: str = "system",
+    metadata: Optional[dict] = None,
+) -> DocumentStatusEvent:
+    """
+    Validate, mutate and record one payment-claim lifecycle transition.
+
+    PaymentClaim has no workspace_id of its own. The caller must supply
+    the workspace ID from the locked parent invoice.
+
+    This function never commits or flushes.
+    """
+    from_status = validate_document_status(
+        "payment_claim",
+        claim.status,
+    )
+
+    target_status = validate_document_status(
+        "payment_claim",
+        to_status,
+    )
+
+    if from_status == target_status:
+        raise BadRequestException(
+            f"Payment claim is already in status '{target_status}'."
+        )
+
+    if not can_transition(
+        "payment_claim",
+        from_status,
+        target_status,
+    ):
+        raise BadRequestException(
+            "Invalid payment claim status transition: "
+            f"'{from_status}' to '{target_status}'."
+        )
+
+    claim.status = target_status
+
+    return record_status_event(
+        db=db,
+        workspace_id=workspace_id,
+        document_type="payment_claim",
+        document_id=claim.id,
+        from_status=from_status,
+        to_status=target_status,
+        actor_type=actor_type,
+        actor_id=actor_id,
+        source=source,
+        metadata=metadata,
+    )

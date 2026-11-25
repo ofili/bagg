@@ -16,14 +16,17 @@ import {
   Alert,
   BaggSelect,
   Button,
+  Field,
   FormPageLayout,
   FormSection,
+  Input,
   NumberField,
   PageContainer,
   PageHeader,
   RadioGroup,
   SummaryRail,
   TextArea,
+  Toggle,
   buttonStyles,
 } from '@/components/ui';
 import { InlineClientModal, type InlineCreatedClient } from '@/components/clients/InlineClientModal';
@@ -63,6 +66,10 @@ export function NewQuoteDesktop() {
   const [whtText, setWhtText] = useState('');
   const [depositText, setDepositText] = useState('');
   const [notes, setNotes] = useState('');
+  const [hasExpensePolicy, setHasExpensePolicy] = useState(false);
+  const [expenseThresholdText, setExpenseThresholdText] = useState('');
+  const [expenseCapText, setExpenseCapText] = useState('');
+  const [reimbursableCategoriesText, setReimbursableCategoriesText] = useState('props, travel, studio_hire');
 
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -148,6 +155,18 @@ export function NewQuoteDesktop() {
           tax_rate_percent: taxPercent,
           wht_rate_percent: whtPercent,
           deposit_percentage: depositPercent,
+          has_expense_policy: hasExpensePolicy,
+          expense_policy: hasExpensePolicy
+            ? {
+                reimbursable_categories: reimbursableCategoriesText
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+                per_expense_threshold_minor: expenseThresholdText ? toMinor(expenseThresholdText) : null,
+                total_expense_cap_minor: expenseCapText ? toMinor(expenseCapText) : null,
+                client_approval_required: true,
+              }
+            : null,
           notes: notes.trim() || null,
         }),
       });
@@ -406,6 +425,48 @@ export function NewQuoteDesktop() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
+
+          <div className="pt-4 border-t border-line-subtle space-y-4">
+            <Toggle
+              checked={hasExpensePolicy}
+              onChange={setHasExpensePolicy}
+              label="Reimbursable expense policy"
+              hint="Set client-reimbursable pass-through terms, approval thresholds, and a total expense cap."
+            />
+
+            {hasExpensePolicy && (
+              <div className="space-y-4 pl-4 border-l-2 border-ink">
+                <MoneyField
+                  label="Per-expense approval threshold"
+                  currency={currency}
+                  optional
+                  value={expenseThresholdText}
+                  onChange={setExpenseThresholdText}
+                  hint="Expenses exceeding this require explicit client approval."
+                />
+
+                <MoneyField
+                  label="Total reimbursable expense cap"
+                  currency={currency}
+                  optional
+                  value={expenseCapText}
+                  onChange={setExpenseCapText}
+                  hint="Maximum total reimbursable pass-through costs agreed in this quote."
+                />
+
+                <Field label="Reimbursable categories" optional>
+                  {(a11y) => (
+                    <Input
+                      {...a11y}
+                      placeholder="e.g. props, travel, logistics"
+                      value={reimbursableCategoriesText}
+                      onChange={(e) => setReimbursableCategoriesText(e.target.value)}
+                    />
+                  )}
+                </Field>
+              </div>
+            )}
+          </div>
         </FormSection>
       </FormPageLayout>
 

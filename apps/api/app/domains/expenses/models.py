@@ -87,6 +87,7 @@ class Expense(Base):
     approved_by_name = Column(String(255), nullable=True)
     declined_at = Column(DateTime(timezone=True), nullable=True)
     decline_reason = Column(Text, nullable=True)
+    policy_snapshot_at_approval = Column(JSON, nullable=True)
 
     # 2. Invoicing state: uninvoiced, drafted, invoiced
     invoicing_status = Column(
