@@ -172,10 +172,10 @@ export default function AudiencesPage() {
           }
           title={
             <>
-              your work is
+              Your work is
               <span className="mt-2 block">your business.</span>
               <span className="mt-2 inline-block -rotate-1 border-brut border-ink bg-mango px-3 pb-2 text-on-mango shadow-brut-lg">
-                make it pay.
+                Make it pay.
               </span>
             </>
           }
@@ -200,7 +200,7 @@ export default function AudiencesPage() {
                     the money side of your work
                   </p>
                   <h2 className="mt-2 text-heading font-extrabold">
-                    one connected flow.
+                    One connected flow.
                   </h2>
                 </div>
 
@@ -316,7 +316,7 @@ export default function AudiencesPage() {
         <MarketingSection spacing="large" border="both" className="bg-mango">
           <SectionHeading
             eyebrow="who it's for"
-            title="different jobs. same money questions."
+            title="Different jobs. Same money questions."
             copy="Your craft is your own. But every client needs a clear price, a clear invoice and a clear record of what's been paid."
             titleClassName="text-title-l text-on-mango"
             copyClassName="mt-5 text-on-mango"
@@ -397,7 +397,7 @@ export default function AudiencesPage() {
         <MarketingSection spacing="large" className="bg-cream">
           <SectionHeading
             eyebrow="start to finish"
-            title='from "let&apos;s work together" to paid.'
+            title='From "let&apos;s work together" to paid.'
             copy="Whatever you do, the journey with your client is the same. Bagg walks it with you."
             titleClassName="text-title-l"
             copyClassName="mt-5"
@@ -448,7 +448,7 @@ export default function AudiencesPage() {
           <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
             <SectionHeading
               eyebrow="why Bagg"
-              title="the business side, minus the admin."
+              title="The business side, minus the admin."
               copy="You don't need a giant system. You need an easy way to handle the money side of client work."
               titleClassName="text-title-l"
               copyClassName="mt-5"
@@ -485,7 +485,7 @@ export default function AudiencesPage() {
         <MarketingSection spacing="large" className="bg-cream">
           <SectionHeading
             eyebrow="look around"
-            title="everything you need to get paid."
+            title="Everything you need to get paid."
             copy="Four pieces, one flow."
             titleClassName="text-title-l"
           />
@@ -561,7 +561,7 @@ export default function AudiencesPage() {
                 </p>
 
                 <h2 className="mt-3 max-w-3xl text-title-l font-extrabold leading-tight text-on-mango">
-                  do the work you love. let Bagg handle getting paid.
+                  Do the work you love. Let Bagg handle getting paid.
                 </h2>
 
                 <p className="mt-4 max-w-2xl text-body-l leading-relaxed text-on-mango">

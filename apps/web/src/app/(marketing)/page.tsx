@@ -139,7 +139,7 @@ export default function MarketingPage() {
           <Container className="flex flex-wrap items-center gap-x-8 gap-y-2 py-4">
             {[
               "Client needs no account",
-              "NGN · USD · GBP · EUR · CAD supported",
+              `${currencies.join(" · ")} supported`,
               "Receipts sent automatically",
             ].map((fact) => (
               <span
@@ -161,40 +161,43 @@ export default function MarketingPage() {
             copy="You make it. They get it. You get paid."
           />
 
-          <MarketingGrid columns={3} gap="lg" className="mt-10">
-            <WorkflowCard
-              label="Create"
-              title="Make it look like you."
-              copy="Add your business, your client, what you're charging and how to pay you. Pick the currency and Bagg does the rest."
-              tone="surface"
-              sisiMood="happy"
+          <div className="relative mt-10">
+            {/* flow-path doodle — desktop only, links the cards across the top edge */}
+            <Doodle
+              variant="flow-path"
+              className="absolute -top-6 left-1/2 z-10 w-full max-w-xl -translate-x-1/2"
             />
-            <WorkflowCard
-              label="Share"
-              title="Send one link."
-              copy="Drop it into WhatsApp, email, anywhere. Your client opens it and sees exactly what to pay. No sign-up, no download."
-              tone="mango"
-              featured
-              sisiMood="excited"
-            />
-            <WorkflowCard
-              label="Collect"
-              title="Watch it land."
-              copy="See when it's opened, record the payment and send a receipt. Reminders stop the second you're paid."
-              tone="surface"
-              sisiMood="celebrating"
-            />
-          </MarketingGrid>
 
-          {/* flow-path doodle — desktop only, links the three cards visually */}
-          <Doodle variant="flow-path" className="mt-2 opacity-40" />
+            <MarketingGrid columns={3} gap="lg">
+              <WorkflowCard
+                label="Create"
+                title="Make it look like you."
+                copy="Add your business, your client, what you're charging and how to pay you. Pick the currency and Bagg does the rest."
+                tone="surface"
+              />
+              <WorkflowCard
+                label="Share"
+                title="Send one link."
+                copy="Drop it into WhatsApp, email, anywhere. Your client opens it and sees exactly what to pay. No sign-up, no download."
+                tone="mango"
+                featured
+              />
+              <WorkflowCard
+                label="Collect"
+                title="Watch it land."
+                copy="See when it's opened, record the payment and send a receipt. Reminders stop the second you're paid."
+                tone="surface"
+                sisiMood="celebrating"
+              />
+            </MarketingGrid>
+          </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-4">
             <div className="relative">
               {/* curl-arrow doodle points toward the secondary CTA */}
               <Doodle
                 variant="curl-arrow"
-                className="absolute -left-10 -top-8 -rotate-90 opacity-60"
+                className="absolute -left-10 -top-6"
               />
               <Link
                 href={demoInvoiceHref}
@@ -299,7 +302,7 @@ export default function MarketingPage() {
             </div>
 
             {/* currency-glyphs doodle — desktop only, sits beneath the pill row */}
-            <Doodle variant="currency-glyphs" className="mt-4 opacity-70" />
+            <Doodle variant="currency-glyphs" className="mt-4" />
           </div>
 
           <MarketingFrame

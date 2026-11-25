@@ -445,7 +445,8 @@ Doodles are a small set of 2 px ink-line SVG marks with round caps and one accen
 Constraints:
 - Maximum 3–4 doodles per page.
 - `aria-hidden="true"` and `pointer-events-none` on every instance.
-- Hide below the `sm` breakpoint.
+- Hide below the `lg` breakpoint.
+- Colours come from theme tokens (`stroke-ink`, `fill-sun`, `fill-pink`, `fill-mango`). No hard-coded hex and no opacity washes.
 - Never on pricing, security, legal or checkout pages.
 - Never behind text. Margins and gutters only.
 - No animation (Sisi's handle animation is a separate allowance).
@@ -2175,9 +2176,7 @@ Private or locked document          | locked
 Placement                                            | Mood         | Size
 ---------------------------------------------------- | ------------ | -----
 Home hero: peeking over dashboard image top-right    | happy        | 140–180 px
-How it works: Create card                            | happy        | 72–96 px
-How it works: Share card                             | excited      | 72–96 px
-How it works: Collect card                           | celebrating  | 72–96 px
+How it works: Collect card (step 3 payoff)           | celebrating  | 72–96 px
 Features hub: Agree card                             | thinking     | 72–96 px
 Features hub: Ask card                               | happy        | 72–96 px
 Features hub: Follow up card                         | skeptical    | 72–96 px
@@ -2192,6 +2191,7 @@ About: final CTA                                     | superExcited | 140–180 
 
 - Maximum one Sisi per viewport at any scroll position.
 - Maximum three to four Sisi instances per full page.
+- Sequential card rows (e.g. How it works 3-step grid): display Sisi only on the final payoff card (Collect: celebrating) rather than repeating across every card in the row, enforcing the "one Sisi per viewport" rule and avoiding visual clutter.
 - Sizes: hero 140–180 px, section 72–96 px, inline 48 px.
 - Pass `decorative` whenever the status word or message already sits beside her so screen readers skip the duplicate.
 - Never put her next to a monetary amount, a due date or a balance. Money stays plain.

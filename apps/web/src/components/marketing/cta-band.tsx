@@ -26,7 +26,7 @@ export function CtaBand({
           {doodle && (
             <Doodle
               variant="milestone-star"
-              className="absolute right-6 top-6 opacity-70 sm:right-10 sm:top-10"
+              className="absolute right-6 top-6 sm:right-10 sm:top-10"
             />
           )}
           <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-end sm:justify-between">
