@@ -18,6 +18,7 @@ from app.core.dates import business_today
 from app.core.money import format_money
 from app.core.security import generate_share_token
 from app.domains.activation.service import record_payment_confirmed
+from app.domains.audit.service import record_audit_event
 from app.domains.documents.builders.receipts import build_receipt_document
 from app.domains.documents.generation import enqueue_document_generation
 from app.domains.workspaces.models import Workspace
@@ -128,6 +129,7 @@ async def confirm_payment(
 
     balance_before = _outstanding_balance(invoice, pay)
     old_status = invoice.status
+    old_amount_paid_minor = int(invoice.amount_paid_minor or 0)
     now = datetime.now(timezone.utc)
 
     sequence, receipt_number = _allocate_receipt_number(workspace)
@@ -172,6 +174,52 @@ async def confirm_payment(
         amount_minor=pay.amount_minor,
         currency=invoice.currency,
     )
+
+    actor_type = (
+        "webhook"
+        if pay.source.startswith("webhook")
+        else "user"
+        if pay.confirmed_by_user_id
+        else "system"
+    )
+
+    await record_audit_event(
+        db,
+        workspace_id=workspace.id,
+        actor_type=actor_type,
+        actor_id=(
+            pay.confirmed_by_user_id
+            if actor_type == "user"
+            else pay.provider
+            if actor_type == "webhook"
+            else None
+        ),
+        action="payment.confirmed",
+        entity_type="receipt",
+        entity_id=receipt.id,
+        before_state={
+            "invoice_status": old_status,
+            "invoice_amount_paid_minor": old_amount_paid_minor,
+        },
+        after_state={
+            "invoice_status": invoice.status,
+            "invoice_amount_paid_minor": int(invoice.amount_paid_minor or 0),
+            "amount_paid_minor": pay.amount_minor,
+            "currency": invoice.currency,
+            "payment_method": pay.method,
+            "evidence_classification": receipt.evidence_classification,
+            "receipt_number": receipt.receipt_number,
+            "reconciliation_required": bool(invoice.reconciliation_required),
+        },
+        metadata={
+            "invoice_id": invoice.id,
+            "payment_claim_id": pay.claim_id,
+            "confirmation_source": pay.source,
+            "provider": pay.provider,
+            "late_payment": pay.late,
+        },
+    )
+
     return receipt
 
 

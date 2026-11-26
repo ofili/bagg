@@ -13,6 +13,7 @@ from app.core.errors import (
     ConflictException,
     NotFoundException,
 )
+from app.domains.audit.service import record_audit_event
 from app.domains.invoices.models import Invoice
 from app.domains.lifecycle.service import (
     invoice_balance_minor,
@@ -187,6 +188,11 @@ async def create_reversal(
     reversed_amount = await _get_posted_reversal_total(db, receipt.id)
     remaining_reversible = receipt.amount_paid_minor - reversed_amount
 
+    before_audit_state = {
+        "invoice_status": invoice.status,
+        "invoice_amount_paid_minor": int(invoice.amount_paid_minor or 0),
+    }
+
     if amount_minor > remaining_reversible:
         raise BadRequestException(
             "Reversal amount exceeds the remaining reversible receipt amount."
@@ -237,6 +243,28 @@ async def create_reversal(
             reversal=reversal,
             actor_user_id=actor_user_id,
         )
+
+    await record_audit_event(
+        db,
+        workspace_id=workspace_id,
+        actor_type="user",
+        actor_id=actor_user_id,
+        action="receipt_reversal.created",
+        entity_type="receipt_reversal",
+        entity_id=reversal.id,
+        before_state=before_audit_state,
+        after_state={
+            "reversal_status": reversal.status,
+            "reversal_type": reversal.reversal_type,
+            "amount_minor": reversal.amount_minor,
+            "invoice_status": invoice.status,
+            "invoice_amount_paid_minor": int(invoice.amount_paid_minor or 0),
+        },
+        metadata={
+            "invoice_id": invoice.id,
+            "receipt_id": receipt.id,
+        },
+    )
 
     try:
         await db.commit()
@@ -340,6 +368,12 @@ async def post_pending_reversal(
             f"Only pending reversals can be posted. Current status: {reversal.status}."
         )
 
+    before_audit_state = {
+        "reversal_status": reversal.status,
+        "invoice_status": invoice.status,
+        "invoice_amount_paid_minor": int(invoice.amount_paid_minor or 0),
+    }
+
     reversal.reversed_by_user_id = actor_user_id
 
     confirmed_evidence = (
@@ -393,6 +427,29 @@ async def post_pending_reversal(
         receipt=receipt,
         reversal=reversal,
         actor_user_id=actor_user_id,
+    )
+
+    await record_audit_event(
+        db,
+        workspace_id=workspace_id,
+        actor_type="user",
+        actor_id=actor_user_id,
+        action="receipt_reversal.posted",
+        entity_type="receipt_reversal",
+        entity_id=reversal.id,
+        before_state=before_audit_state,
+        after_state={
+            "reversal_status": reversal.status,
+            "reversal_type": reversal.reversal_type,
+            "amount_minor": reversal.amount_minor,
+            "invoice_status": invoice.status,
+            "invoice_amount_paid_minor": int(invoice.amount_paid_minor or 0),
+        },
+        metadata={
+            "invoice_id": invoice.id,
+            "receipt_id": receipt.id,
+            "has_evidence_reference": bool(reversal.evidence_reference),
+        },
     )
 
     await db.commit()

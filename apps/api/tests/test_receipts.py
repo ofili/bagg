@@ -15,6 +15,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.jobs.document_worker import claim_batch, process_job
 from app.main import app
+from app.domains.audit.models import AuditEvent
 from tests.helpers import authenticate_test_user, create_sent_invoice
 
 
@@ -30,7 +31,8 @@ async def test_receipts_full_lifecycle(monkeypatch):
         # 1. Authenticate freelancer
         # ---------------------------------------------------------
         test_email = f"receipts-{uuid.uuid4().hex[:6]}@studio.ng"
-        await authenticate_test_user(client, test_email)
+        auth_data = await authenticate_test_user(client, test_email)
+        actor_id = auth_data["user"]["id"]
 
         # ---------------------------------------------------------
         # 2. Create payment profile using step-up verification
@@ -459,6 +461,31 @@ async def test_receipts_full_lifecycle(monkeypatch):
         assert auto_receipts[0]["payment_claim_id"] == claim_data["id"]
         assert auto_receipts[0]["reference"] == "FLW-TRF-123456789"
         assert auto_receipts[0]["is_verified"] is True
+
+        # Verify the business audit event for the automatically generated receipt.
+        receipt = auto_receipts[0]
+
+        async with AsyncSessionLocal() as db:
+            payment_audit_result = await db.execute(
+                select(AuditEvent).where(
+                    AuditEvent.entity_type == "receipt",
+                    AuditEvent.entity_id == receipt["id"],
+                    AuditEvent.action == "payment.confirmed",
+                )
+            )
+            payment_audit = payment_audit_result.scalar_one()
+
+            assert payment_audit.actor_type == "user"
+            assert payment_audit.actor_id == actor_id
+            assert payment_audit.outcome == "success"
+            assert payment_audit.after_state["amount_paid_minor"] == (
+                receipt["amount_paid_minor"]
+            )
+            assert payment_audit.after_state["currency"] == "NGN"
+            assert payment_audit.after_state["evidence_classification"] == (
+                "issuer_attested"
+            )
+            assert payment_audit.metadata_json["invoice_id"] == inv2_id
 
         # Invoice 2 should be fully paid.
         inv2_final = await client.get(f"/invoices/{inv2_id}")

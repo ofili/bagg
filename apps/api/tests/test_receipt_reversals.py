@@ -6,6 +6,7 @@ from sqlalchemy import select
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
+from app.domains.audit.models import AuditEvent
 from app.domains.lifecycle.models import DocumentStatusEvent
 from tests.helpers import authenticate_test_user, create_sent_invoice
 
@@ -228,7 +229,7 @@ async def test_immediate_correction_records_initial_posted_lifecycle_event(
     client, client_id = await authenticated_client()
 
     try:
-        _, receipt = await create_paid_invoice(client, client_id)
+        invoice, receipt = await create_paid_invoice(client, client_id)
 
         current_user = await client.get("/auth/me")
         assert current_user.status_code == 200
@@ -268,6 +269,26 @@ async def test_immediate_correction_records_initial_posted_lifecycle_event(
         assert event.event_metadata["receipt_id"] == receipt["id"]
         assert event.event_metadata["amount_minor"] == 10_000
 
+        audit_result = await db_session.execute(
+            select(AuditEvent).where(
+                AuditEvent.entity_type == "receipt_reversal",
+                AuditEvent.entity_id == reversal_id,
+                AuditEvent.action == "receipt_reversal.created",
+            )
+        )
+        audit_event = audit_result.scalar_one()
+
+        assert audit_event.actor_type == "user"
+        assert audit_event.actor_id == actor_id
+        assert audit_event.outcome == "success"
+        assert audit_event.before_state["invoice_status"] == "paid"
+        assert audit_event.after_state["reversal_status"] == "posted"
+        assert audit_event.after_state["invoice_status"] == "partially_paid"
+        assert audit_event.after_state["invoice_amount_paid_minor"] == (
+            invoice["total_minor"] - 10_000
+        )
+        assert audit_event.metadata_json["receipt_id"] == receipt["id"]
+
     finally:
         await client.aclose()
 
@@ -277,7 +298,7 @@ async def test_pending_refund_records_creation_and_posting_events(db_session):
     client, client_id = await authenticated_client()
 
     try:
-        _, receipt = await create_paid_invoice(client, client_id)
+        invoice, receipt = await create_paid_invoice(client, client_id)
 
         current_user = await client.get("/auth/me")
         assert current_user.status_code == 200
@@ -329,6 +350,40 @@ async def test_pending_refund_records_creation_and_posting_events(db_session):
         assert (
             posted_event.event_metadata["evidence_reference"] == "REFUND-EVIDENCE-001"
         )
+
+        audit_result = await db_session.execute(
+            select(AuditEvent).where(
+                AuditEvent.entity_type == "receipt_reversal",
+                AuditEvent.entity_id == reversal_id,
+            )
+        )
+        audit_events = list(audit_result.scalars().all())
+
+        assert len(audit_events) == 2
+
+        audit_by_action = {event.action: event for event in audit_events}
+
+        created_audit = audit_by_action["receipt_reversal.created"]
+        assert created_audit.actor_type == "user"
+        assert created_audit.actor_id == actor_id
+        assert created_audit.after_state["reversal_status"] == "pending"
+        assert created_audit.before_state["invoice_status"] == "paid"
+        assert created_audit.after_state["invoice_status"] == "paid"
+
+        posted_audit = audit_by_action["receipt_reversal.posted"]
+        assert posted_audit.actor_type == "user"
+        assert posted_audit.actor_id == actor_id
+        assert posted_audit.before_state["reversal_status"] == "pending"
+        assert posted_audit.after_state["reversal_status"] == "posted"
+        assert posted_audit.before_state["invoice_amount_paid_minor"] == (
+            invoice["total_minor"]
+        )
+        assert posted_audit.after_state["invoice_amount_paid_minor"] == (
+            invoice["total_minor"] - 10_000
+        )
+
+        assert posted_audit.metadata_json["receipt_id"] == receipt["id"]
+        assert posted_audit.metadata_json["has_evidence_reference"] is True
 
     finally:
         await client.aclose()
