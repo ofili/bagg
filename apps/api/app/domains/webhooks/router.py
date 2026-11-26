@@ -62,10 +62,15 @@ async def paystack_webhook(
             payload,
             idempotency_key,
         )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
     except Exception as exc:
         logger.exception("Paystack webhook processing failed")
         raise HTTPException(
-            status_code=400,
+            status_code=500,
             detail="Payment event could not be processed. The event has been retained for retry.",
         ) from exc
 

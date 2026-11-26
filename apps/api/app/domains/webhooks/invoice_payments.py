@@ -1,11 +1,19 @@
 from __future__ import annotations
+
+import logging
 from typing import Optional
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
 from app.core.database import get_db
 from app.domains.webhooks.security import verify_paystack_signature
-from app.domains.webhooks.invoice_payment_service import process_invoice_payment_event
+from app.domains.webhooks.invoice_payment_service import (
+    process_invoice_payment_event,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
@@ -21,19 +29,34 @@ async def paystack_invoice_payment_webhook(
     db: AsyncSession = Depends(get_db),
 ):
     raw = await request.body()
+
     verify_paystack_signature(
-        raw_body=raw, signature=x_paystack_signature, secret=_webhook_secret()
+        raw_body=raw,
+        signature=x_paystack_signature,
+        secret=_webhook_secret(),
     )
+
     try:
         payload = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid webhook JSON.")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid webhook JSON.") from exc
+
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="Invalid webhook payload.")
+
     try:
         return await process_invoice_payment_event(db, payload)
-    except Exception:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
-            detail="Invoice payment could not be reconciled. The event has been retained for retry.",
-        )
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception("Paystack invoice webhook processing failed")
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Invoice payment could not be reconciled. "
+                "The event has been retained for retry."
+            ),
+        ) from exc

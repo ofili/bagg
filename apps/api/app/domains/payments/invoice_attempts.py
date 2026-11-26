@@ -53,7 +53,7 @@ async def create_invoice_payment_attempt(
         currency=invoice.currency,
         invoice_version=invoice.version,
     )
-    PaymentRepository(db).add(attempt)
+    await PaymentRepository(db).add(attempt)
     await PaymentRepository(db).flush()
     return attempt
 

@@ -102,7 +102,9 @@ async def process_invoice_payment_event(db: AsyncSession, payload: dict) -> dict
             or attempt.invoice_id != invoice_id
             or attempt.workspace_id != workspace_id
         ):
-            raise ValueError("Payment reference does not belong to this invoice.")
+            raise ValueError(
+                "Payment reference does not match the initialized checkout for this invoice."
+            )
         currency = data.get("currency")
         if (
             not isinstance(currency, str)
@@ -116,9 +118,17 @@ async def process_invoice_payment_event(db: AsyncSession, payload: dict) -> dict
             amount = int(data.get("amount") or 0)
         except (TypeError, ValueError):
             amount = 0
-        if amount <= 0 or amount != attempt.amount_minor:
+        if amount <= 0:
+            raise ValueError("Paystack transaction amount must be greater than zero.")
+
+        if amount > attempt.amount_minor:
             raise ValueError(
-                "Paystack transaction amount does not match the initialized payment attempt."
+                "Paystack transaction amount exceeds the initialized payment attempt."
+            )
+
+        if amount < attempt.amount_minor:
+            raise ValueError(
+                "Paystack transaction amount is less than the initialized payment attempt."
             )
         if data.get("status") != "success":
             raise ValueError(
