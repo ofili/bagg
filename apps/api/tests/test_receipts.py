@@ -310,6 +310,11 @@ async def test_receipts_full_lifecycle(monkeypatch):
         target_job_id = target.id
         claimed_ids = [claim.job_id for claim in claims]
 
+        assert target_job_id in claimed_ids, (
+            f"Receipt generation job {target_job_id} was not claimed. "
+            f"Claimed jobs: {claimed_ids}"
+        )
+
         print("TARGET JOB ID:", target_job_id)
         print("CLAIMED JOB IDS:", claimed_ids)
         print("TARGET INCLUDED:", target_job_id in claimed_ids)

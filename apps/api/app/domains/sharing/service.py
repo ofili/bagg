@@ -94,20 +94,15 @@ class SharingService:
         # or WhatsApp message is a separate action and is not a prerequisite
         # for recording that the client viewed it.
         if invoice.status in {"issued", "sent"}:
-            old_status = invoice.status
-            invoice.status = "viewed"
-            invoice.viewed_at = datetime.now(timezone.utc)
-
-            record_status_event(
-                db=self.db,
-                workspace_id=invoice.workspace_id,
+            transition_document(
+                self.db,
+                document=invoice,
                 document_type="invoice",
-                document_id=invoice.id,
-                from_status=old_status,
                 to_status="viewed",
                 actor_type="client",
                 source="client_view",
             )
+            invoice.viewed_at = datetime.now(timezone.utc)
 
             if workspace.owner_id:
                 await self.repo.add_notification(

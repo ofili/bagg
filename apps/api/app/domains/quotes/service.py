@@ -22,7 +22,10 @@ from app.domains.documents.generation import enqueue_document_generation
 from app.domains.documents.delivery import DocumentDeliveryStatus
 from app.domains.engagements import service as engagements_service
 from app.domains.invoices import service as invoices_service
-from app.domains.lifecycle.service import record_status_event
+from app.domains.lifecycle.service import (
+    record_status_event,
+    transition_document,
+)
 from app.domains.quotes.models import Quote, QuoteComment, QuoteLineItem, QuoteRevision
 from app.domains.quotes.repository import QuoteRepository
 from app.domains.quotes.schemas import (
@@ -273,8 +276,6 @@ async def finalize_quote(
             "This draft quote has expired. Update its expiry date before issuing it."
         )
 
-    old_status = quote_obj.status
-    quote_obj.status = "issued"
     if not quote_obj.quote_number:
         locked_workspace = await repository.get_workspace_for_update(workspace.id)
         if locked_workspace is None:
@@ -285,13 +286,11 @@ async def finalize_quote(
         quote_obj.sequence_number = seq
     _ensure_share_token(quote_obj)
 
-    record_status_event(
-        db=db,
-        workspace_id=workspace.id,
+    transition_document(
+        db,
+        document=quote_obj,
         document_type="quote",
-        document_id=quote_obj.id,
-        from_status=old_status,
-        to_status=quote_obj.status,
+        to_status="issued",
         actor_type="issuer",
         actor_id=workspace.owner_id,
         source="issuer_finalize",
@@ -353,7 +352,6 @@ async def revise_quote(
         )
 
     old_version = quote_obj.version or 1
-    old_status = quote_obj.status
 
     # Preserve the previous version's commercial terms before mutation.
     revision = QuoteRevision(
@@ -483,7 +481,21 @@ async def revise_quote(
     # A revision is a new draft version and must be finalized and shared again.
     quote_obj.version = old_version + 1
     quote_obj.last_revised_at = datetime.now(timezone.utc)
-    quote_obj.status = "draft"
+    
+    transition_document(
+        db,
+        document=quote_obj,
+        document_type="quote",
+        to_status="draft",
+        actor_type="issuer",
+        actor_id=workspace.owner_id,
+        source="issuer_revise",
+        metadata={
+            "from_version": old_version,
+            "to_version": quote_obj.version,
+            "reason": revision.revised_reason,
+        },
+    )
 
     # Invalidate the old public link and clear delivery/response state.
     quote_obj.share_token = None
@@ -504,23 +516,6 @@ async def revise_quote(
         db,
         message_type="quote_email",
         aggregate_id=quote_obj.id,
-    )
-
-    record_status_event(
-        db=db,
-        workspace_id=workspace.id,
-        document_type="quote",
-        document_id=quote_obj.id,
-        from_status=old_status,
-        to_status="draft",
-        actor_type="issuer",
-        actor_id=workspace.owner_id,
-        source="issuer_revise",
-        metadata={
-            "from_version": old_version,
-            "to_version": quote_obj.version,
-            "reason": revision.revised_reason,
-        },
     )
 
     await db.commit()
@@ -765,23 +760,19 @@ async def send_quote(
 
     if dispatched:
         if quote_obj.status in {"issued", "sent"}:
-            quote_obj.status = "sent"
+            if quote_obj.status == "issued":
+                transition_document(
+                    db,
+                    document=quote_obj,
+                    document_type="quote",
+                    to_status="sent",
+                    actor_type="issuer",
+                    actor_id=workspace.owner_id,
+                    source="issuer_send",
+                )
 
         if quote_obj.sent_at is None:
             quote_obj.sent_at = datetime.now(timezone.utc)
-
-    if old_status != quote_obj.status:
-        record_status_event(
-            db=db,
-            workspace_id=workspace.id,
-            document_type="quote",
-            document_id=quote_obj.id,
-            from_status=old_status,
-            to_status=quote_obj.status,
-            actor_type="issuer",
-            actor_id=workspace.owner_id,
-            source="issuer_send",
-        )
 
     if dispatched:
         await record_document_dispatched(
@@ -864,26 +855,30 @@ async def view_public_quote(
     # requests from creating duplicate events or notifications.
     if quote_obj.viewed_at is None:
         old_status = quote_obj.status
-        new_status = old_status
 
         if old_status in {"issued", "sent"}:
-            new_status = "viewed"
-            quote_obj.status = new_status
+            transition_document(
+                db,
+                document=quote_obj,
+                document_type="quote",
+                to_status="viewed",
+                actor_type="client",
+                source="client_view",
+            )
+        else:
+            # First-view observation without a commercial status change.
+            record_status_event(
+                db=db,
+                workspace_id=quote_obj.workspace_id,
+                document_type="quote",
+                document_id=quote_obj.id,
+                from_status=old_status,
+                to_status=old_status,
+                actor_type="client",
+                source="client_view",
+            )
 
         quote_obj.viewed_at = datetime.now(timezone.utc)
-
-        # Record the first view even when the quote's commercial state
-        # must remain unchanged (e.g. accepted or review_requested).
-        record_status_event(
-            db=db,
-            workspace_id=quote_obj.workspace_id,
-            document_type="quote",
-            document_id=quote_obj.id,
-            from_status=old_status,
-            to_status=new_status,
-            actor_type="client",
-            source="client_view",
-        )
 
         if workspace and workspace.owner_id:
             from app.domains.notifications.service import NotificationService
@@ -956,22 +951,19 @@ async def accept_public_quote(
     accepted_now = quote_obj.status != "accepted"
 
     if accepted_now:
-        old_status = quote_obj.status
-        quote_obj.status = "accepted"
-        quote_obj.accepted_at = datetime.now(timezone.utc)
-        quote_obj.accepted_by_name = accepted_by_name
-
-        record_status_event(
-            db=db,
-            workspace_id=quote_obj.workspace_id,
+        transition_document(
+            db,
+            document=quote_obj,
             document_type="quote",
-            document_id=quote_obj.id,
-            from_status=old_status,
             to_status="accepted",
             actor_type="client",
             source="client_accept",
-            metadata={"accepted_by_name": quote_obj.accepted_by_name},
+            metadata={"accepted_by_name": accepted_by_name},
         )
+
+        quote_obj.accepted_at = datetime.now(timezone.utc)
+        quote_obj.accepted_by_name = accepted_by_name
+
         changed = True
 
     invoice = await invoices_service.get_invoice_by_quote_id(
@@ -1040,24 +1032,20 @@ async def decline_public_quote(
             "This quote has expired and can no longer be declined."
         )
 
-    old_status = quote_obj.status
-    quote_obj.status = "declined"
-    quote_obj.declined_at = datetime.now(timezone.utc)
-
     if payload.reason:
         quote_obj.decline_reason = payload.reason.strip()
 
-    record_status_event(
-        db=db,
-        workspace_id=quote_obj.workspace_id,
+    transition_document(
+        db,
+        document=quote_obj,
         document_type="quote",
-        document_id=quote_obj.id,
-        from_status=old_status,
         to_status="declined",
         actor_type="client",
         source="client_decline",
         metadata={"reason": quote_obj.decline_reason},
     )
+
+    quote_obj.declined_at = datetime.now(timezone.utc)
 
     reason_suffix = (
         f': "{quote_obj.decline_reason}"' if quote_obj.decline_reason else "."
@@ -1104,22 +1092,19 @@ async def request_quote_review(
     if quote_obj.status == "review_requested":
         return quote_obj, client_name, workspace
 
-    old_status = quote_obj.status
-    quote_obj.status = "review_requested"
-    quote_obj.review_requested_at = datetime.now(timezone.utc)
     quote_obj.review_reason = (payload.reason or "").strip() or None
 
-    record_status_event(
-        db=db,
-        workspace_id=quote_obj.workspace_id,
+    transition_document(
+        db,
+        document=quote_obj,
         document_type="quote",
-        document_id=quote_obj.id,
-        from_status=old_status,
         to_status="review_requested",
         actor_type="client",
         source="client_request_review",
         metadata={"reason": quote_obj.review_reason},
     )
+
+    quote_obj.review_requested_at = datetime.now(timezone.utc)
 
     reason_text = f' "{quote_obj.review_reason}"' if quote_obj.review_reason else ""
 

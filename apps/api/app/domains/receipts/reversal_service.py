@@ -421,9 +421,6 @@ async def apply_posted_reversal(
 
     invoice.amount_paid_minor = old_paid - reversal.amount_minor
 
-    if invoice.status not in {"cancelled", "void", "voided"}:
-        invoice.status = old_status
-
     if invoice.amount_paid_minor < invoice_target_payable(invoice):
         invoice.paid_at = None
         from app.domains.expenses.repository import ExpenseRepository
