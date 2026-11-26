@@ -32,6 +32,7 @@ from app.domains.lifecycle.service import (
     list_status_events,
     record_status_event,
     transition_document,
+    transition_payment_claim,
 )
 from app.domains.payments.models import PaymentClaim
 from app.domains.quotes.models import Quote
@@ -1125,7 +1126,22 @@ async def confirm_payment_claim(
         provider="bank",
     )
 
-    claim.status = "confirmed"
+    transition_payment_claim(
+        db,
+        claim=claim,
+        workspace_id=workspace.id,
+        to_status="confirmed",
+        actor_type="issuer",
+        actor_id=confirmed_by_user_id,
+        source="issuer_claim_confirmed",
+        metadata={
+            "invoice_id": invoice.id,
+            "claimed_amount_minor": claim.amount_minor,
+            "confirmed_amount_minor": confirmed_amount,
+            "reference": claim.reference,
+        },
+    )
+
     claim.confirmed_at = datetime.now(timezone.utc)
     claim.confirmed_amount_minor = confirmed_amount
     claim.confirmed_by_user_id = confirmed_by_user_id
@@ -1190,7 +1206,22 @@ async def reject_payment_claim(
     if not rejection_reason:
         raise BadRequestException("A rejection reason is required.")
 
-    claim.status = "rejected"
+    transition_payment_claim(
+        db,
+        claim=claim,
+        workspace_id=workspace.id,
+        to_status="rejected",
+        actor_type="issuer",
+        actor_id=rejected_by_user_id,
+        source="issuer_claim_rejected",
+        metadata={
+            "invoice_id": invoice.id,
+            "claimed_amount_minor": claim.amount_minor,
+            "reference": claim.reference,
+            "reason": rejection_reason,
+        },
+    )
+
     claim.rejection_reason = rejection_reason
     claim.rejected_at = datetime.now(timezone.utc)
     claim.rejected_by_user_id = rejected_by_user_id
@@ -1266,6 +1297,9 @@ async def create_draft_invoice_from_quote(
     *,
     commit: bool = False,
 ) -> Invoice:
+    from app.domains.engagements.repository import EngagementRepository
+
+    engagement = await EngagementRepository(db).get_by_quote_id(workspace.id, quote_obj.id)
     raw_token, token_hash = generate_share_token()
     invoice = Invoice(
         workspace_id=workspace.id,
@@ -1294,7 +1328,7 @@ async def create_draft_invoice_from_quote(
         share_token_hash=token_hash,
         version=1,
         quote_id=quote_obj.id,
-        engagement_id=quote_obj.engagement.id if hasattr(quote_obj, "engagement") and quote_obj.engagement else None,
+        engagement_id=engagement.id if engagement else None,
     )
     repository = InvoiceRepository(db)
     repository.add(invoice)

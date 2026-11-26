@@ -67,7 +67,7 @@ async def test_quote_expense_policy_and_engagement_snapshot():
         share_token = fin_res.json()["share_token"]
 
         # 5. Public View verification
-        pub_res = await client.get(f"/quotes/public/{share_token}")
+        pub_res = await client.get(f"/quotes/share/{share_token}")
         assert pub_res.status_code == 200
         pub_data = pub_res.json()
         assert pub_data["has_expense_policy"] is True
@@ -75,7 +75,7 @@ async def test_quote_expense_policy_and_engagement_snapshot():
 
         # 6. Accept Quote as Client (AC-013)
         accept_res = await client.post(
-            f"/quotes/public/{share_token}/accept",
+            f"/quotes/share/{share_token}/accept",
             json={
                 "accepted_by_name": "Tunde Kelani",
                 "version": pub_data["version"],

@@ -1,23 +1,25 @@
-import hmac
-import hashlib
-import time
 import secrets
+import boto3
+from botocore.config import Config
 from app.core.config import settings
 
 
 class StorageService:
-    @staticmethod
-    def _generate_hmac(path: str, expires_at: int) -> str:
-        secret = settings.SECRET_KEY.encode("utf-8")
-        msg = f"{path}:{expires_at}".encode("utf-8")
-        return hmac.new(secret, msg, hashlib.sha256).hexdigest()
+    """S3-compatible object storage service generating SigV4 presigned URLs (AC-026)."""
 
-    @classmethod
-    def verify_download_signature(cls, path: str, expires_at: int, signature: str) -> bool:
-        if int(time.time()) > expires_at:
-            return False
-        expected = cls._generate_hmac(path, expires_at)
-        return hmac.compare_digest(expected, signature)
+    def __init__(self) -> None:
+        self.bucket = settings.S3_BUCKET_NAME
+        self.client = boto3.client(
+            "s3",
+            endpoint_url=settings.S3_ENDPOINT_URL or None,
+            region_name=settings.S3_REGION,
+            aws_access_key_id=settings.S3_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
+            config=Config(
+                signature_version="s3v4",
+                s3={"addressing_style": "path"},
+            ),
+        )
 
     def get_presigned_upload_url(
         self,
@@ -26,14 +28,20 @@ class StorageService:
         engagement_id: str,
         expires_seconds: int = 900,
     ) -> dict:
-        """Returns HMAC-signed upload URL for proof-of-payment receipts, logos, or expense receipts."""
+        """Returns an S3 SigV4 presigned PUT URL for expense receipts (AC-026)."""
         clean_name = filename.strip().replace(" ", "_")
-        key = f"workspaces/{workspace_id}/engagements/{engagement_id}/receipts/{secrets.token_hex(6)}_{clean_name}"
-        expires_at = int(time.time()) + expires_seconds
-        sig = self._generate_hmac(key, expires_at)
+        key = (
+            f"workspaces/{workspace_id}/engagements/{engagement_id}"
+            f"/receipts/{secrets.token_hex(6)}_{clean_name}"
+        )
+        upload_url = self.client.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": self.bucket, "Key": key},
+            ExpiresIn=expires_seconds,
+        )
         return {
-            "upload_url": f"{settings.S3_ENDPOINT_URL}/{settings.S3_BUCKET_NAME}/{key}?expires={expires_at}&sig={sig}",
-            "file_url": f"{settings.S3_ENDPOINT_URL}/{settings.S3_BUCKET_NAME}/{key}",
+            "upload_url": upload_url,
+            "file_url": f"{settings.S3_ENDPOINT_URL}/{self.bucket}/{key}",
             "storage_path": key,
             "fields": {},
         }
@@ -43,15 +51,11 @@ class StorageService:
         storage_path: str,
         expires_seconds: int = 900,
     ) -> str:
-        """Returns time-limited HMAC-signed download URL (AC-026).
-
-        Defaults to 15 minutes (900s) expiration.
-        """
+        """Returns an S3 SigV4 presigned GET URL with short-lived expiration (AC-026)."""
         if not storage_path:
             return ""
-        expires_at = int(time.time()) + expires_seconds
-        sig = self._generate_hmac(storage_path, expires_at)
-        return (
-            f"{settings.S3_ENDPOINT_URL}/{settings.S3_BUCKET_NAME}/{storage_path}"
-            f"?expires={expires_at}&sig={sig}"
+        return self.client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": self.bucket, "Key": storage_path},
+            ExpiresIn=expires_seconds,
         )

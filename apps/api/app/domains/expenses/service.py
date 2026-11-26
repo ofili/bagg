@@ -1,6 +1,6 @@
 from datetime import datetime, date, timedelta, timezone
 from typing import Optional, List, Tuple
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundException, BadRequestException
@@ -71,7 +71,10 @@ async def record_expense(
     # Validate receipt storage path belongs to the workspace and engagement (AC-026)
     if payload.receipt_storage_path:
         expected_prefix = f"workspaces/{workspace.id}/engagements/{engagement.id}/"
-        if not payload.receipt_storage_path.startswith(expected_prefix):
+        if (
+            not payload.receipt_storage_path.startswith(expected_prefix)
+            or ".." in payload.receipt_storage_path.split("/")
+        ):
             raise BadRequestException("Invalid receipt storage path for this workspace and engagement.")
 
     exp_repo = ExpenseRepository(db)
@@ -289,6 +292,10 @@ async def view_public_expense(db: AsyncSession, token: str) -> PublicExpenseView
         else None
     )
 
+    engagement = await EngagementRepository(db).get_by_id(
+        expense.workspace_id, expense.engagement_id
+    )
+
     return PublicExpenseView(
         id=expense.id,
         bagg_reference=expense.bagg_reference,
@@ -306,7 +313,7 @@ async def view_public_expense(db: AsyncSession, token: str) -> PublicExpenseView
         decline_reason=expense.decline_reason,
         business_name=workspace.business_name if workspace else "Studio Bagg",
         client_name=client.name if client else None,
-        expense_policy_snapshot=expense.engagement.expense_policy_snapshot if expense.engagement else None,
+        expense_policy_snapshot=engagement.expense_policy_snapshot if engagement else None,
         is_expired=is_expired,
     )
 
@@ -333,11 +340,26 @@ async def approve_public_expense(
     if not actor_name:
         raise BadRequestException("Approver name is required.")
 
+    from app.domains.engagements.repository import ScopeChangeRepository
+
+    engagement = await EngagementRepository(db).get_by_id(
+        expense.workspace_id, expense.engagement_id
+    )
+
     expense.approval_status = "approved"
     expense.approved_at = datetime.now(timezone.utc)
     expense.approved_by_name = actor_name
-    if expense.engagement and expense.engagement.expense_policy_snapshot:
-        expense.policy_snapshot_at_approval = expense.engagement.expense_policy_snapshot
+    if engagement:
+        scope_changes = await ScopeChangeRepository(db).list_by_engagement(
+            engagement.workspace_id, engagement.id
+        )
+        approved_changes_count = sum(1 for sc in scope_changes if sc.status == "approved")
+        expense.policy_snapshot_at_approval = {
+            **(engagement.expense_policy_snapshot or {}),
+            "policy_version": f"v1.{approved_changes_count}",
+            "effective_expense_cap_minor": engagement.effective_expense_cap_minor,
+            "per_expense_threshold_minor": engagement.per_expense_threshold_minor,
+        }
     await db.commit()
     await db.refresh(expense)
     return expense
