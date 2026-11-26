@@ -27,3 +27,4 @@ import app.domains.activation.models  # noqa: F401
 import app.domains.documents.models  # noqa: F401
 import app.domains.engagements.models  # noqa: F401
 import app.domains.expenses.models  # noqa: F401
+import app.domains.audit.models  # noqa: F401
