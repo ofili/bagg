@@ -119,8 +119,9 @@ class Expense(Base):
     )
     reimbursed_at = Column(DateTime(timezone=True), nullable=True)
 
-    # Token for direct client approval link (FR-084)
-    approval_token = Column(String, unique=True, index=True, nullable=True)
+    # Token for direct client approval link (FR-084).
+    # Only the SHA-256 hash is persisted; the raw token is returned once in the
+    # link URL and never stored in the database (prevents plaintext leaks in backups).
     approval_token_hash = Column(String, unique=True, index=True, nullable=True)
     approval_token_expires_at = Column(DateTime(timezone=True), nullable=True)
 

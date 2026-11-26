@@ -109,7 +109,6 @@ async def record_expense(
         receipt_content_type=payload.receipt_content_type,
         approval_status=approval_status,
         approval_requested_at=now if approval_status == "pending_approval" else None,
-        approval_token=token if approval_status == "pending_approval" else None,
         approval_token_hash=token_hash if approval_status == "pending_approval" else None,
         approval_token_expires_at=(now + timedelta(days=14)) if approval_status == "pending_approval" else None,
         notes=payload.notes,
@@ -180,17 +179,14 @@ async def update_expense(
             if approval_status == "pending_approval":
                 now = datetime.now(timezone.utc)
                 token, token_hash = generate_share_token()
-                expense.approval_token = token
                 expense.approval_token_hash = token_hash
                 expense.approval_requested_at = now
                 expense.approval_token_expires_at = now + timedelta(days=14)
             else:
-                expense.approval_token = None
                 expense.approval_token_hash = None
                 expense.approval_token_expires_at = None
         else:
             expense.approval_status = "not_required"
-            expense.approval_token = None
             expense.approval_token_hash = None
             expense.approval_token_expires_at = None
 

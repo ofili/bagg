@@ -54,8 +54,7 @@ class ScopeChangeRepository:
     ) -> Optional[ScopeChangeRequest]:
         token_hash = hash_token(token)
         query = select(ScopeChangeRequest).where(
-            (ScopeChangeRequest.approval_token_hash == token_hash)
-            | (ScopeChangeRequest.approval_token == token)
+            ScopeChangeRequest.approval_token_hash == token_hash
         )
         if for_update:
             query = query.with_for_update()

@@ -247,6 +247,62 @@ async def test_receipts_full_lifecycle(monkeypatch):
             InMemoryDocumentStorage,
         )
 
+        from datetime import datetime, timezone
+
+        from sqlalchemy import select
+
+        from app.core.database import AsyncSessionLocal
+        from app.domains.documents.models import DocumentGenerationJob
+        from app.core.config import settings
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(DocumentGenerationJob).where(
+                    DocumentGenerationJob.document_type == "receipt",
+                    DocumentGenerationJob.source_id == rcp1["id"],
+                )
+            )
+            target = result.scalar_one()
+
+            print("WORKER NOW:", datetime.now(timezone.utc))
+            print("BATCH SIZE:", settings.DOCUMENT_WORKER_BATCH_SIZE)
+            print(
+                "TARGET JOB:",
+                {
+                    "id": target.id,
+                    "status": target.status,
+                    "attempts": target.attempts,
+                    "available_at": target.available_at,
+                    "created_at": target.created_at,
+                },
+            )
+
+            result = await db.execute(
+                select(DocumentGenerationJob)
+                .where(
+                    DocumentGenerationJob.status == "pending",
+                    DocumentGenerationJob.available_at <= datetime.now(timezone.utc),
+                )
+                .order_by(
+                    DocumentGenerationJob.available_at.asc(),
+                    DocumentGenerationJob.created_at.asc(),
+                )
+                .limit(settings.DOCUMENT_WORKER_BATCH_SIZE + 5)
+            )
+
+            print(
+                "ELIGIBLE QUEUE:",
+                [
+                    {
+                        "id": job.id,
+                        "type": job.document_type,
+                        "source_id": job.source_id,
+                        "available_at": job.available_at,
+                    }
+                    for job in result.scalars().all()
+                ],
+            )
+
         # Run the actual document worker against queued jobs.
         claims = await claim_batch()
         assert claims, "Expected queued document-generation jobs"

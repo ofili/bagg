@@ -21,6 +21,7 @@ from app.domains.invoices.schemas import InvoiceReceiptSummary
 from app.domains.lifecycle.service import (
     invoice_balance_minor,
     record_payment_claim_created,
+    record_status_event,
     transition_document,
 )
 from app.domains.payments.models import PaymentClaim

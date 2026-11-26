@@ -221,10 +221,20 @@ async def test_partial_then_final_claim_payments():
         assert partly_paid.json()["amount_paid_minor"] == partial_amount
 
         remaining = invoice["total_minor"] - partial_amount
+
         final = await client.post(
             f"/share/{invoice['share_token']}/claim",
-            json={"amount_minor": remaining, "reference": "NIP/FINAL"},
+            json={
+                "amount_minor": remaining,
+                "reference": "NIP/FINAL",
+            },
         )
+
+        assert final.status_code == 201, (
+            f"Final claim submission failed: "
+            f"status={final.status_code}, body={final.text}"
+        )
+
         final_confirm = await client.post(
             f"/invoices/{invoice['id']}/claims/{final.json()['id']}/confirm"
         )
@@ -580,6 +590,107 @@ async def test_claim_submission_records_claim_and_invoice_lifecycle_events(
         invoice_event = invoice_events[0]
         assert invoice_event.actor_type == "client"
         assert invoice_event.event_metadata["claim_id"] == claim_id
+
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_confirmed_claim_records_lifecycle_transition(db_session):
+    client, invoice = await setup_claimable_invoice()
+
+    try:
+        submitted = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={
+                "amount_minor": 10_000_00,
+                "reference": "NIP/CLAIM-CONFIRM-EVENT",
+            },
+        )
+        assert submitted.status_code == 201, submitted.text
+        claim_id = submitted.json()["id"]
+
+        current_user = await client.get("/auth/me")
+        assert current_user.status_code == 200
+        reviewer_id = current_user.json()["user"]["id"]
+
+        confirmed = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/confirm",
+            json={"amount_paid_minor": 10_000_00},
+        )
+        assert confirmed.status_code == 200, confirmed.text
+
+        db_session.expire_all()
+
+        result = await db_session.execute(
+            select(DocumentStatusEvent).where(
+                DocumentStatusEvent.document_type == "payment_claim",
+                DocumentStatusEvent.document_id == claim_id,
+            )
+        )
+        events = list(result.scalars().all())
+
+        assert len(events) == 2
+
+        confirmation = next(event for event in events if event.to_status == "confirmed")
+        assert confirmation.from_status == "pending"
+        assert confirmation.actor_type == "issuer"
+        assert confirmation.actor_id == reviewer_id
+        assert confirmation.source == "issuer_claim_confirmed"
+        assert confirmation.event_metadata["invoice_id"] == invoice["id"]
+        assert confirmation.event_metadata["claimed_amount_minor"] == 10_000_00
+        assert confirmation.event_metadata["confirmed_amount_minor"] == 10_000_00
+
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_rejected_claim_records_lifecycle_transition(db_session):
+    client, invoice = await setup_claimable_invoice()
+
+    try:
+        submitted = await client.post(
+            f"/share/{invoice['share_token']}/claim",
+            json={
+                "amount_minor": 10_000_00,
+                "reference": "NIP/CLAIM-REJECT-EVENT",
+            },
+        )
+        assert submitted.status_code == 201, submitted.text
+        claim_id = submitted.json()["id"]
+
+        current_user = await client.get("/auth/me")
+        assert current_user.status_code == 200
+        reviewer_id = current_user.json()["user"]["id"]
+
+        reason = "The transfer could not be verified."
+
+        rejected = await client.post(
+            f"/invoices/{invoice['id']}/claims/{claim_id}/reject",
+            json={"rejection_reason": reason},
+        )
+        assert rejected.status_code == 200, rejected.text
+
+        db_session.expire_all()
+
+        result = await db_session.execute(
+            select(DocumentStatusEvent).where(
+                DocumentStatusEvent.document_type == "payment_claim",
+                DocumentStatusEvent.document_id == claim_id,
+            )
+        )
+        events = list(result.scalars().all())
+
+        assert len(events) == 2
+
+        rejection = next(event for event in events if event.to_status == "rejected")
+        assert rejection.from_status == "pending"
+        assert rejection.actor_type == "issuer"
+        assert rejection.actor_id == reviewer_id
+        assert rejection.source == "issuer_claim_rejected"
+        assert rejection.event_metadata["invoice_id"] == invoice["id"]
+        assert rejection.event_metadata["reason"] == reason
 
     finally:
         await client.aclose()

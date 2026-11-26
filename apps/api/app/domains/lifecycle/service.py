@@ -107,6 +107,7 @@ INVOICE_TRANSITIONS = {
         "issued",
         "sent",
         "viewed",
+        "payment_claimed",
         "paid",
     },
     # Paid invoices are terminal through the generic lifecycle service.

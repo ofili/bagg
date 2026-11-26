@@ -64,7 +64,6 @@ class ScopeChangeResponse(BaseModel):
     delta_amount_minor: int
     currency: str
     status: str
-    approval_token: Optional[str] = None
     accepted_at: Optional[datetime] = None
     accepted_by_name: Optional[str] = None
     declined_at: Optional[datetime] = None

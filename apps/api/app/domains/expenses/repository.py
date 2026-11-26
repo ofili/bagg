@@ -38,7 +38,7 @@ class ExpenseRepository:
     async def get_by_approval_token(self, token: str, for_update: bool = False) -> Optional[Expense]:
         token_hash = hash_token(token)
         query = select(Expense).where(
-            (Expense.approval_token_hash == token_hash) | (Expense.approval_token == token)
+            Expense.approval_token_hash == token_hash
         )
         if for_update:
             query = query.with_for_update()

@@ -8,6 +8,7 @@ from app.core.security import generate_share_token
 from app.domains.engagements.models import Engagement, ScopeChangeRequest
 from app.domains.engagements.repository import EngagementRepository, ScopeChangeRepository
 from app.domains.engagements.schemas import (
+    EngagementCreate,
     EngagementMarginResponse,
     ScopeChangeAcceptRequest,
     ScopeChangeCreateRequest,
@@ -194,7 +195,6 @@ async def create_scope_change_request(
         delta_amount_minor=delta_minor,
         currency=engagement.currency,
         status="pending",
-        approval_token=token,
         approval_token_hash=token_hash,
         approval_token_expires_at=now + timedelta(days=14),
     )
