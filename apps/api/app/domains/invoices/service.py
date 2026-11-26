@@ -30,7 +30,7 @@ from app.domains.invoices.schemas import (
 )
 from app.domains.lifecycle.service import (
     list_status_events,
-    record_status_event,
+    record_document_first_view,
     transition_document,
     transition_payment_claim,
 )
@@ -1489,34 +1489,16 @@ async def view_public_invoice(
 
     # A first successful view is recorded once. Subsequent requests do
     # not repeatedly change the document lifecycle or create notifications.
-    if invoice.viewed_at is None:
-        old_status = invoice.status
+    first_view_recorded = record_document_first_view(
+        db,
+        document=invoice,
+        document_type="invoice",
+        actor_type="client",
+        source="client_view",
+        record_unchanged_status=True,
+    )
 
-        if old_status in {"issued", "sent"}:
-            transition_document(
-                db,
-                document=invoice,
-                document_type="invoice",
-                to_status="viewed",
-                actor_type="client",
-                source="client_view",
-            )
-        else:
-            # A view of a payment-state invoice is an observation, not
-            # a lifecycle transition. Preserve its financial status.
-            record_status_event(
-                db=db,
-                workspace_id=invoice.workspace_id,
-                document_type="invoice",
-                document_id=invoice.id,
-                from_status=old_status,
-                to_status=old_status,
-                actor_type="client",
-                source="client_view",
-            )
-
-        invoice.viewed_at = datetime.now(timezone.utc)
-
+    if first_view_recorded:
         if workspace.owner_id:
             from app.domains.notifications.service import NotificationService
 

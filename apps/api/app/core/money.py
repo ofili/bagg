@@ -23,17 +23,59 @@ def get_currency_spec(currency_code: str) -> Dict[str, Any]:
     return CURRENCY_SPECS[code]
 
 
-def calculate_tax_minor(taxable_amount_minor: int, tax_percent: float) -> int:
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from typing import Any, Dict, List
+
+
+def _require_nonnegative_integer(value: Any, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field_name} must be an integer.")
+
+    if value < 0:
+        raise ValueError(f"{field_name} cannot be negative.")
+
+    return value
+
+
+def _require_percentage(value: Any, field_name: str) -> Decimal:
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a valid percentage.")
+
+    try:
+        percentage = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError) as e:
+        raise ValueError(f"{field_name} must be a valid percentage.") from e
+
+    if not percentage.is_finite() or not Decimal("0") <= percentage <= Decimal("100"):
+        raise ValueError(f"{field_name} must be between 0 and 100.")
+
+    return percentage
+
+
+def calculate_tax_minor(
+    taxable_amount_minor: int,
+    tax_percent: float,
+) -> int:
     """
-    Computes tax in minor units using Decimal with ROUND_HALF_UP.
-    taxable_amount_minor * (tax_percent / 100)
+    Calculate tax in minor units using ROUND_HALF_UP.
     """
-    if taxable_amount_minor <= 0 or tax_percent <= 0:
+    amount = _require_nonnegative_integer(
+        taxable_amount_minor,
+        "taxable_amount_minor",
+    )
+    rate = _require_percentage(tax_percent, "tax_percent")
+
+    if amount == 0 or rate == 0:
         return 0
-    amount = Decimal(taxable_amount_minor)
-    rate = Decimal(str(tax_percent)) / Decimal("100")
-    tax = amount * rate
-    return int(tax.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+    tax = Decimal(amount) * rate / Decimal("100")
+
+    return int(
+        tax.quantize(
+            Decimal("1"),
+            rounding=ROUND_HALF_UP,
+        )
+    )
 
 
 def calculate_invoice_totals(
@@ -45,30 +87,87 @@ def calculate_invoice_totals(
     deposit_amount_minor: int | None = None,
 ) -> Dict[str, Any]:
     """
-    Calculates subtotal, discounted subtotal, tax, gross total,
-    withholding tax (WHT), net payable, and milestone deposit in minor units.
-    Each item must have: quantity (int), unit_price_minor (int).
+    Calculate invoice totals using integer minor units.
+
+    Each item must contain:
+        quantity: nonnegative integer
+        unit_price_minor: nonnegative integer
+
+    Zero-valued quantities and prices remain supported.
     """
+    if not isinstance(items, list):
+        raise ValueError("items must be a list.")
+
+    discount = _require_nonnegative_integer(
+        discount_minor,
+        "discount_minor",
+    )
+    tax_rate = _require_percentage(tax_percent, "tax_percent")
+    wht_rate = _require_percentage(wht_percent, "wht_percent")
+    deposit_rate = _require_percentage(
+        deposit_percent,
+        "deposit_percent",
+    )
+
+    if deposit_amount_minor is not None:
+        explicit_deposit = _require_nonnegative_integer(
+            deposit_amount_minor,
+            "deposit_amount_minor",
+        )
+    else:
+        explicit_deposit = None
+
     subtotal_minor = 0
-    for item in items:
-        qty = int(item.get("quantity", 1))
-        unit_price = int(item.get("unit_price_minor", 0))
-        subtotal_minor += qty * unit_price
 
-    discounted_subtotal_minor = max(0, subtotal_minor - discount_minor)
-    tax_minor = calculate_tax_minor(discounted_subtotal_minor, tax_percent)
-    total_minor = discounted_subtotal_minor + tax_minor  # Gross Total
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise ValueError(f"items[{index}] must be a dictionary.")
 
-    # Withholding tax (WHT) is calculated on discounted taxable subtotal (US-INT-03)
-    wht_minor = calculate_tax_minor(discounted_subtotal_minor, wht_percent)
-    net_payable_minor = max(0, total_minor - wht_minor)
+        quantity = _require_nonnegative_integer(
+            item.get("quantity", 1),
+            f"items[{index}].quantity",
+        )
+        unit_price_minor = _require_nonnegative_integer(
+            item.get("unit_price_minor", 0),
+            f"items[{index}].unit_price_minor",
+        )
 
-    # Deposit calculation (US-INT-02)
+        subtotal_minor += quantity * unit_price_minor
+
+    discounted_subtotal_minor = max(
+        0,
+        subtotal_minor - discount,
+    )
+
+    tax_minor = calculate_tax_minor(
+        discounted_subtotal_minor,
+        tax_rate,
+    )
+
+    total_minor = discounted_subtotal_minor + tax_minor
+
+    wht_minor = calculate_tax_minor(
+        discounted_subtotal_minor,
+        wht_rate,
+    )
+
+    net_payable_minor = max(
+        0,
+        total_minor - wht_minor,
+    )
+
     resolved_deposit_minor = None
-    if deposit_amount_minor is not None and deposit_amount_minor > 0:
-        resolved_deposit_minor = min(deposit_amount_minor, net_payable_minor)
-    elif deposit_percent is not None and deposit_percent > 0:
-        resolved_deposit_minor = calculate_tax_minor(net_payable_minor, deposit_percent)
+
+    if explicit_deposit is not None and explicit_deposit > 0:
+        resolved_deposit_minor = min(
+            explicit_deposit,
+            net_payable_minor,
+        )
+    elif deposit_rate > 0:
+        resolved_deposit_minor = calculate_tax_minor(
+            net_payable_minor,
+            deposit_rate,
+        )
 
     return {
         "subtotal_minor": subtotal_minor,

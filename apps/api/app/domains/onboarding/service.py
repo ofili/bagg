@@ -69,6 +69,8 @@ class OnboardingService:
         # Update the existing workspace profile.
         workspace.business_name = business_name
         workspace.country = payload.country.upper()
+        if payload.timezone is not None:
+            workspace.timezone = payload.timezone
         workspace.default_currency = payload.default_currency.upper()
         workspace.address = (
             payload.address.strip()
@@ -162,6 +164,7 @@ class OnboardingService:
                 default_currency=workspace.default_currency,
                 address=workspace.address,
             ),
+            timezone=workspace.timezone,
             next_action=next_action,
             started_at=progress.started_at,
             completed_at=progress.completed_at,

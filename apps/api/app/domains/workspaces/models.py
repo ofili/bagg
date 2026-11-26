@@ -20,6 +20,12 @@ class Workspace(Base):
     logo_url = Column(String, nullable=True)
     brand_color = Column(String, nullable=False, default="#10B981")
     country = Column(String, nullable=False, default="NG")
+    timezone = Column(
+        String(64),
+        nullable=False,
+        default="Africa/Lagos",
+        server_default="Africa/Lagos",
+    )
     default_currency = Column(String, nullable=False, default="NGN")
     tax_id = Column(String, nullable=True)
     address = Column(String, nullable=True)

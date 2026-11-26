@@ -151,7 +151,7 @@ class Settings(BaseSettings):
 
         try:
             decoded = base64.urlsafe_b64decode(value.encode("ascii"))
-        except (ValueError, UnicodeError, binascii.Error) as exc:
+        except (ValueError, binascii.Error) as exc:
             raise ValueError("EMAIL_ENCRYPTION_KEY must be URL-safe base64") from exc
 
         if len(decoded) != 32:

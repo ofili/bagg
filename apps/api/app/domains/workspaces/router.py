@@ -30,6 +30,7 @@ def build_workspace_response(ws: Workspace) -> WorkspaceResponse:
         business_name=ws.business_name,
         brand_color=ws.brand_color,
         country=ws.country,
+        timezone=ws.timezone,
         default_currency=ws.default_currency,
         tax_id=ws.tax_id,
         address=ws.address,

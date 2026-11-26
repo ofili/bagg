@@ -177,3 +177,52 @@ def test_currency_helpers_reject_unknown_codes():
 
     with pytest.raises(ValueError):
         format_money(100, "ABC")
+
+
+@pytest.mark.parametrize(
+    ("items", "discount", "tax", "wht", "deposit"),
+    [
+        ([{"quantity": 1.5, "unit_price_minor": 100}], 0, 0, 0, 0),
+        ([{"quantity": 1, "unit_price_minor": 100.5}], 0, 0, 0, 0),
+        ([{"quantity": -1, "unit_price_minor": 100}], 0, 0, 0, 0),
+        ([{"quantity": 1, "unit_price_minor": -100}], 0, 0, 0, 0),
+        ([{"quantity": 1, "unit_price_minor": 100}], -1, 0, 0, 0),
+        ([{"quantity": 1, "unit_price_minor": 100}], 0, 101, 0, 0),
+        ([{"quantity": 1, "unit_price_minor": 100}], 0, 0, 101, 0),
+        ([{"quantity": 1, "unit_price_minor": 100}], 0, 0, 0, 101),
+    ],
+)
+def test_invoice_totals_reject_invalid_financial_inputs(
+    items,
+    discount,
+    tax,
+    wht,
+    deposit,
+):
+    with pytest.raises(ValueError):
+        calculate_invoice_totals(
+            items=items,
+            discount_minor=discount,
+            tax_percent=tax,
+            wht_percent=wht,
+            deposit_percent=deposit,
+        )
+
+
+@pytest.mark.parametrize(
+    "tax_percent",
+    [-1, 101, float("nan"), float("inf"), "invalid"],
+)
+def test_tax_calculation_rejects_invalid_percentages(tax_percent):
+    with pytest.raises(ValueError):
+        calculate_tax_minor(1000, tax_percent)
+
+
+def test_explicit_zero_deposit_is_not_replaced_by_percentage():
+    totals = calculate_invoice_totals(
+        items=[{"quantity": 1, "unit_price_minor": 10000}],
+        deposit_percent=50,
+        deposit_amount_minor=0,
+    )
+
+    assert totals["deposit_amount_minor"] is None

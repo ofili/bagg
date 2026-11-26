@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core.dates import validate_timezone_name
 
 class BusinessProfileUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -28,15 +29,21 @@ class BusinessProfileUpdate(BaseModel):
         max_length=500,
     )
 
+    timezone: str | None = None
+
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_workspace_timezone(cls, value: str | None) -> str | None:
+        return value if value is None else validate_timezone_name(value)
+
     @field_validator("business_name")
     @classmethod
     def validate_business_name(cls, value: str) -> str:
-        value = value.strip()
-
-        if not value:
+        if value := value.strip():
+            return value
+        else:
             raise ValueError("Business name is required.")
-
-        return value
 
     @field_validator("country")
     @classmethod
@@ -78,6 +85,7 @@ class BusinessProfileResponse(BaseModel):
     country: str
     default_currency: str
     address: str | None = None
+    timezone: str
 
 
 class OnboardingProgressResponse(BaseModel):

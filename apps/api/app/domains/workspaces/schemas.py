@@ -1,6 +1,11 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
+from pydantic import BaseModel, Field, field_validator
+from app.core.dates import (
+    DEFAULT_WORKSPACE_TIMEZONE,
+    validate_timezone_name,
+)
 
 class WorkspaceBase(BaseModel):
     name: str = "My Workspace"
@@ -14,6 +19,13 @@ class WorkspaceBase(BaseModel):
     invoice_prefix: str = "INV-"
     quote_prefix: str = "QOT-"
     receipt_prefix: str = "REC-"
+    timezone: str = DEFAULT_WORKSPACE_TIMEZONE
+
+
+@field_validator("timezone")
+@classmethod
+def validate_workspace_timezone(cls, value: str) -> str:
+    return validate_timezone_name(value)
 
 
 class WorkspaceCreate(WorkspaceBase):
@@ -32,6 +44,13 @@ class WorkspaceUpdate(BaseModel):
     invoice_prefix: Optional[str] = None
     quote_prefix: Optional[str] = None
     receipt_prefix: Optional[str] = None
+    timezone: Optional[str] = None
+
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_workspace_timezone(cls, value: Optional[str]) -> Optional[str]:
+        return value if value is None else validate_timezone_name(value)
 
 
 class WorkspaceOnboardingRequest(BaseModel):
