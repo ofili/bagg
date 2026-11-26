@@ -13,6 +13,7 @@ from app.domains.activation.service import (
     record_invoice_created,
     record_document_dispatched,
 )
+from app.domains.audit.service import record_audit_event
 from app.domains.billing.service import (
     check_delivery_quota,
     consume_delivery_send,
@@ -1111,6 +1112,13 @@ async def confirm_payment_claim(
             "in the payment claim."
         )
 
+    before_audit_state = {
+        "claim_status": claim.status,
+        "claimed_amount_minor": claim.amount_minor,
+        "invoice_status": invoice.status,
+        "invoice_amount_paid_minor": invoice.amount_paid_minor or 0,
+    }
+
     # confirm_payment() also enforces the invoice's outstanding balance,
     # creates the receipt and records the invoice status transition.
     await confirm_payment(
@@ -1157,6 +1165,28 @@ async def confirm_payment_claim(
             db,
             commit=False,
         )
+
+    await record_audit_event(
+        db,
+        workspace_id=workspace.id,
+        actor_type="user",
+        actor_id=confirmed_by_user_id,
+        action="payment_claim.confirmed",
+        entity_type="payment_claim",
+        entity_id=claim.id,
+        before_state=before_audit_state,
+        after_state={
+            "claim_status": claim.status,
+            "claimed_amount_minor": claim.amount_minor,
+            "confirmed_amount_minor": claim.confirmed_amount_minor,
+            "invoice_status": invoice.status,
+            "invoice_amount_paid_minor": invoice.amount_paid_minor or 0,
+        },
+        metadata={
+            "invoice_id": invoice.id,
+            "currency": invoice.currency,
+        },
+    )
 
     # Receipt, invoice, claim, reminder jobs and audit event are committed
     # in one transaction.
@@ -1206,6 +1236,13 @@ async def reject_payment_claim(
 
     if not rejection_reason:
         raise BadRequestException("A rejection reason is required.")
+
+    before_audit_state = {
+        "claim_status": claim.status,
+        "claimed_amount_minor": claim.amount_minor,
+        "invoice_status": invoice.status,
+        "invoice_amount_paid_minor": invoice.amount_paid_minor or 0,
+    }
 
     transition_payment_claim(
         db,
@@ -1265,6 +1302,27 @@ async def reject_payment_claim(
         invoice,
         db,
         commit=False,
+    )
+
+    await record_audit_event(
+        db,
+        workspace_id=workspace.id,
+        actor_type="user",
+        actor_id=rejected_by_user_id,
+        action="payment_claim.rejected",
+        entity_type="payment_claim",
+        entity_id=claim.id,
+        before_state=before_audit_state,
+        after_state={
+            "claim_status": claim.status,
+            "claimed_amount_minor": claim.amount_minor,
+            "invoice_status": invoice.status,
+            "invoice_amount_paid_minor": invoice.amount_paid_minor or 0,
+        },
+        metadata={
+            "invoice_id": invoice.id,
+            "currency": invoice.currency,
+        },
     )
 
     await db.commit()

@@ -6,6 +6,7 @@ from httpx import AsyncClient, ASGITransport
 from app.main import app
 from tests.helpers import create_sent_invoice, login_code_for
 
+from app.domains.audit.models import AuditEvent
 from app.domains.lifecycle.models import DocumentStatusEvent
 from app.domains.reminders.models import ReminderJob
 
@@ -641,6 +642,32 @@ async def test_confirmed_claim_records_lifecycle_transition(db_session):
         assert confirmation.event_metadata["claimed_amount_minor"] == 10_000_00
         assert confirmation.event_metadata["confirmed_amount_minor"] == 10_000_00
 
+        audit_result = await db_session.execute(
+            select(AuditEvent).where(
+                AuditEvent.entity_type == "payment_claim",
+                AuditEvent.entity_id == claim_id,
+                AuditEvent.action == "payment_claim.confirmed",
+            )
+        )
+        audit_events = list(audit_result.scalars().all())
+
+        assert len(audit_events) == 1
+
+        audit_event = audit_events[0]
+
+        assert audit_event.workspace_id
+        assert audit_event.actor_type == "user"
+        assert audit_event.actor_id == reviewer_id
+        assert audit_event.outcome == "success"
+
+        assert audit_event.before_state["claim_status"] == "pending"
+        assert audit_event.after_state["claim_status"] == "confirmed"
+        assert audit_event.after_state["claimed_amount_minor"] == 10_000_00
+        assert audit_event.after_state["confirmed_amount_minor"] == 10_000_00
+
+        assert audit_event.metadata_json["invoice_id"] == invoice["id"]
+        assert audit_event.metadata_json["currency"] == "NGN"
+
     finally:
         await client.aclose()
 
@@ -691,6 +718,34 @@ async def test_rejected_claim_records_lifecycle_transition(db_session):
         assert rejection.source == "issuer_claim_rejected"
         assert rejection.event_metadata["invoice_id"] == invoice["id"]
         assert rejection.event_metadata["reason"] == reason
+
+        audit_result = await db_session.execute(
+            select(AuditEvent).where(
+                AuditEvent.entity_type == "payment_claim",
+                AuditEvent.entity_id == claim_id,
+                AuditEvent.action == "payment_claim.rejected",
+            )
+        )
+        audit_events = list(audit_result.scalars().all())
+
+        assert len(audit_events) == 1
+
+        audit_event = audit_events[0]
+
+        assert audit_event.workspace_id
+        assert audit_event.actor_type == "user"
+        assert audit_event.actor_id == reviewer_id
+        assert audit_event.outcome == "success"
+
+        assert audit_event.before_state["claim_status"] == "pending"
+        assert audit_event.after_state["claim_status"] == "rejected"
+        assert audit_event.after_state["claimed_amount_minor"] == 10_000_00
+
+        assert audit_event.metadata_json["invoice_id"] == invoice["id"]
+        assert audit_event.metadata_json["currency"] == "NGN"
+
+        assert "reason" not in audit_event.metadata_json
+        assert "rejection_reason" not in audit_event.metadata_json
 
     finally:
         await client.aclose()
