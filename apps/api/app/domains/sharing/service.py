@@ -21,6 +21,7 @@ from app.domains.invoices.schemas import InvoiceReceiptSummary
 from app.domains.lifecycle.service import (
     invoice_balance_minor,
     record_payment_claim_created,
+    record_document_first_view,
     record_status_event,
     transition_document,
 )
@@ -93,17 +94,13 @@ class SharingService:
         # An issued invoice already has a live public link. Sending an email
         # or WhatsApp message is a separate action and is not a prerequisite
         # for recording that the client viewed it.
-        if invoice.status in {"issued", "sent"}:
-            transition_document(
-                self.db,
-                document=invoice,
-                document_type="invoice",
-                to_status="viewed",
-                actor_type="client",
-                source="client_view",
-            )
-            invoice.viewed_at = datetime.now(timezone.utc)
+        first_view_recorded = record_document_first_view(
+            self.db,
+            document=invoice,
+            document_type="invoice",
+        )
 
+        if first_view_recorded:
             if workspace.owner_id:
                 await self.repo.add_notification(
                     workspace_id=workspace.id,
@@ -111,7 +108,7 @@ class SharingService:
                     type="invoice_viewed",
                     title=f"Invoice {invoice.invoice_number} was viewed",
                     body=(
-                        f"{client_name or 'Client'} opened and viewed " "the invoice."
+                        f"{client_name or 'Client'} opened and viewed the invoice."
                     ),
                     document_type="invoice",
                     document_id=invoice.id,

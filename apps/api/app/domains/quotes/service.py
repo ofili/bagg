@@ -24,6 +24,7 @@ from app.domains.engagements import service as engagements_service
 from app.domains.invoices import service as invoices_service
 from app.domains.lifecycle.service import (
     record_status_event,
+    record_document_first_view,
     transition_document,
 )
 from app.domains.quotes.models import Quote, QuoteComment, QuoteLineItem, QuoteRevision
@@ -850,36 +851,14 @@ async def view_public_quote(
     if quote_obj.status == "draft":
         raise NotFoundException("Quote not found or invalid link")
 
-    # viewed_at is the idempotency boundary for first-view processing.
-    # The repository lookup locks the quote row, preventing concurrent
-    # requests from creating duplicate events or notifications.
-    if quote_obj.viewed_at is None:
-        old_status = quote_obj.status
+    first_view_recorded = record_document_first_view(
+        db,
+        document=quote_obj,
+        document_type="quote",
+        record_unchanged_status=True,
+    )
 
-        if old_status in {"issued", "sent"}:
-            transition_document(
-                db,
-                document=quote_obj,
-                document_type="quote",
-                to_status="viewed",
-                actor_type="client",
-                source="client_view",
-            )
-        else:
-            # First-view observation without a commercial status change.
-            record_status_event(
-                db=db,
-                workspace_id=quote_obj.workspace_id,
-                document_type="quote",
-                document_id=quote_obj.id,
-                from_status=old_status,
-                to_status=old_status,
-                actor_type="client",
-                source="client_view",
-            )
-
-        quote_obj.viewed_at = datetime.now(timezone.utc)
-
+    if first_view_recorded:
         if workspace and workspace.owner_id:
             from app.domains.notifications.service import NotificationService
 
@@ -896,6 +875,9 @@ async def view_public_quote(
                 link_url=f"/quotes/{quote_obj.id}",
                 commit=False,
             )
+
+        await db.commit()
+        await QuoteRepository(db).refresh(quote_obj)
 
         # Persist view timestamp, lifecycle event and notification together.
         # Notification failures must roll back the first-view operation.

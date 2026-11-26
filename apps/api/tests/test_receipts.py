@@ -274,6 +274,9 @@ async def test_receipts_full_lifecycle(monkeypatch):
                     "attempts": target.attempts,
                     "available_at": target.available_at,
                     "created_at": target.created_at,
+                    "locked_at": target.locked_at,
+                    "locked_by": target.locked_by,
+                    "claim_token": target.claim_token,
                 },
             )
 
@@ -304,39 +307,60 @@ async def test_receipts_full_lifecycle(monkeypatch):
             )
 
         # Run the actual document worker against queued jobs.
-        claims = await claim_batch()
-        assert claims, "Expected queued document-generation jobs"
-
+        # The worker consumes a shared queue, so unrelated eligible jobs
+        # may occupy earlier batches.
         target_job_id = target.id
-        claimed_ids = [claim.job_id for claim in claims]
 
-        assert target_job_id in claimed_ids, (
-            f"Receipt generation job {target_job_id} was not claimed. "
-            f"Claimed jobs: {claimed_ids}"
-        )
+        target_status = None
+        target_attempts = 0
 
-        print("TARGET JOB ID:", target_job_id)
-        print("CLAIMED JOB IDS:", claimed_ids)
-        print("TARGET INCLUDED:", target_job_id in claimed_ids)
+        for batch_number in range(1, 101):
+            claims = await claim_batch()
 
-        for claim in claims:
-            print("PROCESSING JOB:", claim.job_id)
-            await process_job(claim)
-            print("FINISHED PROCESSING JOB:", claim.job_id)
+            assert claims, (
+                f"No eligible document jobs found before receipt job "
+                f"{target_job_id} was processed. Batch: {batch_number}"
+            )
 
-        async with AsyncSessionLocal() as db:
-            refreshed = await db.get(DocumentGenerationJob, target_job_id)
+            claimed_ids = [claim.job_id for claim in claims]
+
             print(
-                "TARGET AFTER WORKER:",
+                f"DOCUMENT WORKER BATCH {batch_number}:",
+                claimed_ids,
+            )
+
+            for claim in claims:
+                await process_job(claim)
+
+            async with AsyncSessionLocal() as db:
+                refreshed = await db.get(
+                    DocumentGenerationJob,
+                    target_job_id,
+                )
+
+                assert refreshed is not None
+
+                target_status = refreshed.status
+                target_attempts = refreshed.attempts
+
+            print(
+                "RECEIPT JOB STATE:",
                 {
-                    "status": refreshed.status,
-                    "attempts": refreshed.attempts,
-                    "last_error_code": refreshed.last_error_code,
-                    "artifact_id": refreshed.artifact_id,
-                    "claim_token": refreshed.claim_token,
-                    "locked_by": refreshed.locked_by,
+                    "id": target_job_id,
+                    "status": target_status,
+                    "attempts": target_attempts,
                 },
             )
+
+            if target_status in {"succeeded", "failed"}:
+                break
+
+        assert target_status == "succeeded", (
+            f"Receipt generation did not succeed. "
+            f"Job: {target_job_id}, "
+            f"status: {target_status}, "
+            f"attempts: {target_attempts}"
+        )
 
         # Confirm that the receipt generation job succeeded.
         generation_res = await client.get(f"/documents/receipt/{rcp1['id']}/status")

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -463,6 +463,58 @@ def transition_document(
         source=source,
         metadata=metadata,
     )
+
+
+def record_document_first_view(
+    db: AsyncSession,
+    *,
+    document,
+    document_type: str,
+    actor_type: str = "client",
+    source: str = "client_view",
+    record_unchanged_status: bool = False,
+) -> bool:
+    """
+    Record a document's first public view.
+
+    The caller must lock the document before invoking this function.
+    The caller owns the transaction and commit.
+
+    Returns True when this call records the first view.
+    """
+    if document.viewed_at is not None:
+        return False
+
+    current_status = validate_document_status(
+        document_type,
+        document.status,
+    )
+
+    if current_status in {"issued", "sent"}:
+        transition_document(
+            db,
+            document=document,
+            document_type=document_type,
+            to_status="viewed",
+            actor_type=actor_type,
+            source=source,
+        )
+    elif record_unchanged_status:
+        record_status_event(
+            db=db,
+            workspace_id=document.workspace_id,
+            document_type=document_type,
+            document_id=document.id,
+            from_status=current_status,
+            to_status=current_status,
+            actor_type=actor_type,
+            source=source,
+        )
+    else:
+        return False
+
+    document.viewed_at = datetime.now(timezone.utc)
+    return True
 
 
 async def transition_invoice_after_receipt_reversal(
