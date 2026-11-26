@@ -1,10 +1,10 @@
-
 """Payment-profile application use cases."""
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import CURRENCY_SPECS
+from app.domains.audit.service import record_audit_event
 from app.domains.payments.models import PaymentProfile
 from app.domains.payments.profile_rules import payment_profile_methods
 from app.domains.payments.repository import PaymentRepository
@@ -15,6 +15,25 @@ def _validated_methods(values: dict) -> list[str]:
         return payment_profile_methods(values)
     except ValueError as exc:
         raise BadRequestException(str(exc)) from exc
+
+
+def _payment_profile_audit_state(profile: PaymentProfile) -> dict:
+    """
+    Return an allowlisted, non-sensitive representation of a payment profile.
+
+    Never include account numbers, routing numbers, payment links,
+    mobile-money numbers, or freeform instructions in audit snapshots.
+    """
+    return {
+        "currency": profile.currency,
+        "is_default": profile.is_default,
+        "has_bank_details": bool(
+            profile.bank_name or profile.account_name or profile.account_number
+        ),
+        "has_payment_link": bool(profile.payment_link),
+        "has_mobile_money": bool(profile.mobile_money_number),
+        "has_instructions": bool(profile.instructions),
+    }
 
 
 async def list_payment_profiles(
@@ -103,6 +122,7 @@ async def create_payment_profile(
     db: AsyncSession,
     workspace_id: str,
     values: dict,
+    actor_user_id: str,
 ):
     repo = PaymentRepository(db)
 
@@ -134,6 +154,20 @@ async def create_payment_profile(
     )
 
     await repo.add(profile)
+    await db.flush()
+
+    await record_audit_event(
+        db,
+        workspace_id=workspace_id,
+        actor_type="user",
+        actor_id=actor_user_id,
+        action="payment_profile.created",
+        entity_type="payment_profile",
+        entity_id=profile.id,
+        outcome="success",
+        after_state=_payment_profile_audit_state(profile),
+    )
+
     await db.commit()
     await repo.refresh(profile)
 
@@ -173,6 +207,7 @@ async def update_payment_profile(
     workspace_id: str,
     profile_id: str,
     values: dict,
+    actor_user_id: str,
 ):
     repo = PaymentRepository(db)
 
@@ -188,6 +223,8 @@ async def update_payment_profile(
     if profile is None:
         raise NotFoundException("Payment profile not found")
 
+    before_state = _payment_profile_audit_state(profile)
+
     merged_values = {
         "bank_name": profile.bank_name,
         "account_name": profile.account_name,
@@ -198,11 +235,7 @@ async def update_payment_profile(
         "instructions": profile.instructions,
     }
     merged_values.update(
-        {
-            key: value
-            for key, value in values.items()
-            if key != "is_default"
-        }
+        {key: value for key, value in values.items() if key != "is_default"}
     )
 
     _validated_methods(merged_values)
@@ -254,6 +287,24 @@ async def update_payment_profile(
 
         setattr(profile, key, value)
 
+    await db.flush()
+
+    await record_audit_event(
+        db,
+        workspace_id=workspace_id,
+        actor_type="user",
+        actor_id=actor_user_id,
+        action="payment_profile.updated",
+        entity_type="payment_profile",
+        entity_id=profile.id,
+        outcome="success",
+        before_state=before_state,
+        after_state=_payment_profile_audit_state(profile),
+        metadata={
+            "changed_fields": sorted(values.keys()),
+        },
+    )
+
     await db.commit()
     await repo.refresh(profile)
 
@@ -264,6 +315,7 @@ async def delete_payment_profile(
     db: AsyncSession,
     workspace_id: str,
     profile_id: str,
+    actor_user_id: str,
 ):
     repo = PaymentRepository(db)
 
@@ -278,6 +330,8 @@ async def delete_payment_profile(
 
     if profile is None:
         raise NotFoundException("Payment profile not found")
+
+    before_state = _payment_profile_audit_state(profile)
 
     if profile.is_default:
         alternatives = [
@@ -309,4 +363,17 @@ async def delete_payment_profile(
             replacement.is_default = True
 
     await repo.delete(profile)
+
+    await record_audit_event(
+        db,
+        workspace_id=workspace_id,
+        actor_type="user",
+        actor_id=actor_user_id,
+        action="payment_profile.deleted",
+        entity_type="payment_profile",
+        entity_id=profile.id,
+        outcome="success",
+        before_state=before_state,
+    )
+
     await db.commit()

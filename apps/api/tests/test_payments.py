@@ -2,10 +2,11 @@ import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 
 from app.main import app
 from tests.helpers import login_code_for
-
+from app.domains.audit.models import AuditEvent
 
 async def verify_step_up(
     client: AsyncClient,
@@ -73,7 +74,7 @@ async def create_profile(
 
 
 @pytest.mark.asyncio
-async def test_payment_profiles_lifecycle():
+async def test_payment_profiles_lifecycle(db_session):
     transport = ASGITransport(app=app)
 
     async with AsyncClient(
@@ -93,6 +94,8 @@ async def test_payment_profiles_lifecycle():
             json={
                 "email": email,
                 "code": login_code_for(email),
+                "intent": "signup",
+                "full_name": "Payment Profiles Test User",
             },
         )
         assert verify_response.status_code == 200, verify_response.text
@@ -265,3 +268,60 @@ async def test_payment_profiles_lifecycle():
         assert final_validation.status_code == 200
         assert final_validation.json()["has_profile"] is True
         assert final_validation.json()["default_profile"]["id"] == ngn_second["id"]
+
+        # Business audit events must exist for all three mutations.
+        audit_result = await db_session.execute(
+            select(AuditEvent).where(
+                AuditEvent.entity_type == "payment_profile",
+                AuditEvent.entity_id.in_(
+                    [
+                        ngn_profile["id"],
+                        ngn_second["id"],
+                        usd_profile["id"],
+                    ]
+                ),
+            )
+        )
+        audit_events = audit_result.scalars().all()
+
+        events_by_entity = {}
+        for event in audit_events:
+            events_by_entity.setdefault(event.entity_id, []).append(event)
+
+        assert {event.action for event in events_by_entity[ngn_profile["id"]]} == {
+            "payment_profile.created",
+            "payment_profile.deleted",
+        }
+
+        assert {event.action for event in events_by_entity[ngn_second["id"]]} == {
+            "payment_profile.created",
+            "payment_profile.updated",
+        }
+
+        assert {event.action for event in events_by_entity[usd_profile["id"]]} == {
+            "payment_profile.created",
+        }
+
+        # Every event must be attributed to the authenticated user.
+        assert all(
+            event.actor_type == "user"
+            and event.actor_id is not None
+            and event.workspace_id
+            for event in audit_events
+        )
+
+        # The audit snapshots must not contain sensitive payment details.
+        forbidden_fields = {
+            "account_number",
+            "routing_number",
+            "payment_link",
+            "mobile_money_number",
+            "instructions",
+            "bank_name",
+            "account_name",
+        }
+
+        for event in audit_events:
+            for snapshot in (event.before_state, event.after_state):
+                if snapshot:
+                    assert forbidden_fields.isdisjoint(snapshot.keys())

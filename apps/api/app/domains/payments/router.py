@@ -107,6 +107,7 @@ async def create_profile(
         db,
         workspace.id,
         values,
+        actor_user_id=user.id,
     )
 
 
@@ -195,6 +196,7 @@ async def update_profile(
         workspace.id,
         profile_id,
         values,
+        actor_user_id=user.id,
     )
 
 
@@ -239,6 +241,7 @@ async def delete_profile(
         db,
         workspace.id,
         profile_id,
+        actor_user_id=user.id,
     )
 
     return None
