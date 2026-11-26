@@ -307,8 +307,31 @@ async def test_receipts_full_lifecycle(monkeypatch):
         claims = await claim_batch()
         assert claims, "Expected queued document-generation jobs"
 
+        target_job_id = target.id
+        claimed_ids = [claim.job_id for claim in claims]
+
+        print("TARGET JOB ID:", target_job_id)
+        print("CLAIMED JOB IDS:", claimed_ids)
+        print("TARGET INCLUDED:", target_job_id in claimed_ids)
+
         for claim in claims:
+            print("PROCESSING JOB:", claim.job_id)
             await process_job(claim)
+            print("FINISHED PROCESSING JOB:", claim.job_id)
+
+        async with AsyncSessionLocal() as db:
+            refreshed = await db.get(DocumentGenerationJob, target_job_id)
+            print(
+                "TARGET AFTER WORKER:",
+                {
+                    "status": refreshed.status,
+                    "attempts": refreshed.attempts,
+                    "last_error_code": refreshed.last_error_code,
+                    "artifact_id": refreshed.artifact_id,
+                    "claim_token": refreshed.claim_token,
+                    "locked_by": refreshed.locked_by,
+                },
+            )
 
         # Confirm that the receipt generation job succeeded.
         generation_res = await client.get(f"/documents/receipt/{rcp1['id']}/status")

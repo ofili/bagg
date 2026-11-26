@@ -301,3 +301,67 @@ def build_quote_email_payload(
         "subject": f"Quote {quote_number} from {business_name}",
         "html": _html_shell(f"Quote {quote_number}", body),
     }
+
+
+def build_expense_approval_email_payload(
+    *,
+    to_email: str,
+    business_name: str,
+    client_name: Optional[str],
+    description: str,
+    formatted_amount: str,
+    share_url: str,
+    expires_at: str,
+) -> dict:
+    greeting = f"Hi {escape(client_name)}," if client_name else "Hello,"
+
+    body = (
+        f"<p>{greeting}</p>"
+        f"<p>{escape(business_name)} requested your approval for an expense: "
+        f"<strong>{escape(description)}</strong> for "
+        f"<strong>{escape(formatted_amount)}</strong>.</p>"
+        f"<p>Please review it before {escape(expires_at)}.</p>"
+        f'<p><a href="{escape(share_url, quote=True)}" '
+        'style="background-color: #FF7A1A; color: #2B1405; '
+        "padding: 12px 20px; text-decoration: none; border-radius: 8px; "
+        'font-weight: bold; display: inline-block;">'
+        "Review and respond</a></p>"
+    )
+
+    return {
+        "to_email": to_email,
+        "subject": f"Expense approval needed from {business_name}",
+        "html": _html_shell("Expense approval", body),
+    }
+
+
+def build_scope_change_approval_email_payload(
+    *,
+    to_email: str,
+    business_name: str,
+    client_name: Optional[str],
+    title: str,
+    formatted_delta: str,
+    share_url: str,
+    expires_at: str,
+) -> dict:
+    greeting = f"Hi {escape(client_name)}," if client_name else "Hello,"
+
+    body = (
+        f"<p>{greeting}</p>"
+        f"<p>{escape(business_name)} requested a scope change: "
+        f"<strong>{escape(title)}</strong> for an additional "
+        f"<strong>{escape(formatted_delta)}</strong>.</p>"
+        f"<p>Please review it before {escape(expires_at)}.</p>"
+        f'<p><a href="{escape(share_url, quote=True)}" '
+        'style="background-color: #FF7A1A; color: #2B1405; '
+        "padding: 12px 20px; text-decoration: none; border-radius: 8px; "
+        'font-weight: bold; display: inline-block;">'
+        "Review and respond</a></p>"
+    )
+
+    return {
+        "to_email": to_email,
+        "subject": f"Scope change approval needed from {business_name}",
+        "html": _html_shell("Scope change approval", body),
+    }

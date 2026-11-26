@@ -3,6 +3,7 @@ from typing import Optional, Any, List
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.security import generate_share_token
 from app.domains.engagements.models import Engagement, ScopeChangeRequest
@@ -13,6 +14,7 @@ from app.domains.engagements.schemas import (
     ScopeChangeAcceptRequest,
     ScopeChangeCreateRequest,
     ScopeChangeDeclineRequest,
+    ScopeChangeResponse,
 )
 from app.domains.expenses.models import Expense
 from app.domains.expenses.repository import ExpenseRepository
@@ -144,13 +146,51 @@ async def create_manual_engagement(
     return engagement
 
 
+def build_scope_change_approval_url(token: str) -> str:
+    return f"{settings.WEB_BASE_URL.rstrip('/')}/sc/{token}"
+
+
+def map_scope_change_to_response(
+    change_req: ScopeChangeRequest,
+    approval_token: Optional[str] = None,
+) -> ScopeChangeResponse:
+    return ScopeChangeResponse(
+        id=change_req.id,
+        workspace_id=change_req.workspace_id,
+        engagement_id=change_req.engagement_id,
+        client_id=change_req.client_id,
+        expense_id=change_req.expense_id,
+        change_type=change_req.change_type,
+        title=change_req.title,
+        description=change_req.description,
+        delta_amount_minor=change_req.delta_amount_minor,
+        currency=change_req.currency,
+        status=change_req.status,
+        approval_token=approval_token,
+        approval_url=(
+            build_scope_change_approval_url(approval_token) if approval_token else None
+        ),
+        approval_token_expires_at=change_req.approval_token_expires_at,
+        accepted_at=change_req.accepted_at,
+        accepted_by_name=change_req.accepted_by_name,
+        declined_at=change_req.declined_at,
+        decline_reason=change_req.decline_reason,
+        created_at=change_req.created_at,
+        updated_at=change_req.updated_at,
+    )
+
+
 async def create_scope_change_request(
     db: AsyncSession,
     workspace: Workspace,
     engagement_id: str,
     payload: ScopeChangeCreateRequest,
-) -> ScopeChangeRequest:
-    """Create a scope-change request for cap exceedance without mutating the baseline cap (FR-085, AC-019)."""
+) -> tuple[ScopeChangeRequest, str]:
+    """Create a scope-change request for cap exceedance without mutating the baseline cap (FR-085, AC-019).
+
+    Returns the request and the raw approval token, which is exposed only once
+    because only its hash is persisted.
+    """
     eng_repo = EngagementRepository(db)
     engagement = await eng_repo.get_by_id(workspace.id, engagement_id)
     if not engagement:
@@ -203,7 +243,40 @@ async def create_scope_change_request(
     sc_repo.add(change_req)
     await db.commit()
     await db.refresh(change_req)
-    return change_req
+    return change_req, token
+
+
+async def regenerate_scope_change_approval_link(
+    db: AsyncSession,
+    workspace: Workspace,
+    change_request_id: str,
+) -> tuple[ScopeChangeRequest, str]:
+    """Rotate a scope-change approval link and return the new raw token once.
+
+    Only a pending request can have a live approval link. Regenerating revokes
+    the previous link immediately.
+    """
+    sc_repo = ScopeChangeRepository(db)
+    change_req = await sc_repo.get_by_id(
+        workspace.id, change_request_id, for_update=True
+    )
+    if not change_req:
+        raise NotFoundException(
+            f"Scope change request '{change_request_id}' not found."
+        )
+
+    if change_req.status != "pending":
+        raise BadRequestException(
+            "Only a pending scope change request can have an approval link."
+        )
+
+    token, token_hash = generate_share_token()
+    change_req.approval_token_hash = token_hash
+    change_req.approval_token_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+
+    await db.commit()
+    await db.refresh(change_req)
+    return change_req, token
 
 
 async def accept_public_scope_change(

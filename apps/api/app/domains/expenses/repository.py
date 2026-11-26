@@ -13,11 +13,15 @@ class ExpenseRepository:
     def add(self, expense: Expense) -> None:
         self.db.add(expense)
 
-    async def get_by_id(self, workspace_id: str, expense_id: str) -> Optional[Expense]:
+    async def get_by_id(
+        self, workspace_id: str, expense_id: str, for_update: bool = False
+    ) -> Optional[Expense]:
         query = select(Expense).where(
             Expense.workspace_id == workspace_id,
             Expense.id == expense_id,
         )
+        if for_update:
+            query = query.with_for_update()
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 

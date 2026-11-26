@@ -3,7 +3,14 @@
 import { useEffect, useState, useCallback, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { Camera, Plus, Receipt, ArrowLeft } from '@phosphor-icons/react';
+import {
+  ArrowLeft,
+  ArrowsClockwise,
+  Camera,
+  Plus,
+  Receipt,
+} from '@phosphor-icons/react';
+import { ApprovalLinkPanel } from '@/components/engagements/ApprovalLinkPanel';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { PageHeader } from '@/components/ui/PageHeader';
 import {
@@ -28,6 +35,7 @@ import {
   getReceiptUploadUrl,
   listEngagementExpenses,
   recordExpense,
+  regenerateExpenseApprovalLink,
   type Engagement,
   type Expense,
 } from '@/lib/expenses-api';
@@ -42,6 +50,13 @@ export default function EngagementExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [approvalLink, setApprovalLink] = useState<{
+    url: string;
+    title: string;
+    description: string;
+    expiresAt?: string | null;
+  } | null>(null);
+  const [regeneratingLinkId, setRegeneratingLinkId] = useState<string | null>(null);
 
   // Add expense form state (camera-first on mobile)
   const [showAddForm, setShowAddForm] = useState(false);
@@ -121,7 +136,7 @@ export default function EngagementExpensesPage() {
         receiptContentType = receiptFile.type || 'application/octet-stream';
       }
 
-      await recordExpense({
+      const created = await recordExpense({
         engagement_id: engagement.id,
         amount_minor: parsed,
         currency: engagement.currency,
@@ -133,11 +148,27 @@ export default function EngagementExpensesPage() {
         receipt_content_type: receiptContentType,
       });
 
+      if (created.approval_url) {
+        setApprovalLink({
+          url: created.approval_url,
+          title: 'Client approval link ready',
+          description: `Send this link to your client so they can approve "${created.description}". It is shown only once.`,
+          expiresAt: created.approval_token_expires_at,
+        });
+      } else {
+        setApprovalLink(null);
+      }
+
       setDescription('');
       setAmountMajor('');
       setReceiptFile(null);
       setShowAddForm(false);
-      setNotice({ kind: 'success', text: 'Expense recorded.' });
+      setNotice({
+        kind: 'success',
+        text: created.approval_url
+          ? 'Expense recorded. Send the approval link to your client.'
+          : 'Expense recorded.',
+      });
       await load();
     } catch (err) {
       setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Failed to save expense' });
@@ -166,7 +197,15 @@ export default function EngagementExpensesPage() {
     if (!engagement) return;
     setNotice(null);
     try {
-      await createScopeChange(engagement.id, { expense_id: expense.id });
+      const change = await createScopeChange(engagement.id, { expense_id: expense.id });
+      if (change.approval_url) {
+        setApprovalLink({
+          url: change.approval_url,
+          title: 'Client cap-increase link ready',
+          description: `Send this link to your client so they can review the cap increase for "${expense.description}". It is shown only once.`,
+          expiresAt: change.approval_token_expires_at,
+        });
+      }
       setNotice({
         kind: 'success',
         text: `Scope-change request created for "${expense.description}".`,
@@ -174,6 +213,36 @@ export default function EngagementExpensesPage() {
       await load();
     } catch (err) {
       setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Failed to create scope change' });
+    }
+  }
+
+  async function handleRegenerateApprovalLink(expense: Expense) {
+    const confirmed = window.confirm(
+      'Regenerate this approval link? The previous link will stop working.',
+    );
+    if (!confirmed) return;
+
+    setRegeneratingLinkId(expense.id);
+    setNotice(null);
+    try {
+      const updated = await regenerateExpenseApprovalLink(expense.id);
+      if (updated.approval_url) {
+        setApprovalLink({
+          url: updated.approval_url,
+          title: 'New client approval link ready',
+          description: `Send this link to your client so they can approve "${expense.description}". It is shown only once.`,
+          expiresAt: updated.approval_token_expires_at,
+        });
+      }
+      setNotice({ kind: 'success', text: 'New approval link generated.' });
+      await load();
+    } catch (err) {
+      setNotice({
+        kind: 'error',
+        text: err instanceof Error ? err.message : 'Failed to regenerate approval link',
+      });
+    } finally {
+      setRegeneratingLinkId(null);
     }
   }
 
@@ -227,6 +296,16 @@ export default function EngagementExpensesPage() {
             {notice.text}
           </Alert>
         </div>
+      )}
+
+      {approvalLink && (
+        <ApprovalLinkPanel
+          title={approvalLink.title}
+          description={approvalLink.description}
+          url={approvalLink.url}
+          expiresAt={approvalLink.expiresAt}
+          onDismiss={() => setApprovalLink(null)}
+        />
       )}
 
       {isOverCap && (
@@ -392,14 +471,27 @@ export default function EngagementExpensesPage() {
                         Reimbursed: {exp.reimbursement_status}
                       </span>
                     </div>
-                    {isOverCap && exp.billable && exp.approval_status === 'pending_approval' && (
-                      <div className="mt-2">
+                    {exp.billable && exp.approval_status === 'pending_approval' && (
+                      <div className="mt-2 flex flex-wrap justify-end gap-2">
                         <Button
                           variant="outline"
-                          onClick={() => handleRequestCapIncrease(exp)}
+                          onClick={() => handleRegenerateApprovalLink(exp)}
+                          disabled={regeneratingLinkId === exp.id}
                         >
-                          Request Cap Increase
+                          <ArrowsClockwise className="mr-2 h-4 w-4" />
+                          {regeneratingLinkId === exp.id
+                            ? 'Generating...'
+                            : 'Regenerate approval link'}
                         </Button>
+
+                        {isOverCap && (
+                          <Button
+                            variant="outline"
+                            onClick={() => handleRequestCapIncrease(exp)}
+                          >
+                            Request Cap Increase
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>

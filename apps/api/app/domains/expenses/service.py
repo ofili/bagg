@@ -3,6 +3,7 @@ from typing import Optional, List, Tuple
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.errors import NotFoundException, BadRequestException
 from app.core.security import generate_share_token
 from app.domains.clients.models import Client
@@ -52,12 +53,20 @@ def evaluate_expense_policy(
     return "in_policy", "not_required"
 
 
+def build_expense_approval_url(token: str) -> str:
+    return f"{settings.WEB_BASE_URL.rstrip('/')}/e/{token}"
+
+
 async def record_expense(
     db: AsyncSession,
     workspace: Workspace,
     payload: ExpenseCreate,
-) -> Expense:
-    """Record a new expense against an engagement (FR-081, AC-015, AC-016)."""
+) -> Tuple[Expense, Optional[str]]:
+    """Record a new expense against an engagement (FR-081, AC-015, AC-016).
+
+    Returns the expense and, when client approval is required, the raw approval
+    token. The token is returned exactly once because only its hash is stored.
+    """
     eng_repo = EngagementRepository(db)
     engagement = await eng_repo.get_by_id(workspace.id, payload.engagement_id)
     if not engagement:
@@ -117,7 +126,7 @@ async def record_expense(
     exp_repo.add(expense)
     await db.commit()
     await db.refresh(expense)
-    return expense
+    return expense, token if approval_status == "pending_approval" else None
 
 
 async def update_expense(
@@ -125,8 +134,12 @@ async def update_expense(
     workspace: Workspace,
     expense_id: str,
     payload: ExpenseUpdate,
-) -> Expense:
-    """Updates an expense. Re-evaluates policy and invalidates prior approvals if amount/billable changes (AC-018)."""
+) -> Tuple[Expense, Optional[str]]:
+    """Updates an expense. Re-evaluates policy and invalidates prior approvals if amount/billable changes (AC-018).
+
+    Returns the expense and a newly generated raw approval token when the
+    update moves the expense back into ``pending_approval``.
+    """
     exp_repo = ExpenseRepository(db)
     expense = await exp_repo.get_by_id(workspace.id, expense_id)
     if not expense:
@@ -157,6 +170,8 @@ async def update_expense(
     if payload.retainer_period is not None:
         expense.retainer_period = payload.retainer_period
 
+    approval_token: Optional[str] = None
+
     if amount_changed or billable_changed:
         new_amount = payload.amount_minor if payload.amount_minor is not None else expense.amount_minor
         new_billable = payload.billable if payload.billable is not None else expense.billable
@@ -178,7 +193,7 @@ async def update_expense(
             expense.approval_status = approval_status
             if approval_status == "pending_approval":
                 now = datetime.now(timezone.utc)
-                token, token_hash = generate_share_token()
+                approval_token, token_hash = generate_share_token()
                 expense.approval_token_hash = token_hash
                 expense.approval_requested_at = now
                 expense.approval_token_expires_at = now + timedelta(days=14)
@@ -192,7 +207,38 @@ async def update_expense(
 
     await db.commit()
     await db.refresh(expense)
-    return expense
+    return expense, approval_token
+
+
+async def regenerate_expense_approval_link(
+    db: AsyncSession,
+    workspace: Workspace,
+    expense_id: str,
+) -> Tuple[Expense, str]:
+    """Rotate an expense approval link and return the new raw token once.
+
+    Only a billable expense that is still awaiting client approval can have a
+    live approval link. Regenerating revokes the previous link immediately.
+    """
+    exp_repo = ExpenseRepository(db)
+    expense = await exp_repo.get_by_id(workspace.id, expense_id, for_update=True)
+    if not expense:
+        raise NotFoundException(f"Expense '{expense_id}' not found.")
+
+    if not expense.billable or expense.approval_status != "pending_approval":
+        raise BadRequestException(
+            "Only a billable expense awaiting client approval can have an approval link."
+        )
+
+    token, token_hash = generate_share_token()
+    now = datetime.now(timezone.utc)
+    expense.approval_token_hash = token_hash
+    expense.approval_requested_at = now
+    expense.approval_token_expires_at = now + timedelta(days=14)
+
+    await db.commit()
+    await db.refresh(expense)
+    return expense, token
 
 
 async def list_expenses(
@@ -205,7 +251,9 @@ async def list_expenses(
     return await repo.list_by_engagement(workspace.id, engagement_id, include_non_billable=True)
 
 
-def map_expense_to_response(expense: Expense) -> ExpenseResponse:
+def map_expense_to_response(
+    expense: Expense, approval_token: Optional[str] = None
+) -> ExpenseResponse:
     storage = StorageService()
     download_url = (
         storage.get_presigned_download_url(expense.receipt_storage_path)
@@ -235,6 +283,11 @@ def map_expense_to_response(expense: Expense) -> ExpenseResponse:
         approved_by_name=expense.approved_by_name,
         declined_at=expense.declined_at,
         decline_reason=expense.decline_reason,
+        approval_token=approval_token,
+        approval_url=(
+            build_expense_approval_url(approval_token) if approval_token else None
+        ),
+        approval_token_expires_at=expense.approval_token_expires_at,
         invoicing_status=expense.invoicing_status,
         invoice_id=expense.invoice_id,
         invoiced_at=expense.invoiced_at,

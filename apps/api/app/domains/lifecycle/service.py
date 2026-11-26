@@ -48,11 +48,6 @@ QUOTE_STATUSES: frozenset[str] = frozenset(
     }
 )
 
-DOCUMENT_STATUSES: dict[str, frozenset[str]] = {
-    "invoice": INVOICE_STATUSES,
-    "quote": QUOTE_STATUSES,
-    "payment_claim": PAYMENT_CLAIM_STATUSES,
-}
 
 # Compatibility for historical invoice records.
 # New writes always use the canonical value "voided".
@@ -62,6 +57,7 @@ STATUS_ALIASES = {
     },
     "quote": {},
     "payment_claim": {},
+    "receipt_reversal": {},
 }
 
 
@@ -152,10 +148,32 @@ QUOTE_TRANSITIONS = {
     "cancelled": set(),
 }
 
+RECEIPT_REVERSAL_STATUSES: frozenset[str] = frozenset(
+    {
+        "pending",
+        "posted",
+        "failed",
+    }
+)
+
+RECEIPT_REVERSAL_TRANSITIONS = {
+    "pending": {"posted", "failed"},
+    "posted": set(),
+    "failed": set(),
+}
+
 DOCUMENT_TRANSITIONS = {
     "invoice": INVOICE_TRANSITIONS,
     "quote": QUOTE_TRANSITIONS,
     "payment_claim": PAYMENT_CLAIM_TRANSITIONS,
+    "receipt_reversal": RECEIPT_REVERSAL_TRANSITIONS,
+}
+
+DOCUMENT_STATUSES: dict[str, frozenset[str]] = {
+    "invoice": INVOICE_STATUSES,
+    "quote": QUOTE_STATUSES,
+    "payment_claim": PAYMENT_CLAIM_STATUSES,
+    "receipt_reversal": RECEIPT_REVERSAL_STATUSES,
 }
 
 
@@ -668,6 +686,47 @@ def record_payment_claim_created(
         document_id=claim.id,
         from_status=None,
         to_status="pending",
+        actor_type=actor_type,
+        actor_id=actor_id,
+        source=source,
+        metadata=metadata,
+    )
+
+
+def record_receipt_reversal_created(
+    db: AsyncSession,
+    *,
+    reversal,
+    actor_type: str = "issuer",
+    actor_id: Optional[str] = None,
+    source: str = "receipt_reversal_created",
+    metadata: Optional[dict] = None,
+) -> DocumentStatusEvent:
+    """
+    Record the creation of a receipt reversal.
+
+    A reversal may be created directly as posted (accounting correction)
+    or as pending (refund/chargeback awaiting evidence).
+
+    The caller owns the transaction.
+    """
+    status = validate_document_status(
+        "receipt_reversal",
+        reversal.status,
+    )
+
+    if status not in {"pending", "posted"}:
+        raise BadRequestException(
+            "A new receipt reversal must start as 'pending' or 'posted'."
+        )
+
+    return record_status_event(
+        db=db,
+        workspace_id=reversal.workspace_id,
+        document_type="receipt_reversal",
+        document_id=reversal.id,
+        from_status=None,
+        to_status=status,
         actor_type=actor_type,
         actor_id=actor_id,
         source=source,

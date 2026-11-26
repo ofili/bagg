@@ -5,7 +5,6 @@ from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
 from app.domains.engagements.models import Engagement
-from app.domains.expenses.models import Expense
 from app.main import app
 from tests.test_quotes import authenticate_test_user
 
@@ -155,11 +154,9 @@ async def test_ac029_expenses_end_to_end_scenario():
         assert e3.json()["approval_status"] == "pending_approval"
 
         # Client approves ₦180,000 studio hire
-        async with AsyncSessionLocal() as session:
-            studio_exp = (
-                await session.execute(select(Expense).where(Expense.id == e3.json()["id"]))
-            ).scalar_one()
-            studio_token = studio_exp.approval_token
+        studio_token = e3.json()["approval_token"]
+        assert studio_token
+        assert e3.json()["approval_url"].endswith(f"/e/{studio_token}")
         app_e3 = await client.post(
             f"/expenses/public/{studio_token}/approve",
             json={"approved_by_name": "Chief Producer"},
@@ -203,6 +200,8 @@ async def test_ac029_expenses_end_to_end_scenario():
         )
         assert sc_res.status_code == 201
         sc_token = sc_res.json()["approval_token"]
+        assert sc_token
+        assert sc_res.json()["approval_url"].endswith(f"/sc/{sc_token}")
 
         sc_acc = await client.post(
             f"/engagements/scope-changes/public/{sc_token}/accept",
@@ -340,8 +339,8 @@ async def test_expenses_negative_guards_and_tenant_isolation():
         assert cross_margin.status_code == 404
 
         # Client approves, then provider edits amount -> approval invalidated (AC-018)
-        async with AsyncSessionLocal() as session:
-            tok = (await session.execute(select(Expense).where(Expense.id == exp_id))).scalar_one().approval_token
+        tok = exp_res.json()["approval_token"]
+        assert tok
         assert (
             await client_a.post(f"/expenses/public/{tok}/approve", json={"approved_by_name": "Client A"})
         ).status_code == 200
@@ -350,9 +349,13 @@ async def test_expenses_negative_guards_and_tenant_isolation():
         assert edited.status_code == 200
         assert edited.json()["approval_status"] == "pending_approval"
 
+        # The edit rotated the link; the provider gets the new raw token once.
+        tok2 = edited.json()["approval_token"]
+        assert tok2
+        assert tok2 != tok
+        assert edited.json()["approval_url"].endswith(f"/e/{tok2}")
+
         # Client declines with new token -> cannot be added to invoice (AC-017)
-        async with AsyncSessionLocal() as session:
-            tok2 = (await session.execute(select(Expense).where(Expense.id == exp_id))).scalar_one().approval_token
         dec_res = await client_a.post(
             f"/expenses/public/{tok2}/decline",
             json={"reason": "Too expensive"},

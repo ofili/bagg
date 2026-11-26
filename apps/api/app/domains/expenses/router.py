@@ -27,8 +27,8 @@ async def create_expense(
     db: AsyncSession = Depends(get_db),
     workspace: Workspace = Depends(resolve_active_workspace),
 ):
-    expense = await expense_service.record_expense(db, workspace, payload)
-    return expense_service.map_expense_to_response(expense)
+    expense, approval_token = await expense_service.record_expense(db, workspace, payload)
+    return expense_service.map_expense_to_response(expense, approval_token=approval_token)
 
 
 @router.get("/engagement/{engagement_id}", response_model=List[ExpenseResponse])
@@ -48,8 +48,22 @@ async def update_expense(
     db: AsyncSession = Depends(get_db),
     workspace: Workspace = Depends(resolve_active_workspace),
 ):
-    expense = await expense_service.update_expense(db, workspace, expense_id, payload)
-    return expense_service.map_expense_to_response(expense)
+    expense, approval_token = await expense_service.update_expense(
+        db, workspace, expense_id, payload
+    )
+    return expense_service.map_expense_to_response(expense, approval_token=approval_token)
+
+
+@router.post("/{expense_id}/approval-link/regenerate", response_model=ExpenseResponse)
+async def regenerate_expense_approval_link(
+    expense_id: str,
+    db: AsyncSession = Depends(get_db),
+    workspace: Workspace = Depends(resolve_active_workspace),
+):
+    expense, approval_token = await expense_service.regenerate_expense_approval_link(
+        db, workspace, expense_id
+    )
+    return expense_service.map_expense_to_response(expense, approval_token=approval_token)
 
 
 @router.post("/receipt-upload-url")

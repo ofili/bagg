@@ -79,8 +79,28 @@ async def create_scope_change(
     db: AsyncSession = Depends(get_db),
     workspace: Workspace = Depends(resolve_active_workspace),
 ):
-    return await engagement_service.create_scope_change_request(
+    change, approval_token = await engagement_service.create_scope_change_request(
         db, workspace, engagement_id, payload
+    )
+    return engagement_service.map_scope_change_to_response(
+        change, approval_token=approval_token
+    )
+
+
+@router.post(
+    "/scope-changes/{change_request_id}/approval-link/regenerate",
+    response_model=ScopeChangeResponse,
+)
+async def regenerate_scope_change_approval_link(
+    change_request_id: str,
+    db: AsyncSession = Depends(get_db),
+    workspace: Workspace = Depends(resolve_active_workspace),
+):
+    change, approval_token = await engagement_service.regenerate_scope_change_approval_link(
+        db, workspace, change_request_id
+    )
+    return engagement_service.map_scope_change_to_response(
+        change, approval_token=approval_token
     )
 
 

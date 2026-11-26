@@ -65,6 +65,9 @@ export interface Expense {
   approved_by_name?: string | null;
   declined_at?: string | null;
   decline_reason?: string | null;
+  approval_token?: string | null;
+  approval_url?: string | null;
+  approval_token_expires_at?: string | null;
   invoicing_status: 'uninvoiced' | 'drafted' | 'invoiced' | string;
   invoice_id?: string | null;
   invoiced_at?: string | null;
@@ -110,6 +113,8 @@ export interface ScopeChangeRequest {
   currency: string;
   status: 'pending' | 'accepted' | 'declined' | string;
   approval_token?: string | null;
+  approval_url?: string | null;
+  approval_token_expires_at?: string | null;
   accepted_at?: string | null;
   accepted_by_name?: string | null;
   declined_at?: string | null;
@@ -170,6 +175,15 @@ export async function recordExpense(payload: {
   return res.json();
 }
 
+export async function regenerateExpenseApprovalLink(expenseId: string): Promise<Expense> {
+  const res = await fetch(`${API_BASE}/expenses/${expenseId}/approval-link/regenerate`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok) throw await parseError(res, 'Failed to regenerate approval link');
+  return res.json();
+}
+
 export async function getReceiptUploadUrl(filename: string, engagementId: string) {
   const params = new URLSearchParams({ filename, engagement_id: engagementId });
   const res = await fetch(`${API_BASE}/expenses/receipt-upload-url?${params.toString()}`, {
@@ -212,6 +226,20 @@ export async function createScopeChange(
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw await parseError(res, 'Failed to create scope change request');
+  return res.json();
+}
+
+export async function regenerateScopeChangeApprovalLink(
+  changeRequestId: string,
+): Promise<ScopeChangeRequest> {
+  const res = await fetch(
+    `${API_BASE}/engagements/scope-changes/${changeRequestId}/approval-link/regenerate`,
+    {
+      method: 'POST',
+      credentials: 'include',
+    },
+  );
+  if (!res.ok) throw await parseError(res, 'Failed to regenerate approval link');
   return res.json();
 }
 

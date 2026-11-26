@@ -3,15 +3,21 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Receipt, TrendUp, WarningCircle } from '@phosphor-icons/react';
+import {
+  ArrowsClockwise,
+  Receipt,
+  TrendUp,
+} from '@phosphor-icons/react';
+import { ApprovalLinkPanel } from '@/components/engagements/ApprovalLinkPanel';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Alert, Button, Card, ErrorState, Skeleton, StatCard } from '@/components/ui';
+import { Button, Card, ErrorState, Skeleton, StatCard } from '@/components/ui';
 import { Money } from '@/components/money/Money';
 import {
   getEngagement,
   getEngagementMargin,
   listScopeChanges,
+  regenerateScopeChangeApprovalLink,
   type Engagement,
   type EngagementMargin,
   type ScopeChangeRequest,
@@ -26,6 +32,14 @@ export default function EngagementDetailPage() {
   const [scopeChanges, setScopeChanges] = useState<ScopeChangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [approvalLink, setApprovalLink] = useState<{
+    url: string;
+    title: string;
+    description: string;
+    expiresAt?: string | null;
+  } | null>(null);
+  const [regeneratingLinkId, setRegeneratingLinkId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,6 +63,36 @@ export default function EngagementDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function handleRegenerateScopeChangeLink(change: ScopeChangeRequest) {
+    const confirmed = window.confirm(
+      'Regenerate this approval link? The previous link will stop working.',
+    );
+    if (!confirmed) return;
+
+    setRegeneratingLinkId(change.id);
+    setNotice(null);
+    try {
+      const updated = await regenerateScopeChangeApprovalLink(change.id);
+      if (updated.approval_url) {
+        setApprovalLink({
+          url: updated.approval_url,
+          title: 'New client cap-increase link ready',
+          description: `Send this link to your client so they can review "${change.title}". It is shown only once.`,
+          expiresAt: updated.approval_token_expires_at,
+        });
+      }
+      setNotice({ kind: 'success', text: 'New approval link generated.' });
+      await load();
+    } catch (err) {
+      setNotice({
+        kind: 'error',
+        text: err instanceof Error ? err.message : 'Failed to regenerate approval link',
+      });
+    } finally {
+      setRegeneratingLinkId(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -81,6 +125,24 @@ export default function EngagementDetailPage() {
           </Link>
         }
       />
+
+      {notice && (
+        <div className="mb-4">
+          <Alert variant={notice.kind === 'error' ? 'error' : 'success'} title={notice.text}>
+            {notice.text}
+          </Alert>
+        </div>
+      )}
+
+      {approvalLink && (
+        <ApprovalLinkPanel
+          title={approvalLink.title}
+          description={approvalLink.description}
+          url={approvalLink.url}
+          expiresAt={approvalLink.expiresAt}
+          onDismiss={() => setApprovalLink(null)}
+        />
+      )}
 
       {/* Engagement Margin View (BAG-EXP-008, FR-088, AC-027) */}
       <section className="mb-8">
@@ -178,6 +240,20 @@ export default function EngagementDetailPage() {
                     +<Money amountMinor={sc.delta_amount_minor} currency={sc.currency} />
                     {sc.accepted_by_name ? ` • Accepted by ${sc.accepted_by_name}` : ''}
                   </p>
+                  {sc.status === 'pending' && (
+                    <div className="mt-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleRegenerateScopeChangeLink(sc)}
+                        disabled={regeneratingLinkId === sc.id}
+                      >
+                        <ArrowsClockwise className="mr-2 h-4 w-4" />
+                        {regeneratingLinkId === sc.id
+                          ? 'Generating...'
+                          : 'Regenerate approval link'}
+                      </Button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

@@ -2,9 +2,11 @@ import uuid
 from datetime import date, timedelta
 
 import pytest
+from sqlalchemy import select
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
+from app.domains.lifecycle.models import DocumentStatusEvent
 from tests.helpers import authenticate_test_user, create_sent_invoice
 
 
@@ -214,6 +216,119 @@ async def test_reversal_idempotency_returns_existing_record():
         assert first.status_code == 201
         assert second.status_code == 201
         assert first.json()["id"] == second.json()["id"]
+
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_immediate_correction_records_initial_posted_lifecycle_event(
+    db_session,
+):
+    client, client_id = await authenticated_client()
+
+    try:
+        _, receipt = await create_paid_invoice(client, client_id)
+
+        current_user = await client.get("/auth/me")
+        assert current_user.status_code == 200
+        actor_id = current_user.json()["user"]["id"]
+
+        response = await client.post(
+            f"/receipts/{receipt['id']}/reversals",
+            json={
+                "amount_minor": 10_000,
+                "reversal_type": "correction",
+                "reason": "Accounting correction",
+                "idempotency_key": f"correction-event-{uuid.uuid4().hex[:12]}",
+            },
+        )
+
+        assert response.status_code == 201, response.text
+        reversal_id = response.json()["id"]
+
+        db_session.expire_all()
+
+        result = await db_session.execute(
+            select(DocumentStatusEvent).where(
+                DocumentStatusEvent.document_type == "receipt_reversal",
+                DocumentStatusEvent.document_id == reversal_id,
+            )
+        )
+        events = list(result.scalars().all())
+
+        assert len(events) == 1
+
+        event = events[0]
+        assert event.from_status is None
+        assert event.to_status == "posted"
+        assert event.actor_type == "issuer"
+        assert event.actor_id == actor_id
+        assert event.source == "receipt_reversal_created"
+        assert event.event_metadata["receipt_id"] == receipt["id"]
+        assert event.event_metadata["amount_minor"] == 10_000
+
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_pending_refund_records_creation_and_posting_events(db_session):
+    client, client_id = await authenticated_client()
+
+    try:
+        _, receipt = await create_paid_invoice(client, client_id)
+
+        current_user = await client.get("/auth/me")
+        assert current_user.status_code == 200
+        actor_id = current_user.json()["user"]["id"]
+
+        response = await client.post(
+            f"/receipts/{receipt['id']}/reversals",
+            json={
+                "amount_minor": 10_000,
+                "reversal_type": "refund",
+                "reason": "Refund agreed with client",
+                "idempotency_key": f"refund-event-{uuid.uuid4().hex[:12]}",
+            },
+        )
+
+        assert response.status_code == 201, response.text
+        reversal_id = response.json()["id"]
+
+        posted = await client.post(
+            f"/receipts/reversals/{reversal_id}/post",
+            json={"evidence_reference": "REFUND-EVIDENCE-001"},
+        )
+
+        assert posted.status_code == 200, posted.text
+
+        db_session.expire_all()
+
+        result = await db_session.execute(
+            select(DocumentStatusEvent).where(
+                DocumentStatusEvent.document_type == "receipt_reversal",
+                DocumentStatusEvent.document_id == reversal_id,
+            )
+        )
+        events = list(result.scalars().all())
+
+        assert len(events) == 2
+
+        created = next(event for event in events if event.to_status == "pending")
+        assert created.from_status is None
+        assert created.actor_type == "issuer"
+        assert created.actor_id == actor_id
+        assert created.source == "receipt_reversal_created"
+
+        posted_event = next(event for event in events if event.to_status == "posted")
+        assert posted_event.from_status == "pending"
+        assert posted_event.actor_type == "issuer"
+        assert posted_event.actor_id == actor_id
+        assert posted_event.source == "receipt_reversal_posted"
+        assert (
+            posted_event.event_metadata["evidence_reference"] == "REFUND-EVIDENCE-001"
+        )
 
     finally:
         await client.aclose()

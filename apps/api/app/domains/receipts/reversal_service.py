@@ -17,6 +17,8 @@ from app.domains.invoices.models import Invoice
 from app.domains.lifecycle.service import (
     invoice_balance_minor,
     invoice_target_payable,
+    record_receipt_reversal_created,
+    transition_document,
     transition_invoice_after_receipt_reversal,
 )
 from app.domains.receipts.models import Receipt, ReceiptReversal
@@ -212,6 +214,21 @@ async def create_reversal(
     # metadata. SQLAlchemy column defaults are applied at flush time.
     await db.flush()
 
+    record_receipt_reversal_created(
+        db,
+        reversal=reversal,
+        actor_type="issuer",
+        actor_id=actor_user_id,
+        source="receipt_reversal_created",
+        metadata={
+            "invoice_id": invoice.id,
+            "receipt_id": receipt.id,
+            "amount_minor": reversal.amount_minor,
+            "reversal_type": reversal.reversal_type,
+            "reason": reversal.reason,
+        },
+    )
+
     if initial_status == "posted":
         await apply_posted_reversal(
             db,
@@ -223,7 +240,7 @@ async def create_reversal(
 
     try:
         await db.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         await db.rollback()
 
         # A concurrent request may have won the workspace/idempotency
@@ -239,7 +256,7 @@ async def create_reversal(
 
         raise ConflictException(
             "A conflicting reversal operation was committed. Retry with a new idempotency key."
-        )
+        ) from e
 
     await db.refresh(reversal)
     return reversal
@@ -347,11 +364,28 @@ async def post_pending_reversal(
             "Posting this reversal would exceed the remaining reversible receipt amount."
         )
 
-    reversal.status = "posted"
-    reversal.posted_at = datetime.now(timezone.utc)
-
     if confirmed_evidence:
         reversal.evidence_reference = confirmed_evidence
+
+    reversal.posted_at = datetime.now(timezone.utc)
+
+    transition_document(
+        db,
+        document=reversal,
+        document_type="receipt_reversal",
+        to_status="posted",
+        actor_type="issuer",
+        actor_id=actor_user_id,
+        source="receipt_reversal_posted",
+        metadata={
+            "invoice_id": invoice.id,
+            "receipt_id": receipt.id,
+            "amount_minor": reversal.amount_minor,
+            "reversal_type": reversal.reversal_type,
+            "reason": reversal.reason,
+            "evidence_reference": reversal.evidence_reference,
+        },
+    )
 
     await apply_posted_reversal(
         db,

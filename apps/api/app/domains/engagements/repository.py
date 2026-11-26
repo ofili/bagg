@@ -49,6 +49,21 @@ class ScopeChangeRepository:
     def add(self, change_request: ScopeChangeRequest) -> None:
         self.db.add(change_request)
 
+    async def get_by_id(
+        self,
+        workspace_id: str,
+        change_request_id: str,
+        for_update: bool = False,
+    ) -> Optional[ScopeChangeRequest]:
+        query = select(ScopeChangeRequest).where(
+            ScopeChangeRequest.workspace_id == workspace_id,
+            ScopeChangeRequest.id == change_request_id,
+        )
+        if for_update:
+            query = query.with_for_update()
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
     async def get_by_approval_token(
         self, token: str, for_update: bool = False
     ) -> Optional[ScopeChangeRequest]:
