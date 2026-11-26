@@ -11,7 +11,7 @@ import {
 import { ApprovalLinkPanel } from '@/components/engagements/ApprovalLinkPanel';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Button, Card, ErrorState, Skeleton, StatCard } from '@/components/ui';
+import { Alert, Button, Card, ErrorState, Skeleton, StatCard } from '@/components/ui';
 import { Money } from '@/components/money/Money';
 import {
   getEngagement,

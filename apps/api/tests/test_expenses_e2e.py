@@ -9,6 +9,11 @@ from app.main import app
 from tests.test_quotes import authenticate_test_user
 
 
+def token_from_url(url: str) -> str:
+    """Approval links look like <web>/e/<token> or <web>/sc/<token>."""
+    return url.rstrip("/").rsplit("/", 1)[-1]
+
+
 @pytest.mark.asyncio
 async def test_ac029_expenses_end_to_end_scenario():
     """AC-029: Full engagement-to-margin scenario with deposit, threshold, cap change, and non-billable cost."""
@@ -154,7 +159,7 @@ async def test_ac029_expenses_end_to_end_scenario():
         assert e3.json()["approval_status"] == "pending_approval"
 
         # Client approves ₦180,000 studio hire
-        studio_token = e3.json()["approval_token"]
+        studio_token = token_from_url(e3.json()["approval_url"])
         assert studio_token
         assert e3.json()["approval_url"].endswith(f"/e/{studio_token}")
         app_e3 = await client.post(
@@ -199,7 +204,7 @@ async def test_ac029_expenses_end_to_end_scenario():
             json={"expense_id": e5.json()["id"]},
         )
         assert sc_res.status_code == 201
-        sc_token = sc_res.json()["approval_token"]
+        sc_token = token_from_url(sc_res.json()["approval_url"])
         assert sc_token
         assert sc_res.json()["approval_url"].endswith(f"/sc/{sc_token}")
 
@@ -339,7 +344,7 @@ async def test_expenses_negative_guards_and_tenant_isolation():
         assert cross_margin.status_code == 404
 
         # Client approves, then provider edits amount -> approval invalidated (AC-018)
-        tok = exp_res.json()["approval_token"]
+        tok = token_from_url(exp_res.json()["approval_url"])
         assert tok
         assert (
             await client_a.post(f"/expenses/public/{tok}/approve", json={"approved_by_name": "Client A"})
@@ -350,7 +355,7 @@ async def test_expenses_negative_guards_and_tenant_isolation():
         assert edited.json()["approval_status"] == "pending_approval"
 
         # The edit rotated the link; the provider gets the new raw token once.
-        tok2 = edited.json()["approval_token"]
+        tok2 = token_from_url(edited.json()["approval_url"])
         assert tok2
         assert tok2 != tok
         assert edited.json()["approval_url"].endswith(f"/e/{tok2}")

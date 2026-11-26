@@ -158,11 +158,14 @@ def calculate_invoice_totals(
 
     resolved_deposit_minor = None
 
-    if explicit_deposit is not None and explicit_deposit > 0:
-        resolved_deposit_minor = min(
-            explicit_deposit,
-            net_payable_minor,
-        )
+    if explicit_deposit is not None:
+        # An explicit amount always wins over the percentage. An explicit zero
+        # means "no deposit" and must not fall back to the percentage.
+        if explicit_deposit > 0:
+            resolved_deposit_minor = min(
+                explicit_deposit,
+                net_payable_minor,
+            )
     elif deposit_rate > 0:
         resolved_deposit_minor = calculate_tax_minor(
             net_payable_minor,

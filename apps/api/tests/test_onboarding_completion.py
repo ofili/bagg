@@ -92,6 +92,7 @@ async def test_business_profile_completion_updates_workspace_and_progress(
         "country": "NG",
         "default_currency": "NGN",
         "address": "12 Marina Road, Lagos",
+        "timezone": "Africa/Lagos",
     }
 
     workspace = await db_session.get(Workspace, workspace_id)

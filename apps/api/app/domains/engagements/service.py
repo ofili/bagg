@@ -166,7 +166,6 @@ def map_scope_change_to_response(
         delta_amount_minor=change_req.delta_amount_minor,
         currency=change_req.currency,
         status=change_req.status,
-        approval_token=approval_token,
         approval_url=(
             build_scope_change_approval_url(approval_token) if approval_token else None
         ),

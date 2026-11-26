@@ -18,8 +18,6 @@ class ExpenseCreate(BaseModel):
     receipt_storage_path: Optional[str] = None
     receipt_content_type: Optional[str] = None
     notes: Optional[str] = None
-    # Email the one-time approval link to the client when approval is required.
-    send_email: bool = False
 
     @field_validator("currency")
     @classmethod
@@ -80,11 +78,10 @@ class ExpenseResponse(BaseModel):
     decline_reason: Optional[str] = None
 
     # Returned only when the link is created or regenerated. The raw token is
-    # never persisted, so later reads cannot expose it again.
-    approval_token: Optional[str] = None
+    # never persisted, so later reads cannot expose it again. Only the URL is
+    # returned, not the bare token, to keep the secret out of logs and caches.
     approval_url: Optional[str] = None
     approval_token_expires_at: Optional[datetime] = None
-    approval_email_queued: bool = False
 
     invoicing_status: str
     invoice_id: Optional[str] = None

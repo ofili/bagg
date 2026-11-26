@@ -65,7 +65,6 @@ export interface Expense {
   approved_by_name?: string | null;
   declined_at?: string | null;
   decline_reason?: string | null;
-  approval_token?: string | null;
   approval_url?: string | null;
   approval_token_expires_at?: string | null;
   invoicing_status: 'uninvoiced' | 'drafted' | 'invoiced' | string;
@@ -112,7 +111,6 @@ export interface ScopeChangeRequest {
   delta_amount_minor: number;
   currency: string;
   status: 'pending' | 'accepted' | 'declined' | string;
-  approval_token?: string | null;
   approval_url?: string | null;
   approval_token_expires_at?: string | null;
   accepted_at?: string | null;

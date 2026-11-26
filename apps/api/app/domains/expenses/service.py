@@ -283,7 +283,6 @@ def map_expense_to_response(
         approved_by_name=expense.approved_by_name,
         declined_at=expense.declined_at,
         decline_reason=expense.decline_reason,
-        approval_token=approval_token,
         approval_url=(
             build_expense_approval_url(approval_token) if approval_token else None
         ),
