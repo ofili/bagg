@@ -1,9 +1,3 @@
-"""
-Lifecycle 13: Upstream Quotes, Estimates & 1-Click Conversion
-Tests: US-QOT-01 (Quote Drafting, Expiration Dates & Minor Math),
-       US-QOT-02 (Public Quote Portal & Client Online Acceptance),
-       US-QOT-03 (1-Click Convert Accepted Quote to Invoice)
-"""
 import uuid
 import pytest
 from datetime import date, timedelta
@@ -16,6 +10,7 @@ from tests.helpers import (
     authenticate_test_user,
     create_sent_quote,
 )
+from app.domains.lifecycle.models import DocumentStatusEvent
 from app.domains.notifications.models import Notification
 from app.domains.quotes.models import Quote
 
@@ -198,6 +193,23 @@ async def test_quotes_full_lifecycle():
         conv_again = await client.post(f"/quotes/{q1['id']}/convert")
         assert conv_again.status_code == 200
         assert conv_again.json()["id"] == created_invoice["id"]
+
+        # Draft invoice linkage is recorded once, without converting the quote.
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(DocumentStatusEvent).where(
+                    DocumentStatusEvent.document_type == "quote",
+                    DocumentStatusEvent.document_id == q1["id"],
+                    DocumentStatusEvent.source
+                    == "quote_accepted_invoice_created",
+                )
+            )
+            linkage_events = list(result.scalars().all())
+
+        assert len(linkage_events) == 1
+        assert linkage_events[0].from_status == "accepted"
+        assert linkage_events[0].to_status == "accepted"
+        assert linkage_events[0].event_metadata["invoice_id"] == created_invoice["id"]
 
         # --- 13. Finalize the converted invoice -> number assigned, quote marked converted ---
         fin_inv = await client.post(f"/invoices/{created_invoice['id']}/finalize")

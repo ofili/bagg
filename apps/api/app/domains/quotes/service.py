@@ -23,8 +23,8 @@ from app.domains.documents.delivery import DocumentDeliveryStatus
 from app.domains.engagements import service as engagements_service
 from app.domains.invoices import service as invoices_service
 from app.domains.lifecycle.service import (
-    record_status_event,
     record_document_first_view,
+    record_quote_invoice_linked,
     transition_document,
 )
 from app.domains.quotes.models import Quote, QuoteComment, QuoteLineItem, QuoteRevision
@@ -819,19 +819,18 @@ async def convert_quote_to_invoice(
     invoice = await invoices_service.create_draft_invoice_from_quote(
         db, workspace, quote_obj
     )
+    
     quote_obj.invoice_id = invoice.id
-    record_status_event(
-        db=db,
-        workspace_id=workspace.id,
-        document_type="quote",
-        document_id=quote_obj.id,
-        from_status=quote_obj.status,
-        to_status=quote_obj.status,
+
+    record_quote_invoice_linked(
+        db,
+        quote=quote_obj,
+        invoice=invoice,
         actor_type="issuer",
         actor_id=workspace.owner_id,
         source="issuer_convert",
-        metadata={"invoice_id": invoice.id, "quote_id": quote_obj.id},
     )
+    
     await db.commit()
     await QuoteRepository(db).refresh(invoice)
     return invoice, client
@@ -951,11 +950,21 @@ async def accept_public_quote(
     invoice = await invoices_service.get_invoice_by_quote_id(
         db, workspace, quote_obj.id
     )
+    
     if invoice is None:
         invoice = await invoices_service.create_draft_invoice_from_quote(
             db, workspace, quote_obj, commit=False
         )
         quote_obj.invoice_id = invoice.id
+
+        record_quote_invoice_linked(
+            db,
+            quote=quote_obj,
+            invoice=invoice,
+            actor_type="system",
+            source="quote_accepted_invoice_created",
+        )
+
         changed = True
 
     # Snapshot commercial terms & create engagement (BAG-ENG-002, BAG-EXP-001)

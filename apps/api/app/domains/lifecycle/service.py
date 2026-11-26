@@ -517,6 +517,62 @@ def record_document_first_view(
     return True
 
 
+def record_quote_invoice_linked(
+    db: AsyncSession,
+    *,
+    quote,
+    invoice,
+    actor_type: str,
+    actor_id: Optional[str] = None,
+    source: str,
+) -> DocumentStatusEvent:
+    """
+    Record the creation and linkage of a draft invoice from an accepted quote.
+
+    Linking a draft invoice does not convert the quote. The quote remains
+    accepted until the linked invoice is finalised.
+
+    The caller owns the transaction and commit.
+    """
+    quote_status = validate_document_status("quote", quote.status)
+    invoice_status = validate_document_status("invoice", invoice.status)
+
+    if quote_status != "accepted":
+        raise BadRequestException(
+            "Only an accepted quote can be linked to a converted invoice."
+        )
+
+    if invoice_status != "draft":
+        raise BadRequestException(
+            "A quote can only be linked to a draft invoice during conversion."
+        )
+
+    if invoice.quote_id != quote.id:
+        raise BadRequestException("Invoice does not reference the supplied quote.")
+
+    if invoice.workspace_id != quote.workspace_id:
+        raise BadRequestException("Quote and invoice belong to different workspaces.")
+
+    if quote.invoice_id != invoice.id:
+        raise BadRequestException("Quote is not linked to the supplied invoice.")
+
+    return record_status_event(
+        db=db,
+        workspace_id=quote.workspace_id,
+        document_type="quote",
+        document_id=quote.id,
+        from_status="accepted",
+        to_status="accepted",
+        actor_type=actor_type,
+        actor_id=actor_id,
+        source=source,
+        metadata={
+            "invoice_id": invoice.id,
+            "invoice_status": invoice_status,
+        },
+    )
+
+
 async def transition_invoice_after_receipt_reversal(
     db: AsyncSession,
     *,
