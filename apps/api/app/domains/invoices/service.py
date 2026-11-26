@@ -5,6 +5,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.dates import business_today
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals
 from app.core.security import generate_share_token, hash_token
@@ -160,7 +161,7 @@ async def get_currency_metrics(db: AsyncSession, workspace: Workspace) -> list[d
     repository = InvoiceRepository(db)
     invoices = await repository.list_for_metrics(workspace.id)
 
-    today = date.today()
+    today = business_today(workspace.timezone)
     first_of_month = date(today.year, today.month, 1)
     metrics_by_currency: dict[str, dict] = {}
 
@@ -276,7 +277,7 @@ async def get_currency_metrics_history(
 ) -> list[dict]:
     repository = InvoiceRepository(db)
 
-    today = date.today()
+    today = business_today(workspace.timezone)
     current_month = date(today.year, today.month, 1)
     start_month = _shift_month(current_month, -(months - 1))
     end_month = _shift_month(current_month, 1)
@@ -340,7 +341,7 @@ async def create_invoice(
                 "Payment profile currency must match the invoice currency."
             )
 
-    issue_date = payload.issue_date or date.today()
+    issue_date = payload.issue_date or business_today(workspace.timezone)
     due_date = payload.due_date
 
     if not due_date:
@@ -636,7 +637,7 @@ async def finalize_invoice(
             f"is '{invoice.status}' and cannot be finalized."
         )
 
-    issue_date = invoice.issue_date or date.today()
+    issue_date = invoice.issue_date or business_today(workspace.timezone)
 
     if not invoice.due_date:
         terms_days = client.default_payment_terms_days or 14

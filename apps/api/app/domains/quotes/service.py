@@ -9,6 +9,7 @@ from typing import Optional, cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.dates import business_today
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals, format_money
 from app.core.security import generate_share_token
@@ -174,7 +175,7 @@ async def create_quote(
     quote_number = f"{locked_workspace.quote_prefix}{seq:04d}"
     locked_workspace.next_quote_number = seq + 1
 
-    issue_date = payload.issue_date or date.today()
+    issue_date = payload.issue_date or business_today(workspace.timezone)
     expires_at = payload.expires_at
     if not expires_at:
         validity = payload.validity_days if payload.validity_days is not None else 14
@@ -272,7 +273,7 @@ async def finalize_quote(
         raise BadRequestException(
             f"Quote '{quote_obj.quote_number}' total must be greater than zero."
         )
-    if quote_obj.expires_at < date.today():
+    if quote_obj.expires_at < business_today(workspace.timezone):
         raise BadRequestException(
             "This draft quote has expired. Update its expiry date before issuing it."
         )
@@ -910,7 +911,7 @@ async def accept_public_quote(
         raise BadRequestException(
             "This quote was previously declined. Please request a new quote."
         )
-    if quote_obj.expires_at < date.today():
+    if quote_obj.expires_at < business_today(workspace.timezone):
         raise BadRequestException(
             "This quote has expired. Please contact the freelancer for an updated quote."
         )
@@ -1018,7 +1019,7 @@ async def decline_public_quote(
     if quote_obj.status == "declined":
         raise BadRequestException("This quote has already been declined.")
 
-    if quote_obj.expires_at < date.today():
+    if quote_obj.expires_at < business_today(workspace.timezone):
         raise BadRequestException(
             "This quote has expired and can no longer be declined."
         )
@@ -1075,7 +1076,7 @@ async def request_quote_review(
             f"Cannot request changes on a {quote_obj.status} quote."
         )
 
-    if quote_obj.expires_at < date.today():
+    if quote_obj.expires_at < business_today(workspace.timezone):
         raise BadRequestException(
             "This quote has expired. Please contact the issuer for an updated quote."
         )

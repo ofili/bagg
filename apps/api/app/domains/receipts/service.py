@@ -14,6 +14,7 @@ from typing import NamedTuple, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import BadRequestException
+from app.core.dates import business_today
 from app.core.money import format_money
 from app.core.security import generate_share_token
 from app.domains.activation.service import record_payment_confirmed
@@ -328,7 +329,7 @@ def _build_receipt(
         currency=invoice.currency,
         amount_paid_minor=pay.amount_minor,
         balance_remaining_minor=balance_remaining_minor,
-        payment_date=pay.payment_date or date.today(),
+        payment_date=pay.payment_date or business_today(workspace.timezone),
         payment_method=pay.method,
         reference=pay.reference,
         payer_name=pay.payer_name or client_name,

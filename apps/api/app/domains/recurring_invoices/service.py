@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import BadRequestException, NotFoundException
+from app.core.dates import business_today
 from app.core.money import calculate_invoice_totals
 from app.domains.clients.models import Client
 from app.domains.entitlements.service import get_workspace_entitlements
@@ -46,7 +47,7 @@ def validate_timezone(value: str) -> str:
 
 
 def local_today(timezone_name: str) -> date:
-    return datetime.now(ZoneInfo(timezone_name)).date()
+    return business_today(timezone_name)
 
 
 async def require_recurring_entitlement(
@@ -169,8 +170,8 @@ async def create_schedule(
 ) -> RecurringInvoiceSchedule:
     await require_recurring_entitlement(db, workspace)
 
-    timezone_name = validate_timezone(payload.timezone)
-    if payload.start_date < local_today(timezone_name):
+    timezone_name = validate_timezone(workspace.timezone)
+    if payload.start_date < business_today(timezone_name):
         raise BadRequestException("The start date cannot be in the past.")
 
     _validate_end_configuration(
@@ -419,7 +420,7 @@ async def pause_schedule(
 
     schedule.status = "paused"
     schedule.paused_at = datetime.now(timezone.utc)
-    schedule.pause_started_on = local_today(schedule.timezone)
+    schedule.pause_started_on = business_today(workspace.timezone)
 
     await db.commit()
     await db.refresh(schedule)
@@ -443,7 +444,7 @@ async def resume_schedule(
 
     await require_recurring_entitlement(db, workspace)
 
-    today = local_today(schedule.timezone)
+    today = business_today(workspace.timezone)
     while schedule.next_run_date < today:
         schedule.next_run_date = next_occurrence(
             schedule.next_run_date,
@@ -516,8 +517,8 @@ class RecurringInvoiceError(Exception):
 
 def _local_today(timezone_name: str) -> date:
     try:
-        return datetime.now(ZoneInfo(timezone_name)).date()
-    except Exception as exc:
+        return business_today(timezone_name)
+    except ValueError as exc:
         raise RecurringInvoiceError(
             f"Invalid schedule timezone: {timezone_name}"
         ) from exc
@@ -799,14 +800,14 @@ async def generate_one_due_schedule(
     if schedule is None or schedule.status != "active":
         return None
 
-    today = today or _local_today(schedule.timezone)
-
     workspace = await _get_workspace(db, schedule.workspace_id)
     if workspace is None:
         schedule.status = "cancelled"
         schedule.cancelled_at = datetime.now(timezone.utc)
         await db.commit()
         return None
+
+    today = today or business_today(workspace.timezone)
 
     if not await _has_paid_entitlement(db, workspace):
         # Do not destroy or cancel the schedule. It can resume after upgrade.
@@ -949,11 +950,12 @@ async def process_due_recurring_invoices(
         schedule = await db.get(RecurringInvoiceSchedule, invoice.recurring_schedule_id)
         if schedule is None or schedule.issue_mode != "auto_issue":
             return False
-        local_date = today or _local_today(schedule.timezone)
-        if invoice.recurring_period_start != local_date:
-            return False
         workspace = await repository.get_workspace(schedule.workspace_id)
         if workspace is None:
+            return False
+
+        local_date = today or business_today(workspace.timezone)
+        if invoice.recurring_period_start != local_date:
             return False
         try:
             await finalize_invoice(db, workspace, invoice.id)
@@ -993,10 +995,17 @@ async def process_due_recurring_invoices(
         # scan is therefore limited to dates represented by active auto-issue
         # schedules in this batch to avoid comparing UTC dates incorrectly.
         retry_dates: set[date] = set()
+
         for schedule_id in schedule_ids:
             schedule = await db.get(RecurringInvoiceSchedule, schedule_id)
-            if schedule and schedule.issue_mode == "auto_issue":
-                retry_dates.add(_local_today(schedule.timezone))
+            if schedule is None or schedule.issue_mode != "auto_issue":
+                continue
+
+            workspace = await repository.get_workspace(schedule.workspace_id)
+            if workspace is None:
+                continue
+
+            retry_dates.add(business_today(workspace.timezone))
     else:
         retry_dates = {current_date}
 

@@ -85,14 +85,23 @@ def test_yearly_schedule_preserves_leap_day_and_restores_it():
         anchor_day=29,
         anchor_month=2,
     )
+
     following_year = next_occurrence(
         non_leap_year,
         "yearly",
         anchor_day=29,
         anchor_month=2,
     )
+
+    third_year = next_occurrence(
+        following_year,
+        "yearly",
+        anchor_day=29,
+        anchor_month=2,
+    )
+
     next_leap_year = next_occurrence(
-        non_leap_year,
+        third_year,
         "yearly",
         anchor_day=29,
         anchor_month=2,
@@ -100,7 +109,8 @@ def test_yearly_schedule_preserves_leap_day_and_restores_it():
 
     assert non_leap_year == date(2029, 2, 28)
     assert following_year == date(2030, 2, 28)
-    assert next_leap_year == date(2031, 2, 28)
+    assert third_year == date(2031, 2, 28)
+    assert next_leap_year == date(2032, 2, 29)
 
 
 def test_yearly_schedule_restores_february_29_in_next_leap_year():

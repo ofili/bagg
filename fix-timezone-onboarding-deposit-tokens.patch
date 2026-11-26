@@ -1,0 +1,313 @@
+diff --git a/apps/api/app/core/money.py b/apps/api/app/core/money.py
+index c2036f0..4cf312f 100644
+--- a/apps/api/app/core/money.py
++++ b/apps/api/app/core/money.py
+@@ -158,11 +158,14 @@ def calculate_invoice_totals(
+ 
+     resolved_deposit_minor = None
+ 
+-    if explicit_deposit is not None and explicit_deposit > 0:
+-        resolved_deposit_minor = min(
+-            explicit_deposit,
+-            net_payable_minor,
+-        )
++    if explicit_deposit is not None:
++        # An explicit amount always wins over the percentage. An explicit zero
++        # means "no deposit" and must not fall back to the percentage.
++        if explicit_deposit > 0:
++            resolved_deposit_minor = min(
++                explicit_deposit,
++                net_payable_minor,
++            )
+     elif deposit_rate > 0:
+         resolved_deposit_minor = calculate_tax_minor(
+             net_payable_minor,
+diff --git a/apps/api/app/domains/engagements/schemas.py b/apps/api/app/domains/engagements/schemas.py
+index be9caf2..34e136a 100644
+--- a/apps/api/app/domains/engagements/schemas.py
++++ b/apps/api/app/domains/engagements/schemas.py
+@@ -48,8 +48,6 @@ class ScopeChangeCreateRequest(BaseModel):
+     title: Optional[str] = Field(default=None, max_length=255)
+     description: Optional[str] = None
+     delta_amount_minor: Optional[int] = Field(default=None, gt=0)
+-    # Email the one-time approval link to the client.
+-    send_email: bool = False
+ 
+ 
+ class ScopeChangeResponse(BaseModel):
+@@ -68,11 +66,10 @@ class ScopeChangeResponse(BaseModel):
+     status: str
+ 
+     # Returned only when the link is created or regenerated. The raw token is
+-    # never persisted, so later reads cannot expose it again.
+-    approval_token: Optional[str] = None
++    # never persisted, so later reads cannot expose it again. Only the URL is
++    # returned, not the bare token, to keep the secret out of logs and caches.
+     approval_url: Optional[str] = None
+     approval_token_expires_at: Optional[datetime] = None
+-    approval_email_queued: bool = False
+ 
+     accepted_at: Optional[datetime] = None
+     accepted_by_name: Optional[str] = None
+diff --git a/apps/api/app/domains/engagements/service.py b/apps/api/app/domains/engagements/service.py
+index 1e34cdb..d40f8ec 100644
+--- a/apps/api/app/domains/engagements/service.py
++++ b/apps/api/app/domains/engagements/service.py
+@@ -166,7 +166,6 @@ def map_scope_change_to_response(
+         delta_amount_minor=change_req.delta_amount_minor,
+         currency=change_req.currency,
+         status=change_req.status,
+-        approval_token=approval_token,
+         approval_url=(
+             build_scope_change_approval_url(approval_token) if approval_token else None
+         ),
+diff --git a/apps/api/app/domains/expenses/schemas.py b/apps/api/app/domains/expenses/schemas.py
+index 671f68d..e0d0e64 100644
+--- a/apps/api/app/domains/expenses/schemas.py
++++ b/apps/api/app/domains/expenses/schemas.py
+@@ -18,8 +18,6 @@ class ExpenseCreate(BaseModel):
+     receipt_storage_path: Optional[str] = None
+     receipt_content_type: Optional[str] = None
+     notes: Optional[str] = None
+-    # Email the one-time approval link to the client when approval is required.
+-    send_email: bool = False
+ 
+     @field_validator("currency")
+     @classmethod
+@@ -80,11 +78,10 @@ class ExpenseResponse(BaseModel):
+     decline_reason: Optional[str] = None
+ 
+     # Returned only when the link is created or regenerated. The raw token is
+-    # never persisted, so later reads cannot expose it again.
+-    approval_token: Optional[str] = None
++    # never persisted, so later reads cannot expose it again. Only the URL is
++    # returned, not the bare token, to keep the secret out of logs and caches.
+     approval_url: Optional[str] = None
+     approval_token_expires_at: Optional[datetime] = None
+-    approval_email_queued: bool = False
+ 
+     invoicing_status: str
+     invoice_id: Optional[str] = None
+diff --git a/apps/api/app/domains/expenses/service.py b/apps/api/app/domains/expenses/service.py
+index f1a7211..5d55798 100644
+--- a/apps/api/app/domains/expenses/service.py
++++ b/apps/api/app/domains/expenses/service.py
+@@ -283,7 +283,6 @@ def map_expense_to_response(
+         approved_by_name=expense.approved_by_name,
+         declined_at=expense.declined_at,
+         decline_reason=expense.decline_reason,
+-        approval_token=approval_token,
+         approval_url=(
+             build_expense_approval_url(approval_token) if approval_token else None
+         ),
+diff --git a/apps/api/app/domains/onboarding/service.py b/apps/api/app/domains/onboarding/service.py
+index 7f177d5..8c53318 100644
+--- a/apps/api/app/domains/onboarding/service.py
++++ b/apps/api/app/domains/onboarding/service.py
+@@ -163,8 +163,8 @@ class OnboardingService:
+                 country=workspace.country,
+                 default_currency=workspace.default_currency,
+                 address=workspace.address,
++                timezone=workspace.timezone,
+             ),
+-            timezone=workspace.timezone,
+             next_action=next_action,
+             started_at=progress.started_at,
+             completed_at=progress.completed_at,
+diff --git a/apps/api/migrations/versions/e5f6a7b8c9d0_add_workspace_timezone.py b/apps/api/migrations/versions/e5f6a7b8c9d0_add_workspace_timezone.py
+new file mode 100644
+index 0000000..57e6c21
+--- /dev/null
++++ b/apps/api/migrations/versions/e5f6a7b8c9d0_add_workspace_timezone.py
+@@ -0,0 +1,45 @@
++"""Add workspaces.timezone.
++
++The Workspace model gained a ``timezone`` column (used for central date
++handling) without a matching migration, so any query that loaded a workspace
++failed on a migrated database.
++
++The upgrade is idempotent: databases that already received the column by hand
++or from a local migration are left untouched.
++
++Revision ID: e5f6a7b8c9d0
++Revises: c3d4e5f6a7b9
++Create Date: 2026-11-26 09:00:00
++
++"""
++from __future__ import annotations
++
++from typing import Sequence, Union
++
++import sqlalchemy as sa
++from alembic import op
++
++# revision identifiers, used by Alembic.
++revision: str = "e5f6a7b8c9d0"
++down_revision: Union[str, Sequence[str], None] = "c3d4e5f6a7b9"
++branch_labels: Union[str, Sequence[str], None] = None
++depends_on: Union[str, Sequence[str], None] = None
++
++
++def upgrade() -> None:
++    columns = {col["name"] for col in sa.inspect(op.get_bind()).get_columns("workspaces")}
++    if "timezone" in columns:
++        return
++    op.add_column(
++        "workspaces",
++        sa.Column(
++            "timezone",
++            sa.String(length=64),
++            nullable=False,
++            server_default="Africa/Lagos",
++        ),
++    )
++
++
++def downgrade() -> None:
++    op.drop_column("workspaces", "timezone")
+diff --git a/apps/api/tests/test_expenses_e2e.py b/apps/api/tests/test_expenses_e2e.py
+index 892410f..0cc0378 100644
+--- a/apps/api/tests/test_expenses_e2e.py
++++ b/apps/api/tests/test_expenses_e2e.py
+@@ -9,6 +9,11 @@ from app.main import app
+ from tests.test_quotes import authenticate_test_user
+ 
+ 
++def token_from_url(url: str) -> str:
++    """Approval links look like <web>/e/<token> or <web>/sc/<token>."""
++    return url.rstrip("/").rsplit("/", 1)[-1]
++
++
+ @pytest.mark.asyncio
+ async def test_ac029_expenses_end_to_end_scenario():
+     """AC-029: Full engagement-to-margin scenario with deposit, threshold, cap change, and non-billable cost."""
+@@ -154,7 +159,7 @@ async def test_ac029_expenses_end_to_end_scenario():
+         assert e3.json()["approval_status"] == "pending_approval"
+ 
+         # Client approves ₦180,000 studio hire
+-        studio_token = e3.json()["approval_token"]
++        studio_token = token_from_url(e3.json()["approval_url"])
+         assert studio_token
+         assert e3.json()["approval_url"].endswith(f"/e/{studio_token}")
+         app_e3 = await client.post(
+@@ -199,7 +204,7 @@ async def test_ac029_expenses_end_to_end_scenario():
+             json={"expense_id": e5.json()["id"]},
+         )
+         assert sc_res.status_code == 201
+-        sc_token = sc_res.json()["approval_token"]
++        sc_token = token_from_url(sc_res.json()["approval_url"])
+         assert sc_token
+         assert sc_res.json()["approval_url"].endswith(f"/sc/{sc_token}")
+ 
+@@ -339,7 +344,7 @@ async def test_expenses_negative_guards_and_tenant_isolation():
+         assert cross_margin.status_code == 404
+ 
+         # Client approves, then provider edits amount -> approval invalidated (AC-018)
+-        tok = exp_res.json()["approval_token"]
++        tok = token_from_url(exp_res.json()["approval_url"])
+         assert tok
+         assert (
+             await client_a.post(f"/expenses/public/{tok}/approve", json={"approved_by_name": "Client A"})
+@@ -350,7 +355,7 @@ async def test_expenses_negative_guards_and_tenant_isolation():
+         assert edited.json()["approval_status"] == "pending_approval"
+ 
+         # The edit rotated the link; the provider gets the new raw token once.
+-        tok2 = edited.json()["approval_token"]
++        tok2 = token_from_url(edited.json()["approval_url"])
+         assert tok2
+         assert tok2 != tok
+         assert edited.json()["approval_url"].endswith(f"/e/{tok2}")
+diff --git a/apps/api/tests/test_onboarding_completion.py b/apps/api/tests/test_onboarding_completion.py
+index 9d2e9d9..6f52e78 100644
+--- a/apps/api/tests/test_onboarding_completion.py
++++ b/apps/api/tests/test_onboarding_completion.py
+@@ -92,6 +92,7 @@ async def test_business_profile_completion_updates_workspace_and_progress(
+         "country": "NG",
+         "default_currency": "NGN",
+         "address": "12 Marina Road, Lagos",
++        "timezone": "Africa/Lagos",
+     }
+ 
+     workspace = await db_session.get(Workspace, workspace_id)
+diff --git a/apps/api/tests/test_schema_drift.py b/apps/api/tests/test_schema_drift.py
+new file mode 100644
+index 0000000..474a568
+--- /dev/null
++++ b/apps/api/tests/test_schema_drift.py
+@@ -0,0 +1,43 @@
++"""Guards against the model/migration drift that broke every workspace query.
++
++A model column or table added without a matching Alembic migration only fails once
++the app runs against a database built purely from migrations. This compares the
++ORM metadata with the live (migrated) test database and fails if the models define
++tables or columns the database does not have.
++"""
++
++from alembic.autogenerate import compare_metadata
++from alembic.migration import MigrationContext
++from sqlalchemy import create_engine
++
++import app.models  # noqa: F401  (registers all models on Base.metadata)
++import app.domains.invoices.recall_models  # noqa: F401
++import app.domains.recurring_invoices.models  # noqa: F401
++import app.domains.payments.models  # noqa: F401
++import app.domains.security.email_change_models  # noqa: F401
++from app.core.config import settings
++from app.core.database import Base
++
++
++def test_models_do_not_define_tables_or_columns_missing_from_migrations():
++    engine = create_engine(settings.SYNC_DATABASE_URL)
++    try:
++        with engine.connect() as connection:
++            context = MigrationContext.configure(connection)
++            diffs = compare_metadata(context, Base.metadata)
++    finally:
++        engine.dispose()
++
++    missing = []
++    for diff in diffs:
++        op = diff[0]
++        if op == "add_table":
++            missing.append(f"table {diff[1].name}")
++        elif op == "add_column":
++            # ("add_column", schema, table_name, column)
++            missing.append(f"column {diff[2]}.{diff[3].name}")
++
++    assert not missing, (
++        "Models define schema objects with no migration (run `alembic revision "
++        f"--autogenerate`): {sorted(missing)}"
++    )
+diff --git a/apps/web/src/app/(app)/engagements/[id]/page.tsx b/apps/web/src/app/(app)/engagements/[id]/page.tsx
+index 42dfad2..64bcf6c 100644
+--- a/apps/web/src/app/(app)/engagements/[id]/page.tsx
++++ b/apps/web/src/app/(app)/engagements/[id]/page.tsx
+@@ -11,7 +11,7 @@ import {
+ import { ApprovalLinkPanel } from '@/components/engagements/ApprovalLinkPanel';
+ import { PageContainer } from '@/components/ui/PageContainer';
+ import { PageHeader } from '@/components/ui/PageHeader';
+-import { Button, Card, ErrorState, Skeleton, StatCard } from '@/components/ui';
++import { Alert, Button, Card, ErrorState, Skeleton, StatCard } from '@/components/ui';
+ import { Money } from '@/components/money/Money';
+ import {
+   getEngagement,
+diff --git a/apps/web/src/lib/expenses-api.ts b/apps/web/src/lib/expenses-api.ts
+index 5207a31..201fe10 100644
+--- a/apps/web/src/lib/expenses-api.ts
++++ b/apps/web/src/lib/expenses-api.ts
+@@ -65,7 +65,6 @@ export interface Expense {
+   approved_by_name?: string | null;
+   declined_at?: string | null;
+   decline_reason?: string | null;
+-  approval_token?: string | null;
+   approval_url?: string | null;
+   approval_token_expires_at?: string | null;
+   invoicing_status: 'uninvoiced' | 'drafted' | 'invoiced' | string;
+@@ -112,7 +111,6 @@ export interface ScopeChangeRequest {
+   delta_amount_minor: number;
+   currency: string;
+   status: 'pending' | 'accepted' | 'declined' | string;
+-  approval_token?: string | null;
+   approval_url?: string | null;
+   approval_token_expires_at?: string | null;
+   accepted_at?: string | null;
