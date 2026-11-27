@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Check, Info, Loader2 } from "lucide-react";
 import { BagCharacter } from "@/components/brand";
 import { DocumentComments } from "@/components/comments/DocumentComments";
+import { DownloadPdfButton } from "@/components/documents/DownloadPdfButton";
 import { InvoiceDocument, PaymentDetails } from "@/components/invoice";
 import {
   ClientPayBar,
@@ -93,6 +94,12 @@ interface PublicInvoiceData {
     status: string;
     rejection_reason?: string | null;
   } | null;
+  expense_receipts?: {
+    line_item_id?: string | null;
+    description: string;
+    receipt_filename?: string | null;
+    receipt_download_url: string;
+  }[];
   payment_profile?: {
     id: string;
     currency: string;
@@ -416,6 +423,7 @@ export default function PublicClientInvoiceView() {
 
   const {
     invoice,
+    expense_receipts,
     payment_profile,
     is_revised,
     revision_banner,
@@ -515,6 +523,13 @@ export default function PublicClientInvoiceView() {
           </div>
         )}
 
+        <div className="flex justify-end print:hidden">
+          <DownloadPdfButton
+            href={`${API_BASE}/invoices/share/${encodeURIComponent(token)}/pdf`}
+            documentLabel="invoice"
+          />
+        </div>
+
         {/* Revision notice */}
         {is_revised && revision_banner && (
           <Card
@@ -551,16 +566,33 @@ export default function PublicClientInvoiceView() {
             {/* Full invoice: desktop and tablet */}
             <div className="hidden sm:block">{invoiceDoc}</div>
 
-            <div className="flex justify-end print:hidden">
-              <a
-                href={`${API_BASE}/invoices/share/${encodeURIComponent(token)}/pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-10 items-center justify-center border border-line-subtle px-4 py-2 text-sm font-semibold text-text-primary hover:bg-surface-tint"
-              >
-                Download invoice PDF
-              </a>
-            </div>
+            {expense_receipts && expense_receipts.length > 0 && (
+              <Card zone="calm" className="space-y-3 p-4 sm:p-6 print:hidden">
+                <h2 className="text-heading">Expense receipts</h2>
+                <p className="text-body text-text-soft">
+                  Receipts for the reimbursable costs on this invoice. Links expire after a short
+                  time, so refresh the page if one stops working.
+                </p>
+                <ul className="space-y-2">
+                  {expense_receipts.map((receipt, index) => (
+                    <li
+                      key={`${receipt.line_item_id ?? receipt.description}-${index}`}
+                      className="flex items-center justify-between gap-3 text-body"
+                    >
+                      <span className="min-w-0 break-words">{receipt.description}</span>
+                      <a
+                        href={receipt.receipt_download_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 font-bold underline"
+                      >
+                        View receipt
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
 
             {/* Discussion */}
             <DocumentComments

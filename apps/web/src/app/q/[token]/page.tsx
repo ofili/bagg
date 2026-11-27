@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { BagCharacter } from "@/components/brand";
 import { DocumentComments } from "@/components/comments/DocumentComments";
+import { DownloadPdfButton } from "@/components/documents/DownloadPdfButton";
 import { QuoteRespondBar } from "@/components/mobile/QuoteRespondBar";
 import { Money } from "@/components/money/Money";
 import { StatusPill } from "@/components/status";
@@ -328,6 +329,13 @@ export default function PublicQuotePage() {
       )}
     >
       <div className="mx-auto max-w-xl space-y-6">
+        <div className="flex justify-end print:hidden">
+          <DownloadPdfButton
+            href={`${API_BASE}/quotes/share/${encodeURIComponent(token)}/pdf`}
+            documentLabel="quote"
+          />
+        </div>
+
         {/* Where this quotes stands */}
         {isAccepted && (
           <Card zone="calm" tone="peach" className="flex items-start gap-3">
@@ -445,17 +453,6 @@ export default function PublicQuotePage() {
                 className="block text-amount-l sm:text-amount-xl"
                 hideCurrencyCode
               />
-            </div>
-
-            <div className="flex justify-end print:hidden">
-              <a
-                href={`${API_BASE}/quotes/share/${encodeURIComponent(token)}/pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-10 items-center justify-center border border-line-subtle px-4 py-2 text-sm font-semibold text-text-primary hover:bg-surface-tint"
-              >
-                Download quote PDF
-              </a>
             </div>
 
             <section aria-labelledby="scope-heading" className="space-y-3">

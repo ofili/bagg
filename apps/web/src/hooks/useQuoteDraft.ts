@@ -88,6 +88,11 @@ export function useQuoteDraft() {
 
     const [notes, setNotes] = useState('');
 
+    // Reimbursable-expense terms, preserved with the accepted quote.
+    const [hasExpensePolicy, setHasExpensePolicy] = useState(false);
+    const [expenseThresholdText, setExpenseThresholdText] = useState('');
+    const [expenseCapText, setExpenseCapText] = useState('');
+
     const [saving, setSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -191,6 +196,8 @@ export function useQuoteDraft() {
     const taxPercent = percentageOf(taxText);
     const whtPercent = percentageOf(whtText);
     const depositPercent = percentageOf(depositText);
+    const expenseThresholdMinor = expenseThresholdText ? toMinor(expenseThresholdText) : 0;
+    const expenseCapMinor = expenseCapText ? toMinor(expenseCapText) : 0;
 
     const taxMinor = Math.round(
         discountedSubtotalMinor * (taxPercent / 100),
@@ -294,6 +301,15 @@ export function useQuoteDraft() {
             return 'The net payable amount must be greater than zero.';
         }
 
+        if (
+            hasExpensePolicy &&
+            expenseThresholdMinor > 0 &&
+            expenseCapMinor > 0 &&
+            expenseThresholdMinor > expenseCapMinor
+        ) {
+            return 'The expense approval amount cannot be higher than the total expense cap.';
+        }
+
         return null;
     };
 
@@ -314,8 +330,18 @@ export function useQuoteDraft() {
 
         discount_minor: discountMinor,
         tax_rate_percent: taxPercent,
-        withholding_tax_rate_percent: whtPercent,
-        deposit_percent: depositPercent,
+        wht_rate_percent: whtPercent,
+        deposit_percentage: depositPercent,
+
+        has_expense_policy: hasExpensePolicy,
+        expense_policy: hasExpensePolicy
+            ? {
+                  reimbursable_categories: [],
+                  per_expense_threshold_minor: expenseThresholdMinor > 0 ? expenseThresholdMinor : null,
+                  total_expense_cap_minor: expenseCapMinor > 0 ? expenseCapMinor : null,
+                  client_approval_required: true,
+              }
+            : null,
 
         notes: notes.trim() || null,
     });
@@ -464,6 +490,15 @@ export function useQuoteDraft() {
 
         notes,
         setNotes,
+
+        hasExpensePolicy,
+        setHasExpensePolicy,
+        expenseThresholdText,
+        setExpenseThresholdText,
+        expenseCapText,
+        setExpenseCapText,
+        expenseThresholdMinor,
+        expenseCapMinor,
 
         saving,
         errorMsg,

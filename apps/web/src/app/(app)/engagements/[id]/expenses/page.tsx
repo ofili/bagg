@@ -36,6 +36,8 @@ import {
   listEngagementExpenses,
   recordExpense,
   regenerateExpenseApprovalLink,
+  updateExpense,
+  uploadReceipt,
   type Engagement,
   type Expense,
 } from '@/lib/expenses-api';
@@ -57,6 +59,14 @@ export default function EngagementExpensesPage() {
     expiresAt?: string | null;
   } | null>(null);
   const [regeneratingLinkId, setRegeneratingLinkId] = useState<string | null>(null);
+
+  // Inline edit state (only for expenses that have not been put on an invoice)
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDescription, setEditDescription] = useState('');
+  const [editAmountMajor, setEditAmountMajor] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editBillable, setEditBillable] = useState(true);
+  const [editSaving, setEditSaving] = useState(false);
 
   // Add expense form state (camera-first on mobile)
   const [showAddForm, setShowAddForm] = useState(false);
@@ -112,6 +122,63 @@ export default function EngagementExpensesPage() {
     .filter((e) => selectedIds.includes(e.id))
     .reduce((sum, e) => sum + e.amount_minor, 0);
 
+  function startEdit(exp: Expense) {
+    setEditingId(exp.id);
+    setEditDescription(exp.description);
+    setEditAmountMajor((exp.amount_minor / 100).toFixed(2));
+    setEditCategory(exp.category ?? '');
+    setEditBillable(exp.billable);
+  }
+
+  async function handleSaveEdit(exp: Expense) {
+    const parsed = Math.round(Number(editAmountMajor.replace(/,/g, '')) * 100);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setNotice({ kind: 'error', text: 'Enter a valid expense amount greater than zero.' });
+      return;
+    }
+    if (!editDescription.trim()) {
+      setNotice({ kind: 'error', text: 'Add a short description.' });
+      return;
+    }
+
+    const changes: Parameters<typeof updateExpense>[1] = {};
+    if (parsed !== exp.amount_minor) changes.amount_minor = parsed;
+    if (editDescription.trim() !== exp.description) changes.description = editDescription.trim();
+    if (editCategory.trim() !== (exp.category ?? '')) changes.category = editCategory.trim();
+    if (editBillable !== exp.billable) changes.billable = editBillable;
+
+    if (Object.keys(changes).length === 0) {
+      setEditingId(null);
+      return;
+    }
+
+    setEditSaving(true);
+    setNotice(null);
+    try {
+      const updated = await updateExpense(exp.id, changes);
+      if (updated.approval_url) {
+        setApprovalLink({
+          url: updated.approval_url,
+          title: 'Client approval needed again',
+          description: `You changed \"${updated.description}\", so your client must approve it again. Send this link. It is shown only once.`,
+          expiresAt: updated.approval_token_expires_at,
+        });
+      }
+      setEditingId(null);
+      setNotice({
+        kind: 'success',
+        text: updated.approval_url
+          ? 'Expense updated. Send the new approval link to your client.'
+          : 'Expense updated.',
+      });
+      await load();
+    } catch (err) {
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Failed to update expense' });
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   async function handleRecordExpense(e: FormEvent) {
     e.preventDefault();
     if (!engagement) return;
@@ -131,6 +198,8 @@ export default function EngagementExpensesPage() {
 
       if (receiptFile) {
         const uploadMeta = await getReceiptUploadUrl(receiptFile.name, engagement.id);
+        // Without this PUT the expense would point at a file that was never stored.
+        await uploadReceipt(uploadMeta.upload_url, receiptFile);
         receiptFilename = receiptFile.name;
         receiptStoragePath = uploadMeta.storage_path;
         receiptContentType = receiptFile.type || 'application/octet-stream';
@@ -452,6 +521,16 @@ export default function EngagementExpensesPage() {
                         {exp.category ? ` • ${exp.category}` : ''}
                         {exp.receipt_filename ? ` • Receipt: ${exp.receipt_filename}` : ''}
                       </p>
+                      {exp.receipt_download_url && (
+                        <a
+                          href={exp.receipt_download_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-block text-caption font-bold underline"
+                        >
+                          View receipt
+                        </a>
+                      )}
                     </div>
                   </div>
 
@@ -471,6 +550,13 @@ export default function EngagementExpensesPage() {
                         Reimbursed: {exp.reimbursement_status}
                       </span>
                     </div>
+                    {exp.invoicing_status === 'uninvoiced' && editingId !== exp.id && (
+                      <div className="mt-2 flex justify-end">
+                        <Button variant="outline" onClick={() => startEdit(exp)}>
+                          Edit
+                        </Button>
+                      </div>
+                    )}
                     {exp.billable && exp.approval_status === 'pending_approval' && (
                       <div className="mt-2 flex flex-wrap justify-end gap-2">
                         <Button
@@ -496,6 +582,40 @@ export default function EngagementExpensesPage() {
                     )}
                   </div>
                 </div>
+                {editingId === exp.id && (
+                  <div className="mt-4 space-y-4 border-t border-line-subtle pt-4">
+                    <Field label="Description">
+                      {(a11y) => (
+                        <Input {...a11y} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+                      )}
+                    </Field>
+                    <MoneyField
+                      label="Amount"
+                      currency={exp.currency}
+                      value={editAmountMajor}
+                      onChange={setEditAmountMajor}
+                    />
+                    <Field label="Category" optional>
+                      {(a11y) => (
+                        <Input {...a11y} value={editCategory} onChange={(e) => setEditCategory(e.target.value)} />
+                      )}
+                    </Field>
+                    <Toggle
+                      checked={editBillable}
+                      onChange={setEditBillable}
+                      label="Billable to client"
+                      hint="Changing the amount or this setting asks your client to approve again, if approval is needed."
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={() => handleSaveEdit(exp)} disabled={editSaving}>
+                        {editSaving ? 'Saving...' : 'Save changes'}
+                      </Button>
+                      <Button variant="outline" onClick={() => setEditingId(null)} disabled={editSaving}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             );
           })}

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { BagCharacter } from "@/components/brand";
+import { DownloadPdfButton } from "@/components/documents/DownloadPdfButton";
 import { Money } from "@/components/money/Money";
 import { ConfirmationProvenance } from "@/components/status";
 import { Button, Card, buttonStyles } from "@/components/ui";
@@ -137,6 +138,14 @@ export default function PublicReceiptPage() {
   return (
     <div className="min-h-dvh bg-cream p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-xl space-y-6">
+        {receipt.is_verified && (
+          <div className="flex justify-end print:hidden">
+            <DownloadPdfButton
+              href={`${API_BASE}/receipts/share/${encodeURIComponent(token)}/pdf`}
+              documentLabel="receipt"
+            />
+          </div>
+        )}
         {receipt.is_verified && (
           <Card zone="calm" tone="peach" className="flex items-start gap-3">
             <ShieldCheck aria-hidden className="mt-0.5 h-5 w-5 shrink-0" />
@@ -309,19 +318,6 @@ export default function PublicReceiptPage() {
                 Share receipt
               </Button>
             </div>
-
-            {receipt.is_verified && (
-              <div className="flex justify-center print:hidden">
-                <a
-                  href={`${API_BASE}/receipts/share/${encodeURIComponent(token)}/pdf`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-10 items-center justify-center border border-line-subtle px-4 py-2 text-sm font-semibold text-text-primary hover:bg-surface-tint"
-                >
-                  Download receipt PDF
-                </a>
-              </div>
-            )}
 
             <p className="border-t border-line-subtle pt-4 text-center text-caption text-text-muted">
               This document constitutes valid legal proof of payment issued via

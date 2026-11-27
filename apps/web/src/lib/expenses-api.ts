@@ -126,8 +126,10 @@ async function parseError(res: Response, fallback: string): Promise<Error> {
   return new Error(body.detail || body.message || fallback);
 }
 
-export async function listEngagements(): Promise<Engagement[]> {
-  const res = await fetch(`${API_BASE}/engagements`, { credentials: 'include' });
+/** Pass a quote id to find the engagement that quote created. */
+export async function listEngagements(quoteId?: string): Promise<Engagement[]> {
+  const query = quoteId ? `?quote_id=${encodeURIComponent(quoteId)}` : '';
+  const res = await fetch(`${API_BASE}/engagements${query}`, { credentials: 'include' });
   if (!res.ok) throw await parseError(res, 'Failed to load engagements');
   return res.json();
 }
@@ -190,6 +192,34 @@ export async function getReceiptUploadUrl(filename: string, engagementId: string
   });
   if (!res.ok) throw await parseError(res, 'Failed to prepare receipt upload');
   return res.json() as Promise<{ upload_url: string; file_url: string; storage_path: string }>;
+}
+
+/** Uploads the receipt file to the presigned URL returned by getReceiptUploadUrl. */
+export async function uploadReceipt(uploadUrl: string, file: File): Promise<void> {
+  const res = await fetch(uploadUrl, { method: 'PUT', body: file });
+  if (!res.ok) {
+    throw new Error('The receipt could not be uploaded, so the expense was not saved. Please try again.');
+  }
+}
+
+export async function updateExpense(
+  expenseId: string,
+  payload: {
+    amount_minor?: number;
+    description?: string;
+    category?: string;
+    billable?: boolean;
+    notes?: string;
+  },
+): Promise<Expense> {
+  const res = await fetch(`${API_BASE}/expenses/${expenseId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw await parseError(res, 'Failed to update expense');
+  return res.json();
 }
 
 export async function addExpensesToInvoice(payload: {

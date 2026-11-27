@@ -14,7 +14,7 @@ import {LineItemsEditor} from '@/components/invoice';
 import {FlowShell} from '@/components/mobile/FlowShell';
 import {MoneyField} from '@/components/ui/MoneyField';
 import {Money} from '@/components/money/Money';
-import {BaggSelect, Button, Card, Chip, Field, Input, inputStyles} from '@/components/ui';
+import {BaggSelect, Button, Card, Chip, Field, Input, Toggle, inputStyles} from '@/components/ui';
 import { InlineClientModal } from '@/components/clients/InlineClientModal';
 import {VALIDITY_OPTIONS, useQuoteDraft} from '@/hooks/useQuoteDraft';
 import {cleanAmount} from '@/lib/amount';
@@ -252,6 +252,34 @@ export function NewQuoteFlow() {
                                       className={cn(inputStyles, 'min-h-28 py-2')} {...a} />
                         )}
                     </Field>
+                    <div className="space-y-4 border-t border-line-subtle pt-4">
+                        <Toggle
+                            checked={d.hasExpensePolicy}
+                            onChange={d.setHasExpensePolicy}
+                            label="Reimbursable expenses"
+                            hint="Costs you pass on at cost, like props or travel. You decide when your client must approve."
+                        />
+                        {d.hasExpensePolicy && (
+                            <div className="space-y-4 border-l-2 border-ink pl-4">
+                                <MoneyField
+                                    label="Ask for approval above"
+                                    currency={d.currency}
+                                    optional
+                                    value={d.expenseThresholdText}
+                                    onChange={d.setExpenseThresholdText}
+                                    hint="Any single expense above this needs your client's approval first."
+                                />
+                                <MoneyField
+                                    label="Total expense cap"
+                                    currency={d.currency}
+                                    optional
+                                    value={d.expenseCapText}
+                                    onChange={d.setExpenseCapText}
+                                    hint="The most you can pass on in total without agreeing a change."
+                                />
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -298,6 +326,23 @@ export function NewQuoteFlow() {
                             <div className="flex justify-between text-body text-text-soft">
                                 <span>Deposit on acceptance</span>
                                 <Money amountMinor={d.depositMinor} currency={d.currency} hideCurrencyCode />
+                            </div>
+                        )}
+                        {d.hasExpensePolicy && (
+                            <div className="space-y-1 border-t border-line-subtle pt-3 text-body text-text-soft">
+                                <p className="font-extrabold text-text">Reimbursable expenses, at cost</p>
+                                {d.expenseThresholdMinor > 0 && (
+                                    <div className="flex justify-between">
+                                        <span>Approval needed above</span>
+                                        <Money amountMinor={d.expenseThresholdMinor} currency={d.currency} hideCurrencyCode />
+                                    </div>
+                                )}
+                                {d.expenseCapMinor > 0 && (
+                                    <div className="flex justify-between">
+                                        <span>Total expense cap</span>
+                                        <Money amountMinor={d.expenseCapMinor} currency={d.currency} hideCurrencyCode />
+                                    </div>
+                                )}
                             </div>
                         )}
                         <p className="text-body text-text-soft">Valid for {d.validityDays} days</p>

@@ -45,6 +45,7 @@ import {
 import { DocumentPdfAction } from '@/components/documents/DocumentPdfAction';
 import { useCurrentBreadcrumb } from '@/components/navigation/BreadcrumbContext';
 import { formatDate } from '@/lib/date';
+import { listEngagements, type Engagement } from '@/lib/expenses-api';
 
 const API_BASE = '/api';
 
@@ -112,6 +113,13 @@ type QuoteDetail = {
   invoice_number?: string | null;
   invoice_status?: string | null;
   effective_status?: string | null;
+  has_expense_policy?: boolean | null;
+  expense_policy?: {
+    reimbursable_categories?: string[];
+    per_expense_threshold_minor?: number | null;
+    total_expense_cap_minor?: number | null;
+    client_approval_required?: boolean;
+  } | null;
   created_at: string;
   updated_at: string;
 };
@@ -202,6 +210,27 @@ export default function QuoteDetailPage() {
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [converting, setConverting] = useState(false);
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
+
+  // The engagement an accepted quote created (found through the quote id).
+  const [engagement, setEngagement] = useState<Engagement | null>(null);
+  const acceptedQuoteId = quote?.accepted_at ? quote.id : null;
+  useEffect(() => {
+    if (!acceptedQuoteId) {
+      setEngagement(null);
+      return;
+    }
+    let cancelled = false;
+    listEngagements(acceptedQuoteId)
+      .then((list) => {
+        if (!cancelled) setEngagement(list[0] ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setEngagement(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [acceptedQuoteId]);
 
   useEffect(() => {
     fetch(`${API_BASE}/clients`, { credentials: 'include' })
@@ -1152,6 +1181,57 @@ export default function QuoteDetailPage() {
                 )}
               </dl>
             </Card>
+
+            {quote.has_expense_policy && quote.expense_policy && (
+              <Card zone="calm" className="space-y-3 p-4 sm:p-6">
+                <h2 className="text-heading">Reimbursable expenses</h2>
+                <p className="text-body text-text-soft">
+                  Passed on at cost. These terms are part of what your client accepts.
+                </p>
+                <dl className="space-y-3 text-body">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-text-soft">Approval needed above</dt>
+                    <dd>
+                      {quote.expense_policy.per_expense_threshold_minor ? (
+                        <Money
+                          amountMinor={quote.expense_policy.per_expense_threshold_minor}
+                          currency={quote.currency}
+                        />
+                      ) : (
+                        'Not set'
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-text-soft">Total expense cap</dt>
+                    <dd>
+                      {quote.expense_policy.total_expense_cap_minor ? (
+                        <Money
+                          amountMinor={quote.expense_policy.total_expense_cap_minor}
+                          currency={quote.currency}
+                        />
+                      ) : (
+                        'Not set'
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              </Card>
+            )}
+
+            {engagement && (
+              <Card zone="calm" className="space-y-3 p-4 sm:p-6">
+                <h2 className="text-heading">Engagement</h2>
+                <p className="text-body">{engagement.title}</p>
+                <p className="text-body text-text-soft">Created when your client accepted this quote.</p>
+                <Link
+                  href={`/engagements/${engagement.id}`}
+                  className={buttonStyles({ variant: 'outline', zone: 'calm' })}
+                >
+                  Open engagement
+                </Link>
+              </Card>
+            )}
 
             {quote.invoice_id && (
               <Card zone="calm" className="space-y-3 p-4 sm:p-6">
