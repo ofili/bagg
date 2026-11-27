@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # Internal scheduled jobs / worker endpoints
     INTERNAL_JOB_TOKEN: str | None = None
     EMAIL_ENCRYPTION_KEY: str | None = None
+    SHARE_TOKEN_ENCRYPTION_KEY: str | None = None
     EMAIL_WORKER_POLL_SECONDS: int = 2
     EMAIL_WORKER_BATCH_SIZE: int = 10
     EMAIL_WORKER_LEASE_SECONDS: int = 120
@@ -111,6 +112,26 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
+    @field_validator("SHARE_TOKEN_ENCRYPTION_KEY")
+    @staticmethod
+    def validate_share_token_encryption_key(value: str | None) -> str | None:
+        if not value:
+            return value
+
+        try:
+            decoded = base64.urlsafe_b64decode(value.encode("ascii"))
+        except (ValueError, binascii.Error) as exc:
+            raise ValueError(
+                "SHARE_TOKEN_ENCRYPTION_KEY must be URL-safe base64"
+            ) from exc
+
+        if len(decoded) != 32:
+            raise ValueError(
+                "SHARE_TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes"
+            )
+
+        return value
+
     @model_validator(mode="after")
     def validate_production_secrets(self):
         if self.ENVIRONMENT.strip().lower() != "production":
@@ -141,6 +162,15 @@ class Settings(BaseSettings):
             )
         if not self.EMAIL_ENCRYPTION_KEY:
             raise ValueError("EMAIL_ENCRYPTION_KEY must be configured in production")
+        if not self.SHARE_TOKEN_ENCRYPTION_KEY:
+            raise ValueError(
+                "SHARE_TOKEN_ENCRYPTION_KEY must be configured in production"
+            )
+
+        if self.SHARE_TOKEN_ENCRYPTION_KEY == self.EMAIL_ENCRYPTION_KEY:
+            raise ValueError(
+                "SHARE_TOKEN_ENCRYPTION_KEY must be different from EMAIL_ENCRYPTION_KEY"
+            )
         return self
 
     @field_validator("EMAIL_ENCRYPTION_KEY")
