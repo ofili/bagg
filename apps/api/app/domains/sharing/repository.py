@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -23,7 +23,6 @@ class SharingRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-
     async def get_public_invoice_context(
         self,
         token: str,
@@ -40,12 +39,7 @@ class SharingRepository:
                 selectinload(Invoice.items),
                 selectinload(Invoice.client),
             )
-            .where(
-                or_(
-                    Invoice.share_token_hash == token_hash,
-                    Invoice.share_token == token,
-                )
-            )
+            .where(Invoice.share_token_hash == token_hash)
         )
 
         if for_update:
@@ -55,7 +49,6 @@ class SharingRepository:
         row = result.first()
 
         return (row[0], row[1], row[2]) if row else None
-
 
     async def get_invoice_by_token(
         self,
@@ -71,12 +64,7 @@ class SharingRepository:
                 selectinload(Invoice.items),
                 selectinload(Invoice.client),
             )
-            .where(
-                or_(
-                    Invoice.share_token_hash == token_hash,
-                    Invoice.share_token == token,
-                )
-            )
+            .where(Invoice.share_token_hash == token_hash)
         )
 
         if for_update:

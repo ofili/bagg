@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.core.dates import business_today
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals, format_money
-from app.core.security import generate_share_token
+from app.core.security import generate_share_token, hash_token
 from app.domains.activation.service import (record_quote_created, record_document_dispatched)
 from app.domains.billing.service import (
     check_delivery_quota,
@@ -44,10 +44,10 @@ from app.integrations.email import build_quote_email_payload
 from app.integrations.email_outbox import (
     enqueue_email,
     get_active_document_email,
+    get_active_document_share_url,
     should_meter_document_send,
     supersede_active_document_emails,
 )
-
 
 @dataclass
 class SendQuoteOutcome:
@@ -668,9 +668,38 @@ async def send_quote(
     client = quote_obj.client
     recipient_email = client.email if client else None
 
-    _ensure_share_token(quote_obj)
+    active_message = None
 
-    share_url = f"{settings.WEB_BASE_URL.rstrip('/')}/q/{quote_obj.share_token}"
+    if send_email and recipient_email:
+        active_message = await get_active_document_email(
+            db,
+            message_type="quote_email",
+            aggregate_id=quote_obj.id,
+        )
+
+        if active_message is not None:
+            existing_share_url = get_active_document_share_url(active_message)
+
+            existing_token = (
+                existing_share_url.rstrip("/").rsplit("/", 1)[-1]
+                if existing_share_url
+                else None
+            )
+
+            if existing_token and hash_token(existing_token) == quote_obj.share_token_hash:
+                quote_obj.share_token = existing_token
+                share_url = existing_share_url
+            else:
+                await supersede_active_document_emails(
+                    db,
+                    message_type="quote_email",
+                    aggregate_id=quote_obj.id,
+                )
+                active_message = None
+
+    if active_message is None:
+        _ensure_share_token(quote_obj)
+        share_url = f"{settings.WEB_BASE_URL.rstrip('/')}/q/{quote_obj.share_token}"
 
     email_sent = False
     email_queued = False
@@ -679,13 +708,7 @@ async def send_quote(
 
     if send_email:
         if recipient_email:
-            existing_message = await get_active_document_email(
-                db,
-                message_type="quote_email",
-                aggregate_id=quote_obj.id,
-            )
-
-            if existing_message is not None:
+            if active_message is not None:
                 email_queued = True
             else:
                 deduct_credit = False

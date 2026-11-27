@@ -96,7 +96,6 @@ class ReceiptRepository:
         )
         return list((await self.db.execute(stmt)).all()), total
 
-
     async def get_public(self, token: str):
         token_hash = hash_token(token)
 
@@ -105,12 +104,7 @@ class ReceiptRepository:
             .join(Client, Receipt.client_id == Client.id, isouter=True)
             .join(Workspace, Receipt.workspace_id == Workspace.id)
             .join(Invoice, Receipt.invoice_id == Invoice.id)
-            .where(
-                or_(
-                    Receipt.share_token_hash == token_hash,
-                    Receipt.share_token == token,
-                )
-            )
+            .where(Receipt.share_token_hash == token_hash)
         )
         row = (await self.db.execute(stmt)).first()
         return row or None

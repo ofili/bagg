@@ -48,9 +48,10 @@ from app.integrations.email import build_invoice_email_payload
 from app.integrations.email_outbox import (
     enqueue_email,
     get_active_document_email,
+    get_active_document_share_url,
     should_meter_document_send,
+    supersede_active_document_emails,
 )
-
 
 @dataclass
 class SendInvoiceOutcome:
@@ -750,9 +751,41 @@ async def send_invoice(
             f"'{invoice.status}' and cannot be sent."
         )
 
-    _ensure_share_token(invoice)
+    active_message = None
 
-    share_url = f"{settings.WEB_BASE_URL.rstrip('/')}/i/{invoice.share_token}"
+    if send_email and client.email:
+        active_message = await get_active_document_email(
+            db,
+            message_type="invoice_email",
+            aggregate_id=invoice.id,
+        )
+
+        if active_message is not None:
+            existing_share_url = get_active_document_share_url(active_message)
+
+            existing_token = (
+                existing_share_url.rstrip("/").rsplit("/", 1)[-1]
+                if existing_share_url
+                else None
+            )
+
+            if existing_token and hash_token(existing_token) == invoice.share_token_hash:
+                # Reuse the exact link already held by the active email.
+                invoice.share_token = existing_token
+                share_url = existing_share_url
+            else:
+                # The queued link is missing or no longer matches the
+                # persisted hash. Replace the stale message.
+                await supersede_active_document_emails(
+                    db,
+                    message_type="invoice_email",
+                    aggregate_id=invoice.id,
+                )
+                active_message = None
+
+    if active_message is None:
+        _ensure_share_token(invoice)
+        share_url = f"{settings.WEB_BASE_URL.rstrip('/')}/i/{invoice.share_token}"
 
     recipient_email = client.email
     email_sent = False
@@ -762,13 +795,7 @@ async def send_invoice(
 
     if send_email:
         if recipient_email:
-            existing_message = await get_active_document_email(
-                db,
-                message_type="invoice_email",
-                aggregate_id=invoice.id,
-            )
-
-            if existing_message is not None:
+            if active_message is not None:
                 # A previous request already committed the message.
                 # Do not deduct another credit or enqueue another email.
                 email_queued = True
@@ -1522,8 +1549,7 @@ async def view_public_invoice(
     repository = InvoiceRepository(db)
 
     row = await repository.get_public_for_update(
-        token_hash=hash_token(token),
-        raw_token=token,
+        token_hash=hash_token(token)
     )
 
     if row is None:

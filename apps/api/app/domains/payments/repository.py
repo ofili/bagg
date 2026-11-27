@@ -3,6 +3,8 @@
 from __future__ import annotations
 from sqlalchemy import and_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.security import hash_token
 from app.domains.payments.models import (
     PaymentProfile,
     InvoicePaymentAttempt,
@@ -77,11 +79,13 @@ class PaymentRepository:
     async def get_public_invoice_for_checkout(self, token: str):
         from app.domains.clients.models import Client
 
+        token_hash = hash_token(token)
+
         result = await self.db.execute(
             select(Invoice, Client, Workspace)
             .join(Client, Invoice.client_id == Client.id, isouter=True)
             .join(Workspace, Invoice.workspace_id == Workspace.id)
-            .where(Invoice.share_token == token)
+            .where(Invoice.share_token_hash == token_hash)
             .with_for_update(of=Invoice)
             .execution_options(populate_existing=True)
         )
@@ -89,15 +93,19 @@ class PaymentRepository:
         return (row[0], row[1], row[2]) if row else None
 
     async def get_public_invoice(self, token: str):
+        token_hash = hash_token(token)
+
         result = await self.db.execute(
-            select(Invoice).where(Invoice.share_token == token)
+            select(Invoice).where(Invoice.share_token_hash == token_hash)
         )
         return result.scalar_one_or_none()
 
     async def get_public_invoice_for_update(self, token: str):
+        token_hash = hash_token(token)
+
         stmt = (
             select(Invoice)
-            .where(Invoice.share_token == token)
+            .where(Invoice.share_token_hash == token_hash)
             .with_for_update()
             .execution_options(populate_existing=True)
         )

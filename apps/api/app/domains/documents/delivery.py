@@ -13,7 +13,7 @@ from urllib.parse import quote
 
 from fastapi import HTTPException, status
 from fastapi.responses import Response
-from sqlalchemy import desc, select, or_
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_token
@@ -59,12 +59,7 @@ async def deliver_public_document(
 
     token_hash = hash_token(token)
 
-    statement = select(model).where(
-        or_(
-            model.share_token_hash == token_hash,
-            model.share_token == token,
-        )
-    )
+    statement = select(model).where(model.share_token_hash == token_hash)
 
     result = await db.execute(statement)
     document = result.scalar_one_or_none()

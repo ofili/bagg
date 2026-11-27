@@ -486,7 +486,6 @@ class InvoiceRepository:
     async def get_public_for_update(
         self,
         token_hash: str,
-        raw_token: str,
     ) -> tuple[Invoice, str | None, Workspace] | None:
         result = await self.db.execute(
             select(
@@ -496,12 +495,7 @@ class InvoiceRepository:
             )
             .join(Client, Invoice.client_id == Client.id)
             .join(Workspace, Invoice.workspace_id == Workspace.id)
-            .where(
-                or_(
-                    Invoice.share_token_hash == token_hash,
-                    Invoice.share_token == raw_token,
-                )
-            )
+            .where(Invoice.share_token_hash == token_hash)
             .with_for_update(of=Invoice)
             .execution_options(populate_existing=True)
         )

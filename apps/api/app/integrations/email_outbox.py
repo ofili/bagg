@@ -2,6 +2,8 @@ import base64
 import json
 import secrets
 
+from html.parser import HTMLParser
+
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -148,6 +150,55 @@ async def get_active_document_email(
         .limit(1)
     )
     return result.scalar_one_or_none()
+
+
+class _ShareLinkParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.hrefs: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() != "a":
+            return
+
+        for name, value in attrs:
+            if name.lower() == "href" and value:
+                self.hrefs.append(value)
+
+
+def get_active_document_share_url(message: EmailOutbox) -> str | None:
+    """
+    Recover the original share URL from an encrypted active email.
+
+    New payloads store share_url explicitly. Older payloads are supported
+    by extracting the link from their encrypted HTML.
+    """
+    if not message.encrypted_payload:
+        return None
+
+    try:
+        payload = decrypt_email_payload(
+            message.id,
+            message.message_type,
+            message.encrypted_payload,
+        )
+    except Exception:
+        return None
+
+    share_url = payload.get("share_url")
+
+    if isinstance(share_url, str) and share_url.strip():
+        return share_url
+
+    html = payload.get("html")
+
+    if not isinstance(html, str):
+        return None
+
+    parser = _ShareLinkParser()
+    parser.feed(html)
+
+    return parser.hrefs[0] if parser.hrefs else None
 
 
 async def get_latest_document_email(

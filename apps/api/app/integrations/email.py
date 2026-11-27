@@ -268,6 +268,7 @@ def build_invoice_email_payload(
         "to_email": to_email,
         "subject": f"Invoice {invoice_number} from Bagg",
         "html": _html_shell(f"Invoice {invoice_number}", body),
+        "share_url": share_url,
     }
 
 
@@ -300,6 +301,7 @@ def build_quote_email_payload(
         "to_email": to_email,
         "subject": f"Quote {quote_number} from {business_name}",
         "html": _html_shell(f"Quote {quote_number}", body),
+        "share_url": share_url,
     }
 
 

@@ -119,11 +119,8 @@ class QuoteRepository:
             .join(Client, Quote.client_id == Client.id, isouter=True)
             .join(Workspace, Quote.workspace_id == Workspace.id)
             .where(
-    or_(
-        Quote.share_token_hash == hash_token(token),
-        Quote.share_token == token,
-    )
-)
+                Quote.share_token_hash == hash_token(token),
+        )
             .with_for_update(of=Quote)
             .execution_options(populate_existing=True)
         )
@@ -137,12 +134,7 @@ class QuoteRepository:
             select(Quote, Client.name.label("client_name"), Workspace)
             .join(Client, Quote.client_id == Client.id, isouter=True)
             .join(Workspace, Quote.workspace_id == Workspace.id)
-            .where(
-    or_(
-        Quote.share_token_hash == hash_token(token),
-        Quote.share_token == token,
-    )
-)
+            .where(Quote.share_token_hash == hash_token(token))
         )
         row = result.first()
         return (row[0], row[1], row[2]) if row else None
@@ -153,12 +145,8 @@ class QuoteRepository:
         result = await self.db.execute(
             select(Quote, Workspace)
             .join(Workspace, Quote.workspace_id == Workspace.id)
-            .where(
-    or_(
-        Quote.share_token_hash == hash_token(token),
-        Quote.share_token == token,
+            .where(Quote.share_token_hash == hash_token(token)
     )
-)
         )
         row = result.first()
         return (row[0], row[1]) if row else None
