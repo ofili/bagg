@@ -17,6 +17,7 @@ from typing import Awaitable, Callable
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+import app.models  # noqa: F401
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine
 from app.domains.billing.service import expire_due_subscriptions

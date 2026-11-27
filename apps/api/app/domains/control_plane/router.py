@@ -8,6 +8,16 @@ from app.domains.auth.models import User
 from app.domains.control_plane.dependencies import (
     require_control_plane_admin,
 )
+from app.domains.entitlements.governance_schemas import (
+    EntitlementOverrideCreate,
+    EntitlementOverrideRevoke,
+    EntitlementOverrideResponse,
+)
+from app.domains.entitlements.service import (
+    grant_entitlement_override,
+    list_entitlement_overrides,
+    revoke_entitlement_override,
+)
 from app.domains.control_plane import analytics_service
 
 
@@ -225,3 +235,111 @@ async def analytics_events(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get(
+    "/workspaces/{workspace_id}/entitlement-overrides",
+    response_model=list[EntitlementOverrideResponse],
+)
+async def get_workspace_entitlement_overrides(
+    workspace_id: str,
+    response: Response,
+    status_filter: str | None = Query(
+        default=None,
+        alias="status",
+        pattern="^(active|revoked|expired)$",
+    ),
+    entitlement_key: str | None = Query(default=None, max_length=120),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_control_plane_admin),
+):
+    response.headers["Cache-Control"] = "no-store"
+
+    try:
+        return await list_entitlement_overrides(
+            db,
+            workspace_id=workspace_id,
+            status=status_filter,
+            entitlement_key=entitlement_key,
+            limit=limit,
+            offset=offset,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/workspaces/{workspace_id}/entitlement-overrides",
+    response_model=EntitlementOverrideResponse,
+    status_code=201,
+)
+async def create_workspace_entitlement_override(
+    workspace_id: str,
+    payload: EntitlementOverrideCreate,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_control_plane_admin),
+):
+    response.headers["Cache-Control"] = "no-store"
+
+    try:
+        return await grant_entitlement_override(
+            db,
+            workspace_id=workspace_id,
+            entitlement_key=payload.entitlement_key,
+            override_value=payload.override_value,
+            reason=payload.reason,
+            admin_id=admin.id,
+            effective_at=payload.effective_at,
+            expires_at=payload.expires_at,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            404
+            if detail == "Workspace not found."
+            else 409
+            if detail.startswith("An active override already exists")
+            else 422
+        )
+
+
+@router.post(
+    "/workspaces/{workspace_id}/entitlement-overrides/{override_id}/revoke",
+    response_model=EntitlementOverrideResponse,
+)
+async def revoke_workspace_entitlement_override(
+    workspace_id: str,
+    override_id: str,
+    payload: EntitlementOverrideRevoke,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_control_plane_admin),
+):
+    response.headers["Cache-Control"] = "no-store"
+
+    try:
+        return await revoke_entitlement_override(
+            db,
+            workspace_id=workspace_id,
+            override_id=override_id,
+            admin_id=admin.id,
+            reason=payload.reason,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            404
+            if detail
+            in {
+                "Workspace not found.",
+                "Entitlement override not found.",
+            }
+            else 409 if detail.startswith("Only active overrides") else 422
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail=detail,
+        ) from exc

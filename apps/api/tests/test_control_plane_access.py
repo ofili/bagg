@@ -23,6 +23,8 @@ async def authenticate(
         json={
             "email": email,
             "code": login_code_for(email),
+            "intent": "signup",
+            "full_name": "Control Plane Test User",
         },
     )
     assert verify_response.status_code == 200
