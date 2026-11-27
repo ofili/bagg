@@ -21,12 +21,13 @@ import uuid
 from app.core.database import Base
 
 from app.core.references import generate_bagg_reference
+from app.core.security import TransientShareTokenMixin
 
 def generate_uuid(prefix: str = "") -> str:
     return f"{prefix}{uuid.uuid4().hex}"
 
 
-class Invoice(Base):
+class Invoice(TransientShareTokenMixin, Base):
     __tablename__ = "invoices"
 
     id = Column(String, primary_key=True, default=lambda: generate_uuid("inv_"))
@@ -100,7 +101,6 @@ class Invoice(Base):
     notes = Column(Text, nullable=True)
 
     # Share token for public client access (US-DEL-01)
-    share_token = Column(String, unique=True, index=True, nullable=True)
     share_token_hash = Column(String, unique=True, index=True, nullable=True)
 
     # Delivery & Tracking (US-DEL-03, US-DEL-04, US-CLV-01)

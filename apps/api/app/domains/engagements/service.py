@@ -5,7 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.errors import BadRequestException, NotFoundException
+from app.core.money import format_money
 from app.core.security import generate_share_token
+from app.domains.clients.models import Client
+from app.domains.email.service import enqueue_scope_change_approval_link
 from app.domains.engagements.models import Engagement, ScopeChangeRequest
 from app.domains.engagements.repository import EngagementRepository, ScopeChangeRepository
 from app.domains.engagements.schemas import (
@@ -153,6 +156,7 @@ def build_scope_change_approval_url(token: str) -> str:
 def map_scope_change_to_response(
     change_req: ScopeChangeRequest,
     approval_token: Optional[str] = None,
+    approval_email_queued: bool = False,
 ) -> ScopeChangeResponse:
     return ScopeChangeResponse(
         id=change_req.id,
@@ -170,6 +174,7 @@ def map_scope_change_to_response(
             build_scope_change_approval_url(approval_token) if approval_token else None
         ),
         approval_token_expires_at=change_req.approval_token_expires_at,
+        approval_email_queued=approval_email_queued,
         accepted_at=change_req.accepted_at,
         accepted_by_name=change_req.accepted_by_name,
         declined_at=change_req.declined_at,
@@ -184,11 +189,11 @@ async def create_scope_change_request(
     workspace: Workspace,
     engagement_id: str,
     payload: ScopeChangeCreateRequest,
-) -> tuple[ScopeChangeRequest, str]:
+) -> tuple[ScopeChangeRequest, str, bool]:
     """Create a scope-change request for cap exceedance without mutating the baseline cap (FR-085, AC-019).
 
-    Returns the request and the raw approval token, which is exposed only once
-    because only its hash is persisted.
+    Returns the request, the raw approval token (exposed only once because only
+    its hash is persisted), and whether the approval email was queued.
     """
     eng_repo = EngagementRepository(db)
     engagement = await eng_repo.get_by_id(workspace.id, engagement_id)
@@ -240,16 +245,39 @@ async def create_scope_change_request(
 
     sc_repo = ScopeChangeRepository(db)
     sc_repo.add(change_req)
+    await db.flush()
+
+    email_queued = False
+    if payload.send_email:
+        client = await db.get(Client, change_req.client_id)
+        if client is not None and client.email:
+            enqueue_scope_change_approval_link(
+                db,
+                change_request_id=change_req.id,
+                recipient=client.email,
+                business_name=workspace.business_name,
+                client_name=client.name,
+                title=change_req.title,
+                formatted_delta=format_money(
+                    change_req.delta_amount_minor, change_req.currency
+                ),
+                share_url=build_scope_change_approval_url(token),
+                expires_at=change_req.approval_token_expires_at.strftime("%d %b %Y"),
+            )
+            email_queued = True
+
     await db.commit()
     await db.refresh(change_req)
-    return change_req, token
+    return change_req, token, email_queued
 
 
 async def regenerate_scope_change_approval_link(
     db: AsyncSession,
     workspace: Workspace,
     change_request_id: str,
-) -> tuple[ScopeChangeRequest, str]:
+    *,
+    send_email: bool = False,
+) -> tuple[ScopeChangeRequest, str, bool]:
     """Rotate a scope-change approval link and return the new raw token once.
 
     Only a pending request can have a live approval link. Regenerating revokes
@@ -273,9 +301,28 @@ async def regenerate_scope_change_approval_link(
     change_req.approval_token_hash = token_hash
     change_req.approval_token_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
 
+    email_queued = False
+    if send_email:
+        client = await db.get(Client, change_req.client_id)
+        if client is not None and client.email:
+            enqueue_scope_change_approval_link(
+                db,
+                change_request_id=change_req.id,
+                recipient=client.email,
+                business_name=workspace.business_name,
+                client_name=client.name,
+                title=change_req.title,
+                formatted_delta=format_money(
+                    change_req.delta_amount_minor, change_req.currency
+                ),
+                share_url=build_scope_change_approval_url(token),
+                expires_at=change_req.approval_token_expires_at.strftime("%d %b %Y"),
+            )
+            email_queued = True
+
     await db.commit()
     await db.refresh(change_req)
-    return change_req, token
+    return change_req, token, email_queued
 
 
 async def accept_public_scope_change(

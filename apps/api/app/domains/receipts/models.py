@@ -19,6 +19,7 @@ import uuid
 from app.core.database import Base
 
 from app.core.references import generate_bagg_reference
+from app.core.security import TransientShareTokenMixin
 
 def generate_uuid(prefix: str = "") -> str:
     return f"{prefix}{uuid.uuid4().hex}"
@@ -28,7 +29,7 @@ def generate_verification_code() -> str:
     return f"BAGG-{uuid.uuid4().hex[:8].upper()}"
 
 
-class Receipt(Base):
+class Receipt(TransientShareTokenMixin, Base):
     __tablename__ = "receipts"
 
     id = Column(String, primary_key=True, default=lambda: generate_uuid("rcp_"))
@@ -80,7 +81,6 @@ class Receipt(Base):
     verification_code = Column(String, nullable=False, default=generate_verification_code)
 
     # Share token for public client access (US-RCP-02)
-    share_token = Column(String, unique=True, index=True, nullable=True)
     share_token_hash = Column(String, unique=True, index=True, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -48,6 +48,8 @@ class ScopeChangeCreateRequest(BaseModel):
     title: Optional[str] = Field(default=None, max_length=255)
     description: Optional[str] = None
     delta_amount_minor: Optional[int] = Field(default=None, gt=0)
+    # Email the one-time approval link to the client.
+    send_email: bool = False
 
 
 class ScopeChangeResponse(BaseModel):
@@ -70,6 +72,7 @@ class ScopeChangeResponse(BaseModel):
     # returned, not the bare token, to keep the secret out of logs and caches.
     approval_url: Optional[str] = None
     approval_token_expires_at: Optional[datetime] = None
+    approval_email_queued: bool = False
 
     accepted_at: Optional[datetime] = None
     accepted_by_name: Optional[str] = None

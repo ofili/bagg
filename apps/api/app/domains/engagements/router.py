@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -79,11 +79,15 @@ async def create_scope_change(
     db: AsyncSession = Depends(get_db),
     workspace: Workspace = Depends(resolve_active_workspace),
 ):
-    change, approval_token = await engagement_service.create_scope_change_request(
-        db, workspace, engagement_id, payload
+    change, approval_token, email_queued = (
+        await engagement_service.create_scope_change_request(
+            db, workspace, engagement_id, payload
+        )
     )
     return engagement_service.map_scope_change_to_response(
-        change, approval_token=approval_token
+        change,
+        approval_token=approval_token,
+        approval_email_queued=email_queued,
     )
 
 
@@ -93,14 +97,19 @@ async def create_scope_change(
 )
 async def regenerate_scope_change_approval_link(
     change_request_id: str,
+    send_email: bool = Query(default=False),
     db: AsyncSession = Depends(get_db),
     workspace: Workspace = Depends(resolve_active_workspace),
 ):
-    change, approval_token = await engagement_service.regenerate_scope_change_approval_link(
-        db, workspace, change_request_id
+    change, approval_token, email_queued = (
+        await engagement_service.regenerate_scope_change_approval_link(
+            db, workspace, change_request_id, send_email=send_email
+        )
     )
     return engagement_service.map_scope_change_to_response(
-        change, approval_token=approval_token
+        change,
+        approval_token=approval_token,
+        approval_email_queued=email_queued,
     )
 
 

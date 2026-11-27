@@ -20,12 +20,13 @@ import uuid
 from app.core.database import Base
 
 from app.core.references import generate_bagg_reference
+from app.core.security import TransientShareTokenMixin
 
 def generate_uuid(prefix: str = "") -> str:
     return f"{prefix}{uuid.uuid4().hex}"
 
 
-class Quote(Base):
+class Quote(TransientShareTokenMixin, Base):
     __tablename__ = "quotes"
 
     id = Column(String, primary_key=True, default=lambda: generate_uuid("qot_"))
@@ -71,7 +72,6 @@ class Quote(Base):
     notes = Column(Text, nullable=True)
 
     # Share token for public client access (US-QOT-02)
-    share_token = Column(String, unique=True, index=True, nullable=True)
     share_token_hash = Column(String, unique=True, index=True, nullable=True)
 
     # Delivery & Tracking (US-QOT-02)

@@ -17,3 +17,15 @@ def generate_share_token() -> Tuple[str, str]:
 def hash_token(token: str) -> str:
     """Returns SHA-256 hash of a token string."""
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+class TransientShareTokenMixin:
+    """Keep issued raw tokens in memory only; never persist them."""
+
+    @property
+    def share_token(self) -> str | None:
+        return self.__dict__.get("_transient_share_token")
+
+    @share_token.setter
+    def share_token(self, value: str | None) -> None:
+        self.__dict__["_transient_share_token"] = value

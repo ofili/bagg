@@ -5,8 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.errors import NotFoundException, BadRequestException
+from app.core.money import format_money
 from app.core.security import generate_share_token
 from app.domains.clients.models import Client
+from app.domains.email.service import enqueue_expense_approval_link
 from app.domains.engagements.models import Engagement
 from app.domains.engagements.repository import EngagementRepository
 from app.domains.expenses.models import Expense
@@ -61,11 +63,12 @@ async def record_expense(
     db: AsyncSession,
     workspace: Workspace,
     payload: ExpenseCreate,
-) -> Tuple[Expense, Optional[str]]:
+) -> Tuple[Expense, Optional[str], bool]:
     """Record a new expense against an engagement (FR-081, AC-015, AC-016).
 
-    Returns the expense and, when client approval is required, the raw approval
-    token. The token is returned exactly once because only its hash is stored.
+    Returns the expense, the raw approval token when client approval is
+    required, and whether the approval email was queued. The token is returned
+    exactly once because only its hash is stored.
     """
     eng_repo = EngagementRepository(db)
     engagement = await eng_repo.get_by_id(workspace.id, payload.engagement_id)
@@ -124,9 +127,32 @@ async def record_expense(
     )
 
     exp_repo.add(expense)
+    await db.flush()
+
+    email_queued = False
+    if approval_status == "pending_approval" and payload.send_email:
+        client = await db.get(Client, expense.client_id)
+        if client is not None and client.email:
+            enqueue_expense_approval_link(
+                db,
+                expense_id=expense.id,
+                recipient=client.email,
+                business_name=workspace.business_name,
+                client_name=client.name,
+                description=expense.description,
+                formatted_amount=format_money(expense.amount_minor, expense.currency),
+                share_url=build_expense_approval_url(token),
+                expires_at=expense.approval_token_expires_at.strftime("%d %b %Y"),
+            )
+            email_queued = True
+
     await db.commit()
     await db.refresh(expense)
-    return expense, token if approval_status == "pending_approval" else None
+    return (
+        expense,
+        token if approval_status == "pending_approval" else None,
+        email_queued,
+    )
 
 
 async def update_expense(
@@ -214,7 +240,9 @@ async def regenerate_expense_approval_link(
     db: AsyncSession,
     workspace: Workspace,
     expense_id: str,
-) -> Tuple[Expense, str]:
+    *,
+    send_email: bool = False,
+) -> Tuple[Expense, str, bool]:
     """Rotate an expense approval link and return the new raw token once.
 
     Only a billable expense that is still awaiting client approval can have a
@@ -236,9 +264,26 @@ async def regenerate_expense_approval_link(
     expense.approval_requested_at = now
     expense.approval_token_expires_at = now + timedelta(days=14)
 
+    email_queued = False
+    if send_email:
+        client = await db.get(Client, expense.client_id)
+        if client is not None and client.email:
+            enqueue_expense_approval_link(
+                db,
+                expense_id=expense.id,
+                recipient=client.email,
+                business_name=workspace.business_name,
+                client_name=client.name,
+                description=expense.description,
+                formatted_amount=format_money(expense.amount_minor, expense.currency),
+                share_url=build_expense_approval_url(token),
+                expires_at=expense.approval_token_expires_at.strftime("%d %b %Y"),
+            )
+            email_queued = True
+
     await db.commit()
     await db.refresh(expense)
-    return expense, token
+    return expense, token, email_queued
 
 
 async def list_expenses(
@@ -252,7 +297,9 @@ async def list_expenses(
 
 
 def map_expense_to_response(
-    expense: Expense, approval_token: Optional[str] = None
+    expense: Expense,
+    approval_token: Optional[str] = None,
+    approval_email_queued: bool = False,
 ) -> ExpenseResponse:
     storage = StorageService()
     download_url = (
@@ -287,6 +334,7 @@ def map_expense_to_response(
             build_expense_approval_url(approval_token) if approval_token else None
         ),
         approval_token_expires_at=expense.approval_token_expires_at,
+        approval_email_queued=approval_email_queued,
         invoicing_status=expense.invoicing_status,
         invoice_id=expense.invoice_id,
         invoiced_at=expense.invoiced_at,

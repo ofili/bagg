@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -27,8 +27,14 @@ async def create_expense(
     db: AsyncSession = Depends(get_db),
     workspace: Workspace = Depends(resolve_active_workspace),
 ):
-    expense, approval_token = await expense_service.record_expense(db, workspace, payload)
-    return expense_service.map_expense_to_response(expense, approval_token=approval_token)
+    expense, approval_token, email_queued = await expense_service.record_expense(
+        db, workspace, payload
+    )
+    return expense_service.map_expense_to_response(
+        expense,
+        approval_token=approval_token,
+        approval_email_queued=email_queued,
+    )
 
 
 @router.get("/engagement/{engagement_id}", response_model=List[ExpenseResponse])
@@ -57,13 +63,20 @@ async def update_expense(
 @router.post("/{expense_id}/approval-link/regenerate", response_model=ExpenseResponse)
 async def regenerate_expense_approval_link(
     expense_id: str,
+    send_email: bool = Query(default=False),
     db: AsyncSession = Depends(get_db),
     workspace: Workspace = Depends(resolve_active_workspace),
 ):
-    expense, approval_token = await expense_service.regenerate_expense_approval_link(
-        db, workspace, expense_id
+    expense, approval_token, email_queued = (
+        await expense_service.regenerate_expense_approval_link(
+            db, workspace, expense_id, send_email=send_email
+        )
     )
-    return expense_service.map_expense_to_response(expense, approval_token=approval_token)
+    return expense_service.map_expense_to_response(
+        expense,
+        approval_token=approval_token,
+        approval_email_queued=email_queued,
+    )
 
 
 @router.post("/receipt-upload-url")

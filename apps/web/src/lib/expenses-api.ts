@@ -67,6 +67,7 @@ export interface Expense {
   decline_reason?: string | null;
   approval_url?: string | null;
   approval_token_expires_at?: string | null;
+  approval_email_queued?: boolean;
   invoicing_status: 'uninvoiced' | 'drafted' | 'invoiced' | string;
   invoice_id?: string | null;
   invoiced_at?: string | null;
@@ -113,6 +114,7 @@ export interface ScopeChangeRequest {
   status: 'pending' | 'accepted' | 'declined' | string;
   approval_url?: string | null;
   approval_token_expires_at?: string | null;
+  approval_email_queued?: boolean;
   accepted_at?: string | null;
   accepted_by_name?: string | null;
   declined_at?: string | null;
@@ -164,6 +166,7 @@ export async function recordExpense(payload: {
   receipt_storage_path?: string;
   receipt_content_type?: string;
   notes?: string;
+  send_email?: boolean;
 }): Promise<Expense> {
   const res = await fetch(`${API_BASE}/expenses`, {
     method: 'POST',
@@ -175,11 +178,18 @@ export async function recordExpense(payload: {
   return res.json();
 }
 
-export async function regenerateExpenseApprovalLink(expenseId: string): Promise<Expense> {
-  const res = await fetch(`${API_BASE}/expenses/${expenseId}/approval-link/regenerate`, {
-    method: 'POST',
-    credentials: 'include',
-  });
+export async function regenerateExpenseApprovalLink(
+  expenseId: string,
+  sendEmail = false,
+): Promise<Expense> {
+  const params = new URLSearchParams({ send_email: String(sendEmail) });
+  const res = await fetch(
+    `${API_BASE}/expenses/${expenseId}/approval-link/regenerate?${params.toString()}`,
+    {
+      method: 'POST',
+      credentials: 'include',
+    },
+  );
   if (!res.ok) throw await parseError(res, 'Failed to regenerate approval link');
   return res.json();
 }
@@ -245,7 +255,13 @@ export async function listScopeChanges(engagementId: string): Promise<ScopeChang
 
 export async function createScopeChange(
   engagementId: string,
-  payload: { expense_id?: string; title?: string; description?: string; delta_amount_minor?: number },
+  payload: {
+    expense_id?: string;
+    title?: string;
+    description?: string;
+    delta_amount_minor?: number;
+    send_email?: boolean;
+  },
 ): Promise<ScopeChangeRequest> {
   const res = await fetch(`${API_BASE}/engagements/${engagementId}/scope-changes`, {
     method: 'POST',
@@ -259,9 +275,11 @@ export async function createScopeChange(
 
 export async function regenerateScopeChangeApprovalLink(
   changeRequestId: string,
+  sendEmail = false,
 ): Promise<ScopeChangeRequest> {
+  const params = new URLSearchParams({ send_email: String(sendEmail) });
   const res = await fetch(
-    `${API_BASE}/engagements/scope-changes/${changeRequestId}/approval-link/regenerate`,
+    `${API_BASE}/engagements/scope-changes/${changeRequestId}/approval-link/regenerate?${params.toString()}`,
     {
       method: 'POST',
       credentials: 'include',

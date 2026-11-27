@@ -158,16 +158,39 @@ async def test_ac029_expenses_end_to_end_scenario():
         assert e3.status_code == 201
         assert e3.json()["approval_status"] == "pending_approval"
 
-        # Client approves ₦180,000 studio hire
+        # Regenerate the studio-hire link: the old link must stop working and
+        # the new one can be emailed to the client in the same request.
         studio_token = token_from_url(e3.json()["approval_url"])
         assert studio_token
         assert e3.json()["approval_url"].endswith(f"/e/{studio_token}")
+        regen_e3 = await client.post(
+            f"/expenses/{e3.json()['id']}/approval-link/regenerate",
+            params={"send_email": "true"},
+        )
+        assert regen_e3.status_code == 200
+        assert regen_e3.json()["approval_email_queued"] is True
+        original_studio_token = studio_token
+        studio_token = token_from_url(regen_e3.json()["approval_url"])
+        assert studio_token != original_studio_token
+        assert regen_e3.json()["approval_url"].endswith(f"/e/{studio_token}")
+        assert (
+            await client.get(f"/expenses/public/{original_studio_token}")
+        ).status_code == 404
+        assert (await client.get(f"/expenses/public/{studio_token}")).status_code == 200
+
+        # Client approves ₦180,000 studio hire
         app_e3 = await client.post(
             f"/expenses/public/{studio_token}/approve",
             json={"approved_by_name": "Chief Producer"},
         )
         assert app_e3.status_code == 200
         assert app_e3.json()["approval_status"] == "approved"
+
+        # An approved expense has no live link to regenerate.
+        regen_approved = await client.post(
+            f"/expenses/{e3.json()['id']}/approval-link/regenerate"
+        )
+        assert regen_approved.status_code == 400
 
         # ₦45,000 non-billable battery (for margin only)
         e4 = await client.post(
@@ -208,12 +231,38 @@ async def test_ac029_expenses_end_to_end_scenario():
         assert sc_token
         assert sc_res.json()["approval_url"].endswith(f"/sc/{sc_token}")
 
+        # Regenerate the cap-increase link and email the new one.
+        regen_sc = await client.post(
+            f"/engagements/scope-changes/{sc_res.json()['id']}/approval-link/regenerate",
+            params={"send_email": "true"},
+        )
+        assert regen_sc.status_code == 200
+        assert regen_sc.json()["approval_email_queued"] is True
+        original_sc_token = sc_token
+        sc_token = token_from_url(regen_sc.json()["approval_url"])
+        assert sc_token != original_sc_token
+        assert regen_sc.json()["approval_url"].endswith(f"/sc/{sc_token}")
+        assert (
+            await client.get(
+                f"/engagements/scope-changes/public/{original_sc_token}"
+            )
+        ).status_code == 404
+        assert (
+            await client.get(f"/engagements/scope-changes/public/{sc_token}")
+        ).status_code == 200
+
         sc_acc = await client.post(
             f"/engagements/scope-changes/public/{sc_token}/accept",
             json={"accepted_by_name": "Chief Producer"},
         )
         assert sc_acc.status_code == 200
         assert sc_acc.json()["status"] == "accepted"
+
+        # An accepted scope change has no live link to regenerate.
+        regen_accepted = await client.post(
+            f"/engagements/scope-changes/{sc_res.json()['id']}/approval-link/regenerate"
+        )
+        assert regen_accepted.status_code == 400
 
         # 7. Create final invoice with ₦600,000 remaining fee + ₦502,000 expenses
         final_inv_res = await client.post(

@@ -74,6 +74,7 @@ export default function EngagementExpensesPage() {
   const [amountMajor, setAmountMajor] = useState('');
   const [category, setCategory] = useState('general');
   const [billable, setBillable] = useState(true);
+  const [emailApprovalLink, setEmailApprovalLink] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -215,13 +216,16 @@ export default function EngagementExpensesPage() {
         receipt_filename: receiptFilename,
         receipt_storage_path: receiptStoragePath,
         receipt_content_type: receiptContentType,
+        send_email: emailApprovalLink,
       });
 
       if (created.approval_url) {
         setApprovalLink({
           url: created.approval_url,
           title: 'Client approval link ready',
-          description: `Send this link to your client so they can approve "${created.description}". It is shown only once.`,
+          description: created.approval_email_queued
+            ? `The link was emailed to your client so they can approve "${created.description}". It is also shown here only once.`
+            : `Send this link to your client so they can approve "${created.description}". It is shown only once.`,
           expiresAt: created.approval_token_expires_at,
         });
       } else {
@@ -231,11 +235,14 @@ export default function EngagementExpensesPage() {
       setDescription('');
       setAmountMajor('');
       setReceiptFile(null);
+      setEmailApprovalLink(false);
       setShowAddForm(false);
       setNotice({
         kind: 'success',
         text: created.approval_url
-          ? 'Expense recorded. Send the approval link to your client.'
+          ? created.approval_email_queued
+            ? 'Expense recorded. The approval link was emailed to your client.'
+            : 'Expense recorded. Send the approval link to your client.'
           : 'Expense recorded.',
       });
       await load();
@@ -449,6 +456,15 @@ export default function EngagementExpensesPage() {
               label="Billable to client"
               hint="Non-billable costs are tracked for engagement margin only and never shown to the client."
             />
+
+            {billable && (
+              <Toggle
+                checked={emailApprovalLink}
+                onChange={setEmailApprovalLink}
+                label="Email the approval link to the client"
+                hint="Used only when the expense needs client approval. Requires an email address on the client record."
+              />
+            )}
 
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
