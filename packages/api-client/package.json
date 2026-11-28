@@ -5,8 +5,9 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsc",
     "lint": "tsc --noEmit",
+    "test": "pnpm build && node --test src/index.test.cjs",
     "generate": "openapi-typescript http://localhost:8000/openapi.json -o ./src/schema.d.ts"
   },
   "dependencies": {},

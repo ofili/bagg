@@ -5,7 +5,9 @@
     "moduleResolution": "NodeNext",
     "noEmit": false,
     "declaration": true,
+    "rootDir": "./src",
     "outDir": "./dist"
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "node_modules", "**/*.test.ts"]
 }
