@@ -80,3 +80,37 @@ async def test_rate_limit_rejects_request_over_limit(monkeypatch):
 
     assert exc.value.status_code == 429
     assert exc.value.headers["Retry-After"] == "30"
+
+
+@pytest.mark.asyncio
+async def test_production_rate_limit_fails_closed_when_redis_unavailable(
+    monkeypatch,
+):
+    class UnavailableRedis:
+        async def eval(self, *args, **kwargs):
+            raise ConnectionError("Redis unavailable")
+
+        async def aclose(self):
+            return None
+
+    monkeypatch.setattr(
+        limiter.settings,
+        "ENVIRONMENT",
+        "production",
+    )
+
+    monkeypatch.setattr(
+        limiter.Redis,
+        "from_url",
+        lambda *args, **kwargs: UnavailableRedis(),
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await limiter.enforce_rate_limit(
+            action="public:invoice-portal:ip",
+            identity="203.0.113.10",
+            limit=60,
+            window_seconds=60,
+        )
+
+    assert exc.value.status_code == 503

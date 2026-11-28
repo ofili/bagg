@@ -304,6 +304,10 @@ async def create_workspace_entitlement_override(
             if detail.startswith("An active override already exists")
             else 422
         )
+        raise HTTPException(
+            status_code=status_code,
+            detail=detail,
+        ) from exc
 
 
 @router.post(

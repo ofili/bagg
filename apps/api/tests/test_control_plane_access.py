@@ -127,3 +127,37 @@ async def test_control_plane_denies_everyone_when_allowlist_empty(
         response = await client.get("/control-plane/me")
 
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_entitlement_override_creation_returns_404_for_missing_workspace(
+    monkeypatch,
+):
+    email = f"staff-{uuid.uuid4().hex[:12]}@example.com"
+
+    monkeypatch.setattr(
+        settings,
+        "CONTROL_PLANE_ADMIN_EMAILS",
+        email,
+    )
+
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        await authenticate(client, email)
+
+        response = await client.post(
+            "/control-plane/workspaces/ws_missing/entitlement-overrides",
+            json={
+                "entitlement_key": "documents.send.monthly_limit",
+                "override_value": 10,
+                "reason": "Regression test",
+                "expires_at": "2099-12-31T23:59:59Z",
+            },
+        )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Workspace not found."
