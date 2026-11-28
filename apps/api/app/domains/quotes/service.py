@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.dates import business_today
+from app.core.deposits import resolve_deposit_configuration
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals, format_money
 from app.core.security import generate_share_token, hash_token
@@ -174,6 +175,7 @@ def _apply_totals(
     tax_rate,
     wht_rate,
     deposit_pct,
+    deposit_config: dict | None = None,
 ) -> None:
     quote_obj.subtotal_minor = totals["subtotal_minor"]
     quote_obj.discount_minor = discount
@@ -183,7 +185,13 @@ def _apply_totals(
     quote_obj.wht_rate_percent = wht_rate
     quote_obj.wht_minor = totals["wht_minor"]
     quote_obj.net_payable_minor = totals["net_payable_minor"]
-    quote_obj.deposit_amount_minor = totals["deposit_amount_minor"]
+
+    if deposit_config is not None:
+        quote_obj.deposit_mode = deposit_config["deposit_mode"]
+        quote_obj.deposit_percentage = deposit_config["deposit_percentage"]
+        quote_obj.deposit_amount_minor = deposit_config["deposit_amount_minor"]
+    else:
+        quote_obj.deposit_amount_minor = totals["deposit_amount_minor"]
 
 
 async def list_quotes(
@@ -277,9 +285,21 @@ async def create_quote(
         discount_minor=payload.discount_minor,
         tax_percent=payload.tax_rate_percent,
         wht_percent=payload.wht_rate_percent,
-        deposit_percent=payload.deposit_percentage or 0.0,
-        deposit_amount_minor=payload.deposit_amount_minor,
+        deposit_percent=0.0,
+        deposit_amount_minor=None,
     )
+
+    try:
+        deposit_config = resolve_deposit_configuration(
+            net_payable_minor=totals["net_payable_minor"],
+            supplied_fields=payload.model_fields_set,
+            deposit_mode=payload.deposit_mode,
+            deposit_percentage=payload.deposit_percentage,
+            deposit_amount_minor=payload.deposit_amount_minor,
+            is_create=True,
+        )
+    except ValueError as exc:
+        raise BadRequestException(str(exc)) from exc
 
     raw_token, token_hash = generate_share_token()
 
@@ -300,8 +320,9 @@ async def create_quote(
         wht_rate_percent=payload.wht_rate_percent,
         wht_minor=totals["wht_minor"],
         net_payable_minor=totals["net_payable_minor"],
-        deposit_percentage=payload.deposit_percentage,
-        deposit_amount_minor=totals["deposit_amount_minor"],
+        deposit_mode=deposit_config["deposit_mode"],
+        deposit_percentage=deposit_config["deposit_percentage"],
+        deposit_amount_minor=deposit_config["deposit_amount_minor"],
         has_expense_policy=bool(payload.has_expense_policy),
         expense_policy=payload.expense_policy.model_dump() if payload.expense_policy else None,
         notes=payload.notes,
@@ -576,7 +597,7 @@ async def revise_quote(
     # A revision is a new draft version and must be finalized and shared again.
     quote_obj.version = old_version + 1
     quote_obj.last_revised_at = datetime.now(timezone.utc)
-    
+
     transition_document(
         db,
         document=quote_obj,
@@ -636,10 +657,12 @@ async def update_quote(
 
     effective_issue_date = payload.issue_date or quote_obj.issue_date
     effective_expiry = payload.expires_at or quote_obj.expires_at
+
     if effective_expiry < effective_issue_date:
         raise BadRequestException(
             "Quote expiry date cannot be earlier than its issue date."
         )
+
     if payload.items is not None and not payload.items:
         raise BadRequestException("A quote must contain at least one line item.")
 
@@ -657,10 +680,6 @@ async def update_quote(
         quote_obj.expires_at = payload.expires_at
     if payload.notes is not None:
         quote_obj.notes = payload.notes
-    if payload.deposit_percentage is not None:
-        quote_obj.deposit_percentage = payload.deposit_percentage
-    if payload.deposit_amount_minor is not None:
-        quote_obj.deposit_amount_minor = payload.deposit_amount_minor
     if payload.has_expense_policy is not None:
         quote_obj.has_expense_policy = payload.has_expense_policy
     if payload.expense_policy is not None:
@@ -681,49 +700,58 @@ async def update_quote(
         if payload.wht_rate_percent is not None
         else quote_obj.wht_rate_percent
     )
-    deposit_pct = (
-        payload.deposit_percentage
-        if payload.deposit_percentage is not None
-        else quote_obj.deposit_percentage
-    )
-    deposit_amt = (
-        payload.deposit_amount_minor
-        if payload.deposit_amount_minor is not None
-        else quote_obj.deposit_amount_minor
-    )
 
     if payload.items is not None:
         quote_obj.items.clear()
-        for i, it in enumerate(payload.items):
+        for position, item in enumerate(payload.items):
             quote_obj.items.append(
                 QuoteLineItem(
                     quote_id=quote_obj.id,
-                    position=i,
-                    description=it.description,
-                    quantity=it.quantity,
-                    unit_price_minor=it.unit_price_minor,
-                    total_minor=it.quantity * it.unit_price_minor,
+                    position=position,
+                    description=item.description,
+                    quantity=item.quantity,
+                    unit_price_minor=item.unit_price_minor,
+                    total_minor=item.quantity * item.unit_price_minor,
                 )
             )
 
     totals = calculate_invoice_totals(
         items=[
-            {"quantity": it.quantity, "unit_price_minor": it.unit_price_minor}
-            for it in quote_obj.items
+            {
+                "quantity": item.quantity,
+                "unit_price_minor": item.unit_price_minor,
+            }
+            for item in quote_obj.items
         ],
         discount_minor=discount,
         tax_percent=tax_rate,
         wht_percent=wht_rate,
-        deposit_percent=deposit_pct or 0.0,
-        deposit_amount_minor=deposit_amt,
+        deposit_percent=0.0,
+        deposit_amount_minor=None,
     )
+
+    try:
+        deposit_config = resolve_deposit_configuration(
+            net_payable_minor=totals["net_payable_minor"],
+            supplied_fields=payload.model_fields_set,
+            deposit_mode=payload.deposit_mode,
+            deposit_percentage=payload.deposit_percentage,
+            deposit_amount_minor=payload.deposit_amount_minor,
+            existing_mode=quote_obj.deposit_mode,
+            existing_percentage=quote_obj.deposit_percentage,
+            existing_amount_minor=quote_obj.deposit_amount_minor,
+        )
+    except ValueError as exc:
+        raise BadRequestException(str(exc)) from exc
+
     _apply_totals(
         quote_obj,
         totals,
         discount=discount,
         tax_rate=tax_rate,
         wht_rate=wht_rate,
-        deposit_pct=deposit_pct,
+        deposit_pct=deposit_config["deposit_percentage"],
+        deposit_config=deposit_config,
     )
 
     await db.commit()

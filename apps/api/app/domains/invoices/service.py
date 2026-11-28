@@ -1048,6 +1048,7 @@ async def revise_invoice(
         commit=False,
     )
 
+    # Snapshot the complete previous financial configuration before mutation.
     revision = InvoiceRevision(
         invoice_id=invoice.id,
         version=invoice.version,
@@ -1059,6 +1060,8 @@ async def revise_invoice(
         wht_rate_percent=invoice.wht_rate_percent or 0.0,
         wht_minor=invoice.wht_minor or 0,
         net_payable_minor=invoice.net_payable_minor or invoice.total_minor,
+        deposit_percentage=invoice.deposit_percentage,
+        deposit_mode=invoice.deposit_mode or "legacy",
         deposit_amount_minor=invoice.deposit_amount_minor,
         items_snapshot=[
             {
@@ -1094,16 +1097,6 @@ async def revise_invoice(
         if payload.wht_rate_percent is not None
         else (invoice.wht_rate_percent or 0.0)
     )
-    deposit_pct = (
-        payload.deposit_percentage
-        if payload.deposit_percentage is not None
-        else invoice.deposit_percentage
-    )
-    deposit_amt = (
-        payload.deposit_amount_minor
-        if payload.deposit_amount_minor is not None
-        else invoice.deposit_amount_minor
-    )
 
     totals = calculate_invoice_totals(
         items=[
@@ -1116,16 +1109,32 @@ async def revise_invoice(
         discount_minor=discount,
         tax_percent=tax_rate,
         wht_percent=wht_rate,
-        deposit_percent=deposit_pct or 0.0,
-        deposit_amount_minor=deposit_amt,
+        deposit_percent=0.0,
+        deposit_amount_minor=None,
     )
+
+    try:
+        deposit_config = resolve_deposit_configuration(
+            net_payable_minor=totals["net_payable_minor"],
+            supplied_fields=payload.model_fields_set,
+            deposit_mode=payload.deposit_mode,
+            deposit_percentage=payload.deposit_percentage,
+            deposit_amount_minor=payload.deposit_amount_minor,
+            existing_mode=invoice.deposit_mode,
+            existing_percentage=invoice.deposit_percentage,
+            existing_amount_minor=invoice.deposit_amount_minor,
+        )
+    except ValueError as exc:
+        raise BadRequestException(str(exc)) from exc
+
     _apply_totals(
         invoice,
         totals,
         discount=discount,
         tax_rate=tax_rate,
         wht_rate=wht_rate,
-        deposit_pct=deposit_pct,
+        deposit_pct=deposit_config["deposit_percentage"],
+        deposit_config=deposit_config,
     )
 
     if payload.notes is not None:
