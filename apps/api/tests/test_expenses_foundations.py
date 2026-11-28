@@ -1,12 +1,14 @@
 import pytest
 import uuid
+from types import SimpleNamespace
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import select
+
 from app.main import app
 from tests.test_quotes import authenticate_test_user
 from app.core.database import AsyncSessionLocal
 from app.domains.engagements.models import Engagement
-
+from app.domains.expenses.service import evaluate_expense_policy
 
 @pytest.mark.asyncio
 async def test_quote_expense_policy_and_engagement_snapshot():
@@ -107,3 +109,58 @@ async def test_quote_expense_policy_and_engagement_snapshot():
             assert baseline["has_expense_policy"] is True
             assert baseline["expense_policy"]["total_expense_cap_minor"] == 400000_00
             assert baseline["accepted_by_name"] == "Tunde Kelani"
+
+
+def test_expense_policy_does_not_require_threshold_approval_when_disabled():
+    engagement = SimpleNamespace(
+        effective_expense_cap_minor=200_000_00,
+        per_expense_threshold_minor=50_000_00,
+        expense_policy_snapshot={
+            "client_approval_required": False,
+        },
+    )
+
+    evaluation, approval_status = evaluate_expense_policy(
+        amount_minor=75_000_00,
+        current_billable_total_minor=0,
+        engagement=engagement,
+    )
+
+    assert evaluation == "in_policy"
+    assert approval_status == "not_required"
+
+
+def test_expense_policy_cap_still_requires_approval_when_threshold_approval_disabled():
+    engagement = SimpleNamespace(
+        effective_expense_cap_minor=200_000_00,
+        per_expense_threshold_minor=50_000_00,
+        expense_policy_snapshot={
+            "client_approval_required": False,
+        },
+    )
+
+    evaluation, approval_status = evaluate_expense_policy(
+        amount_minor=150_000_00,
+        current_billable_total_minor=75_000_00,
+        engagement=engagement,
+    )
+
+    assert evaluation == "exceeds_cap"
+    assert approval_status == "pending_approval"
+
+
+def test_expense_policy_defaults_to_approval_for_legacy_snapshots():
+    engagement = SimpleNamespace(
+        effective_expense_cap_minor=500_000_00,
+        per_expense_threshold_minor=50_000_00,
+        expense_policy_snapshot={},
+    )
+
+    evaluation, approval_status = evaluate_expense_policy(
+        amount_minor=75_000_00,
+        current_billable_total_minor=0,
+        engagement=engagement,
+    )
+
+    assert evaluation == "needs_approval"
+    assert approval_status == "pending_approval"

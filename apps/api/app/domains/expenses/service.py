@@ -4,6 +4,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.dates import business_today
 from app.core.errors import NotFoundException, BadRequestException
 from app.core.money import format_money
 from app.core.security import generate_share_token
@@ -34,7 +35,7 @@ def evaluate_expense_policy(
     current_billable_total_minor: int,
     engagement: Engagement,
 ) -> Tuple[str, str]:
-    """Evaluates an expense against the engagement's commercial baseline policy (FR-083).
+    """Evaluate an expense against the engagement's accepted expense policy.
 
     Returns:
         (policy_evaluation, initial_approval_status)
@@ -44,12 +45,22 @@ def evaluate_expense_policy(
     effective_cap = engagement.effective_expense_cap_minor
     threshold = engagement.per_expense_threshold_minor
 
-    # Check cap exceedance first (FR-085, AC-019)
-    if effective_cap is not None and (current_billable_total_minor + amount_minor) > effective_cap:
+    # The accepted policy controls whether individual expenses above
+    # the threshold require client approval. Default to True for
+    # backward compatibility with older engagement snapshots.
+    policy = engagement.expense_policy_snapshot or {}
+    client_approval_required = policy.get("client_approval_required", True)
+
+    # The total cap is a separate commercial restriction. Exceeding it
+    # always requires an approved scope change, regardless of the
+    # per-expense approval setting.
+    if (
+        effective_cap is not None
+        and (current_billable_total_minor + amount_minor) > effective_cap
+    ):
         return "exceeds_cap", "pending_approval"
 
-    # Check per-expense threshold (FR-080, AC-016)
-    if threshold is not None and amount_minor > threshold:
+    if client_approval_required and threshold is not None and amount_minor > threshold:
         return "needs_approval", "pending_approval"
 
     return "in_policy", "not_required"
@@ -150,7 +161,7 @@ async def record_expense(
         client_id=engagement.client_id,
         amount_minor=payload.amount_minor,
         currency=payload.currency.upper(),
-        expense_date=payload.expense_date or date.today(),
+        expense_date=payload.expense_date or business_today(workspace.timezone),
         description=payload.description.strip(),
         category=payload.category,
         billable=payload.billable,
@@ -161,8 +172,14 @@ async def record_expense(
         receipt_content_type=payload.receipt_content_type,
         approval_status=approval_status,
         approval_requested_at=now if approval_status == "pending_approval" else None,
-        approval_token_hash=token_hash if approval_status == "pending_approval" else None,
-        approval_token_expires_at=(now + timedelta(days=14)) if approval_status == "pending_approval" else None,
+        approval_token_hash=(
+            token_hash if approval_status == "pending_approval" else None
+        ),
+        approval_token_expires_at=(
+            (now + timedelta(days=14))
+            if approval_status == "pending_approval"
+            else None
+        ),
         notes=payload.notes,
     )
 
@@ -632,10 +649,12 @@ async def add_expenses_to_invoice(
         invoice = Invoice(
             workspace_id=workspace.id,
             client_id=client_id,
-            engagement_id=next(iter(engagement_ids)) if len(engagement_ids) == 1 else None,
+            engagement_id=(
+                next(iter(engagement_ids)) if len(engagement_ids) == 1 else None
+            ),
             currency=currency,
             status="draft",
-            issue_date=date.today(),
+            issue_date=business_today(workspace.timezone),
             due_date=payload.due_date,
             subtotal_minor=0,
             discount_minor=0,

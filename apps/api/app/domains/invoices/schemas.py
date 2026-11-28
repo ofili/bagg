@@ -18,7 +18,7 @@ class LineItemSchema(BaseModel):
 class InvoiceCreate(BaseModel):
     client_id: str
     currency: str = "NGN"
-    issue_date: date = Field(default_factory=date.today)
+    issue_date: Optional[date] = None
     due_date: Optional[date] = None
     items: List[LineItemSchema] = []
     discount_minor: int = Field(default=0, ge=0)
