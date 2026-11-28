@@ -1,7 +1,11 @@
 import pytest
 
-from app.core.deposits import resolve_deposit_configuration
+from types import SimpleNamespace
 
+from app.core.deposits import resolve_deposit_configuration
+from app.domains.expenses.service import (
+    apply_pass_through_expenses_to_invoice,
+)
 
 def test_new_record_without_deposit_defaults_to_none():
     result = resolve_deposit_configuration(
@@ -343,3 +347,78 @@ def test_zero_fixed_amount_has_no_deposit_amount():
 
     assert result["deposit_mode"] == "fixed"
     assert result["deposit_amount_minor"] is None
+
+
+@pytest.mark.parametrize(
+    ("mode", "percentage", "amount", "expected_amount"),
+    [
+        ("percentage", 25, 25_000, 30_000),
+        ("fixed", None, 30_000, 30_000),
+        ("fixed", None, 150_000, 120_000),
+        ("legacy", 40, 30_000, 30_000),
+        ("legacy", 40, 150_000, 120_000),
+        ("none", None, None, None),
+    ],
+)
+def test_pass_through_expenses_resolve_deposit_by_mode(
+    mode,
+    percentage,
+    amount,
+    expected_amount,
+):
+    invoice = SimpleNamespace(
+        subtotal_minor=100_000,
+        total_minor=100_000,
+        net_payable_minor=100_000,
+        deposit_mode=mode,
+        deposit_percentage=percentage,
+        deposit_amount_minor=amount,
+    )
+
+    apply_pass_through_expenses_to_invoice(invoice, 20_000)
+
+    assert invoice.subtotal_minor == 120_000
+    assert invoice.total_minor == 120_000
+    assert invoice.net_payable_minor == 120_000
+    assert invoice.deposit_mode == mode
+    assert invoice.deposit_amount_minor == expected_amount
+
+    if mode == "none":
+        assert invoice.deposit_percentage is None
+        assert invoice.deposit_amount_minor is None
+    else:
+        assert invoice.deposit_percentage == percentage
+
+
+def test_pass_through_expenses_preserve_zero_fixed_deposit():
+    invoice = SimpleNamespace(
+        subtotal_minor=100_000,
+        total_minor=100_000,
+        net_payable_minor=100_000,
+        deposit_mode="fixed",
+        deposit_percentage=None,
+        deposit_amount_minor=None,
+    )
+
+    apply_pass_through_expenses_to_invoice(invoice, 20_000)
+
+    assert invoice.deposit_mode == "fixed"
+    assert invoice.deposit_percentage is None
+    assert invoice.deposit_amount_minor is None
+
+
+def test_pass_through_expenses_recalculate_zero_percentage_deposit():
+    invoice = SimpleNamespace(
+        subtotal_minor=100_000,
+        total_minor=100_000,
+        net_payable_minor=100_000,
+        deposit_mode="percentage",
+        deposit_percentage=0,
+        deposit_amount_minor=None,
+    )
+
+    apply_pass_through_expenses_to_invoice(invoice, 20_000)
+
+    assert invoice.deposit_mode == "percentage"
+    assert invoice.deposit_percentage == 0
+    assert invoice.deposit_amount_minor is None

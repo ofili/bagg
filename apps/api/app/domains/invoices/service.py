@@ -1502,6 +1502,7 @@ async def create_draft_invoice_from_quote(
         wht_rate_percent=quote_obj.wht_rate_percent,
         wht_minor=quote_obj.wht_minor,
         net_payable_minor=quote_obj.net_payable_minor,
+        deposit_mode=quote_obj.deposit_mode or "legacy",
         deposit_percentage=quote_obj.deposit_percentage,
         deposit_amount_minor=quote_obj.deposit_amount_minor,
         deposit_due_date=None,

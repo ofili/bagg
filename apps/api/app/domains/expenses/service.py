@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.dates import business_today
+from app.core.deposits import resolve_deposit_configuration
 from app.core.errors import NotFoundException, BadRequestException
 from app.core.money import calculate_tax_minor, format_money
 from app.core.security import generate_share_token
@@ -72,12 +73,12 @@ def apply_pass_through_expenses_to_invoice(
 ) -> None:
     """Apply pass-through expenses without recalculating fee tax or WHT.
 
-    Expenses increase the invoice subtotal, gross total and net payable.
-    Existing discount, tax and WHT amounts remain unchanged because
-    pass-through expenses do not participate in those calculations.
+    Expenses increase subtotal, gross total and net payable. Existing
+    discount, tax and WHT amounts remain unchanged.
 
-    Percentage deposits are recalculated against the revised net payable.
-    Explicit deposits are retained and capped at the revised net payable.
+    Percentage deposits recalculate against revised net payable.
+    Fixed and legacy deposits are preserved and capped.
+    No-deposit configuration remains unset.
     """
     if isinstance(total_added_minor, bool) or not isinstance(total_added_minor, int):
         raise ValueError("total_added_minor must be an integer.")
@@ -89,19 +90,28 @@ def apply_pass_through_expenses_to_invoice(
     invoice.total_minor = (invoice.total_minor or 0) + total_added_minor
     invoice.net_payable_minor = (invoice.net_payable_minor or 0) + total_added_minor
 
-    explicit_deposit = invoice.deposit_amount_minor
+    try:
+        deposit_config = resolve_deposit_configuration(
+            net_payable_minor=invoice.net_payable_minor,
+            existing_mode=(
+                getattr(invoice, "deposit_mode", None)
+                or (
+                    "fixed"
+                    if invoice.deposit_amount_minor is not None
+                    else "percentage"
+                    if invoice.deposit_percentage is not None
+                    else "none"
+                )
+            ),
+            existing_percentage=invoice.deposit_percentage,
+            existing_amount_minor=invoice.deposit_amount_minor,
+        )
+    except ValueError as exc:
+        raise BadRequestException(str(exc)) from exc
 
-    if explicit_deposit is not None:
-        invoice.deposit_amount_minor = (
-            min(explicit_deposit, invoice.net_payable_minor)
-            if explicit_deposit > 0
-            else None
-        )
-    elif invoice.deposit_percentage and invoice.deposit_percentage > 0:
-        invoice.deposit_amount_minor = calculate_tax_minor(
-            invoice.net_payable_minor,
-            invoice.deposit_percentage,
-        )
+    invoice.deposit_mode = deposit_config["deposit_mode"]
+    invoice.deposit_percentage = deposit_config["deposit_percentage"]
+    invoice.deposit_amount_minor = deposit_config["deposit_amount_minor"]
 
 
 def validate_billable_expense_category(

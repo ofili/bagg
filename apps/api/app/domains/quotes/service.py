@@ -488,6 +488,7 @@ async def revise_quote(
         wht_minor=quote_obj.wht_minor,
         net_payable_minor=quote_obj.net_payable_minor,
         deposit_percentage=quote_obj.deposit_percentage,
+        deposit_mode=quote_obj.deposit_mode or "legacy",
         deposit_amount_minor=quote_obj.deposit_amount_minor,
         has_expense_policy=quote_obj.has_expense_policy,
         expense_policy=quote_obj.expense_policy,
@@ -520,10 +521,6 @@ async def revise_quote(
         quote_obj.expires_at = payload.expires_at
     if payload.notes is not None:
         quote_obj.notes = payload.notes
-    if payload.deposit_percentage is not None:
-        quote_obj.deposit_percentage = payload.deposit_percentage
-    if payload.deposit_amount_minor is not None:
-        quote_obj.deposit_amount_minor = payload.deposit_amount_minor
     if payload.has_expense_policy is not None:
         quote_obj.has_expense_policy = payload.has_expense_policy
     if payload.expense_policy is not None:
@@ -543,16 +540,6 @@ async def revise_quote(
         payload.wht_rate_percent
         if payload.wht_rate_percent is not None
         else quote_obj.wht_rate_percent
-    )
-    deposit_pct = (
-        payload.deposit_percentage
-        if payload.deposit_percentage is not None
-        else quote_obj.deposit_percentage
-    )
-    deposit_amt = (
-        payload.deposit_amount_minor
-        if payload.deposit_amount_minor is not None
-        else quote_obj.deposit_amount_minor
     )
 
     if payload.items is not None:
@@ -582,16 +569,32 @@ async def revise_quote(
         discount_minor=discount,
         tax_percent=tax_rate,
         wht_percent=wht_rate,
-        deposit_percent=deposit_pct or 0.0,
-        deposit_amount_minor=deposit_amt,
+        deposit_percent=0.0,
+        deposit_amount_minor=None,
     )
+
+    try:
+        deposit_config = resolve_deposit_configuration(
+            net_payable_minor=totals["net_payable_minor"],
+            supplied_fields=payload.model_fields_set,
+            deposit_mode=payload.deposit_mode,
+            deposit_percentage=payload.deposit_percentage,
+            deposit_amount_minor=payload.deposit_amount_minor,
+            existing_mode=quote_obj.deposit_mode,
+            existing_percentage=quote_obj.deposit_percentage,
+            existing_amount_minor=quote_obj.deposit_amount_minor,
+        )
+    except ValueError as exc:
+        raise BadRequestException(str(exc)) from exc
+
     _apply_totals(
         quote_obj,
         totals,
         discount=discount,
         tax_rate=tax_rate,
         wht_rate=wht_rate,
-        deposit_pct=deposit_pct,
+        deposit_pct=deposit_config["deposit_percentage"],
+        deposit_config=deposit_config,
     )
 
     # A revision is a new draft version and must be finalized and shared again.

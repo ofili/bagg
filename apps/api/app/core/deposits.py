@@ -144,9 +144,31 @@ def resolve_deposit_configuration(
         }
 
     if mode == "fixed":
-        amount = deposit_amount_minor if amount_was_supplied else existing_amount_minor
+        amount = (
+            deposit_amount_minor
+            if amount_was_supplied
+            else existing_amount_minor
+        )
 
+        # An existing fixed configuration with no amount represents
+        # a zero-value fixed deposit. Preserve that configuration.
         if amount is None:
+            if (
+                not amount_was_supplied
+                and not is_create
+                and existing_mode == "fixed"
+                and existing_amount_minor is None
+            ):
+                return {
+                    "deposit_mode": "fixed",
+                    "deposit_percentage": (
+                        _validate_deposit_percentage(deposit_percentage)
+                        if percentage_was_supplied and deposit_percentage is not None
+                        else existing_percentage
+                    ),
+                    "deposit_amount_minor": None,
+                }
+
             raise ValueError("An amount is required for fixed deposit mode.")
 
         amount = _validate_deposit_amount(amount)
@@ -161,7 +183,7 @@ def resolve_deposit_configuration(
         return {
             "deposit_mode": "fixed",
             "deposit_percentage": percentage,
-            "deposit_amount_minor": (min(amount, net_payable) if amount > 0 else None),
+            "deposit_amount_minor": min(amount, net_payable) if amount > 0 else None,
         }
 
     # Legacy records retain their original amount. The stored percentage
