@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.dates import business_today
+from app.core.deposits import resolve_deposit_configuration
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals
 from app.core.security import generate_share_token, hash_token
@@ -145,6 +146,7 @@ def _apply_totals(
     tax_rate,
     wht_rate,
     deposit_pct,
+    deposit_config: dict | None = None,
 ) -> None:
     invoice.subtotal_minor = totals["subtotal_minor"]
     invoice.discount_minor = discount
@@ -154,8 +156,14 @@ def _apply_totals(
     invoice.wht_rate_percent = wht_rate
     invoice.wht_minor = totals["wht_minor"]
     invoice.net_payable_minor = totals["net_payable_minor"]
-    invoice.deposit_percentage = deposit_pct
-    invoice.deposit_amount_minor = totals["deposit_amount_minor"]
+
+    if deposit_config is not None:
+        invoice.deposit_mode = deposit_config["deposit_mode"]
+        invoice.deposit_percentage = deposit_config["deposit_percentage"]
+        invoice.deposit_amount_minor = deposit_config["deposit_amount_minor"]
+    else:
+        invoice.deposit_percentage = deposit_pct
+        invoice.deposit_amount_minor = totals["deposit_amount_minor"]
 
 
 async def _replace_items(db: AsyncSession, invoice: Invoice, items) -> None:
@@ -414,9 +422,21 @@ async def create_invoice(
         discount_minor=payload.discount_minor,
         tax_percent=payload.tax_rate_percent,
         wht_percent=payload.wht_rate_percent,
-        deposit_percent=payload.deposit_percentage or 0.0,
-        deposit_amount_minor=payload.deposit_amount_minor,
+        deposit_percent=0.0,
+        deposit_amount_minor=None,
     )
+
+    try:
+        deposit_config = resolve_deposit_configuration(
+            net_payable_minor=totals["net_payable_minor"],
+            supplied_fields=payload.model_fields_set,
+            deposit_mode=payload.deposit_mode,
+            deposit_percentage=payload.deposit_percentage,
+            deposit_amount_minor=payload.deposit_amount_minor,
+            is_create=True,
+        )
+    except ValueError as exc:
+        raise BadRequestException(str(exc)) from exc
 
     raw_token, token_hash = generate_share_token()
 
@@ -438,8 +458,9 @@ async def create_invoice(
         wht_rate_percent=payload.wht_rate_percent,
         wht_minor=totals["wht_minor"],
         net_payable_minor=totals["net_payable_minor"],
-        deposit_percentage=payload.deposit_percentage,
-        deposit_amount_minor=totals["deposit_amount_minor"],
+        deposit_mode=deposit_config["deposit_mode"],
+        deposit_percentage=deposit_config["deposit_percentage"],
+        deposit_amount_minor=deposit_config["deposit_amount_minor"],
         deposit_due_date=payload.deposit_due_date,
         # Direct invoice checkout remains disabled until freelancer settlement
         # is implemented and independently verified.
@@ -504,13 +525,17 @@ async def update_draft_invoice(
             "Sent invoices are immutable. Create a revision."
         )
 
+        deposit_fields_supplied = bool(
+            payload.model_fields_set
+            & {"deposit_mode", "deposit_percentage", "deposit_amount_minor"}
+        )
+
     recalc = (
         payload.items is not None
         or payload.discount_minor is not None
         or payload.tax_rate_percent is not None
         or payload.wht_rate_percent is not None
-        or payload.deposit_percentage is not None
-        or payload.deposit_amount_minor is not None
+        or deposit_fields_supplied
     )
 
     discount = (
@@ -528,22 +553,13 @@ async def update_draft_invoice(
         if payload.wht_rate_percent is not None
         else (invoice.wht_rate_percent or 0.0)
     )
-    deposit_pct = (
-        payload.deposit_percentage
-        if payload.deposit_percentage is not None
-        else invoice.deposit_percentage
-    )
-    deposit_amt = (
-        payload.deposit_amount_minor
-        if payload.deposit_amount_minor is not None
-        else invoice.deposit_amount_minor
-    )
 
     if payload.items is not None:
         await _replace_items(db, invoice, payload.items)
 
-    if payload.items is not None or recalc:
+    if recalc:
         items = payload.items if payload.items is not None else (invoice.items or [])
+
         totals = calculate_invoice_totals(
             items=[
                 {"quantity": it.quantity, "unit_price_minor": it.unit_price_minor}
@@ -552,16 +568,32 @@ async def update_draft_invoice(
             discount_minor=discount,
             tax_percent=tax_rate,
             wht_percent=wht_rate,
-            deposit_percent=deposit_pct or 0.0,
-            deposit_amount_minor=deposit_amt,
+            deposit_percent=0.0,
+            deposit_amount_minor=None,
         )
+
+        try:
+            deposit_config = resolve_deposit_configuration(
+                net_payable_minor=totals["net_payable_minor"],
+                supplied_fields=payload.model_fields_set,
+                deposit_mode=payload.deposit_mode,
+                deposit_percentage=payload.deposit_percentage,
+                deposit_amount_minor=payload.deposit_amount_minor,
+                existing_mode=invoice.deposit_mode,
+                existing_percentage=invoice.deposit_percentage,
+                existing_amount_minor=invoice.deposit_amount_minor,
+            )
+        except ValueError as exc:
+            raise BadRequestException(str(exc)) from exc
+
         _apply_totals(
             invoice,
             totals,
             discount=discount,
             tax_rate=tax_rate,
             wht_rate=wht_rate,
-            deposit_pct=deposit_pct,
+            deposit_pct=deposit_config["deposit_percentage"],
+            deposit_config=deposit_config,
         )
 
     if payload.deposit_due_date is not None:
