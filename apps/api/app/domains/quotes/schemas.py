@@ -1,6 +1,8 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.core.money import validate_currency
 from typing import Optional, List
+
+from app.domains.quotes.acceptance import CONSENT_TEXT
 from datetime import datetime, date
 
 
@@ -158,6 +160,9 @@ class PublicQuoteView(BaseModel):
     id: str
     quote_number: str
     version: int = 1
+    # Exact wording the client agrees to when accepting. The server stores this text
+    # with the acceptance, so what they saw and what is recorded cannot differ.
+    acceptance_consent_text: str = CONSENT_TEXT
     last_revised_at: Optional[datetime] = None
     currency: str
     status: str
@@ -209,6 +214,31 @@ class QuoteAcceptRequest(BaseModel):
         ge=1,
         description="Exact quote version being accepted",
     )
+    agreed_to_terms: bool = Field(
+        ...,
+        description="The client confirmed they have read and agree to the quote's terms",
+    )
+
+
+class AcceptanceRecordResponse(BaseModel):
+    """What the issuer can show if an acceptance is ever questioned."""
+
+    quote_id: str
+    quote_number: str
+    version: int
+    accepted_at: datetime
+    accepted_by_name: Optional[str] = None
+    # False for quotes accepted before evidence capture existed.
+    evidence_captured: bool
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    consent_text: Optional[str] = None
+    consent_version: Optional[str] = None
+    terms_hash: Optional[str] = None
+    terms_snapshot: Optional[dict] = None
+    # Recomputed on request: True if the stored snapshot still matches its hash.
+    hash_verified: Optional[bool] = None
+    generated_at: datetime
 
 
 class QuoteReviseRequest(BaseModel):

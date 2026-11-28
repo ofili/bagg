@@ -135,6 +135,7 @@ async def test_quotes_full_lifecycle():
             accept_res = await anon_client.post(
                 f"/quotes/share/{token1}/accept",
                 json={
+                    "agreed_to_terms": True,
                     "accepted_by_name": "Amara Okonkwo",
                     "version": send_data["version"],
                 },
@@ -261,6 +262,7 @@ async def test_quote_decline_and_expiration():
             fail_acc = await anon_client.post(
                 f"/quotes/share/{token}/accept",
                 json={
+                    "agreed_to_terms": True,
                     "accepted_by_name": "Ibrahim Kano",
                     "version": q_data["version"],
                 },
@@ -319,6 +321,7 @@ async def test_quote_decline_and_expiration():
             accept_exp = await anon_client.post(
                 f"/quotes/share/{exp_token}/accept",
                 json={
+                    "agreed_to_terms": True,
                     "accepted_by_name": "Tunde Late",
                     "version": exp_data["version"],
                 },
@@ -421,6 +424,7 @@ async def test_accept_version_mismatch_rejected():
         async with AsyncClient(transport=transport, base_url="http://test") as anon_client:
             # Accepting a stale version is rejected
             bad = await anon_client.post(f"/quotes/share/{token}/accept", json={
+                "agreed_to_terms": True,
                 "accepted_by_name": "Ada Lovelace",
                 "version": 999,
             })
@@ -429,6 +433,7 @@ async def test_accept_version_mismatch_rejected():
 
             # Accepting the current version succeeds
             good = await anon_client.post(f"/quotes/share/{token}/accept", json={
+                "agreed_to_terms": True,
                 "accepted_by_name": "Ada Lovelace",
                 "version": q["version"],
             })
@@ -458,6 +463,7 @@ async def test_accept_idempotent_one_invoice():
 
         async with AsyncClient(transport=transport, base_url="http://test") as anon_client:
             r1 = await anon_client.post(f"/quotes/share/{token}/accept", json={
+                "agreed_to_terms": True,
                 "accepted_by_name": "Idem User", "version": q["version"],
             })
             assert r1.status_code == 200
@@ -465,6 +471,7 @@ async def test_accept_idempotent_one_invoice():
 
             # Double-accept returns the same invoice (idempotent)
             r2 = await anon_client.post(f"/quotes/share/{token}/accept", json={
+                "agreed_to_terms": True,
                 "accepted_by_name": "Idem User", "version": q["version"],
             })
             assert r2.status_code == 200
@@ -527,6 +534,7 @@ async def test_quote_revise_bumps_version():
             acc = await anon_client.post(
                 f"/quotes/share/{current_token}/accept",
                 json={
+                    "agreed_to_terms": True,
                     "accepted_by_name": "Revise User",
                     "version": current_version,
                 },
@@ -645,6 +653,7 @@ async def test_quote_revision_preserves_terms_and_accepts_only_current_version()
             stale = await public_client.post(
                 f"/quotes/share/{current['share_token']}/accept",
                 json={
+                    "agreed_to_terms": True,
                     "accepted_by_name": "Client Representative",
                     "version": original_version,
                 },
@@ -654,6 +663,7 @@ async def test_quote_revision_preserves_terms_and_accepts_only_current_version()
             accepted = await public_client.post(
                 f"/quotes/share/{current['share_token']}/accept",
                 json={
+                    "agreed_to_terms": True,
                     "accepted_by_name": "Client Representative",
                     "version": current["version"],
                 },

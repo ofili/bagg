@@ -85,6 +85,14 @@ class Quote(TransientShareTokenMixin, Base):
     # Acceptance / Decline (US-QOT-02)
     accepted_at = Column(DateTime(timezone=True), nullable=True)
     accepted_by_name = Column(String, nullable=True)
+    # Evidence of what was accepted and how (see quotes/acceptance.py). NULL for
+    # quotes accepted before evidence capture existed.
+    accepted_ip = Column(String(64), nullable=True)
+    accepted_user_agent = Column(String(512), nullable=True)
+    accepted_consent_text = Column(Text, nullable=True)
+    accepted_consent_version = Column(String(64), nullable=True)
+    accepted_terms_snapshot = Column(JSON, nullable=True)
+    accepted_terms_hash = Column(String(64), nullable=True)
     declined_at = Column(DateTime(timezone=True), nullable=True)
     decline_reason = Column(Text, nullable=True)
 

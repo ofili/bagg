@@ -14,11 +14,23 @@ from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals, format_money
 from app.core.security import generate_share_token, hash_token
 from app.domains.activation.service import (record_quote_created, record_document_dispatched)
+from app.domains.sharing.secrets import (
+    resolve_share_token,
+    store_share_token,
+)
 from app.domains.billing.service import (
     check_delivery_quota,
     consume_delivery_send,
 )
 from app.domains.documents.builders.quotes import build_quote_document
+from app.domains.quotes.acceptance import (
+    CONSENT_TEXT,
+    CONSENT_TEXT_VERSION,
+    AcceptanceContext,
+    build_terms_snapshot,
+    hash_terms_snapshot,
+    verify_terms_hash,
+)
 from app.domains.documents.generation import enqueue_document_generation
 from app.domains.documents.delivery import DocumentDeliveryStatus
 from app.domains.engagements import service as engagements_service
@@ -31,6 +43,7 @@ from app.domains.lifecycle.service import (
 from app.domains.quotes.models import Quote, QuoteComment, QuoteLineItem, QuoteRevision
 from app.domains.quotes.repository import QuoteRepository
 from app.domains.quotes.schemas import (
+    AcceptanceRecordResponse,
     QuoteAcceptRequest,
     QuoteCommentCreate,
     QuoteCreate,
@@ -92,11 +105,56 @@ async def _notify_workspace_owner(
     )
 
 
-def _ensure_share_token(quote_obj: Quote) -> None:
-    if not quote_obj.share_token:
-        raw_token, token_hash = generate_share_token()
-        quote_obj.share_token = raw_token
-        quote_obj.share_token_hash = token_hash
+async def _ensure_share_token(
+    db: AsyncSession,
+    quote_obj: Quote,
+) -> str:
+    if quote_obj.share_token:
+        if not quote_obj.share_token_hash:
+            raise BadRequestException(
+                "Quote share token is missing its authoritative hash."
+            )
+
+        await store_share_token(
+            db,
+            document_type="quote",
+            document_id=quote_obj.id,
+            token=quote_obj.share_token,
+            expected_hash=quote_obj.share_token_hash,
+        )
+        return quote_obj.share_token
+
+    if quote_obj.share_token_hash:
+        token = await resolve_share_token(
+            db,
+            document_type="quote",
+            document_id=quote_obj.id,
+            expected_hash=quote_obj.share_token_hash,
+        )
+
+        if token is None:
+            raise BadRequestException(
+                "This quote has an existing share-token hash but no "
+                "recoverable encrypted secret. Explicitly regenerate its "
+                "share link before sending or finalizing it."
+            )
+
+        quote_obj.share_token = token
+        return token
+
+    raw_token, token_hash = generate_share_token()
+    quote_obj.share_token = raw_token
+    quote_obj.share_token_hash = token_hash
+
+    await store_share_token(
+        db,
+        document_type="quote",
+        document_id=quote_obj.id,
+        token=raw_token,
+        expected_hash=token_hash,
+    )
+
+    return raw_token
 
 
 async def _get_quote_or_404(
@@ -156,6 +214,32 @@ async def list_quotes(
 
 async def get_quote(db: AsyncSession, workspace: Workspace, quote_id: str) -> Quote:
     return await _get_quote_or_404(db, workspace, quote_id)
+
+
+async def get_acceptance_record(
+    db: AsyncSession, workspace: Workspace, quote_id: str
+) -> AcceptanceRecordResponse:
+    quote_obj = await _get_quote_or_404(db, workspace, quote_id)
+    if quote_obj.accepted_at is None:
+        raise NotFoundException("This quote has not been accepted.")
+
+    snapshot = quote_obj.accepted_terms_snapshot
+    return AcceptanceRecordResponse(
+        quote_id=quote_obj.id,
+        quote_number=quote_obj.quote_number,
+        version=(snapshot or {}).get("version", quote_obj.version),
+        accepted_at=quote_obj.accepted_at,
+        accepted_by_name=quote_obj.accepted_by_name,
+        evidence_captured=bool(snapshot and quote_obj.accepted_terms_hash),
+        ip_address=quote_obj.accepted_ip,
+        user_agent=quote_obj.accepted_user_agent,
+        consent_text=quote_obj.accepted_consent_text,
+        consent_version=quote_obj.accepted_consent_version,
+        terms_hash=quote_obj.accepted_terms_hash,
+        terms_snapshot=snapshot,
+        hash_verified=verify_terms_hash(snapshot, quote_obj.accepted_terms_hash),
+        generated_at=datetime.now(timezone.utc),
+    )
 
 
 async def create_quote(
@@ -228,6 +312,14 @@ async def create_quote(
     repository.add(quote_obj)
     await repository.flush()
 
+    await store_share_token(
+        db,
+        document_type="quote",
+        document_id=quote_obj.id,
+        token=raw_token,
+        expected_hash=token_hash,
+    )
+
     repository.add_all(
         [
             QuoteLineItem(
@@ -286,7 +378,8 @@ async def finalize_quote(
         locked_workspace.next_quote_number = seq + 1
         quote_obj.quote_number = f"{locked_workspace.quote_prefix}{seq:04d}"
         quote_obj.sequence_number = seq
-    _ensure_share_token(quote_obj)
+
+    await _ensure_share_token(db, quote_obj)
 
     transition_document(
         db,
@@ -698,7 +791,7 @@ async def send_quote(
                 active_message = None
 
     if active_message is None:
-        _ensure_share_token(quote_obj)
+        await _ensure_share_token(db, quote_obj)
         share_url = f"{settings.WEB_BASE_URL.rstrip('/')}/q/{quote_obj.share_token}"
 
     email_sent = False
@@ -914,6 +1007,7 @@ async def accept_public_quote(
     db: AsyncSession,
     token: str,
     payload: QuoteAcceptRequest,
+    context: Optional[AcceptanceContext] = None,
 ) -> tuple[Quote, Optional[str], Workspace]:
     row = await QuoteRepository(db).get_public_for_update(token)
     if row is None:
@@ -951,6 +1045,10 @@ async def accept_public_quote(
     accepted_by_name = payload.accepted_by_name.strip()
     if not accepted_by_name:
         raise BadRequestException("The accepting client's name is required.")
+    if not payload.agreed_to_terms:
+        raise BadRequestException(
+            "Please confirm that you have read and agree to the terms of this quote."
+        )
 
     changed = False
     accepted_now = quote_obj.status != "accepted"
@@ -968,6 +1066,17 @@ async def accept_public_quote(
 
         quote_obj.accepted_at = datetime.now(timezone.utc)
         quote_obj.accepted_by_name = accepted_by_name
+
+        # Evidence: what the client saw, what they agreed to, and where from.
+        # Never overwritten by a repeated request: only the first acceptance counts.
+        snapshot = build_terms_snapshot(quote_obj, client_name, workspace)
+        context = context or AcceptanceContext()
+        quote_obj.accepted_terms_snapshot = snapshot
+        quote_obj.accepted_terms_hash = hash_terms_snapshot(snapshot)
+        quote_obj.accepted_consent_text = CONSENT_TEXT
+        quote_obj.accepted_consent_version = CONSENT_TEXT_VERSION
+        quote_obj.accepted_ip = context.ip_address
+        quote_obj.accepted_user_agent = context.clean_user_agent()
 
         changed = True
 

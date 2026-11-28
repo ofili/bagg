@@ -9,6 +9,10 @@ from app.core.dates import business_today
 from app.core.errors import BadRequestException, NotFoundException
 from app.core.money import calculate_invoice_totals
 from app.core.security import generate_share_token, hash_token
+from app.domains.sharing.secrets import (
+    resolve_share_token,
+    store_share_token,
+)
 from app.domains.activation.service import (
     record_invoice_created,
     record_document_dispatched,
@@ -81,11 +85,56 @@ async def _get_claim_or_404(
     return claim
 
 
-def _ensure_share_token(invoice: Invoice) -> None:
-    if not invoice.share_token:
-        raw_token, token_hash = generate_share_token()
-        invoice.share_token = raw_token
-        invoice.share_token_hash = token_hash
+async def _ensure_share_token(
+    db: AsyncSession,
+    invoice: Invoice,
+) -> str:
+    if invoice.share_token:
+        if not invoice.share_token_hash:
+            raise BadRequestException(
+                "Invoice share token is missing its authoritative hash."
+            )
+
+        await store_share_token(
+            db,
+            document_type="invoice",
+            document_id=invoice.id,
+            token=invoice.share_token,
+            expected_hash=invoice.share_token_hash,
+        )
+        return invoice.share_token
+
+    if invoice.share_token_hash:
+        token = await resolve_share_token(
+            db,
+            document_type="invoice",
+            document_id=invoice.id,
+            expected_hash=invoice.share_token_hash,
+        )
+
+        if token is None:
+            raise BadRequestException(
+                "This invoice has an existing share-token hash but no "
+                "recoverable encrypted secret. Explicitly regenerate its "
+                "share link before sending or finalizing it."
+            )
+
+        invoice.share_token = token
+        return token
+
+    raw_token, token_hash = generate_share_token()
+    invoice.share_token = raw_token
+    invoice.share_token_hash = token_hash
+
+    await store_share_token(
+        db,
+        document_type="invoice",
+        document_id=invoice.id,
+        token=raw_token,
+        expected_hash=token_hash,
+    )
+
+    return raw_token
 
 
 def _apply_totals(
@@ -406,6 +455,14 @@ async def create_invoice(
     repository.add(invoice)
     await repository.flush()
 
+    await store_share_token(
+        db,
+        document_type="invoice",
+        document_id=invoice.id,
+        token=raw_token,
+        expected_hash=token_hash,
+    )
+
     repository.add_all(
         [
             InvoiceLineItem(
@@ -674,7 +731,7 @@ async def finalize_invoice(
     # cadence a fresh idempotency namespace.
     invoice.issuance_generation = (invoice.issuance_generation or 0) + 1
 
-    _ensure_share_token(invoice)
+    await _ensure_share_token(db, invoice)
 
     if invoice.quote_id:
         quote_obj = await repository.get_quote(locked_workspace.id, invoice.quote_id)
@@ -784,7 +841,7 @@ async def send_invoice(
                 active_message = None
 
     if active_message is None:
-        _ensure_share_token(invoice)
+        await _ensure_share_token(db, invoice)
         share_url = f"{settings.WEB_BASE_URL.rstrip('/')}/i/{invoice.share_token}"
 
     recipient_email = client.email

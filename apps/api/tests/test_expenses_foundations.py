@@ -77,6 +77,7 @@ async def test_quote_expense_policy_and_engagement_snapshot():
         accept_res = await client.post(
             f"/quotes/share/{share_token}/accept",
             json={
+                "agreed_to_terms": True,
                 "accepted_by_name": "Tunde Kelani",
                 "version": pub_data["version"],
             },

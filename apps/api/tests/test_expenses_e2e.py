@@ -71,7 +71,7 @@ async def test_ac029_expenses_end_to_end_scenario():
         # 4. Client accepts quote -> Engagement created with baseline snapshot
         acc_res = await client.post(
             f"/quotes/share/{quote_token}/accept",
-            json={"accepted_by_name": "Chief Producer", "version": 1},
+            json={"agreed_to_terms": True, "accepted_by_name": "Chief Producer", "version": 1},
         )
         assert acc_res.status_code == 200
 
@@ -360,7 +360,7 @@ async def test_expenses_negative_guards_and_tenant_isolation():
         fin_res = await client_a.post(f"/quotes/{quote_id}/finalize")
         await client_a.post(
             f"/quotes/share/{fin_res.json()['share_token']}/accept",
-            json={"accepted_by_name": "Client A", "version": 1},
+            json={"agreed_to_terms": True, "accepted_by_name": "Client A", "version": 1},
         )
 
         async with AsyncSessionLocal() as session:

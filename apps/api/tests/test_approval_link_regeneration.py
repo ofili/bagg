@@ -60,7 +60,7 @@ async def _engagement(client: AsyncClient) -> str:
     assert fin.status_code == 200
     acc = await client.post(
         f"/quotes/share/{fin.json()['share_token']}/accept",
-        json={"accepted_by_name": "Test Client", "version": 1},
+        json={"agreed_to_terms": True, "accepted_by_name": "Test Client", "version": 1},
     )
     assert acc.status_code == 200
     engagements = (await client.get("/engagements")).json()

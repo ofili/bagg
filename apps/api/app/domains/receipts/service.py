@@ -17,6 +17,7 @@ from app.core.errors import BadRequestException
 from app.core.dates import business_today
 from app.core.money import format_money
 from app.core.security import generate_share_token
+from app.domains.sharing.secrets import store_share_token
 from app.domains.activation.service import record_payment_confirmed
 from app.domains.audit.service import record_audit_event
 from app.domains.documents.builders.receipts import build_receipt_document
@@ -165,7 +166,16 @@ async def confirm_payment(
     await _notify_owner(db, workspace, invoice, receipt, pay)
     await repo.flush()
 
+    await store_share_token(
+        db,
+        document_type="receipt",
+        document_id=receipt.id,
+        token=receipt.share_token,
+        expected_hash=receipt.share_token_hash,
+    )
+
     await _enqueue_receipt_document(db, workspace, invoice, receipt)
+    
     await record_payment_confirmed(
         db,
         workspace,

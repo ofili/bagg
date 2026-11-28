@@ -15,7 +15,9 @@ from app.domains.documents.delivery import (
 )
 from app.domains.invoices.presenter import map_invoice_to_response
 from app.domains.invoices.schemas import InvoiceResponse
+from app.core.proxy import get_client_ip
 from app.domains.quotes import service
+from app.domains.quotes.acceptance import AcceptanceContext
 from app.domains.quotes.presenter import (
     map_public_quote_view,
     map_quote_send_response,
@@ -23,6 +25,7 @@ from app.domains.quotes.presenter import (
 )
 from app.domains.quotes.schemas import (
     PublicQuoteView,
+    AcceptanceRecordResponse,
     QuoteAcceptRequest,
     QuoteCommentCreate,
     QuoteCommentResponse,
@@ -109,6 +112,16 @@ async def get_quote(
 ):
     quote_obj = await service.get_quote(db, workspace, id)
     return _map(quote_obj, workspace)
+
+
+@router.get("/{id}/acceptance-record", response_model=AcceptanceRecordResponse)
+async def get_acceptance_record(
+    id: str,
+    workspace: Workspace = Depends(resolve_active_workspace),
+    db: AsyncSession = Depends(get_db),
+):
+    """What was accepted, by whom, when and from where. For the issuer's own records."""
+    return await service.get_acceptance_record(db, workspace, id)
 
 
 @router.get("/{id}/pdf")
@@ -288,7 +301,13 @@ async def accept_public_quote(
     )
 
     quote_obj, client_name, workspace = await service.accept_public_quote(
-        db, token, payload
+        db,
+        token,
+        payload,
+        AcceptanceContext(
+            ip_address=get_client_ip(request),
+            user_agent=request.headers.get("user-agent"),
+        ),
     )
     return map_public_quote_view(
         quote_obj,
