@@ -69,7 +69,7 @@ export function NewQuoteDesktop() {
   const [hasExpensePolicy, setHasExpensePolicy] = useState(false);
   const [expenseThresholdText, setExpenseThresholdText] = useState('');
   const [expenseCapText, setExpenseCapText] = useState('');
-  const [reimbursableCategoriesText, setReimbursableCategoriesText] = useState('props, travel, studio_hire');
+  const [reimbursableCategoriesText, setReimbursableCategoriesText] = useState('props, travel, studio hire');
 
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);

@@ -992,11 +992,8 @@ async def view_public_quote(
                 commit=False,
             )
 
-        await db.commit()
-        await QuoteRepository(db).refresh(quote_obj)
-
-        # Persist view timestamp, lifecycle event and notification together.
-        # Notification failures must roll back the first-view operation.
+        # Persist the view timestamp, lifecycle event and notification
+        # in one transaction.
         await db.commit()
         await QuoteRepository(db).refresh(quote_obj)
 
