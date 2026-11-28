@@ -78,6 +78,12 @@ class Invoice(TransientShareTokenMixin, Base):
 
     # Milestone Payments & Upfront Deposits (US-INT-02)
     deposit_percentage = Column(Float, nullable=True)
+    deposit_mode = Column(
+        String(16),
+        nullable=False,
+        default="legacy",
+        server_default="legacy",
+    )
     deposit_amount_minor = Column(BigInteger, nullable=True)
     deposit_due_date = Column(Date, nullable=True)
 
@@ -204,9 +210,19 @@ class Invoice(TransientShareTokenMixin, Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("workspace_id", "invoice_number", name="uq_workspace_invoice_number"),
-        UniqueConstraint("recurring_schedule_id", "recurring_period_key", name="uq_invoice_recurring_schedule_period"),
+        UniqueConstraint(
+            "workspace_id", "invoice_number", name="uq_workspace_invoice_number"
+        ),
+        UniqueConstraint(
+            "recurring_schedule_id",
+            "recurring_period_key",
+            name="uq_invoice_recurring_schedule_period",
+        ),
         Index("ix_invoices_workspace_status", "workspace_id", "status"),
+        CheckConstraint(
+            "deposit_mode IN ('none', 'percentage', 'fixed', 'legacy')",
+            name="ck_invoices_deposit_mode",
+        ),
     )
 
 
@@ -240,6 +256,13 @@ class InvoiceRevision(Base):
     wht_rate_percent = Column(Float, nullable=False, default=0.0)
     wht_minor = Column(BigInteger, nullable=False, default=0)
     net_payable_minor = Column(BigInteger, nullable=False, default=0)
+    deposit_percentage = Column(Float, nullable=True)
+    deposit_mode = Column(
+        String(16),
+        nullable=False,
+        default="legacy",
+        server_default="legacy",
+    )
     deposit_amount_minor = Column(BigInteger, nullable=True)
     items_snapshot = Column(JSON, nullable=False)
     revised_reason = Column(String, nullable=True)
@@ -247,3 +270,10 @@ class InvoiceRevision(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     invoice = relationship("Invoice", back_populates="revisions")
+
+    __table_args__ = (
+        CheckConstraint(
+            "deposit_mode IN ('none', 'percentage', 'fixed', 'legacy')",
+            name="ck_invoice_revisions_deposit_mode",
+        ),
+    )

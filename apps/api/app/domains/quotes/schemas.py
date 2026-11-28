@@ -6,11 +6,15 @@ from pydantic import (
     model_validator,
 )
 
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime, date
 
 from app.core.money import validate_currency
 from app.domains.quotes.acceptance import CONSENT_TEXT
+
+
+DepositMode = Literal["none", "percentage", "fixed", "legacy"]
+DepositModeInput = Literal["none", "percentage", "fixed"]
 
 
 class QuoteLineItemCreate(BaseModel):
@@ -50,6 +54,7 @@ class QuoteCreate(BaseModel):
     tax_rate_percent: float = Field(default=0.0, ge=0.0, le=100.0)
     wht_rate_percent: float = Field(default=0.0, ge=0.0, le=100.0)
     deposit_percentage: Optional[float] = Field(default=None, ge=0.0, le=100.0)
+    deposit_mode: Optional[DepositModeInput] = None
     deposit_amount_minor: Optional[int] = Field(default=None, ge=0)
     has_expense_policy: bool = False
     expense_policy: Optional[ExpensePolicySchema] = None
@@ -91,6 +96,7 @@ class QuoteUpdate(BaseModel):
     tax_rate_percent: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     wht_rate_percent: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     deposit_percentage: Optional[float] = Field(default=None, ge=0.0, le=100.0)
+    deposit_mode: Optional[DepositModeInput] = None
     deposit_amount_minor: Optional[int] = Field(default=None, ge=0)
     has_expense_policy: Optional[bool] = None
     expense_policy: Optional[ExpensePolicySchema] = None
@@ -135,6 +141,7 @@ class QuoteResponse(BaseModel):
     wht_minor: int
     net_payable_minor: int
     deposit_percentage: Optional[float] = None
+    deposit_mode: DepositMode = "legacy"
     deposit_amount_minor: Optional[int] = None
     has_expense_policy: Optional[bool] = False
     expense_policy: Optional[ExpensePolicySchema] = None
@@ -275,6 +282,7 @@ class QuoteReviseRequest(BaseModel):
     tax_rate_percent: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     wht_rate_percent: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     deposit_percentage: Optional[float] = Field(default=None, ge=0.0, le=100.0)
+    deposit_mode: Optional[DepositModeInput] = None
     deposit_amount_minor: Optional[int] = Field(default=None, ge=0)
     has_expense_policy: Optional[bool] = None
     expense_policy: Optional[ExpensePolicySchema] = None
@@ -348,6 +356,7 @@ class QuoteRevisionResponse(BaseModel):
     net_payable_minor: int
 
     deposit_percentage: Optional[float] = None
+    deposit_mode: DepositMode = "legacy"
     deposit_amount_minor: Optional[int] = None
     has_expense_policy: Optional[bool] = False
     expense_policy: Optional[ExpensePolicySchema] = None

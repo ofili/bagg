@@ -1,7 +1,11 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Literal
 from datetime import date, datetime
 from app.core.money import validate_currency
+
+
+DepositMode = Literal["none", "percentage", "fixed", "legacy"]
+DepositModeInput = Literal["none", "percentage", "fixed"]
 
 
 class LineItemSchema(BaseModel):
@@ -25,6 +29,7 @@ class InvoiceCreate(BaseModel):
     tax_rate_percent: float = Field(default=0.0, ge=0.0, le=100.0)
     wht_rate_percent: float = Field(default=0.0, ge=0.0, le=100.0)
     deposit_percentage: Optional[float] = Field(None, ge=0.0, le=100.0)
+    deposit_mode: Optional[DepositModeInput] = None
     deposit_amount_minor: Optional[int] = Field(None, ge=0)
     deposit_due_date: Optional[date] = None
     direct_checkout_enabled: bool = False
@@ -54,6 +59,7 @@ class InvoiceUpdate(BaseModel):
     tax_rate_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
     wht_rate_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
     deposit_percentage: Optional[float] = Field(None, ge=0.0, le=100.0)
+    deposit_mode: Optional[DepositModeInput] = None
     deposit_amount_minor: Optional[int] = Field(None, ge=0)
     deposit_due_date: Optional[date] = None
     direct_checkout_enabled: Optional[bool] = None
@@ -67,6 +73,7 @@ class InvoiceReviseRequest(BaseModel):
     tax_rate_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
     wht_rate_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
     deposit_percentage: Optional[float] = Field(None, ge=0.0, le=100.0)
+    deposit_mode: Optional[DepositModeInput] = None
     deposit_amount_minor: Optional[int] = Field(None, ge=0)
     notes: Optional[str] = None
     reason: Optional[str] = "Scope or pricing adjustment"
@@ -90,6 +97,8 @@ class InvoiceRevisionResponse(BaseModel):
     wht_rate_percent: float = 0.0
     wht_minor: int = 0
     net_payable_minor: int = 0
+    deposit_percentage: Optional[float] = None
+    deposit_mode: DepositMode = "legacy"
     deposit_amount_minor: Optional[int] = None
     items_snapshot: Any
     revised_reason: Optional[str] = None
@@ -159,6 +168,7 @@ class InvoiceResponse(BaseModel):
     net_payable_minor: int = 0
     wht_credit_note_number: Optional[str] = None
     deposit_percentage: Optional[float] = None
+    deposit_mode: DepositMode = "legacy"
     deposit_amount_minor: Optional[int] = None
     deposit_due_date: Optional[date] = None
     amount_paid_minor: int = 0

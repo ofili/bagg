@@ -1,5 +1,6 @@
 from datetime import datetime, date, timezone
 from sqlalchemy import (
+    CheckConstraint,
     Column,
     String,
     Integer,
@@ -63,6 +64,12 @@ class Quote(TransientShareTokenMixin, Base):
 
     # Milestone / Upfront Deposit Settings
     deposit_percentage = Column(Float, nullable=True)
+    deposit_mode = Column(
+        String(16),
+        nullable=False,
+        default="legacy",
+        server_default="legacy",
+    )
     deposit_amount_minor = Column(BigInteger, nullable=True)
 
     # Expense Policy Settings (FR-080)
@@ -132,8 +139,14 @@ class Quote(TransientShareTokenMixin, Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("workspace_id", "quote_number", name="uq_workspace_quote_number"),
+        UniqueConstraint(
+            "workspace_id", "quote_number", name="uq_workspace_quote_number"
+        ),
         Index("ix_quotes_workspace_status", "workspace_id", "status"),
+        CheckConstraint(
+            "deposit_mode IN ('none', 'percentage', 'fixed', 'legacy')",
+            name="ck_quotes_deposit_mode",
+        ),
     )
 
 
@@ -186,6 +199,12 @@ class QuoteRevision(Base):
     wht_minor = Column(BigInteger, nullable=False, default=0.0)
     net_payable_minor = Column(BigInteger, nullable=False)
     deposit_percentage = Column(Float, nullable=True)
+    deposit_mode = Column(
+        String(16),
+        nullable=False,
+        default="legacy",
+        server_default="legacy",
+    )
     deposit_amount_minor = Column(BigInteger, nullable=True)
 
     # Immutable JSON snapshot of the line items for this version.
@@ -200,7 +219,13 @@ class QuoteRevision(Base):
 
     quote = relationship("Quote", back_populates="revisions")
 
-    __table_args__ = (UniqueConstraint("quote_id", "version", name="uq_quote_version"),)
+    __table_args__ = (
+        UniqueConstraint("quote_id", "version", name="uq_quote_version"),
+        CheckConstraint(
+            "deposit_mode IN ('none', 'percentage', 'fixed', 'legacy')",
+            name="ck_quote_revisions_deposit_mode",
+        ),
+    )
 
 
 class QuoteComment(Base):
