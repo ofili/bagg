@@ -128,6 +128,7 @@ def map_invoice_to_response(
         net_payable_minor=net_payable,
         wht_credit_note_number=inv.wht_credit_note_number,
         deposit_percentage=inv.deposit_percentage,
+        deposit_mode=inv.deposit_mode or "legacy",
         deposit_amount_minor=inv.deposit_amount_minor,
         deposit_due_date=inv.deposit_due_date,
         amount_paid_minor=inv.amount_paid_minor or 0,

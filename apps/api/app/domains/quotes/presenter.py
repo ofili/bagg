@@ -120,6 +120,7 @@ def map_quote_to_response(
         wht_minor=quote_obj.wht_minor,
         net_payable_minor=quote_obj.net_payable_minor,
         deposit_percentage=quote_obj.deposit_percentage,
+        deposit_mode=quote_obj.deposit_mode or "legacy",
         deposit_amount_minor=quote_obj.deposit_amount_minor,
         has_expense_policy=bool(quote_obj.has_expense_policy),
         expense_policy=quote_obj.expense_policy,

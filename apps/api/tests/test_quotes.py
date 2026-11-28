@@ -182,6 +182,9 @@ async def test_quotes_full_lifecycle():
         assert created_invoice["total_minor"] == 860_000_00
         assert created_invoice["wht_minor"] == 40_000_00
         assert created_invoice["net_payable_minor"] == 820_000_00
+        assert created_invoice["deposit_mode"] == "percentage"
+        assert created_invoice["deposit_percentage"] == 50.0
+        assert created_invoice["deposit_amount_minor"] == 410_000_00
         assert len(created_invoice["items"]) == 2
         # Source-of-truth link: invoice references the parent quote
         assert created_invoice["quote_id"] == q1["id"]
@@ -583,6 +586,7 @@ async def test_quote_revision_preserves_terms_and_accepts_only_current_version()
                         "unit_price_minor": 100_000_00,
                     }
                 ],
+                "deposit_percentage": 25.0,
             },
         )
 
@@ -635,6 +639,17 @@ async def test_quote_revision_preserves_terms_and_accepts_only_current_version()
         assert previous["total_minor"] == original_total
         assert previous["notes"] == "Original scope"
         assert previous["items_snapshot"][0]["description"] == ("Original deliverable")
+
+        assert quote["deposit_mode"] == "percentage"
+        assert quote["deposit_amount_minor"] == 25_000_00
+
+        assert previous["deposit_mode"] == "percentage"
+        assert previous["deposit_percentage"] == 25.0
+        assert previous["deposit_amount_minor"] == 25_000_00
+
+        assert revised_quote["deposit_mode"] == "percentage"
+        assert revised_quote["deposit_percentage"] == 25.0
+        assert revised_quote["deposit_amount_minor"] == 37_500_00
 
         # Finalize and issue the new version.
         finalized = await client.post(f"/quotes/{quote['id']}/finalize")
