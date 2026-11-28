@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, type ReactNode } from "react";
+import React, { useState, useEffect, useCallback, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -69,6 +69,7 @@ interface PublicQuoteData {
     total_expense_cap_minor?: number | null;
     client_approval_required?: boolean;
   } | null;
+  acceptance_consent_text: string;
   notes?: string | null;
   business_name: string;
   business_logo_url?: string | null;
@@ -121,6 +122,7 @@ export default function PublicQuotePage() {
   // Accept Bottom Sheet State
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [acceptName, setAcceptName] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
 
@@ -179,6 +181,11 @@ export default function PublicQuotePage() {
       return;
     }
 
+    if (!agreedToTerms) {
+      setAcceptError("You must confirm that you agree to the quote terms.");
+      return;
+    }
+
     try {
       setAccepting(true);
       setAcceptError(null);
@@ -189,6 +196,7 @@ export default function PublicQuotePage() {
         body: JSON.stringify({
           accepted_by_name: acceptName.trim(),
           version: quote.version,
+          agreed_to_terms: true,
         }),
       });
 
@@ -266,6 +274,12 @@ export default function PublicQuotePage() {
     } finally {
       setDeclining(false);
     }
+  };
+
+  const openAcceptDialog = () => {
+    setAcceptError(null);
+    setAgreedToTerms(false);
+    setShowAcceptDialog(true);
   };
 
   if (loading) {
@@ -573,6 +587,19 @@ export default function PublicQuotePage() {
                 <p className="text-body font-extrabold">
                   Reimbursable expense policy
                 </p>
+                {quote.expense_policy.reimbursable_categories &&
+                    quote.expense_policy.reimbursable_categories.length > 0 && (
+                        <p className="text-body text-text-soft">
+                          Eligible categories:{" "}
+                          <span className="font-bold text-text">
+                        {quote.expense_policy.reimbursable_categories
+                            .map((category) =>
+                                category.replace(/_/g, " "),
+                            )
+                            .join(", ")}
+                      </span>
+                        </p>
+                    )}
                 {quote.expense_policy.per_expense_threshold_minor != null && (
                   <p className="text-body text-text-soft">
                     Client approval required above{" "}
@@ -619,7 +646,7 @@ export default function PublicQuotePage() {
                     zone="calm"
                     size="lg"
                     fullWidth
-                    onClick={() => setShowAcceptDialog(true)}
+                    onClick={openAcceptDialog}
                   >
                     <Check aria-hidden className="h-4 w-4" /> Accept quote
                   </Button>
@@ -687,7 +714,7 @@ export default function PublicQuotePage() {
         <QuoteRespondBar
           netPayableMinor={quote.net_payable_minor}
           currency={quote.currency}
-          onAccept={() => setShowAcceptDialog(true)}
+          onAccept={openAcceptDialog}
           onDecline={() => setShowDeclineDialog(true)}
         />
       )}
@@ -721,6 +748,17 @@ export default function PublicQuotePage() {
             onChange={(e) => setAcceptName(e.target.value)}
           />
 
+          <label className="flex items-start gap-3 rounded border border-line p-3 text-body">
+            <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 shrink-0 accent-ink"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                disabled={accepting}
+            />
+            <span>{quote.acceptance_consent_text}</span>
+          </label>
+
           {acceptError && <Alert variant="error">{acceptError}</Alert>}
 
           <div className="grid grid-cols-2 gap-3 pt-2">
@@ -734,7 +772,13 @@ export default function PublicQuotePage() {
             >
               Cancel
             </Button>
-            <Button type="submit" zone="calm" size="lg" loading={accepting}>
+            <Button
+                type="submit"
+                zone="calm"
+                size="lg"
+                loading={accepting}
+                disabled={!agreedToTerms || !acceptName.trim()}
+            >
               Confirm & accept
             </Button>
           </div>

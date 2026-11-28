@@ -90,6 +90,8 @@ export function useQuoteDraft() {
 
     // Reimbursable-expense terms, preserved with the accepted quote.
     const [hasExpensePolicy, setHasExpensePolicy] = useState(false);
+    const [reimbursableCategoriesText, setReimbursableCategoriesText] =
+        useState('props, travel, studio_hire');
     const [expenseThresholdText, setExpenseThresholdText] = useState('');
     const [expenseCapText, setExpenseCapText] = useState('');
 
@@ -310,6 +312,16 @@ export function useQuoteDraft() {
             return 'The expense approval amount cannot be higher than the total expense cap.';
         }
 
+        if (
+            hasExpensePolicy &&
+            !reimbursableCategoriesText
+                .split(',')
+                .map((category) => category.trim())
+                .filter(Boolean).length
+        ) {
+            return 'Add at least one reimbursable expense category.';
+        }
+
         return null;
     };
 
@@ -336,7 +348,14 @@ export function useQuoteDraft() {
         has_expense_policy: hasExpensePolicy,
         expense_policy: hasExpensePolicy
             ? {
-                  reimbursable_categories: [],
+                reimbursable_categories: [
+                    ...new Set(
+                        reimbursableCategoriesText
+                            .split(',')
+                            .map((category) => category.trim())
+                            .filter(Boolean),
+                    ),
+                ],
                   per_expense_threshold_minor: expenseThresholdMinor > 0 ? expenseThresholdMinor : null,
                   total_expense_cap_minor: expenseCapMinor > 0 ? expenseCapMinor : null,
                   client_approval_required: true,
@@ -499,6 +518,8 @@ export function useQuoteDraft() {
         setExpenseCapText,
         expenseThresholdMinor,
         expenseCapMinor,
+        reimbursableCategoriesText,
+        setReimbursableCategoriesText,
 
         saving,
         errorMsg,

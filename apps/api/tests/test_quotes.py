@@ -214,7 +214,7 @@ async def test_quotes_full_lifecycle():
 
         # --- 13. Finalize the converted invoice -> number assigned, quote marked converted ---
         fin_inv = await client.post(f"/invoices/{created_invoice['id']}/finalize")
-        assert fin_inv.status_code == 200
+        assert fin_inv.status_code == 200, fin_inv.text
         fin_inv_data = fin_inv.json()
         assert fin_inv_data["invoice_number"].startswith("INV-")
         assert fin_inv_data["status"] == "issued"

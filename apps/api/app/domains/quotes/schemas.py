@@ -1,9 +1,16 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from app.core.money import validate_currency
-from typing import Optional, List
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
-from app.domains.quotes.acceptance import CONSENT_TEXT
+from typing import Optional, List
 from datetime import datetime, date
+
+from app.core.money import validate_currency
+from app.domains.quotes.acceptance import CONSENT_TEXT
 
 
 class QuoteLineItemCreate(BaseModel):
@@ -55,6 +62,23 @@ class QuoteCreate(BaseModel):
         if not validate_currency(normalized):
             raise ValueError("Unsupported quote currency.")
         return normalized
+
+    @model_validator(mode="after")
+    def validate_expense_policy(self):
+        if self.has_expense_policy:
+            if not self.expense_policy:
+                raise ValueError(
+                    "An expense policy must be provided when reimbursable "
+                    "expenses are enabled."
+                )
+
+            categories = self.expense_policy.reimbursable_categories
+            if not categories:
+                raise ValueError(
+                    "Add at least one reimbursable expense category."
+                )
+
+        return self
 
 
 class QuoteUpdate(BaseModel):

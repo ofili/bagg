@@ -55,6 +55,38 @@ def evaluate_expense_policy(
     return "in_policy", "not_required"
 
 
+def validate_billable_expense_category(
+    category: Optional[str],
+    engagement: Engagement,
+) -> None:
+    """Ensure billable expenses use a category allowed by the accepted policy.
+
+    An empty or absent category list is treated as a legacy policy, preserving
+    compatibility with engagements created before category enforcement.
+    """
+    policy = engagement.expense_policy_snapshot or {}
+    allowed_categories = policy.get("reimbursable_categories") or []
+
+    # Backward compatibility for legacy engagements and manual agreements
+    # that did not capture a category list.
+    if not allowed_categories:
+        return
+
+    allowed = {
+        str(item).strip().casefold()
+        for item in allowed_categories
+        if item and str(item).strip()
+    }
+    submitted = (category or "").strip().casefold()
+
+    if not submitted or submitted not in allowed:
+        raise BadRequestException(
+            "This expense category is not included in the accepted "
+            "reimbursable expense policy. Update the engagement terms "
+            "before recording this expense as billable."
+        )
+
+
 def build_expense_approval_url(token: str) -> str:
     return f"{settings.WEB_BASE_URL.rstrip('/')}/e/{token}"
 
@@ -93,12 +125,20 @@ async def record_expense(
 
     # Policy evaluation
     if payload.billable:
-        current_total = await exp_repo.sum_billable_expenses(workspace.id, engagement.id)
+        validate_billable_expense_category(payload.category, engagement)
+
+        current_total = await exp_repo.sum_billable_expenses(
+            workspace.id,
+            engagement.id,
+        )
         evaluation, approval_status = evaluate_expense_policy(
-            payload.amount_minor, current_total, engagement
+            payload.amount_minor,
+            current_total,
+            engagement,
         )
     else:
-        # Non-billable expenses are recorded for margin and never require client approval (FR-087)
+        # Non-billable expenses are recorded for margin and never require
+        # client approval. They are not subject to reimbursable categories.
         evaluation, approval_status = "in_policy", "not_required"
 
     token, token_hash = generate_share_token()
@@ -179,6 +219,20 @@ async def update_expense(
 
     eng_repo = EngagementRepository(db)
     engagement = await eng_repo.get_by_id(workspace.id, expense.engagement_id)
+
+    new_billable = (
+        payload.billable
+        if payload.billable is not None
+        else expense.billable
+    )
+    new_category = (
+        payload.category
+        if payload.category is not None
+        else expense.category
+    )
+
+    if new_billable and engagement:
+        validate_billable_expense_category(new_category, engagement)
 
     amount_changed = payload.amount_minor is not None and payload.amount_minor != expense.amount_minor
     billable_changed = payload.billable is not None and payload.billable != expense.billable

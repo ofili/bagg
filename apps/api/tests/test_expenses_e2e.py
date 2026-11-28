@@ -374,6 +374,7 @@ async def test_expenses_negative_guards_and_tenant_isolation():
             "/expenses",
             json={
                 "engagement_id": engagement_id,
+                "category": "print",
                 "amount_minor": 30_000_00,
                 "currency": "NGN",
                 "description": "Large Print Run",
@@ -422,3 +423,162 @@ async def test_expenses_negative_guards_and_tenant_isolation():
             json={"expense_ids": [exp_id]},
         )
         assert bill_declined.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_billable_expense_categories_follow_accepted_quote_policy():
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        await authenticate_test_user(
+            client,
+            f"expense-categories-{uuid.uuid4().hex[:8]}@studio.ng",
+        )
+
+        client_response = await client.post(
+            "/clients",
+            json={
+                "name": "Category Policy Client",
+                "preferred_currency": "NGN",
+            },
+        )
+        assert client_response.status_code == 201
+        client_id = client_response.json()["id"]
+
+        quote_response = await client.post(
+            "/quotes",
+            json={
+                "client_id": client_id,
+                "currency": "NGN",
+                "items": [
+                    {
+                        "description": "Production services",
+                        "quantity": 1,
+                        "unit_price_minor": 500_000_00,
+                    }
+                ],
+                "has_expense_policy": True,
+                "expense_policy": {
+                    "reimbursable_categories": ["props", "travel"],
+                    "per_expense_threshold_minor": 100_000_00,
+                    "total_expense_cap_minor": 500_000_00,
+                    "client_approval_required": True,
+                },
+            },
+        )
+        assert quote_response.status_code == 201
+
+        quote_id = quote_response.json()["id"]
+
+        finalize_response = await client.post(f"/quotes/{quote_id}/finalize")
+        assert finalize_response.status_code == 200
+
+        token = finalize_response.json()["share_token"]
+
+        accept_response = await client.post(
+            f"/quotes/share/{token}/accept",
+            json={
+                "agreed_to_terms": True,
+                "accepted_by_name": "Category Policy Client",
+                "version": 1,
+            },
+        )
+        assert accept_response.status_code == 200
+
+        async with AsyncSessionLocal() as session:
+            engagement = (
+                await session.execute(
+                    select(Engagement).where(Engagement.quote_id == quote_id)
+                )
+            ).scalar_one()
+
+            engagement_id = engagement.id
+
+        # An allowed category is accepted.
+        allowed_response = await client.post(
+            "/expenses",
+            json={
+                "engagement_id": engagement_id,
+                "amount_minor": 20_000_00,
+                "currency": "NGN",
+                "description": "Production props",
+                "category": "props",
+                "billable": True,
+            },
+        )
+        assert allowed_response.status_code == 201
+
+        # Matching is case-insensitive.
+        case_response = await client.post(
+            "/expenses",
+            json={
+                "engagement_id": engagement_id,
+                "amount_minor": 10_000_00,
+                "currency": "NGN",
+                "description": "Travel expense",
+                "category": "TRAVEL",
+                "billable": True,
+            },
+        )
+        assert case_response.status_code == 201
+
+        # An unlisted category cannot be billed to the client.
+        rejected_response = await client.post(
+            "/expenses",
+            json={
+                "engagement_id": engagement_id,
+                "amount_minor": 15_000_00,
+                "currency": "NGN",
+                "description": "Unlisted equipment",
+                "category": "equipment",
+                "billable": True,
+            },
+        )
+        assert rejected_response.status_code == 400
+
+        # A billable expense cannot omit its category under this policy.
+        missing_category_response = await client.post(
+            "/expenses",
+            json={
+                "engagement_id": engagement_id,
+                "amount_minor": 15_000_00,
+                "currency": "NGN",
+                "description": "Uncategorised expense",
+                "billable": True,
+            },
+        )
+        assert missing_category_response.status_code == 400
+
+        # Non-billable internal expenses are not subject to the category list.
+        internal_response = await client.post(
+            "/expenses",
+            json={
+                "engagement_id": engagement_id,
+                "amount_minor": 15_000_00,
+                "currency": "NGN",
+                "description": "Internal equipment",
+                "category": "equipment",
+                "billable": False,
+            },
+        )
+        assert internal_response.status_code == 201
+        assert internal_response.json()["approval_status"] == "not_required"
+
+        # A previously permitted billable expense cannot be reclassified
+        # into an unlisted category.
+        update_response = await client.patch(
+            f"/expenses/{allowed_response.json()['id']}",
+            json={"category": "equipment"},
+        )
+        assert update_response.status_code == 400
+
+        # A non-billable expense cannot be converted to billable under
+        # an unlisted category.
+        convert_response = await client.patch(
+            f"/expenses/{internal_response.json()['id']}",
+            json={"billable": True},
+        )
+        assert convert_response.status_code == 400

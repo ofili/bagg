@@ -261,6 +261,22 @@ export function NewQuoteFlow() {
                         />
                         {d.hasExpensePolicy && (
                             <div className="space-y-4 border-l-2 border-ink pl-4">
+                                <Field
+                                    label="Reimbursable categories"
+                                    hint="Only expenses in these categories can be billed to your client. Separate categories with commas."
+                                >
+                                    {(a) => (
+                                        <Input
+                                            {...a}
+                                            type="text"
+                                            placeholder="e.g. props, travel, studio_hire"
+                                            value={d.reimbursableCategoriesText}
+                                            onChange={(e) =>
+                                                d.setReimbursableCategoriesText(e.target.value)
+                                            }
+                                        />
+                                    )}
+                                </Field>
                                 <MoneyField
                                     label="Ask for approval above"
                                     currency={d.currency}
@@ -330,6 +346,16 @@ export function NewQuoteFlow() {
                         )}
                         {d.hasExpensePolicy && (
                             <div className="space-y-1 border-t border-line-subtle pt-3 text-body text-text-soft">
+                                <p>
+                                    Categories:{" "}
+                                    <span className="font-bold text-text">
+                                        {d.reimbursableCategoriesText
+                                            .split(",")
+                                            .map((category) => category.trim())
+                                            .filter(Boolean)
+                                            .join(", ")}
+                                    </span>
+                                </p>
                                 <p className="font-extrabold text-text">Reimbursable expenses, at cost</p>
                                 {d.expenseThresholdMinor > 0 && (
                                     <div className="flex justify-between">

@@ -1477,6 +1477,14 @@ async def create_draft_invoice_from_quote(
     repository.add(invoice)
     await repository.flush()
 
+    await store_share_token(
+        db,
+        document_type="invoice",
+        document_id=invoice.id,
+        token=raw_token,
+        expected_hash=token_hash,
+    )
+
     repository.add_all(
         [
             InvoiceLineItem(

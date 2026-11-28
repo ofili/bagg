@@ -117,6 +117,19 @@ export function NewQuoteDesktop() {
       setErrorMsg('Pick a client first, or add one under Clients.');
       return;
     }
+    const reimbursableCategories = [
+      ...new Set(
+          reimbursableCategoriesText
+              .split(",")
+              .map((category) => category.trim())
+              .filter(Boolean),
+      ),
+    ];
+
+    if (hasExpensePolicy && reimbursableCategories.length === 0) {
+      setErrorMsg("Add at least one reimbursable expense category.");
+      return;
+    }
     const validItems = items.filter((it) => it.description.trim().length > 0);
     if (validItems.length === 0) {
       setErrorMsg('Add at least one line item with a description.');
@@ -158,10 +171,7 @@ export function NewQuoteDesktop() {
           has_expense_policy: hasExpensePolicy,
           expense_policy: hasExpensePolicy
             ? {
-                reimbursable_categories: reimbursableCategoriesText
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean),
+                reimbursable_categories: reimbursableCategories,
                 per_expense_threshold_minor: expenseThresholdText ? toMinor(expenseThresholdText) : null,
                 total_expense_cap_minor: expenseCapText ? toMinor(expenseCapText) : null,
                 client_approval_required: true,
@@ -454,14 +464,19 @@ export function NewQuoteDesktop() {
                   hint="Maximum total reimbursable pass-through costs agreed in this quote."
                 />
 
-                <Field label="Reimbursable categories" optional>
+                <Field
+                    label="Reimbursable categories"
+                    hint="Only expenses in these categories can be billed to your client. Separate categories with commas."
+                >
                   {(a11y) => (
-                    <Input
-                      {...a11y}
-                      placeholder="e.g. props, travel, logistics"
-                      value={reimbursableCategoriesText}
-                      onChange={(e) => setReimbursableCategoriesText(e.target.value)}
-                    />
+                      <Input
+                          {...a11y}
+                          placeholder="e.g. props, travel, logistics"
+                          value={reimbursableCategoriesText}
+                          onChange={(e) =>
+                              setReimbursableCategoriesText(e.target.value)
+                          }
+                      />
                   )}
                 </Field>
               </div>

@@ -121,11 +121,19 @@ async def create_sent_quote(
 
     send_res = await client.post(f"/quotes/{quote_id}/send")
     assert send_res.status_code == 200, send_res.text
+    send_data = send_res.json()
 
     detail_res = await client.get(f"/quotes/{quote_id}")
     assert detail_res.status_code == 200, detail_res.text
 
-    return detail_res.json()
+    detail_data = detail_res.json()
+
+    # share_token is transient and is not persisted on the Quote model.
+    # The send response is the authoritative source of the raw token.
+    detail_data["share_token"] = send_data["share_token"]
+    detail_data["share_url"] = send_data["share_url"]
+
+    return detail_data
 
 
 async def authenticate_test_user(
