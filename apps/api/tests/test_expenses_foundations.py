@@ -8,7 +8,7 @@ from app.main import app
 from tests.test_quotes import authenticate_test_user
 from app.core.database import AsyncSessionLocal
 from app.domains.engagements.models import Engagement
-from app.domains.expenses.service import evaluate_expense_policy
+from app.domains.expenses.service import (apply_pass_through_expenses_to_invoice, evaluate_expense_policy)
 
 @pytest.mark.asyncio
 async def test_quote_expense_policy_and_engagement_snapshot():
@@ -164,3 +164,82 @@ def test_expense_policy_defaults_to_approval_for_legacy_snapshots():
 
     assert evaluation == "needs_approval"
     assert approval_status == "pending_approval"
+
+
+def test_pass_through_expenses_preserve_fee_tax_and_wht():
+    invoice = SimpleNamespace(
+        subtotal_minor=100_000,
+        discount_minor=10_000,
+        tax_minor=6_750,
+        total_minor=96_750,
+        wht_minor=4_500,
+        net_payable_minor=92_250,
+        deposit_percentage=None,
+        deposit_amount_minor=None,
+    )
+
+    apply_pass_through_expenses_to_invoice(invoice, 25_000)
+
+    assert invoice.subtotal_minor == 125_000
+    assert invoice.discount_minor == 10_000
+    assert invoice.tax_minor == 6_750
+    assert invoice.total_minor == 121_750
+    assert invoice.wht_minor == 4_500
+    assert invoice.net_payable_minor == 117_250
+    assert invoice.deposit_amount_minor is None
+
+
+def test_pass_through_expenses_recalculate_percentage_deposit():
+    invoice = SimpleNamespace(
+        subtotal_minor=100_000,
+        discount_minor=0,
+        tax_minor=0,
+        total_minor=100_000,
+        wht_minor=5_000,
+        net_payable_minor=95_000,
+        deposit_percentage=50.0,
+        deposit_amount_minor=47_500,
+    )
+
+    # Percentage deposit is the active rule when no explicit
+    # deposit amount was supplied at invoice creation.
+    invoice.deposit_amount_minor = None
+
+    apply_pass_through_expenses_to_invoice(invoice, 25_000)
+
+    assert invoice.net_payable_minor == 120_000
+    assert invoice.deposit_amount_minor == 60_000
+
+
+def test_pass_through_expenses_cap_explicit_deposit_at_net_payable():
+    invoice = SimpleNamespace(
+        subtotal_minor=10_000,
+        discount_minor=0,
+        tax_minor=0,
+        total_minor=10_000,
+        wht_minor=0,
+        net_payable_minor=10_000,
+        deposit_percentage=None,
+        deposit_amount_minor=50_000,
+    )
+
+    apply_pass_through_expenses_to_invoice(invoice, 5_000)
+
+    assert invoice.net_payable_minor == 15_000
+    assert invoice.deposit_amount_minor == 15_000
+
+
+def test_pass_through_expenses_reject_negative_amount():
+    invoice = SimpleNamespace(
+        subtotal_minor=10_000,
+        discount_minor=0,
+        tax_minor=0,
+        total_minor=10_000,
+        wht_minor=0,
+        net_payable_minor=10_000,
+        deposit_percentage=None,
+        deposit_amount_minor=None,
+    )
+
+    with pytest.raises(ValueError):
+        apply_pass_through_expenses_to_invoice(invoice, -1)

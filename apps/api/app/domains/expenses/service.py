@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.dates import business_today
 from app.core.errors import NotFoundException, BadRequestException
-from app.core.money import format_money
+from app.core.money import calculate_tax_minor, format_money
 from app.core.security import generate_share_token
 from app.domains.clients.models import Client
 from app.domains.email.service import enqueue_expense_approval_link
@@ -64,6 +64,44 @@ def evaluate_expense_policy(
         return "needs_approval", "pending_approval"
 
     return "in_policy", "not_required"
+
+
+def apply_pass_through_expenses_to_invoice(
+    invoice: Invoice,
+    total_added_minor: int,
+) -> None:
+    """Apply pass-through expenses without recalculating fee tax or WHT.
+
+    Expenses increase the invoice subtotal, gross total and net payable.
+    Existing discount, tax and WHT amounts remain unchanged because
+    pass-through expenses do not participate in those calculations.
+
+    Percentage deposits are recalculated against the revised net payable.
+    Explicit deposits are retained and capped at the revised net payable.
+    """
+    if isinstance(total_added_minor, bool) or not isinstance(total_added_minor, int):
+        raise ValueError("total_added_minor must be an integer.")
+
+    if total_added_minor < 0:
+        raise ValueError("total_added_minor cannot be negative.")
+
+    invoice.subtotal_minor = (invoice.subtotal_minor or 0) + total_added_minor
+    invoice.total_minor = (invoice.total_minor or 0) + total_added_minor
+    invoice.net_payable_minor = (invoice.net_payable_minor or 0) + total_added_minor
+
+    explicit_deposit = invoice.deposit_amount_minor
+
+    if explicit_deposit is not None:
+        invoice.deposit_amount_minor = (
+            min(explicit_deposit, invoice.net_payable_minor)
+            if explicit_deposit > 0
+            else None
+        )
+    elif invoice.deposit_percentage and invoice.deposit_percentage > 0:
+        invoice.deposit_amount_minor = calculate_tax_minor(
+            invoice.net_payable_minor,
+            invoice.deposit_percentage,
+        )
 
 
 def validate_billable_expense_category(
@@ -702,10 +740,8 @@ async def add_expenses_to_invoice(
         total_added_minor += exp.amount_minor
         added_ids.append(exp.id)
 
-    # Pass-through expense lines carry no computed tax or WHT in v1 (Decision 4 / BAG-EXP-005)
-    invoice.subtotal_minor = (invoice.subtotal_minor or 0) + total_added_minor
-    invoice.total_minor = (invoice.total_minor or 0) + total_added_minor
-    invoice.net_payable_minor = (invoice.net_payable_minor or 0) + total_added_minor
+    # Pass-through expenses do not participate in fee discounts, tax or WHT.
+    apply_pass_through_expenses_to_invoice(invoice, total_added_minor)
 
     await db.commit()
     await db.refresh(invoice)
